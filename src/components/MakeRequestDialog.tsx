@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,7 @@ export default function MakeRequestDialog({
   onSuccess,
 }: MakeRequestDialogProps) {
   const { profile } = useAuth();
+  const queryClient = useQueryClient();
   const [clientId, setClientId] = useState("");
   const [type, setType] = useState<RequestType>("social_post");
   const [topic, setTopic] = useState(prefillTopic);
@@ -57,7 +59,6 @@ export default function MakeRequestDialog({
     if (!clientId || !topic.trim() || !profile) return;
     setSubmitting(true);
     try {
-      // Create the request
       const { error: reqErr } = await supabase.from("requests").insert({
         client_id: clientId,
         type,
@@ -67,17 +68,9 @@ export default function MakeRequestDialog({
       });
       if (reqErr) throw reqErr;
 
-      // Also create a post in idea status
-      const { error: postErr } = await supabase.from("posts").insert({
-        client_id: clientId,
-        title: topic.trim(),
-        caption: notes.trim() || null,
-        status_column: "idea",
-        created_by_user_id: profile.id,
-      } as any);
-      if (postErr) throw postErr;
-
       toast.success("Request created and added to workflow!");
+      queryClient.invalidateQueries({ queryKey: ["workflow-posts"] });
+      queryClient.invalidateQueries({ queryKey: ["requests"] });
       onOpenChange(false);
       setClientId("");
       setTopic("");
