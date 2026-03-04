@@ -11,7 +11,7 @@ export function AppLayout() {
           <header className="h-14 flex items-center border-b bg-card px-4 shrink-0">
             <SidebarTrigger className="mr-4" />
             <div className="flex items-center gap-2">
-              <h1 className="text-lg font-semibold text-foreground">Stay Social Client Hub</h1>
+              <h1 className="text-lg font-semibold text-foreground">Stay Social <span className="text-primary">HUB</span></h1>
             </div>
           </header>
           <main className="flex-1 overflow-auto">
