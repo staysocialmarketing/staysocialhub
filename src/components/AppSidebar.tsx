@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   CheckSquare,
   MessageSquarePlus,
+  FolderOpen,
   UserCircle,
   Sparkles,
   Users,
@@ -34,6 +35,7 @@ const clientItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Approvals", url: "/approvals", icon: CheckSquare },
   { title: "Requests", url: "/requests", icon: MessageSquarePlus },
+  { title: "Content Library", url: "/content-library", icon: FolderOpen },
   { title: "Profile", url: "/profile", icon: UserCircle },
   { title: "What's New", url: "/whats-new", icon: Sparkles },
 ];

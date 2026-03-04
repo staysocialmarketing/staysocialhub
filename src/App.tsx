@@ -12,6 +12,7 @@ import PostDetail from "./pages/PostDetail";
 import Requests from "./pages/Requests";
 import Profile from "./pages/Profile";
 import WhatsNew from "./pages/WhatsNew";
+import ContentLibrary from "./pages/ContentLibrary";
 import AdminClients from "./pages/admin/AdminClients";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminProfileUpdates from "./pages/admin/AdminProfileUpdates";
@@ -56,6 +57,7 @@ const App = () => (
               <Route path="/approvals" element={<Approvals />} />
               <Route path="/approvals/:postId" element={<PostDetail />} />
               <Route path="/requests" element={<Requests />} />
+              <Route path="/content-library" element={<ContentLibrary />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/whats-new" element={<WhatsNew />} />
               <Route path="/admin/clients" element={<AdminRoute><AdminClients /></AdminRoute>} />
