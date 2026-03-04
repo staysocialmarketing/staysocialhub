@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +24,7 @@ const roleLabels: Record<AppRole, string> = {
 
 export default function AdminUsers() {
   const queryClient = useQueryClient();
+  const { isSSAdmin } = useAuth();
   const [addingRoleFor, setAddingRoleFor] = useState<string | null>(null);
 
   const { data: users = [], isLoading } = useQuery({
@@ -114,12 +116,14 @@ export default function AdminUsers() {
                         <button
                           onClick={() => removeRole.mutate({ roleId: r.id })}
                           className="ml-0.5 hover:text-destructive"
+                          disabled={!isSSAdmin}
+                          style={{ visibility: isSSAdmin ? "visible" : "hidden" }}
                         >
                           <X className="h-3 w-3" />
                         </button>
                       </Badge>
                     ))}
-                    {addingRoleFor === u.id ? (
+                    {isSSAdmin && addingRoleFor === u.id ? (
                       <Select onValueChange={(v) => addRole.mutate({ userId: u.id, role: v as AppRole })}>
                         <SelectTrigger className="h-7 w-36 text-xs">
                           <SelectValue placeholder="Select role" />
@@ -131,7 +135,7 @@ export default function AdminUsers() {
                         </SelectContent>
                       </Select>
                     ) : (
-                      availableRoles.length > 0 && (
+                      isSSAdmin && availableRoles.length > 0 && (
                         <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setAddingRoleFor(u.id)}>
                           <Plus className="h-3 w-3 mr-1" />Add Role
                         </Button>
@@ -139,24 +143,32 @@ export default function AdminUsers() {
                     )}
                   </div>
 
-                  {/* Client assignment */}
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-muted-foreground" />
-                    <Select
-                      value={u.client_id || "none"}
-                      onValueChange={(v) => updateClient.mutate({ userId: u.id, clientId: v === "none" ? null : v })}
-                    >
-                      <SelectTrigger className="h-7 w-48 text-xs">
-                        <SelectValue placeholder="No client" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No client</SelectItem>
-                        {clients.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {/* Client assignment — admin only */}
+                  {isSSAdmin && (
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <Select
+                        value={u.client_id || "none"}
+                        onValueChange={(v) => updateClient.mutate({ userId: u.id, clientId: v === "none" ? null : v })}
+                      >
+                        <SelectTrigger className="h-7 w-48 text-xs">
+                          <SelectValue placeholder="No client" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No client</SelectItem>
+                          {clients.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {!isSSAdmin && u.client_id && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Building2 className="h-4 w-4" />
+                      <span>{clients.find((c) => c.id === u.client_id)?.name || "Assigned client"}</span>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );

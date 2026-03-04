@@ -144,6 +144,7 @@ export type Database = {
           name: string
           plan_id: string | null
           status: string
+          whats_new_visible_addons: Json
         }
         Insert: {
           assistants_can_approve?: boolean
@@ -152,6 +153,7 @@ export type Database = {
           name: string
           plan_id?: string | null
           status?: string
+          whats_new_visible_addons?: Json
         }
         Update: {
           assistants_can_approve?: boolean
@@ -160,6 +162,7 @@ export type Database = {
           name?: string
           plan_id?: string | null
           status?: string
+          whats_new_visible_addons?: Json
         }
         Relationships: [
           {

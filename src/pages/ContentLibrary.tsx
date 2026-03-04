@@ -124,7 +124,7 @@ export default function ContentLibrary() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Content Library</h1>
+          <h1 className="text-2xl font-bold">My Media</h1>
           <p className="text-sm text-muted-foreground">Browse all your published content</p>
         </div>
         {isClientAdmin && (

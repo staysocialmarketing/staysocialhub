@@ -9,7 +9,6 @@ import {
   Sparkles,
   Users,
   Building2,
-  FileEdit,
   Image,
   ShoppingCart,
   LogOut,
@@ -48,48 +47,51 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 
-const superAdminItems = [
+// ─── Super Admin ─────────────────────────────────────────────────────────────
+const superAdminMenuItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Workflow", url: "/workflow", icon: ClipboardList },
   { title: "Approvals", url: "/approvals", icon: CheckSquare },
   { title: "Requests", url: "/requests", icon: MessageSquarePlus },
 ];
-
-const superAdminAdminItems = [
+const superAdminTeamItems = [
   { title: "Think Tank", url: "/team/think-tank", icon: Lightbulb },
   { title: "Projects", url: "/team/projects", icon: FolderKanban },
   { title: "Tasks", url: "/team/tasks", icon: ListTodo },
+];
+const superAdminAdminItems = [
   { title: "Clients", url: "/admin/clients", icon: Building2 },
   { title: "Users", url: "/admin/users", icon: Users },
-  { title: "Profile Updates", url: "/admin/profile-updates", icon: FileEdit },
-  { title: "Content", url: "/admin/content", icon: Image },
+  { title: "Media", url: "/admin/media", icon: Image },
   { title: "Add-On Requests", url: "/admin/addon-requests", icon: ShoppingCart },
 ];
 
-const teamItems = [
+// ─── Team ────────────────────────────────────────────────────────────────────
+const teamMenuItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Workflow", url: "/workflow", icon: ClipboardList },
   { title: "Approvals", url: "/approvals", icon: CheckSquare },
   { title: "Requests", url: "/requests", icon: MessageSquarePlus },
 ];
-
-const teamAdminItems = [
+const teamTeamItems = [
   { title: "Think Tank", url: "/team/think-tank", icon: Lightbulb },
   { title: "Projects", url: "/team/projects", icon: FolderKanban },
   { title: "Tasks", url: "/team/tasks", icon: ListTodo },
+];
+const teamAdminItems = [
   { title: "Clients", url: "/admin/clients", icon: Building2 },
   { title: "Users", url: "/admin/users", icon: Users },
-  { title: "Profile Updates", url: "/admin/profile-updates", icon: FileEdit },
-  { title: "Content", url: "/admin/content", icon: Image },
+  { title: "Media", url: "/admin/media", icon: Image },
 ];
 
+// ─── Client ──────────────────────────────────────────────────────────────────
 const clientItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Approvals", url: "/approvals", icon: CheckSquare },
   { title: "Requests", url: "/requests", icon: MessageSquarePlus },
-  { title: "Content Library", url: "/content-library", icon: FolderOpen },
-  { title: "Profile", url: "/profile", icon: UserCircle },
-  { title: "Plan", url: "/plan", icon: ClipboardList },
+  { title: "My Media", url: "/content-library", icon: FolderOpen },
+  { title: "My Profile", url: "/profile", icon: UserCircle },
+  { title: "My Plan", url: "/plan", icon: ClipboardList },
   { title: "What's New", url: "/whats-new", icon: Sparkles },
 ];
 
@@ -107,7 +109,6 @@ export function AppSidebar() {
 
   const [allUsers, setAllUsers] = useState<UserWithRole[]>([]);
 
-  // Fetch all users for the view-as selector (only if actual ss_admin)
   useEffect(() => {
     if (!actualIsSSAdmin) return;
     const fetchUsers = async () => {
@@ -125,12 +126,37 @@ export function AppSidebar() {
     fetchUsers();
   }, [actualIsSSAdmin]);
 
-  const mainItems = isSSAdmin ? superAdminItems : isSSTeam ? teamItems : clientItems;
-  const secondaryItems = isSSAdmin ? superAdminAdminItems : isSSTeam ? teamAdminItems : null;
-  const secondaryLabel = isSSAdmin ? "Team" : isSSTeam ? "Team" : null;
+  // Determine nav sections based on role
+  const menuItems = isSSAdmin ? superAdminMenuItems : isSSTeam ? teamMenuItems : clientItems;
+  const teamSection = isSSAdmin ? superAdminTeamItems : isSSTeam ? teamTeamItems : null;
+  const adminSection = isSSAdmin ? superAdminAdminItems : isSSTeam ? teamAdminItems : null;
 
   const ssUsers = allUsers.filter((u) => u.roles.some((r) => ["ss_admin", "ss_producer", "ss_ops"].includes(r)));
   const clientUsers = allUsers.filter((u) => u.roles.some((r) => ["client_admin", "client_assistant"].includes(r)));
+
+  const renderNavSection = (items: typeof menuItems, label: string) => (
+    <SidebarGroup>
+      <SidebarGroupLabel>{label}</SidebarGroupLabel>
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {items.map((item) => (
+            <SidebarMenuItem key={item.title}>
+              <SidebarMenuButton asChild>
+                <NavLink
+                  to={item.url}
+                  className="hover:bg-sidebar-accent/50"
+                  activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                >
+                  <item.icon className="h-4 w-4 shrink-0" />
+                  {!collapsed && <span>{item.title}</span>}
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
 
   return (
     <Sidebar collapsible="icon">
@@ -195,52 +221,19 @@ export function AppSidebar() {
       <SidebarSeparator />
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Menu</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {mainItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink
-                      to={item.url}
-                      className="hover:bg-sidebar-accent/50"
-                      activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                    >
-                      <item.icon className="h-4 w-4 shrink-0" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {renderNavSection(menuItems, "Menu")}
 
-        {secondaryItems && (
+        {teamSection && (
           <>
             <SidebarSeparator />
-            <SidebarGroup>
-              <SidebarGroupLabel>{secondaryLabel}</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {secondaryItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild>
-                        <NavLink
-                          to={item.url}
-                          className="hover:bg-sidebar-accent/50"
-                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                        >
-                          <item.icon className="h-4 w-4 shrink-0" />
-                          {!collapsed && <span>{item.title}</span>}
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+            {renderNavSection(teamSection, "Team")}
+          </>
+        )}
+
+        {adminSection && (
+          <>
+            <SidebarSeparator />
+            {renderNavSection(adminSection, "Admin")}
           </>
         )}
       </SidebarContent>
