@@ -10,6 +10,7 @@ import {
   Building2,
   FileEdit,
   Image,
+  ShoppingCart,
   LogOut,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
@@ -45,6 +46,7 @@ const adminItems = [
   { title: "Users", url: "/admin/users", icon: Users },
   { title: "Profile Updates", url: "/admin/profile-updates", icon: FileEdit },
   { title: "Content", url: "/admin/content", icon: Image },
+  { title: "Add-On Requests", url: "/admin/addon-requests", icon: ShoppingCart },
 ];
 
 export function AppSidebar() {
