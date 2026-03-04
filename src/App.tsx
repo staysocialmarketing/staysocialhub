@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
+import Workflow from "./pages/Workflow";
 import Approvals from "./pages/Approvals";
 import PostDetail from "./pages/PostDetail";
 import Requests from "./pages/Requests";
@@ -59,6 +60,7 @@ const App = () => (
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/workflow" element={<AdminRoute><Workflow /></AdminRoute>} />
               <Route path="/approvals" element={<Approvals />} />
               <Route path="/approvals/:postId" element={<PostDetail />} />
               <Route path="/requests" element={<Requests />} />
