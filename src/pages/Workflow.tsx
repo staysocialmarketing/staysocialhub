@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,12 +16,13 @@ import { Calendar as CalendarWidget } from "@/components/ui/calendar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  MessageSquare, Calendar, Image as ImageIcon, Plus, Hash, Clock,
+  MessageSquare, Calendar, Image as ImageIcon, Plus, Hash, Clock, FileText, Film, LayoutGrid, Play,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, isToday, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
+import WorkflowCardDialog from "@/components/WorkflowCardDialog";
 
 type PostStatus = Database["public"]["Enums"]["post_status"];
 
@@ -41,6 +41,13 @@ const platformColors: Record<string, string> = {
 };
 
 const PLATFORM_OPTIONS = ["Instagram", "Facebook", "LinkedIn", "TikTok"];
+
+const contentTypeConfig: Record<string, { icon: React.ReactNode; label: string; className: string }> = {
+  image: { icon: <ImageIcon className="h-3 w-3" />, label: "Image", className: "bg-emerald-100 text-emerald-800" },
+  video: { icon: <Film className="h-3 w-3" />, label: "Video", className: "bg-violet-100 text-violet-800" },
+  reel: { icon: <Play className="h-3 w-3" />, label: "Reel", className: "bg-rose-100 text-rose-800" },
+  carousel: { icon: <LayoutGrid className="h-3 w-3" />, label: "Carousel", className: "bg-amber-100 text-amber-800" },
+};
 
 function getDueDateColor(dueAt: string | null) {
   if (!dueAt) return null;
@@ -63,9 +70,9 @@ function UserInitials({ name, className }: { name: string | null; className?: st
 export default function Workflow() {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<any>(null);
   const [newPost, setNewPost] = useState({
     client_id: "",
     title: "",
@@ -174,7 +181,13 @@ export default function Workflow() {
 
   const movePost = useMutation({
     mutationFn: async ({ postId, newStatus }: { postId: string; newStatus: PostStatus }) => {
-      const { error } = await supabase.from("posts").update({ status_column: newStatus }).eq("id", postId);
+      // The DB trigger handles auto-reassignment for 'design', but we also set it client-side
+      const updatePayload: any = { status_column: newStatus };
+      if (newStatus === "design") {
+        const opsUser = ssUsers.find((u: any) => u.id); // fallback; trigger does the real work
+        // Trigger will handle reassignment via auto_reassign_on_design
+      }
+      const { error } = await supabase.from("posts").update(updatePayload).eq("id", postId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -340,76 +353,77 @@ export default function Workflow() {
                 <div className="px-2 pb-2 space-y-2 flex-1 min-h-[100px]">
                   {columnPosts.map((post: any) => {
                     const dueDateColor = getDueDateColor(post.due_at);
+                    const ct = post.content_type ? contentTypeConfig[post.content_type] : null;
                     return (
-                      <Tooltip key={post.id}>
-                        <TooltipTrigger asChild>
-                          <Card
-                            className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, post.id, post.status_column)}
-                            onClick={() => navigate(`/approvals/${post.id}`)}
-                          >
-                            <CardContent className="p-3 space-y-2">
-                              {post.creative_url ? (
-                                <div className="aspect-video bg-muted rounded overflow-hidden">
-                                  <img src={post.creative_url} alt="" className="w-full h-full object-cover" />
-                                </div>
-                              ) : (
-                                <div className="aspect-video bg-muted rounded flex items-center justify-center">
-                                  <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
-                                </div>
-                              )}
-                              <h4 className="text-sm font-medium text-foreground line-clamp-2">{post.title}</h4>
-                              {/* Client badge */}
-                              {post.clients?.name && (
-                                <Badge variant="outline" className="text-[10px]">{post.clients.name}</Badge>
-                              )}
-                              <div className="flex flex-wrap gap-1">
-                                {post.platform?.split(",").map((p: string) => (
-                                  <Badge key={p} variant="secondary" className={`text-[10px] ${platformColors[p.trim().toLowerCase()] || ""}`}>
-                                    {p.trim()}
-                                  </Badge>
-                                ))}
-                              </div>
-                              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                <div className="flex items-center gap-2">
-                                  {post.due_at && (
-                                    <span className={cn("flex items-center gap-1", dueDateColor)}>
-                                      <Clock className="h-3 w-3" />
-                                      {format(new Date(post.due_at), "MMM d")}
-                                    </span>
-                                  )}
-                                  <span className="flex items-center gap-1">
-                                    <Calendar className="h-3 w-3" />
-                                    {post.scheduled_at ? new Date(post.scheduled_at).toLocaleDateString() : "TBD"}
-                                  </span>
-                                </div>
-                                <span className="flex items-center gap-1">
-                                  <MessageSquare className="h-3 w-3" />
-                                  {post.comments?.length || 0}
-                                </span>
-                              </div>
-                              {post.assigned_user?.name && (
-                                <div className="flex items-center gap-1 pt-1 border-t border-border/50">
-                                  <UserInitials name={post.assigned_user.name} />
-                                  <span className="text-[10px] text-muted-foreground truncate">{post.assigned_user.name}</span>
-                                </div>
-                              )}
-                            </CardContent>
-                          </Card>
-                        </TooltipTrigger>
-                        <TooltipContent side="right" className="max-w-[250px]">
-                          <p className="text-xs line-clamp-3">
-                            {post.caption ? post.caption.substring(0, 120) + (post.caption.length > 120 ? "…" : "") : "No caption"}
-                          </p>
-                          {post.hashtags && (
-                            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                              <Hash className="h-3 w-3" />
-                              {post.hashtags.split(/\s+/).length} tags
-                            </p>
+                      <Card
+                        key={post.id}
+                        className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, post.id, post.status_column)}
+                        onClick={() => setSelectedPost(post)}
+                      >
+                        <CardContent className="p-3 space-y-2">
+                          {post.creative_url ? (
+                            <div className="aspect-video bg-muted rounded overflow-hidden">
+                              <img src={post.creative_url} alt="" className="w-full h-full object-cover" />
+                            </div>
+                          ) : (
+                            <div className="aspect-video bg-muted rounded flex items-center justify-center">
+                              <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
+                            </div>
                           )}
-                        </TooltipContent>
-                      </Tooltip>
+                          <h4 className="text-sm font-medium text-foreground line-clamp-2">{post.title}</h4>
+                          <div className="flex flex-wrap gap-1">
+                            {/* Client badge */}
+                            {post.clients?.name && (
+                              <Badge variant="outline" className="text-[10px]">{post.clients.name}</Badge>
+                            )}
+                            {/* Content type badge */}
+                            {ct && (
+                              <Badge variant="secondary" className={cn("text-[10px] gap-1", ct.className)}>
+                                {ct.icon}{ct.label}
+                              </Badge>
+                            )}
+                            {/* From Request badge */}
+                            {post.request_id && (
+                              <Badge variant="secondary" className="text-[10px] bg-accent text-accent-foreground gap-1">
+                                <FileText className="h-2.5 w-2.5" />Request
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {post.platform?.split(",").map((p: string) => (
+                              <Badge key={p} variant="secondary" className={`text-[10px] ${platformColors[p.trim().toLowerCase()] || ""}`}>
+                                {p.trim()}
+                              </Badge>
+                            ))}
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <div className="flex items-center gap-2">
+                              {post.due_at && (
+                                <span className={cn("flex items-center gap-1", dueDateColor)}>
+                                  <Clock className="h-3 w-3" />
+                                  {format(new Date(post.due_at), "MMM d")}
+                                </span>
+                              )}
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {post.scheduled_at ? new Date(post.scheduled_at).toLocaleDateString() : "TBD"}
+                              </span>
+                            </div>
+                            <span className="flex items-center gap-1">
+                              <MessageSquare className="h-3 w-3" />
+                              {post.comments?.length || 0}
+                            </span>
+                          </div>
+                          {post.assigned_user?.name && (
+                            <div className="flex items-center gap-1 pt-1 border-t border-border/50">
+                              <UserInitials name={post.assigned_user.name} />
+                              <span className="text-[10px] text-muted-foreground truncate">{post.assigned_user.name}</span>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     );
                   })}
                 </div>
@@ -419,6 +433,16 @@ export default function Workflow() {
         </div>
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
+
+      {/* Inline edit dialog */}
+      {selectedPost && (
+        <WorkflowCardDialog
+          post={selectedPost}
+          open={!!selectedPost}
+          onOpenChange={(open) => { if (!open) setSelectedPost(null); }}
+          ssUsers={ssUsers}
+        />
+      )}
     </div>
   );
 }
