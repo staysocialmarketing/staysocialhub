@@ -324,6 +324,7 @@ export type Database = {
           assigned_to_user_id: string | null
           caption: string | null
           client_id: string
+          content_type: string | null
           created_at: string
           created_by_user_id: string | null
           creative_url: string | null
@@ -332,6 +333,7 @@ export type Database = {
           id: string
           internal_notes: string | null
           platform: string | null
+          request_id: string | null
           reviewer_user_id: string | null
           scheduled_at: string | null
           status_column: Database["public"]["Enums"]["post_status"]
@@ -341,6 +343,7 @@ export type Database = {
           assigned_to_user_id?: string | null
           caption?: string | null
           client_id: string
+          content_type?: string | null
           created_at?: string
           created_by_user_id?: string | null
           creative_url?: string | null
@@ -349,6 +352,7 @@ export type Database = {
           id?: string
           internal_notes?: string | null
           platform?: string | null
+          request_id?: string | null
           reviewer_user_id?: string | null
           scheduled_at?: string | null
           status_column?: Database["public"]["Enums"]["post_status"]
@@ -358,6 +362,7 @@ export type Database = {
           assigned_to_user_id?: string | null
           caption?: string | null
           client_id?: string
+          content_type?: string | null
           created_at?: string
           created_by_user_id?: string | null
           creative_url?: string | null
@@ -366,6 +371,7 @@ export type Database = {
           id?: string
           internal_notes?: string | null
           platform?: string | null
+          request_id?: string | null
           reviewer_user_id?: string | null
           scheduled_at?: string | null
           status_column?: Database["public"]["Enums"]["post_status"]
@@ -391,6 +397,13 @@ export type Database = {
             columns: ["created_by_user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
             referencedColumns: ["id"]
           },
           {
