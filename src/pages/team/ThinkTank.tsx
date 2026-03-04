@@ -8,9 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Lightbulb, FileText, Brain, Archive, Zap } from "lucide-react";
+import { Plus, Lightbulb, FileText, Brain, Archive, Zap, Send } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import MakeRequestDialog from "@/components/MakeRequestDialog";
 
 interface ThinkTankItem {
   id: string;
@@ -50,6 +51,7 @@ export default function ThinkTank() {
   const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [users, setUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
+  const [requestItem, setRequestItem] = useState<ThinkTankItem | null>(null);
 
   const fetchItems = async () => {
     let query = supabase.from("think_tank_items").select("*").order("created_at", { ascending: false });
@@ -170,7 +172,7 @@ export default function ThinkTank() {
                 <div className="text-xs text-muted-foreground space-y-0.5">
                   <p>By {creatorName(item.created_by_user_id)} · {format(new Date(item.created_at), "MMM d, yyyy")}</p>
                 </div>
-                <div className="flex gap-2 pt-1">
+                <div className="flex gap-2 pt-1 flex-wrap">
                   {item.status === "open" && (
                     <>
                       <Button size="sm" variant="outline" onClick={() => updateStatus(item.id, "actioned")}>
@@ -184,12 +186,23 @@ export default function ThinkTank() {
                   {item.status === "archived" && (
                     <Button size="sm" variant="outline" onClick={() => updateStatus(item.id, "open")}>Reopen</Button>
                   )}
+                  <Button size="sm" variant="secondary" onClick={() => setRequestItem(item)}>
+                    <Send className="h-3 w-3 mr-1" /> Make Request
+                  </Button>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+
+      <MakeRequestDialog
+        open={!!requestItem}
+        onOpenChange={(o) => !o && setRequestItem(null)}
+        prefillTopic={requestItem?.title || ""}
+        prefillNotes={requestItem?.body || ""}
+        onSuccess={fetchItems}
+      />
     </div>
   );
 }

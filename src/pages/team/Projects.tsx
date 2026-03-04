@@ -9,8 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Plus, ChevronRight, FolderOpen, ListTodo } from "lucide-react";
+import { Plus, ChevronRight, FolderOpen, ListTodo, Send } from "lucide-react";
 import { toast } from "sonner";
+import MakeRequestDialog from "@/components/MakeRequestDialog";
 
 interface Project {
   id: string;
@@ -42,14 +43,13 @@ export default function Projects() {
   const [parentProjectId, setParentProjectId] = useState<string>("");
   const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
+  const [requestProject, setRequestProject] = useState<Project | null>(null);
 
   const fetchProjects = async () => {
     let query = supabase.from("projects").select("*").order("created_at", { ascending: false });
     if (filterStatus !== "all") query = query.eq("status", filterStatus);
     const { data } = await query;
     setProjects((data as Project[]) || []);
-
-    // Fetch task counts
     const { data: tasks } = await supabase.from("tasks").select("project_id");
     if (tasks) {
       const counts: Record<string, number> = {};
@@ -167,6 +167,9 @@ export default function Projects() {
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         {clientName(project.client_id) && <Badge variant="secondary">{clientName(project.client_id)}</Badge>}
                         <span className="flex items-center gap-1"><ListTodo className="h-3 w-3" /> {taskCounts[project.id] || 0} tasks</span>
+                        <Button size="sm" variant="secondary" onClick={() => setRequestProject(project)}>
+                          <Send className="h-3 w-3 mr-1" /> Make Request
+                        </Button>
                         <Select value={project.status} onValueChange={(s) => updateStatus(project.id, s)}>
                           <SelectTrigger className="h-7 text-xs w-28"><SelectValue /></SelectTrigger>
                           <SelectContent>
@@ -204,6 +207,14 @@ export default function Projects() {
           })}
         </div>
       )}
+
+      <MakeRequestDialog
+        open={!!requestProject}
+        onOpenChange={(o) => !o && setRequestProject(null)}
+        prefillTopic={requestProject?.name || ""}
+        prefillNotes={requestProject?.description || ""}
+        onSuccess={fetchProjects}
+      />
     </div>
   );
 }

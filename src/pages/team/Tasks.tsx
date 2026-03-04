@@ -2,15 +2,16 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Calendar, User } from "lucide-react";
+import { Plus, Calendar, User, Send } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import MakeRequestDialog from "@/components/MakeRequestDialog";
 
 interface Task {
   id: string;
@@ -50,6 +51,7 @@ export default function Tasks() {
   const [dueAt, setDueAt] = useState("");
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const [users, setUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
+  const [requestTask, setRequestTask] = useState<Task | null>(null);
 
   const fetchTasks = async () => {
     let query = supabase.from("tasks").select("*").order("created_at", { ascending: false });
@@ -194,14 +196,19 @@ export default function Tasks() {
                           <span className="flex items-center gap-0.5"><Calendar className="h-3 w-3" /> {format(new Date(task.due_at), "MMM d")}</span>
                         )}
                       </div>
-                      <Select value={task.status} onValueChange={(s) => updateStatus(task.id, s)}>
-                        <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="todo">To Do</SelectItem>
-                          <SelectItem value="in_progress">In Progress</SelectItem>
-                          <SelectItem value="done">Done</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="flex gap-2">
+                        <Select value={task.status} onValueChange={(s) => updateStatus(task.id, s)}>
+                          <SelectTrigger className="h-7 text-xs flex-1"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="todo">To Do</SelectItem>
+                            <SelectItem value="in_progress">In Progress</SelectItem>
+                            <SelectItem value="done">Done</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => setRequestTask(task)}>
+                          <Send className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 ))
@@ -210,6 +217,14 @@ export default function Tasks() {
           ))}
         </div>
       )}
+
+      <MakeRequestDialog
+        open={!!requestTask}
+        onOpenChange={(o) => !o && setRequestTask(null)}
+        prefillTopic={requestTask?.title || ""}
+        prefillNotes={requestTask?.description || ""}
+        onSuccess={fetchTasks}
+      />
     </div>
   );
 }
