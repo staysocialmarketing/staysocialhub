@@ -11,11 +11,14 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { FileText, Mail, Download, Send, Pencil, Save, X } from "lucide-react";
+import { FileText, Mail, Download, Send, Pencil, Save, X, Upload, Loader2 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type RequestStatus = Database["public"]["Enums"]["request_status"];
 type RequestType = Database["public"]["Enums"]["request_type"];
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const ACCEPTED_FILE_TYPES = ".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.webp,.csv,.xlsx,.pptx,.txt";
 
 interface RequestDetailDialogProps {
   request: any;
@@ -35,6 +38,7 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [commentBody, setCommentBody] = useState("");
+  const [uploading, setUploading] = useState(false);
 
   const [form, setForm] = useState({
     topic: "",
@@ -119,6 +123,33 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
     if (data?.signedUrl) window.open(data.signedUrl, "_blank");
   };
 
+  const handleUploadAttachment = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !request) return;
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error("File too large — maximum 10MB");
+      e.target.value = "";
+      return;
+    }
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `${request.client_id}/${crypto.randomUUID()}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("request-attachments").upload(path, file);
+      if (uploadError) throw uploadError;
+      const { error: updateError } = await supabase.from("requests").update({ attachments_url: path }).eq("id", request.id);
+      if (updateError) throw updateError;
+      request.attachments_url = path;
+      queryClient.invalidateQueries({ queryKey: ["requests"] });
+      toast.success("Attachment uploaded");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to upload attachment");
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  };
+
   if (!request) return null;
 
   const canEdit = isSSRole || request.created_by_user_id === profile?.id;
@@ -139,7 +170,6 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
         </DialogHeader>
 
         <div className="space-y-4 mt-2">
-          {/* Edit / View toggle */}
           {canEdit && !editing && (
             <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
               <Pencil className="h-3 w-3 mr-1" /> Edit
@@ -202,6 +232,16 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
               <div>
                 <Label>Notes</Label>
                 <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={4} />
+              </div>
+
+              {/* Attachment upload in edit mode */}
+              <div>
+                <Label>{request.attachments_url ? "Replace Attachment" : "Add Attachment"} (max 10MB)</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Input type="file" accept={ACCEPTED_FILE_TYPES} onChange={handleUploadAttachment} disabled={uploading} />
+                  {uploading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">PDF, images, docs, spreadsheets, presentations</p>
               </div>
 
               <div className="flex gap-2">
