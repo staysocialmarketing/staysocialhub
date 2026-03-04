@@ -1,48 +1,65 @@
 
 
-# Sub-Phase B: Add-On Request System
+# Split Kanban Board: Team vs Client View
 
-## Database
+## The Problem
+Currently all 8 columns are visible to everyone. Clients see internal production stages (Content Process, Design Process, etc.) which clutters their view and exposes internal workflow.
 
-### New table: `addon_requests`
-- `id` (uuid, PK, default gen_random_uuid())
-- `client_id` (uuid, NOT NULL)
-- `user_id` (uuid, NOT NULL)
-- `addon_name` (text, NOT NULL)
-- `status` (text, NOT NULL, default 'new')
-- `created_at` (timestamptz, NOT NULL, default now())
+## The Solution
 
-### RLS policies
-- **SELECT**: `can_access_client(client_id)` (clients see own, SS sees all)
-- **INSERT**: `user_id = auth.uid() AND can_access_client(client_id)`
-- **UPDATE/DELETE**: `is_ss_role()` (SS only)
+### 1. Update the `post_status` enum
+The current enum values don't match the new internal workflow. We need to replace them:
 
-## Frontend Changes
+**New enum values:**
+- `idea` (team only)
+- `writing` (team only)
+- `design` (team only)
+- `internal_review` (team only)
+- `client_approval` (visible to both)
+- `scheduled` (team only — clients see this as part of "Approved")
+- `published` (visible to both)
 
-### 1. `src/pages/WhatsNew.tsx`
-- Import `useAuth` to get `profile.client_id` and `user.id`
-- Replace "Learn More" button with "Request Package"
-- On click: insert into `addon_requests`, show success toast, disable button for already-requested add-ons
-- Query existing requests on mount to show "Requested" state on cards already submitted
+Plus keep `request_changes` for the client feedback loop, and `approved` for client-approved posts.
 
-### 2. New admin page: `src/pages/admin/AdminAddonRequests.tsx`
-- Table listing all `addon_requests` joined with `clients.name` and `users.name`
-- Columns: Client, Add-On, Requested By, Date, Status
-- SS can update status (new → contacted → closed)
+**Full enum:** `idea`, `writing`, `design`, `internal_review`, `client_approval`, `request_changes`, `approved`, `scheduled`, `published`
 
-### 3. `src/components/AppSidebar.tsx`
-- Add `{ title: "Add-On Requests", url: "/admin/addon-requests", icon: ShoppingCart }` to `adminItems`
+### 2. Database migration
+- Add new enum values to `post_status`: `idea`, `writing`, `design`, `internal_review`, `scheduled`
+- Migrate existing data: `new_requests` → `idea`, `content_process` → `writing`, `design_process` → `design`, `content_for_approval` → `client_approval`, `in_the_queue` → `scheduled`
+- Remove old unused enum values
 
-### 4. `src/App.tsx`
-- Add route `/admin/addon-requests` inside AdminRoute
+### 3. Update `Approvals.tsx` — role-based columns
+
+Define two column sets:
+
+```text
+TEAM_COLUMNS (SS roles):
+  Idea | Writing | Design | Internal Review | Client Approval | Request Changes | Approved | Scheduled | Published
+
+CLIENT_COLUMNS (client roles):
+  Client Approval | Approved | Published
+```
+
+Use `isSSRole` from `useAuth()` to pick which set to render. Clients simply never see posts in internal stages — those posts don't appear because the columns aren't rendered (and the posts in those statuses won't show in client columns).
+
+### 4. Update drag permissions
+- Team: full drag across all columns
+- Clients: can only move from "Client Approval" → "Approved" or "Client Approval" → "Request Changes" (same logic as today, just with new enum values)
+
+### 5. Update CalendarView
+No changes needed — it filters by `scheduled_at` date regardless of status.
+
+### 6. Update PostDetail, Dashboard, ContentLibrary
+- Update any references to old enum values (`new_requests` → `idea`, `content_for_approval` → `client_approval`, etc.)
+- Content Library already filters by `published` — no change needed
+- Dashboard's "Next Scheduled Posts" — no change needed (filters by `scheduled_at`)
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| Migration SQL | Create `addon_requests` table + RLS |
-| `src/pages/WhatsNew.tsx` | Request button + insert logic |
-| `src/pages/admin/AdminAddonRequests.tsx` | New admin page |
-| `src/components/AppSidebar.tsx` | Add admin nav item |
-| `src/App.tsx` | Add route |
+| Migration SQL | Alter `post_status` enum, migrate existing data |
+| `src/pages/Approvals.tsx` | New column definitions, role-based filtering |
+| `src/pages/PostDetail.tsx` | Update status references if any |
+| `src/components/approvals/CalendarView.tsx` | Verify no hardcoded status refs |
 
