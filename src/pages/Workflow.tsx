@@ -73,6 +73,7 @@ export default function Workflow() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<any>(null);
+  const [contentTypeFilter, setContentTypeFilter] = useState<string>("all");
   const [newPost, setNewPost] = useState({
     client_id: "",
     title: "",
@@ -236,9 +237,22 @@ export default function Workflow() {
           <h2 className="text-2xl font-bold text-foreground">Workflow</h2>
           <p className="text-muted-foreground">Team production pipeline — drag cards between stages</p>
         </div>
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" />New Post</Button>
+        <div className="flex items-center gap-3">
+          <Select value={contentTypeFilter} onValueChange={setContentTypeFilter}>
+            <SelectTrigger className="w-36 h-9">
+              <SelectValue placeholder="All Types" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="image">Image</SelectItem>
+              <SelectItem value="video">Video</SelectItem>
+              <SelectItem value="reel">Reel</SelectItem>
+              <SelectItem value="carousel">Carousel</SelectItem>
+            </SelectContent>
+          </Select>
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger asChild>
+              <Button><Plus className="h-4 w-4 mr-2" />New Post</Button>
           </DialogTrigger>
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -332,13 +346,14 @@ export default function Workflow() {
               </Button>
             </div>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
 
       <ScrollArea className="flex-1">
         <div className="flex gap-4 pb-4" style={{ minWidth: WORKFLOW_COLUMNS.length * 280 }}>
           {WORKFLOW_COLUMNS.map((col) => {
-            const columnPosts = posts.filter((p: any) => p.status_column === col.key);
+            const columnPosts = posts.filter((p: any) => p.status_column === col.key && (contentTypeFilter === "all" || p.content_type === contentTypeFilter));
             return (
               <div
                 key={col.key}
