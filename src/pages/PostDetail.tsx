@@ -399,6 +399,12 @@ export default function PostDetail() {
                     : "Not scheduled"}
                 </span>
               </div>
+              {(post as any).due_at && (
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span>Due: {new Date((post as any).due_at).toLocaleDateString()}</span>
+                </div>
+              )}
               <div>
                 <Label className="text-muted-foreground text-xs">Status</Label>
                 <Badge variant="secondary" className="mt-1">{post.status_column.replace(/_/g, " ")}</Badge>
@@ -407,6 +413,18 @@ export default function PostDetail() {
                 <Label className="text-muted-foreground text-xs">Platform</Label>
                 <p className="mt-1">{post.platform || "—"}</p>
               </div>
+              {isSSRole && (post as any).assigned_to_user_id && (
+                <div>
+                  <Label className="text-muted-foreground text-xs">Assigned to</Label>
+                  <p className="mt-1">{(post as any).assigned_to_user_id}</p>
+                </div>
+              )}
+              {isSSRole && (post as any).reviewer_user_id && (
+                <div>
+                  <Label className="text-muted-foreground text-xs">Reviewer</Label>
+                  <p className="mt-1">{(post as any).reviewer_user_id}</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 

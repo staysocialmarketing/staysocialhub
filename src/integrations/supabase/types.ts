@@ -220,6 +220,36 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          link: string | null
+          read: boolean
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          link?: string | null
+          read?: boolean
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          link?: string | null
+          read?: boolean
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       plans: {
         Row: {
           created_at: string
@@ -291,43 +321,52 @@ export type Database = {
       }
       posts: {
         Row: {
+          assigned_to_user_id: string | null
           caption: string | null
           client_id: string
           created_at: string
           created_by_user_id: string | null
           creative_url: string | null
+          due_at: string | null
           hashtags: string | null
           id: string
           internal_notes: string | null
           platform: string | null
+          reviewer_user_id: string | null
           scheduled_at: string | null
           status_column: Database["public"]["Enums"]["post_status"]
           title: string
         }
         Insert: {
+          assigned_to_user_id?: string | null
           caption?: string | null
           client_id: string
           created_at?: string
           created_by_user_id?: string | null
           creative_url?: string | null
+          due_at?: string | null
           hashtags?: string | null
           id?: string
           internal_notes?: string | null
           platform?: string | null
+          reviewer_user_id?: string | null
           scheduled_at?: string | null
           status_column?: Database["public"]["Enums"]["post_status"]
           title: string
         }
         Update: {
+          assigned_to_user_id?: string | null
           caption?: string | null
           client_id?: string
           created_at?: string
           created_by_user_id?: string | null
           creative_url?: string | null
+          due_at?: string | null
           hashtags?: string | null
           id?: string
           internal_notes?: string | null
           platform?: string | null
+          reviewer_user_id?: string | null
           scheduled_at?: string | null
           status_column?: Database["public"]["Enums"]["post_status"]
           title?: string
