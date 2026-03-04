@@ -1,21 +1,40 @@
 
 
-# Auth Page Fix
+# Backend Setup + Personalization Plan
 
-Comparing the current page to the reference site at staysocial.preview.staysocial.ca, the main issues are:
+## Current State
+- `corey@staysocial.ca` (id: `4275c710...`) — already has `ss_admin` role, name: "Corey at Stay Social"
+- `corey.macvicar@premieremortgage.ca` (id: `3f9ce766...`) — no role, no client_id, name: "Corey MacVicar"
+- Test Client exists (id: `f0a14b68...`)
 
-1. **Logo not rendering** — The `white_with_orange.png` image appears to not be displaying. Need to verify the asset path and ensure the image loads correctly. May need to use the orange logo variant instead or check the file was copied correctly.
+## Database Changes
 
-2. **Visual polish to match reference** — The reference site uses:
-   - A more subtle, darker background with a warm orange radial glow concentrated at the very top
-   - Slightly more refined starfield with smaller, more numerous particles
-   - Bolder, larger heading typography with gradient-like orange accent text
+1. **Assign test account to Test Client as client_admin:**
+   - Update `users` table: set `client_id` to the Test Client id for `corey.macvicar@premieremortgage.ca`
+   - Insert `client_admin` role into `user_roles` for that user
 
-## Changes to `src/pages/Auth.tsx`
+2. **Fix admin name** (optional): Update name from "Corey at Stay Social" to "Corey" for cleaner display
 
-- Verify logo import path and swap to the correct asset if needed (the `white_with_orange.png` may have been copied with wrong naming)
-- Increase logo size from `h-20` to `h-24` or larger
-- Increase heading size from `text-3xl` to `text-4xl` for more impact
-- Fine-tune the radial gradient to more closely match the reference's warm top glow
-- Ensure the "or" divider background color matches the actual page background (currently hardcoded)
+## Frontend Personalization
+
+Use first name (split on space, take first word) throughout the app:
+
+3. **`src/pages/Dashboard.tsx`** — Already shows "Welcome back, {name}". Change to use first name only.
+
+4. **`src/components/AppLayout.tsx`** — Replace static "Stay Social Client Hub" header with "Stay Social HUB" and remove that hardcoded text or make it contextual.
+
+5. **`src/components/AppSidebar.tsx`** — Update "Client Hub" subtitle text to "HUB". Already shows user name/email in footer — keep that.
+
+6. **Add a helper** to extract first name from full name across all pages, e.g. `profile.name?.split(' ')[0]`.
+
+7. **Other pages** (Approvals, Requests, Profile) — Add personalized greeting headers where appropriate (e.g. "Your Requests", "Your Content").
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| Migration SQL | Assign client_id + client_admin role to test account |
+| `src/pages/Dashboard.tsx` | Use first name in greeting |
+| `src/components/AppLayout.tsx` | "Stay Social HUB" header |
+| `src/components/AppSidebar.tsx` | "HUB" subtitle |
 
