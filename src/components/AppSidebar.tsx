@@ -1,3 +1,4 @@
+import orangeLogo from "@/assets/orange_with_black.png";
 import {
   LayoutDashboard,
   CheckSquare,
@@ -54,9 +55,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-sidebar-primary flex items-center justify-center text-sidebar-primary-foreground font-bold text-sm shrink-0">
-            SS
-          </div>
+          <img src={orangeLogo} alt="Stay Social" className="h-8 w-8 rounded-lg object-contain shrink-0" />
           {!collapsed && (
             <div className="flex flex-col min-w-0">
               <span className="text-sm font-semibold text-sidebar-foreground truncate">Stay Social</span>
