@@ -1,43 +1,62 @@
 
 
-# Fix Uploads and Attachments in Request Flows
+# Enhance Workflow: Editable Idea Cards, Content Types, Auto-Assignment & Design Handoff
 
-## Problems Identified
+## Current State
+- Requests auto-create posts in "Idea" via DB trigger, but the trigger doesn't auto-assign anyone
+- Posts have no "content type" field (Video/Image)
+- Clicking a card navigates to `/approvals/:id` — no inline editing on the Workflow board
+- Moving between columns has no auto-reassignment logic
+- Tristan and Gavin are **not yet in the database** as users — they'll need to be added/invited before auto-assignment can reference them by ID
 
-1. **Requests page upload**: The file upload works mechanically, but the error handler shows a generic "Failed to submit request" — if the upload fails (e.g. large file, network issue), users get no useful feedback and the entire submission is blocked.
+## Plan
 
-2. **MakeRequestDialog has no attachment option at all** — the "Make This a Request" flow from Think Tank/Projects/Tasks doesn't let users attach files.
+### 1. Database Migration — Add `content_type` column + update trigger
 
-3. **RequestDetailDialog has no way to add/replace attachments** — once a request is created, you can only download the existing attachment but never upload a new one.
+**Add `content_type` to `posts`**: A text column (`'image'`, `'video'`, `'reel'`, `'carousel'`, or null) displayed as a badge on every card.
 
-4. **No file validation** — no size limit check or accepted file type guidance before upload attempt.
+**Update `auto_create_post_from_request` trigger** to:
+- Look up the `ss_producer` role user (Tristan) and auto-assign `assigned_to_user_id` to that user
+- This ensures every request that lands in Idea is pre-assigned to Tristan
 
-5. **Generic error messages** — upload errors silently swallowed into a generic toast.
+**Create `auto_reassign_on_design` trigger** on `posts` AFTER UPDATE:
+- When `status_column` changes to `'design'`, look up the `ss_ops` role user (Gavin) and set `assigned_to_user_id` to that user
+- This automates the handoff from Writing → Design
 
-## Changes
+This approach uses **roles** (`ss_producer` = Tristan, `ss_ops` = Gavin) rather than hardcoded user IDs, so it works as long as those roles are assigned correctly.
 
-### `src/pages/Requests.tsx`
-- Add client-side file size validation (max 10MB) before submission
-- Show actual error message in the `onError` callback instead of generic text
-- Add accepted file types hint on the file input
-- Make attachment upload non-blocking: if upload fails, still create the request without attachment and show a warning toast
+### 2. Workflow Card — Inline Edit Dialog
 
-### `src/components/MakeRequestDialog.tsx`
-- Add an optional file attachment input
-- Upload file to `request-attachments` bucket on submit, store path in `attachments_url`
-- Same size validation (10MB)
-- Non-blocking: if upload fails, create request anyway with a warning
+Instead of navigating away to `/approvals/:id`, clicking a card in the Workflow board will open a **WorkflowCardDialog** (new component) that shows:
+- Title (editable)
+- Description/caption (editable)
+- Due date (editable)
+- Content type selector: Image, Video, Reel, Carousel
+- Assigned to / Reviewer (editable)
+- Client name (read-only)
+- Platform badges
+- Source indicator: "From Request" badge if the post originated from a request
+- The original request details (if linked) — read-only view of the request topic, notes, type
+- A "View Full Post" link to `/approvals/:id` for the full detail page
 
-### `src/components/RequestDetailDialog.tsx`
-- Add an "Upload Attachment" button in edit mode to add/replace attachments
-- Upload to `request-attachments` bucket, update `attachments_url` on the request
-- Show upload progress/state feedback
+### 3. Link Posts to Requests
 
-## Files Changed
+**Add `request_id` column to `posts`** (nullable FK to `requests.id`). The trigger will set this when creating a post from a request, enabling:
+- Showing "From Request" badge on cards
+- Viewing original request details in the card dialog
+
+### 4. `movePost` Enhancement
+
+Update the `movePost` mutation in `Workflow.tsx` to also update `assigned_to_user_id` when moving to Design (client-side), as a complement to the DB trigger (belt-and-suspenders approach).
+
+### Files Changed
 
 | File | Change |
 |------|--------|
-| `src/pages/Requests.tsx` | Add file validation, better error messages, non-blocking upload |
-| `src/components/MakeRequestDialog.tsx` | Add attachment file input + upload logic |
-| `src/components/RequestDetailDialog.tsx` | Add attachment upload in edit mode |
+| Migration SQL | Add `content_type` text column to `posts`; add `request_id` uuid FK to `posts`; update `auto_create_post_from_request` to auto-assign ss_producer; create `auto_reassign_on_design` trigger |
+| `src/components/WorkflowCardDialog.tsx` | New component: inline edit dialog for workflow cards with all editable fields |
+| `src/pages/Workflow.tsx` | Open WorkflowCardDialog on card click instead of navigating; show content_type badge on cards; update movePost to include reassignment logic |
+
+### Important Note
+Tristan and Gavin must be registered users with `ss_producer` and `ss_ops` roles respectively for auto-assignment to work. If they haven't been invited yet, they'll need to be added via the Admin Users page first.
 
