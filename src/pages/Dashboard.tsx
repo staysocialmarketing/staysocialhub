@@ -72,7 +72,7 @@ export default function Dashboard() {
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-foreground">
-          Welcome back{profile?.name ? `, ${profile.name}` : ""}
+          Welcome back{profile?.name ? `, ${profile.name.split(' ')[0]}` : ""}
         </h2>
         <p className="text-muted-foreground mt-1">
           Here's what's happening with your social content.
