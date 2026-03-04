@@ -216,7 +216,7 @@ export default function PostDetail() {
 
   const latestApproval = approvals[0];
   const canApprove = isClientAdmin || (isClientAssistant && (post as any).clients?.assistants_can_approve);
-  const isApprovalStatus = post.status_column === "content_for_approval";
+  const isApprovalStatus = post.status_column === "client_approval";
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">

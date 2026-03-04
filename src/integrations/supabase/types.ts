@@ -558,13 +558,14 @@ export type Database = {
         | "ss_ops"
       approval_type: "approve" | "approve_with_notes" | "request_changes"
       post_status:
-        | "new_requests"
-        | "content_process"
-        | "design_process"
+        | "idea"
+        | "writing"
+        | "design"
+        | "internal_review"
+        | "client_approval"
         | "request_changes"
-        | "content_for_approval"
         | "approved"
-        | "in_the_queue"
+        | "scheduled"
         | "published"
       profile_update_status:
         | "pending"
@@ -709,13 +710,14 @@ export const Constants = {
       ],
       approval_type: ["approve", "approve_with_notes", "request_changes"],
       post_status: [
-        "new_requests",
-        "content_process",
-        "design_process",
+        "idea",
+        "writing",
+        "design",
+        "internal_review",
+        "client_approval",
         "request_changes",
-        "content_for_approval",
         "approved",
-        "in_the_queue",
+        "scheduled",
         "published",
       ],
       profile_update_status: [
