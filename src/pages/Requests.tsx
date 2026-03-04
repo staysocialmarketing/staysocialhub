@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,7 @@ import { Plus, FileText, Mail } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type RequestType = Database["public"]["Enums"]["request_type"];
+type RequestStatus = Database["public"]["Enums"]["request_status"];
 
 const statusColors: Record<string, string> = {
   open: "bg-blue-100 text-blue-800",
@@ -27,12 +28,17 @@ export default function Requests() {
   const { profile, isSSRole } = useAuth();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [form, setForm] = useState({
     type: "social_post" as RequestType,
     topic: "",
     notes: "",
     preferred_publish_window: "",
     priority: "normal",
+    link: "",
+    campaign_type: "newsletter",
+    audience: "",
+    deadline: "",
   });
 
   const { data: requests = [], isLoading } = useQuery({
@@ -50,14 +56,31 @@ export default function Requests() {
   const createRequest = useMutation({
     mutationFn: async () => {
       if (!profile?.client_id) throw new Error("No client assigned");
+
+      let attachments_url: string | null = null;
+      if (attachmentFile) {
+        const ext = attachmentFile.name.split(".").pop();
+        const path = `${profile.client_id}/${crypto.randomUUID()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("request-attachments")
+          .upload(path, attachmentFile);
+        if (uploadError) throw uploadError;
+        attachments_url = path;
+      }
+
+      const notes = form.type === "email_campaign"
+        ? `Campaign: ${form.campaign_type}\nAudience: ${form.audience}\nDeadline: ${form.deadline}\n\n${form.notes}`
+        : form.notes;
+
       const { error } = await supabase.from("requests").insert({
         client_id: profile.client_id,
         type: form.type,
         topic: form.topic,
-        notes: form.notes || null,
+        notes: notes || null,
         preferred_publish_window: form.preferred_publish_window || null,
         priority: form.priority,
         created_by_user_id: profile.id,
+        attachments_url,
       });
       if (error) throw error;
     },
@@ -65,9 +88,22 @@ export default function Requests() {
       queryClient.invalidateQueries({ queryKey: ["requests"] });
       toast.success("Request submitted!");
       setOpen(false);
-      setForm({ type: "social_post", topic: "", notes: "", preferred_publish_window: "", priority: "normal" });
+      setForm({ type: "social_post", topic: "", notes: "", preferred_publish_window: "", priority: "normal", link: "", campaign_type: "newsletter", audience: "", deadline: "" });
+      setAttachmentFile(null);
     },
     onError: () => toast.error("Failed to submit request"),
+  });
+
+  const updateStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: RequestStatus }) => {
+      const { error } = await supabase.from("requests").update({ status }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["requests"] });
+      toast.success("Status updated");
+    },
+    onError: () => toast.error("Failed to update status"),
   });
 
   return (
@@ -80,12 +116,9 @@ export default function Requests() {
         {profile?.client_id && (
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                New Request
-              </Button>
+              <Button><Plus className="h-4 w-4 mr-2" />New Request</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>New Content Request</DialogTitle>
               </DialogHeader>
@@ -104,18 +137,60 @@ export default function Requests() {
                     </SelectContent>
                   </Select>
                 </div>
+
                 <div>
-                  <Label>Topic / Goal</Label>
-                  <Input value={form.topic} onChange={(e) => setForm({ ...form, topic: e.target.value })} placeholder="What's this about?" />
+                  <Label>{form.type === "social_post" ? "Topic / Key Message" : "Campaign Name"}</Label>
+                  <Input value={form.topic} onChange={(e) => setForm({ ...form, topic: e.target.value })} placeholder={form.type === "social_post" ? "What's this about?" : "Campaign name"} />
                 </div>
+
+                {form.type === "social_post" && (
+                  <>
+                    <div>
+                      <Label>Link (optional)</Label>
+                      <Input value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} placeholder="https://..." type="url" />
+                    </div>
+                    <div>
+                      <Label>Preferred Publish Window</Label>
+                      <Input value={form.preferred_publish_window} onChange={(e) => setForm({ ...form, preferred_publish_window: e.target.value })} placeholder="e.g. Next week, March 15" />
+                    </div>
+                  </>
+                )}
+
+                {form.type === "email_campaign" && (
+                  <>
+                    <div>
+                      <Label>Campaign Type</Label>
+                      <Select value={form.campaign_type} onValueChange={(v) => setForm({ ...form, campaign_type: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="newsletter">Newsletter</SelectItem>
+                          <SelectItem value="promo">Promotion</SelectItem>
+                          <SelectItem value="announcement">Announcement</SelectItem>
+                          <SelectItem value="drip">Drip Campaign</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Audience</Label>
+                      <Input value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value })} placeholder="Who is this for?" />
+                    </div>
+                    <div>
+                      <Label>Deadline</Label>
+                      <Input type="date" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} />
+                    </div>
+                  </>
+                )}
+
                 <div>
                   <Label>Notes</Label>
                   <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Additional details..." />
                 </div>
+
                 <div>
-                  <Label>Preferred Publish Window</Label>
-                  <Input value={form.preferred_publish_window} onChange={(e) => setForm({ ...form, preferred_publish_window: e.target.value })} placeholder="e.g. Next week, March 15" />
+                  <Label>Attachment</Label>
+                  <Input type="file" onChange={(e) => setAttachmentFile(e.target.files?.[0] || null)} />
                 </div>
+
                 <div>
                   <Label>Priority</Label>
                   <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v })}>
@@ -128,8 +203,9 @@ export default function Requests() {
                     </SelectContent>
                   </Select>
                 </div>
+
                 <Button className="w-full" onClick={() => createRequest.mutate()} disabled={!form.topic || createRequest.isPending}>
-                  Submit Request
+                  {createRequest.isPending ? "Submitting..." : "Submit Request"}
                 </Button>
               </div>
             </DialogContent>
@@ -156,18 +232,36 @@ export default function Requests() {
                     {req.type === "social_post" ? (
                       <FileText className="h-4 w-4 text-primary shrink-0" />
                     ) : (
-                      <Mail className="h-4 w-4 text-info shrink-0" />
+                      <Mail className="h-4 w-4 text-primary shrink-0" />
                     )}
                     <h4 className="font-medium text-foreground truncate">{req.topic}</h4>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     By {req.users?.name || req.users?.email || "Unknown"} · {new Date(req.created_at).toLocaleDateString()}
+                    {req.attachments_url && " · 📎 Attachment"}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <Badge className={statusColors[req.status] || ""}>
-                    {req.status.replace("_", " ")}
-                  </Badge>
+                  {isSSRole ? (
+                    <Select
+                      value={req.status}
+                      onValueChange={(v) => updateStatus.mutate({ id: req.id, status: v as RequestStatus })}
+                    >
+                      <SelectTrigger className="w-[130px] h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="open">Open</SelectItem>
+                        <SelectItem value="in_progress">In Progress</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Badge className={statusColors[req.status] || ""}>
+                      {req.status.replace("_", " ")}
+                    </Badge>
+                  )}
                   <Badge variant="outline" className="text-xs capitalize">{req.priority}</Badge>
                 </div>
               </CardContent>

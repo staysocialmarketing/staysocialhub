@@ -256,6 +256,7 @@ export type Database = {
           creative_url: string | null
           hashtags: string | null
           id: string
+          internal_notes: string | null
           platform: string | null
           scheduled_at: string | null
           status_column: Database["public"]["Enums"]["post_status"]
@@ -269,6 +270,7 @@ export type Database = {
           creative_url?: string | null
           hashtags?: string | null
           id?: string
+          internal_notes?: string | null
           platform?: string | null
           scheduled_at?: string | null
           status_column?: Database["public"]["Enums"]["post_status"]
@@ -282,6 +284,7 @@ export type Database = {
           creative_url?: string | null
           hashtags?: string | null
           id?: string
+          internal_notes?: string | null
           platform?: string | null
           scheduled_at?: string | null
           status_column?: Database["public"]["Enums"]["post_status"]
