@@ -1,34 +1,43 @@
 
 
-# Sync All Requests to Workflow Idea Board
+# Fix Uploads and Attachments in Request Flows
 
-## Problem
-When clients create requests from the Requests page, **no post is created** — so the team never sees it on their Workflow board. Only the `MakeRequestDialog` (Think Tank/Projects/Tasks) manually inserts a post, but this is fragile and duplicates logic. Additionally, clients **cannot insert into the `posts` table** due to RLS (`is_ss_role()` only for INSERT), so client-created requests never appear in the workflow.
+## Problems Identified
 
-## Solution
-Use a **database trigger** on the `requests` table that automatically creates a post in `idea` status whenever a request is inserted. This ensures every request — regardless of origin (client, admin, MakeRequestDialog) — immediately populates the Workflow Idea board and notifies the team.
+1. **Requests page upload**: The file upload works mechanically, but the error handler shows a generic "Failed to submit request" — if the upload fails (e.g. large file, network issue), users get no useful feedback and the entire submission is blocked.
+
+2. **MakeRequestDialog has no attachment option at all** — the "Make This a Request" flow from Think Tank/Projects/Tasks doesn't let users attach files.
+
+3. **RequestDetailDialog has no way to add/replace attachments** — once a request is created, you can only download the existing attachment but never upload a new one.
+
+4. **No file validation** — no size limit check or accepted file type guidance before upload attempt.
+
+5. **Generic error messages** — upload errors silently swallowed into a generic toast.
 
 ## Changes
 
-### 1. Database Migration — New Trigger
-Create `auto_create_post_from_request()` trigger function (SECURITY DEFINER) on `requests` AFTER INSERT:
-- Inserts a post with `client_id`, `title = NEW.topic`, `caption = NEW.notes`, `status_column = 'idea'`, `created_by_user_id = NEW.created_by_user_id`
-- Notifies all SS role users (ss_admin, ss_producer, ss_ops) with a notification: "New request: [topic]"
+### `src/pages/Requests.tsx`
+- Add client-side file size validation (max 10MB) before submission
+- Show actual error message in the `onError` callback instead of generic text
+- Add accepted file types hint on the file input
+- Make attachment upload non-blocking: if upload fails, still create the request without attachment and show a warning toast
 
-### 2. Remove Duplicate Post Creation from `MakeRequestDialog.tsx`
-Remove the manual `supabase.from("posts").insert(...)` call (lines 70-78) since the trigger now handles it automatically.
+### `src/components/MakeRequestDialog.tsx`
+- Add an optional file attachment input
+- Upload file to `request-attachments` bucket on submit, store path in `attachments_url`
+- Same size validation (10MB)
+- Non-blocking: if upload fails, create request anyway with a warning
 
-### 3. Invalidate Workflow Queries in `Requests.tsx`
-After a request is created on the Requests page, also invalidate `workflow-posts` query key so the Workflow board updates if open.
-
-### 4. Invalidate Workflow Queries in `MakeRequestDialog.tsx`
-Same — invalidate `workflow-posts` on success.
+### `src/components/RequestDetailDialog.tsx`
+- Add an "Upload Attachment" button in edit mode to add/replace attachments
+- Upload to `request-attachments` bucket, update `attachments_url` on the request
+- Show upload progress/state feedback
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| Migration SQL | Create `auto_create_post_from_request` trigger on `requests` table |
-| `src/components/MakeRequestDialog.tsx` | Remove manual post insert (trigger handles it); invalidate `workflow-posts` |
-| `src/pages/Requests.tsx` | Invalidate `workflow-posts` on request creation success |
+| `src/pages/Requests.tsx` | Add file validation, better error messages, non-blocking upload |
+| `src/components/MakeRequestDialog.tsx` | Add attachment file input + upload logic |
+| `src/components/RequestDetailDialog.tsx` | Add attachment upload in edit mode |
 
