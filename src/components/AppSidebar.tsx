@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import orangeLogo from "@/assets/orange_with_black.png";
 import {
   LayoutDashboard,
@@ -13,6 +14,7 @@ import {
   ShoppingCart,
   LogOut,
   ClipboardList,
+  Eye,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -31,6 +33,17 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
 
 const superAdminItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -69,14 +82,44 @@ const clientItems = [
   { title: "What's New", url: "/whats-new", icon: Sparkles },
 ];
 
+interface UserWithRole {
+  id: string;
+  name: string | null;
+  email: string;
+  roles: string[];
+}
+
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const { profile, isSSAdmin, isSSTeam, signOut } = useAuth();
+  const { profile, isSSAdmin, isSSTeam, actualIsSSAdmin, isViewingAs, viewAsUserId, setViewAs, signOut } = useAuth();
+
+  const [allUsers, setAllUsers] = useState<UserWithRole[]>([]);
+
+  // Fetch all users for the view-as selector (only if actual ss_admin)
+  useEffect(() => {
+    if (!actualIsSSAdmin) return;
+    const fetchUsers = async () => {
+      const { data: users } = await supabase.from("users").select("id, name, email");
+      const { data: roles } = await supabase.from("user_roles").select("user_id, role");
+      if (users && roles) {
+        const roleMap: Record<string, string[]> = {};
+        roles.forEach((r) => {
+          if (!roleMap[r.user_id]) roleMap[r.user_id] = [];
+          roleMap[r.user_id].push(r.role);
+        });
+        setAllUsers(users.map((u) => ({ ...u, roles: roleMap[u.id] || [] })));
+      }
+    };
+    fetchUsers();
+  }, [actualIsSSAdmin]);
 
   const mainItems = isSSAdmin ? superAdminItems : isSSTeam ? teamItems : clientItems;
   const secondaryItems = isSSAdmin ? superAdminAdminItems : isSSTeam ? teamAdminItems : null;
   const secondaryLabel = isSSAdmin ? "Admin" : isSSTeam ? "Team" : null;
+
+  const ssUsers = allUsers.filter((u) => u.roles.some((r) => ["ss_admin", "ss_producer", "ss_ops"].includes(r)));
+  const clientUsers = allUsers.filter((u) => u.roles.some((r) => ["client_admin", "client_assistant"].includes(r)));
 
   return (
     <Sidebar collapsible="icon">
@@ -91,6 +134,52 @@ export function AppSidebar() {
           )}
         </div>
       </SidebarHeader>
+
+      {/* View As selector — only for actual super admin */}
+      {actualIsSSAdmin && !collapsed && (
+        <div className="px-3 pb-2">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <Eye className="h-3.5 w-3.5 text-sidebar-foreground/50" />
+            <span className="text-xs font-medium text-sidebar-foreground/50">View As</span>
+            {isViewingAs && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 ml-auto bg-primary/15 text-primary border-primary/20">
+                Active
+              </Badge>
+            )}
+          </div>
+          <Select
+            value={viewAsUserId || "__self__"}
+            onValueChange={(val) => setViewAs(val === "__self__" ? null : val)}
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder="My View" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__self__">My View (Super Admin)</SelectItem>
+              {ssUsers.length > 0 && (
+                <SelectGroup>
+                  <SelectLabel className="text-xs">Team</SelectLabel>
+                  {ssUsers.map((u) => (
+                    <SelectItem key={u.id} value={u.id} className="text-xs">
+                      {u.name || u.email}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              )}
+              {clientUsers.length > 0 && (
+                <SelectGroup>
+                  <SelectLabel className="text-xs">Clients</SelectLabel>
+                  {clientUsers.map((u) => (
+                    <SelectItem key={u.id} value={u.id} className="text-xs">
+                      {u.name || u.email}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <SidebarSeparator />
 
