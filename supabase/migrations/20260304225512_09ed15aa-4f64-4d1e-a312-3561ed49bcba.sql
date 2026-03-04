@@ -1,0 +1,1 @@
+ALTER TABLE public.clients ADD COLUMN whats_new_visible_addons jsonb NOT NULL DEFAULT '[]'::jsonb;

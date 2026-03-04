@@ -16,7 +16,17 @@ import {
   AlertTriangle,
   ClipboardList,
   Users,
+  Sparkles,
 } from "lucide-react";
+
+const ALL_ADDONS = [
+  { title: "Email Marketing", desc: "Monthly email campaigns to nurture your audience and drive conversions.", icon: "📧", price: "From $299/mo" },
+  { title: "Reels & Short-Form Video", desc: "Engaging vertical video content for Instagram Reels, TikTok, and Shorts.", icon: "🎬", price: "From $499/mo" },
+  { title: "Paid Social Ads", desc: "Strategic ad campaigns with targeting, creative, and reporting.", icon: "📊", price: "From $599/mo" },
+  { title: "Blog & SEO Content", desc: "Monthly blog posts optimized for search to drive organic traffic.", icon: "✍️", price: "From $399/mo" },
+  { title: "Photography Sessions", desc: "Professional brand photography for your social content library.", icon: "📷", price: "From $799/session" },
+  { title: "Community Management", desc: "Active engagement with your audience — comments, DMs, and more.", icon: "💬", price: "From $349/mo" },
+];
 
 // ─── Super Admin Dashboard ───────────────────────────────────────────────────
 
@@ -58,17 +68,14 @@ function SuperAdminDashboard() {
     },
   });
 
-  // Team activity: posts assigned to ss_producer/ss_ops users, not published
   const { data: teamActivity = [] } = useQuery({
     queryKey: ["sa-team-activity"],
     queryFn: async () => {
-      // Get SS team users
       const { data: teamRoles } = await supabase.from("user_roles").select("user_id, role").in("role", ["ss_producer", "ss_ops"]);
       if (!teamRoles?.length) return [];
       const userIds = [...new Set(teamRoles.map((r) => r.user_id))];
       const { data: users } = await supabase.from("users").select("id, name, email").in("id", userIds);
       const { data: posts } = await supabase.from("posts").select("id, title, status_column, due_at, assigned_to_user_id, clients(name)").in("assigned_to_user_id", userIds).not("status_column", "eq", "published").order("due_at", { ascending: true, nullsFirst: false }).limit(20);
-      // Group by user
       return (users || []).map((u) => ({
         user: u,
         posts: (posts || []).filter((p) => p.assigned_to_user_id === u.id),
@@ -91,7 +98,6 @@ function SuperAdminDashboard() {
         <p className="text-muted-foreground mt-1">Here's your overview across all clients.</p>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/approvals")}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -123,7 +129,6 @@ function SuperAdminDashboard() {
         </Card>
       </div>
 
-      {/* Team Activity */}
       {teamActivity.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-3">
@@ -160,7 +165,6 @@ function SuperAdminDashboard() {
         </div>
       )}
 
-      {/* Recent Client Requests */}
       {recentRequests.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-3">
@@ -191,7 +195,6 @@ function SuperAdminDashboard() {
         </div>
       )}
 
-      {/* Quick Actions */}
       <div>
         <h3 className="text-lg font-semibold text-foreground mb-3">Quick Actions</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -302,7 +305,6 @@ function TeamDashboard() {
         </Card>
       </div>
 
-      {/* My Assignments */}
       {myAssignments.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-3">
@@ -330,7 +332,6 @@ function TeamDashboard() {
         </div>
       )}
 
-      {/* Client Requests */}
       {recentRequests.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-3">
@@ -361,7 +362,6 @@ function TeamDashboard() {
         </div>
       )}
 
-      {/* Quick Actions */}
       <div>
         <h3 className="text-lg font-semibold text-foreground mb-3">Quick Actions</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -405,11 +405,11 @@ function ClientDashboard() {
     enabled: !!profile?.client_id,
   });
 
-  const { data: clientPlan } = useQuery({
-    queryKey: ["client-plan", profile?.client_id],
+  const { data: clientData } = useQuery({
+    queryKey: ["client-plan-and-addons", profile?.client_id],
     queryFn: async () => {
       if (!profile?.client_id) return null;
-      const { data } = await supabase.from("clients").select("name, plans(name, includes_json)").eq("id", profile.client_id).single();
+      const { data } = await supabase.from("clients").select("name, plans(name, includes_json), whats_new_visible_addons").eq("id", profile.client_id).single();
       return data;
     },
     enabled: !!profile?.client_id,
@@ -425,31 +425,37 @@ function ClientDashboard() {
     enabled: !!profile?.client_id,
   });
 
+  const visibleAddonNames: string[] = (clientData as any)?.whats_new_visible_addons || [];
+  const visibleAddons = ALL_ADDONS.filter((a) => visibleAddonNames.includes(a.title));
+
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-foreground">Welcome back{profile?.name ? `, ${profile.name.split(" ")[0]}` : ""}</h2>
-        <p className="text-muted-foreground mt-1">Here's what's happening with your social content.</p>
+        <p className="text-muted-foreground mt-1">Here's what's happening with your marketing.</p>
       </div>
 
-      {/* Plan summary */}
-      {clientPlan && (
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/plan")}>
-          <CardContent className="flex items-center justify-between py-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Current Plan</p>
-              <p className="font-semibold text-foreground">{(clientPlan as any).plans?.name || "No plan assigned"}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary">Active</Badge>
-              <ArrowRight className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Quick Actions — top */}
+      <div>
+        <h3 className="text-lg font-semibold text-foreground mb-3">Quick Actions</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Button variant="outline" className="h-auto py-4 flex flex-col items-start gap-1" onClick={() => navigate("/requests?type=social_post")}>
+            <FileEdit className="h-5 w-5 text-primary" />
+            <span className="font-medium">Request a Social Post</span>
+          </Button>
+          <Button variant="outline" className="h-auto py-4 flex flex-col items-start gap-1" onClick={() => navigate("/requests?type=email_campaign")}>
+            <MessageSquarePlus className="h-5 w-5 text-primary" />
+            <span className="font-medium">Request an Email Campaign</span>
+          </Button>
+          <Button variant="outline" className="h-auto py-4 flex flex-col items-start gap-1" onClick={() => navigate("/approvals")}>
+            <CheckSquare className="h-5 w-5 text-primary" />
+            <span className="font-medium">Review Content</span>
+          </Button>
+        </div>
+      </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Stats — 2 cards only */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/approvals")}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Awaiting Approval</CardTitle>
@@ -468,15 +474,6 @@ function ClientDashboard() {
           <CardContent>
             <div className="text-3xl font-bold text-foreground">{openRequests}</div>
             <p className="text-xs text-muted-foreground mt-1">Requests being worked on</p>
-          </CardContent>
-        </Card>
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/content-library")}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Content Library</CardTitle>
-            <ClipboardList className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground mt-1">Browse published content</p>
           </CardContent>
         </Card>
       </div>
@@ -506,24 +503,43 @@ function ClientDashboard() {
         </div>
       )}
 
-      {/* Quick Actions */}
-      <div>
-        <h3 className="text-lg font-semibold text-foreground mb-3">Quick Actions</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Button variant="outline" className="h-auto py-4 flex flex-col items-start gap-1" onClick={() => navigate("/requests?type=social_post")}>
-            <FileEdit className="h-5 w-5 text-primary" />
-            <span className="font-medium">Request a Social Post</span>
-          </Button>
-          <Button variant="outline" className="h-auto py-4 flex flex-col items-start gap-1" onClick={() => navigate("/requests?type=email_campaign")}>
-            <MessageSquarePlus className="h-5 w-5 text-primary" />
-            <span className="font-medium">Request an Email Campaign</span>
-          </Button>
-          <Button variant="outline" className="h-auto py-4 flex flex-col items-start gap-1" onClick={() => navigate("/approvals")}>
-            <CheckSquare className="h-5 w-5 text-primary" />
-            <span className="font-medium">Review Content</span>
-          </Button>
+      {/* Current Plan — bottom */}
+      {clientData && (
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/plan")}>
+          <CardContent className="flex items-center justify-between py-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Current Plan</p>
+              <p className="font-semibold text-foreground">{(clientData as any).plans?.name || "No plan assigned"}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary">Active</Badge>
+              <ArrowRight className="h-4 w-4 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* What's New */}
+      {visibleAddons.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="h-5 w-5 text-warning" />
+            <h3 className="text-lg font-semibold text-foreground">What's New</h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {visibleAddons.map((a) => (
+              <Card key={a.title} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate("/whats-new")}>
+                <CardContent className="pt-5 space-y-2">
+                  <span className="text-2xl">{a.icon}</span>
+                  <h4 className="font-semibold text-foreground text-sm">{a.title}</h4>
+                  <p className="text-xs text-muted-foreground">{a.desc}</p>
+                  <p className="text-xs font-medium text-primary">{a.price}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
