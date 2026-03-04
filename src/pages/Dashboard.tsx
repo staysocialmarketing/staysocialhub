@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 import {
   CheckSquare,
   MessageSquarePlus,
@@ -12,6 +13,7 @@ import {
   Users,
   Sparkles,
   ArrowRight,
+  Calendar,
 } from "lucide-react";
 
 export default function Dashboard() {
@@ -60,6 +62,23 @@ export default function Dashboard() {
       return data;
     },
     enabled: !!profile?.client_id,
+  });
+
+  const { data: scheduledPosts = [] } = useQuery({
+    queryKey: ["scheduled-posts", profile?.client_id],
+    queryFn: async () => {
+      let query = supabase
+        .from("posts")
+        .select("id, title, platform, scheduled_at")
+        .gt("scheduled_at", new Date().toISOString())
+        .order("scheduled_at", { ascending: true })
+        .limit(5);
+      if (profile?.client_id) query = query.eq("client_id", profile.client_id);
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!profile,
   });
 
   const addons = [
@@ -134,7 +153,40 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Quick Actions */}
+      {/* Next Scheduled Posts */}
+      {scheduledPosts.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Calendar className="h-5 w-5 text-primary" />
+            <h3 className="text-lg font-semibold text-foreground">Next Scheduled Posts</h3>
+          </div>
+          <Card>
+            <CardContent className="p-0">
+              <ul className="divide-y divide-border">
+                {scheduledPosts.map((post: any) => (
+                  <li
+                    key={post.id}
+                    className="flex items-center justify-between px-4 py-3 hover:bg-accent/50 cursor-pointer transition-colors"
+                    onClick={() => navigate(`/approvals/${post.id}`)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-muted-foreground min-w-[80px]">
+                        {format(new Date(post.scheduled_at), "MMM d")}
+                      </span>
+                      <span className="text-sm font-medium text-foreground">{post.title}</span>
+                    </div>
+                    {post.platform && (
+                      <Badge variant="secondary" className="text-xs">
+                        {post.platform.split(",")[0].trim()}
+                      </Badge>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
+      )}
       <div>
         <h3 className="text-lg font-semibold text-foreground mb-3">Quick Actions</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
