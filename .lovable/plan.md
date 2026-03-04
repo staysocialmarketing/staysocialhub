@@ -1,46 +1,99 @@
 
 
-# Super Admin "View As" Toggle
+# View As Styling + Team Workspace (Think Tank, Projects, Tasks)
 
-## Concept
-Add a client-side "View As" feature to `AuthContext` that lets the super admin override their effective role and profile to see the app exactly as any other user would — without changing auth or RLS (data access stays at ss_admin level, but the UI renders the target user's experience).
+## 1. View As Dropdown Styling Fix
+Style the `SelectTrigger` to blend with the sidebar background (transparent/dark) and only show white when opened/focused.
 
-## How It Works
+**File:** `src/components/AppSidebar.tsx` — update the SelectTrigger className to use `bg-transparent border-sidebar-border text-sidebar-foreground` instead of the default white.
 
-### AuthContext Changes
-- Add `viewAsUserId` state (null = normal mode)
-- Add `setViewAs(userId: string | null)` function
-- When `viewAsUserId` is set, fetch that user's profile and roles, and expose them as `effectiveProfile`, `effectiveRoles`, `effectiveIsSSAdmin`, etc.
-- All existing consumers already use `isSSAdmin`, `isSSTeam`, `profile`, etc. — these will return the **effective** values when viewing as someone else
-- Add `actualIsSSAdmin` boolean so the "View As" selector itself always renders for the real admin
-- Add `isViewingAs` boolean for UI indicators
+## 2. Sidebar Navigation Update
+Replace the current "Admin" section (for both SS Admin and Team) with a **"Team"** section containing:
+- **Think Tank** (`/team/think-tank`) — Ideas, meeting notes, brainstorming
+- **Projects** (`/team/projects`) — High-level project tracking with sub-projects
+- **Tasks** (`/team/tasks`) — Daily task tracker, detailed view per project
 
-### Sidebar — "View As" Selector
-- In `AppSidebar.tsx`, when `actualIsSSAdmin` is true, render a dropdown at the top (below logo) showing all users
-- Options: "My View" (default), then all users grouped by role (Team, then Clients)
-- Selecting a user calls `setViewAs(userId)` — the entire app re-renders with that user's perspective
-- Show a colored banner/badge when viewing as someone else
+Keep the existing Admin items (Clients, Users, Profile Updates, Content, Add-On Requests) under the same "Team" label for both Admin and Team roles.
 
-### AppLayout Banner
-- When `isViewingAs` is true, show a small top banner: "Viewing as: [Name] ([Role]) — Exit" so it's always clear
+**File:** `src/components/AppSidebar.tsx` — add Think Tank, Projects, Tasks to both `superAdminAdminItems` and `teamAdminItems`, rename label to "Team".
 
-### What Changes Per View
-- Sidebar navigation switches to match the target role
-- Dashboard renders the correct variant
-- Approvals shows the correct columns
-- Requests filters by that user's client
-- Data is still fetched with the real ss_admin token (so RLS returns all data), but the UI filters/renders as if they were that user
+## 3. Database — New Tables
 
-### Important: Data Filtering
-When viewing as a client user, queries that filter by `profile.client_id` will use the **viewed user's** `client_id`, so the dashboard/requests/approvals naturally scope down to that client's data.
+### `think_tank_items`
+- `id` uuid PK
+- `title` text NOT NULL
+- `body` text (rich text / markdown)
+- `type` text (idea, meeting_note, brainstorm) default 'idea'
+- `created_by_user_id` uuid NOT NULL
+- `client_id` uuid nullable (optional link to client)
+- `project_id` uuid nullable (link to project when actioned)
+- `status` text default 'open' (open, actioned, archived)
+- `created_at`, `updated_at`
+
+RLS: SS roles only (read/write).
+
+### `projects`
+- `id` uuid PK
+- `name` text NOT NULL
+- `description` text
+- `parent_project_id` uuid nullable (self-ref for sub-projects)
+- `client_id` uuid nullable
+- `status` text default 'active' (active, completed, on_hold, archived)
+- `created_by_user_id` uuid
+- `created_at`, `updated_at`
+
+RLS: SS roles only.
+
+### `tasks`
+- `id` uuid PK
+- `title` text NOT NULL
+- `description` text
+- `project_id` uuid nullable (FK to projects)
+- `assigned_to_user_id` uuid nullable
+- `status` text default 'todo' (todo, in_progress, done)
+- `priority` text default 'normal' (low, normal, high, urgent)
+- `due_at` timestamptz nullable
+- `created_by_user_id` uuid
+- `created_at`, `updated_at`
+
+RLS: SS roles only.
+
+## 4. New Pages
+
+### `src/pages/team/ThinkTank.tsx`
+- List of ideas/notes with filters (type, status)
+- Create dialog: title, body (textarea), type selector, optional client link
+- Cards showing title, type badge, date, creator
+- Action button to convert idea → project or task
+
+### `src/pages/team/Projects.tsx`
+- Project list with status filters
+- Each project card shows name, client (if linked), task count, status
+- Click to expand/view sub-projects and tasks
+- Create project dialog: name, description, client, parent project
+
+### `src/pages/team/Tasks.tsx`
+- Filterable task list (by project, assignee, status, priority)
+- Kanban-style or list view with status columns (Todo, In Progress, Done)
+- Create task dialog: title, description, project, assignee, priority, due date
+- Color-coded priority and due date indicators
+
+## 5. Routing
+Add to `App.tsx` inside the protected route block:
+- `/team/think-tank` → `ThinkTank`
+- `/team/projects` → `Projects`
+- `/team/tasks` → `Tasks`
+
+All wrapped in `AdminRoute` (which checks `isSSRole`).
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/contexts/AuthContext.tsx` | Add `viewAsUserId`, `setViewAs`, effective vs actual role booleans |
-| `src/components/AppSidebar.tsx` | Add "View As" dropdown for actual ss_admin |
-| `src/components/AppLayout.tsx` | Add "Viewing as" banner when active |
-
-No database changes needed.
+| Migration SQL | Create `think_tank_items`, `projects`, `tasks` tables with RLS |
+| `src/components/AppSidebar.tsx` | Fix View As dropdown styling; add Think Tank, Projects, Tasks to Team section; rename label to "Team" |
+| `src/pages/team/ThinkTank.tsx` | New — idea/note capture and management |
+| `src/pages/team/Projects.tsx` | New — project tracking with sub-projects |
+| `src/pages/team/Tasks.tsx` | New — daily task tracker |
+| `src/App.tsx` | Add 3 new routes under `/team/*` |
 
