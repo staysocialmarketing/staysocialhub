@@ -1,3 +1,4 @@
+import orangeLogo from "@/assets/orange_with_black.png";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,9 +54,7 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-primary text-primary-foreground font-bold text-xl mb-4">
-            SS
-          </div>
+          <img src={orangeLogo} alt="Stay Social" className="h-14 w-auto object-contain mb-4" />
           <h1 className="text-2xl font-bold text-foreground">Stay Social Client Hub</h1>
           <p className="text-muted-foreground mt-1">Sign in to manage your social content</p>
         </div>
