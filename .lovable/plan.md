@@ -1,38 +1,34 @@
 
 
-# Make Requests Clickable and Editable
+# Sync All Requests to Workflow Idea Board
 
-## What's Needed
-Currently, request cards on the Requests page are static — no way to click into them to see full details or edit fields. We need:
+## Problem
+When clients create requests from the Requests page, **no post is created** — so the team never sees it on their Workflow board. Only the `MakeRequestDialog` (Think Tank/Projects/Tasks) manually inserts a post, but this is fragile and duplicates logic. Additionally, clients **cannot insert into the `posts` table** due to RLS (`is_ss_role()` only for INSERT), so client-created requests never appear in the workflow.
 
-1. **A Request Detail dialog** — clicking any request card opens a dialog showing all fields with inline editing
-2. **Editable fields** — SS roles can edit all fields; clients can edit topic, notes, priority, and preferred_publish_window on their own requests
-3. **Comments section** — the `comments` table already supports `request_id`, so we can show/add comments on requests too
+## Solution
+Use a **database trigger** on the `requests` table that automatically creates a post in `idea` status whenever a request is inserted. This ensures every request — regardless of origin (client, admin, MakeRequestDialog) — immediately populates the Workflow Idea board and notifies the team.
 
-## Implementation
+## Changes
 
-### `src/pages/Requests.tsx`
-- Make each request `Card` clickable (`cursor-pointer`, `onClick` sets `selectedRequest`)
-- Add a **Request Detail Dialog** that opens when a request is selected, showing:
-  - All fields (type, topic, notes, priority, status, preferred_publish_window, attachments, client name, created by, date)
-  - Editable inputs for topic, notes, priority, preferred_publish_window (SS roles: all fields + status; clients: their own requests' editable fields)
-  - Save button that calls `supabase.from("requests").update(...)` 
-  - Comments section (fetch/add comments where `request_id = selectedRequest.id`)
-  - Attachment download link if `attachments_url` exists
-- Add a route `/requests/:requestId` as an alternative (optional — dialog approach is simpler and keeps context)
+### 1. Database Migration — New Trigger
+Create `auto_create_post_from_request()` trigger function (SECURITY DEFINER) on `requests` AFTER INSERT:
+- Inserts a post with `client_id`, `title = NEW.topic`, `caption = NEW.notes`, `status_column = 'idea'`, `created_by_user_id = NEW.created_by_user_id`
+- Notifies all SS role users (ss_admin, ss_producer, ss_ops) with a notification: "New request: [topic]"
 
-### Approach: Dialog-based detail view
-Rather than a separate page, open a full-detail dialog on card click. This keeps the list visible and is consistent with other patterns in the app. The dialog will have:
-- **Header**: Type icon + topic + client name
-- **Body**: Editable form fields (conditionally editable based on role)
-- **Sidebar area**: Status selector, priority, dates
-- **Comments**: List + add form (reusing the comments table with `request_id`)
+### 2. Remove Duplicate Post Creation from `MakeRequestDialog.tsx`
+Remove the manual `supabase.from("posts").insert(...)` call (lines 70-78) since the trigger now handles it automatically.
 
-### Files Changed
+### 3. Invalidate Workflow Queries in `Requests.tsx`
+After a request is created on the Requests page, also invalidate `workflow-posts` query key so the Workflow board updates if open.
+
+### 4. Invalidate Workflow Queries in `MakeRequestDialog.tsx`
+Same — invalidate `workflow-posts` on success.
+
+## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/pages/Requests.tsx` | Add click handler on cards, add RequestDetailDialog with editable fields and comments |
-
-No database changes needed — `comments.request_id` already exists, and `requests` table has update RLS for `can_access_client(client_id)`.
+| Migration SQL | Create `auto_create_post_from_request` trigger on `requests` table |
+| `src/components/MakeRequestDialog.tsx` | Remove manual post insert (trigger handles it); invalidate `workflow-posts` |
+| `src/pages/Requests.tsx` | Invalidate `workflow-posts` on request creation success |
 
