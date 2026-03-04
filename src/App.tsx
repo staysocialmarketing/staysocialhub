@@ -19,6 +19,9 @@ import AdminUsers from "./pages/admin/AdminUsers";
 import AdminProfileUpdates from "./pages/admin/AdminProfileUpdates";
 import AdminContent from "./pages/admin/AdminContent";
 import AdminAddonRequests from "./pages/admin/AdminAddonRequests";
+import ThinkTank from "./pages/team/ThinkTank";
+import Projects from "./pages/team/Projects";
+import Tasks from "./pages/team/Tasks";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -68,6 +71,9 @@ const App = () => (
               <Route path="/admin/profile-updates" element={<AdminRoute><AdminProfileUpdates /></AdminRoute>} />
               <Route path="/admin/content" element={<AdminRoute><AdminContent /></AdminRoute>} />
               <Route path="/admin/addon-requests" element={<AdminRoute><AdminAddonRequests /></AdminRoute>} />
+              <Route path="/team/think-tank" element={<AdminRoute><ThinkTank /></AdminRoute>} />
+              <Route path="/team/projects" element={<AdminRoute><Projects /></AdminRoute>} />
+              <Route path="/team/tasks" element={<AdminRoute><Tasks /></AdminRoute>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

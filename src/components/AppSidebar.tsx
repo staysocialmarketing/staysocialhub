@@ -15,6 +15,9 @@ import {
   LogOut,
   ClipboardList,
   Eye,
+  Lightbulb,
+  FolderKanban,
+  ListTodo,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -52,6 +55,9 @@ const superAdminItems = [
 ];
 
 const superAdminAdminItems = [
+  { title: "Think Tank", url: "/team/think-tank", icon: Lightbulb },
+  { title: "Projects", url: "/team/projects", icon: FolderKanban },
+  { title: "Tasks", url: "/team/tasks", icon: ListTodo },
   { title: "Clients", url: "/admin/clients", icon: Building2 },
   { title: "Users", url: "/admin/users", icon: Users },
   { title: "Profile Updates", url: "/admin/profile-updates", icon: FileEdit },
@@ -66,6 +72,9 @@ const teamItems = [
 ];
 
 const teamAdminItems = [
+  { title: "Think Tank", url: "/team/think-tank", icon: Lightbulb },
+  { title: "Projects", url: "/team/projects", icon: FolderKanban },
+  { title: "Tasks", url: "/team/tasks", icon: ListTodo },
   { title: "Clients", url: "/admin/clients", icon: Building2 },
   { title: "Users", url: "/admin/users", icon: Users },
   { title: "Profile Updates", url: "/admin/profile-updates", icon: FileEdit },
@@ -116,7 +125,7 @@ export function AppSidebar() {
 
   const mainItems = isSSAdmin ? superAdminItems : isSSTeam ? teamItems : clientItems;
   const secondaryItems = isSSAdmin ? superAdminAdminItems : isSSTeam ? teamAdminItems : null;
-  const secondaryLabel = isSSAdmin ? "Admin" : isSSTeam ? "Team" : null;
+  const secondaryLabel = isSSAdmin ? "Team" : isSSTeam ? "Team" : null;
 
   const ssUsers = allUsers.filter((u) => u.roles.some((r) => ["ss_admin", "ss_producer", "ss_ops"].includes(r)));
   const clientUsers = allUsers.filter((u) => u.roles.some((r) => ["client_admin", "client_assistant"].includes(r)));
@@ -151,7 +160,7 @@ export function AppSidebar() {
             value={viewAsUserId || "__self__"}
             onValueChange={(val) => setViewAs(val === "__self__" ? null : val)}
           >
-            <SelectTrigger className="h-8 text-xs">
+            <SelectTrigger className="h-8 text-xs bg-transparent border-sidebar-border text-sidebar-foreground focus:bg-background focus:text-foreground">
               <SelectValue placeholder="My View" />
             </SelectTrigger>
             <SelectContent>
