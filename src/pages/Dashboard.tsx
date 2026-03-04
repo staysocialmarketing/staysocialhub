@@ -14,6 +14,8 @@ import {
   Sparkles,
   ArrowRight,
   Calendar,
+  Clock,
+  AlertTriangle,
 } from "lucide-react";
 
 export default function Dashboard() {
@@ -81,6 +83,55 @@ export default function Dashboard() {
     enabled: !!profile,
   });
 
+  // SS-only: My assignments
+  const { data: myAssignments = [] } = useQuery({
+    queryKey: ["my-assignments", profile?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("posts")
+        .select("id, title, status_column, due_at, clients(name)")
+        .eq("assigned_to_user_id", profile!.id)
+        .not("status_column", "eq", "published")
+        .order("due_at", { ascending: true, nullsFirst: false })
+        .limit(10);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!profile && isSSRole,
+  });
+
+  // SS-only: overdue & due today counts
+  const { data: overduePosts = 0 } = useQuery({
+    queryKey: ["overdue-count"],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from("posts")
+        .select("id", { count: "exact", head: true })
+        .lt("due_at", new Date().toISOString())
+        .not("status_column", "eq", "published");
+      return count || 0;
+    },
+    enabled: isSSRole,
+  });
+
+  const { data: dueTodayPosts = 0 } = useQuery({
+    queryKey: ["due-today-count"],
+    queryFn: async () => {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+      const { count } = await supabase
+        .from("posts")
+        .select("id", { count: "exact", head: true })
+        .gte("due_at", todayStart.toISOString())
+        .lte("due_at", todayEnd.toISOString())
+        .not("status_column", "eq", "published");
+      return count || 0;
+    },
+    enabled: isSSRole,
+  });
+
   const addons = [
     { title: "Email Marketing", description: "Monthly email campaigns to your audience", icon: "📧" },
     { title: "Reels Package", description: "Short-form video content creation", icon: "🎬" },
@@ -114,7 +165,7 @@ export default function Dashboard() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/approvals")}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Awaiting Approval</CardTitle>
@@ -122,7 +173,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-foreground">{pendingApprovals}</div>
-            <p className="text-xs text-muted-foreground mt-1">Content ready for your review</p>
+            <p className="text-xs text-muted-foreground mt-1">Content ready for review</p>
           </CardContent>
         </Card>
 
@@ -136,6 +187,32 @@ export default function Dashboard() {
             <p className="text-xs text-muted-foreground mt-1">Requests being worked on</p>
           </CardContent>
         </Card>
+
+        {isSSRole && (
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/approvals")}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Overdue</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-destructive">{overduePosts}</div>
+              <p className="text-xs text-muted-foreground mt-1">Past due date</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {isSSRole && (
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/approvals")}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Due Today</CardTitle>
+              <Clock className="h-4 w-4 text-warning" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-warning">{dueTodayPosts}</div>
+              <p className="text-xs text-muted-foreground mt-1">Due by end of day</p>
+            </CardContent>
+          </Card>
+        )}
 
         {isClientAdmin && (
           <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/requests")}>
@@ -152,6 +229,46 @@ export default function Dashboard() {
           </Card>
         )}
       </div>
+
+      {/* My Assignments (SS only) */}
+      {isSSRole && myAssignments.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <CheckSquare className="h-5 w-5 text-primary" />
+            <h3 className="text-lg font-semibold text-foreground">My Assignments</h3>
+          </div>
+          <Card>
+            <CardContent className="p-0">
+              <ul className="divide-y divide-border">
+                {myAssignments.map((post: any) => (
+                  <li
+                    key={post.id}
+                    className="flex items-center justify-between px-4 py-3 hover:bg-accent/50 cursor-pointer transition-colors"
+                    onClick={() => navigate(`/approvals/${post.id}`)}
+                  >
+                    <div className="flex items-center gap-3">
+                      {post.due_at && (
+                        <span className="text-sm font-medium text-muted-foreground min-w-[80px]">
+                          {format(new Date(post.due_at), "MMM d")}
+                        </span>
+                      )}
+                      <span className="text-sm font-medium text-foreground">{post.title}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs">
+                        {post.status_column.replace(/_/g, " ")}
+                      </Badge>
+                      {post.clients?.name && (
+                        <span className="text-xs text-muted-foreground">{post.clients.name}</span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Next Scheduled Posts */}
       {scheduledPosts.length > 0 && (

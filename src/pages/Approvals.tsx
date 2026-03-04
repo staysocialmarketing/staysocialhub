@@ -19,10 +19,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import CalendarView from "@/components/approvals/CalendarView";
 import {
-  MessageSquare, Calendar, Image as ImageIcon, Plus, Upload, Hash, LayoutGrid, CalendarDays,
+  MessageSquare, Calendar, Image as ImageIcon, Plus, Hash, LayoutGrid, CalendarDays, Clock,
 } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, isToday, isPast, startOfDay } from "date-fns";
+import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 
 type PostStatus = Database["public"]["Enums"]["post_status"];
@@ -54,6 +55,24 @@ const platformColors: Record<string, string> = {
 
 const PLATFORM_OPTIONS = ["Instagram", "Facebook", "LinkedIn", "TikTok"];
 
+function getDueDateColor(dueAt: string | null) {
+  if (!dueAt) return null;
+  const due = startOfDay(new Date(dueAt));
+  const today = startOfDay(new Date());
+  if (due < today) return "text-destructive";
+  if (isToday(due)) return "text-warning";
+  return "text-muted-foreground";
+}
+
+function UserInitials({ name, className }: { name: string | null; className?: string }) {
+  const initials = (name || "?").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+  return (
+    <div className={cn("h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-medium text-primary", className)}>
+      {initials}
+    </div>
+  );
+}
+
 export default function Approvals() {
   const { profile, isSSRole, isClientAdmin, isClientAssistant } = useAuth();
   const queryClient = useQueryClient();
@@ -68,13 +87,16 @@ export default function Approvals() {
     hashtags: "",
     internal_notes: "",
     scheduled_at: null as Date | null,
+    assigned_to_user_id: "",
+    reviewer_user_id: "",
+    due_at: null as Date | null,
   });
   const [creativeFile, setCreativeFile] = useState<File | null>(null);
 
   const { data: posts = [], isLoading } = useQuery({
     queryKey: ["posts", profile?.client_id],
     queryFn: async () => {
-      let query = supabase.from("posts").select("*, comments(id)").order("created_at", { ascending: false });
+      let query = supabase.from("posts").select("*, comments(id), assigned_user:assigned_to_user_id(name), reviewer:reviewer_user_id(name)").order("created_at", { ascending: false });
       if (profile?.client_id) query = query.eq("client_id", profile.client_id);
       const { data, error } = await query;
       if (error) throw error;
@@ -89,6 +111,26 @@ export default function Approvals() {
       const { data, error } = await supabase.from("clients").select("id, name").order("name");
       if (error) throw error;
       return data || [];
+    },
+    enabled: isSSRole,
+  });
+
+  // Fetch SS-role users for assignment dropdowns
+  const { data: ssUsers = [] } = useQuery({
+    queryKey: ["ss-users"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("user_id, users:user_id(id, name, email)")
+        .in("role", ["ss_admin", "ss_producer", "ss_ops"]);
+      if (error) throw error;
+      // Deduplicate by user_id
+      const seen = new Set<string>();
+      return (data || []).filter((r: any) => {
+        if (seen.has(r.user_id)) return false;
+        seen.add(r.user_id);
+        return true;
+      }).map((r: any) => r.users);
     },
     enabled: isSSRole,
   });
@@ -134,12 +176,14 @@ export default function Approvals() {
           status_column: "idea" as PostStatus,
           created_by_user_id: profile.id,
           internal_notes: newPost.internal_notes || null,
+          assigned_to_user_id: newPost.assigned_to_user_id || null,
+          reviewer_user_id: newPost.reviewer_user_id || null,
+          due_at: newPost.due_at?.toISOString() || null,
         } as any)
         .select()
         .single();
       if (postError) throw postError;
 
-      // Create v1 in post_versions
       await supabase.from("post_versions").insert({
         post_id: postData.id,
         version_number: 1,
@@ -155,7 +199,7 @@ export default function Approvals() {
       queryClient.invalidateQueries({ queryKey: ["posts"] });
       toast.success("Post created!");
       setCreateOpen(false);
-      setNewPost({ client_id: "", title: "", platforms: [], caption: "", hashtags: "", internal_notes: "", scheduled_at: null });
+      setNewPost({ client_id: "", title: "", platforms: [], caption: "", hashtags: "", internal_notes: "", scheduled_at: null, assigned_to_user_id: "", reviewer_user_id: "", due_at: null });
       setCreativeFile(null);
     },
     onError: (err: any) => toast.error(err.message || "Failed to create post"),
@@ -268,6 +312,49 @@ export default function Approvals() {
                     ))}
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Assign to</Label>
+                    <Select value={newPost.assigned_to_user_id} onValueChange={(v) => setNewPost({ ...newPost, assigned_to_user_id: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select user" /></SelectTrigger>
+                      <SelectContent>
+                        {ssUsers.map((u: any) => (
+                          <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Reviewer</Label>
+                    <Select value={newPost.reviewer_user_id} onValueChange={(v) => setNewPost({ ...newPost, reviewer_user_id: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select reviewer" /></SelectTrigger>
+                      <SelectContent>
+                        {ssUsers.map((u: any) => (
+                          <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div>
+                  <Label>Due Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left font-normal">
+                        <Clock className="h-4 w-4 mr-2" />
+                        {newPost.due_at ? format(newPost.due_at, "PPP") : "Pick a due date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <CalendarWidget
+                        mode="single"
+                        selected={newPost.due_at || undefined}
+                        onSelect={(d) => setNewPost({ ...newPost, due_at: d || null })}
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
                 <div>
                   <Label>Caption</Label>
                   <Textarea value={newPost.caption} onChange={(e) => setNewPost({ ...newPost, caption: e.target.value })} placeholder="Post caption" />
@@ -294,6 +381,7 @@ export default function Approvals() {
                         mode="single"
                         selected={newPost.scheduled_at || undefined}
                         onSelect={(d) => setNewPost({ ...newPost, scheduled_at: d || null })}
+                        className={cn("p-3 pointer-events-auto")}
                       />
                     </PopoverContent>
                   </Popover>
@@ -346,65 +434,83 @@ export default function Approvals() {
                       </Badge>
                     </div>
                     <div className="px-2 pb-2 space-y-2 flex-1 min-h-[100px]">
-                      {columnPosts.map((post: any) => (
-                        <Tooltip key={post.id}>
-                          <TooltipTrigger asChild>
-                            <Card
-                              className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
-                              draggable
-                              onDragStart={(e) => handleDragStart(e, post.id, post.status_column)}
-                              onClick={() => navigate(`/approvals/${post.id}`)}
-                            >
-                              <CardContent className="p-3 space-y-2">
-                                {post.creative_url ? (
-                                  <div className="aspect-video bg-muted rounded overflow-hidden">
-                                    <img src={post.creative_url} alt="" className="w-full h-full object-cover" />
+                      {columnPosts.map((post: any) => {
+                        const dueDateColor = getDueDateColor(post.due_at);
+                        return (
+                          <Tooltip key={post.id}>
+                            <TooltipTrigger asChild>
+                              <Card
+                                className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, post.id, post.status_column)}
+                                onClick={() => navigate(`/approvals/${post.id}`)}
+                              >
+                                <CardContent className="p-3 space-y-2">
+                                  {post.creative_url ? (
+                                    <div className="aspect-video bg-muted rounded overflow-hidden">
+                                      <img src={post.creative_url} alt="" className="w-full h-full object-cover" />
+                                    </div>
+                                  ) : (
+                                    <div className="aspect-video bg-muted rounded flex items-center justify-center">
+                                      <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
+                                    </div>
+                                  )}
+                                  <h4 className="text-sm font-medium text-foreground line-clamp-2">{post.title}</h4>
+                                  <div className="flex flex-wrap gap-1">
+                                    {post.platform?.split(",").map((p: string) => (
+                                      <Badge
+                                        key={p}
+                                        variant="secondary"
+                                        className={`text-[10px] ${platformColors[p.trim().toLowerCase()] || ""}`}
+                                      >
+                                        {p.trim()}
+                                      </Badge>
+                                    ))}
                                   </div>
-                                ) : (
-                                  <div className="aspect-video bg-muted rounded flex items-center justify-center">
-                                    <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
+                                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                    <div className="flex items-center gap-2">
+                                      {post.due_at && (
+                                        <span className={cn("flex items-center gap-1", dueDateColor)}>
+                                          <Clock className="h-3 w-3" />
+                                          {format(new Date(post.due_at), "MMM d")}
+                                        </span>
+                                      )}
+                                      <span className="flex items-center gap-1">
+                                        <Calendar className="h-3 w-3" />
+                                        {post.scheduled_at
+                                          ? new Date(post.scheduled_at).toLocaleDateString()
+                                          : "TBD"}
+                                      </span>
+                                    </div>
+                                    <span className="flex items-center gap-1">
+                                      <MessageSquare className="h-3 w-3" />
+                                      {post.comments?.length || 0}
+                                    </span>
                                   </div>
-                                )}
-                                <h4 className="text-sm font-medium text-foreground line-clamp-2">{post.title}</h4>
-                                <div className="flex flex-wrap gap-1">
-                                  {post.platform?.split(",").map((p: string) => (
-                                    <Badge
-                                      key={p}
-                                      variant="secondary"
-                                      className={`text-[10px] ${platformColors[p.trim().toLowerCase()] || ""}`}
-                                    >
-                                      {p.trim()}
-                                    </Badge>
-                                  ))}
-                                </div>
-                                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                  <span className="flex items-center gap-1">
-                                    <Calendar className="h-3 w-3" />
-                                    {post.scheduled_at
-                                      ? new Date(post.scheduled_at).toLocaleDateString()
-                                      : "TBD"}
-                                  </span>
-                                  <span className="flex items-center gap-1">
-                                    <MessageSquare className="h-3 w-3" />
-                                    {post.comments?.length || 0}
-                                  </span>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          </TooltipTrigger>
-                          <TooltipContent side="right" className="max-w-[250px]">
-                            <p className="text-xs line-clamp-3">
-                              {post.caption ? post.caption.substring(0, 120) + (post.caption.length > 120 ? "…" : "") : "No caption"}
-                            </p>
-                            {post.hashtags && (
-                              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                                <Hash className="h-3 w-3" />
-                                {post.hashtags.split(/\s+/).length} tags
+                                  {/* Assigned user initials */}
+                                  {isSSRole && post.assigned_user?.name && (
+                                    <div className="flex items-center gap-1 pt-1 border-t border-border/50">
+                                      <UserInitials name={post.assigned_user.name} />
+                                      <span className="text-[10px] text-muted-foreground truncate">{post.assigned_user.name}</span>
+                                    </div>
+                                  )}
+                                </CardContent>
+                              </Card>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="max-w-[250px]">
+                              <p className="text-xs line-clamp-3">
+                                {post.caption ? post.caption.substring(0, 120) + (post.caption.length > 120 ? "…" : "") : "No caption"}
                               </p>
-                            )}
-                          </TooltipContent>
-                        </Tooltip>
-                      ))}
+                              {post.hashtags && (
+                                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                  <Hash className="h-3 w-3" />
+                                  {post.hashtags.split(/\s+/).length} tags
+                                </p>
+                              )}
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      })}
                     </div>
                   </div>
                 );
