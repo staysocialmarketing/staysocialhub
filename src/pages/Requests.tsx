@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Plus, FileText, Mail } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
+import RequestDetailDialog from "@/components/RequestDetailDialog";
 
 type RequestType = Database["public"]["Enums"]["request_type"];
 type RequestStatus = Database["public"]["Enums"]["request_status"];
@@ -28,6 +29,7 @@ export default function Requests() {
   const { profile, isSSRole, isSSAdmin } = useAuth();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [form, setForm] = useState({
@@ -230,7 +232,7 @@ export default function Requests() {
       ) : (
         <div className="space-y-3">
           {requests.map((req: any) => (
-            <Card key={req.id}>
+            <Card key={req.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSelectedRequest(req)}>
               <CardContent className="py-4 flex items-center justify-between">
                 <div className="space-y-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -243,7 +245,7 @@ export default function Requests() {
                     {req.attachments_url && " · 📎 Attachment"}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
                   {isSSRole ? (
                     <Select value={req.status} onValueChange={(v) => updateStatus.mutate({ id: req.id, status: v as RequestStatus })}>
                       <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue /></SelectTrigger>
@@ -264,6 +266,12 @@ export default function Requests() {
           ))}
         </div>
       )}
+
+      <RequestDetailDialog
+        request={selectedRequest}
+        open={!!selectedRequest}
+        onOpenChange={(open) => { if (!open) setSelectedRequest(null); }}
+      />
     </div>
   );
 }
