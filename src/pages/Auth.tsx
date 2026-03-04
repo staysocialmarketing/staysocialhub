@@ -50,23 +50,25 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden"
+    <div
+      className="min-h-screen flex items-center justify-center relative overflow-hidden"
       style={{
-        background: "radial-gradient(ellipse at top center, hsl(19 80% 12% / 0.4) 0%, hsl(220 30% 6%) 50%, hsl(220 35% 4%) 100%)",
+        background:
+          "radial-gradient(ellipse 60% 25% at 50% 0%, hsl(19 80% 10% / 0.7) 0%, transparent 70%), linear-gradient(180deg, hsl(220 30% 5%) 0%, hsl(220 35% 3%) 100%)",
       }}
     >
       {/* Starfield dots */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {Array.from({ length: 60 }).map((_, i) => (
+        {Array.from({ length: 120 }).map((_, i) => (
           <div
             key={i}
-            className="absolute rounded-full bg-white/20"
+            className="absolute rounded-full bg-white/30"
             style={{
-              width: Math.random() * 2 + 1 + "px",
-              height: Math.random() * 2 + 1 + "px",
+              width: Math.random() * 1.5 + 0.5 + "px",
+              height: Math.random() * 1.5 + 0.5 + "px",
               top: Math.random() * 100 + "%",
               left: Math.random() * 100 + "%",
-              opacity: Math.random() * 0.5 + 0.1,
+              opacity: Math.random() * 0.4 + 0.05,
             }}
           />
         ))}
@@ -78,21 +80,23 @@ export default function Auth() {
           <img
             src={whiteLogo}
             alt="Stay Social"
-            className="h-20 w-auto object-contain mx-auto mb-6"
+            className="h-28 w-auto object-contain mx-auto mb-6"
           />
-          <h1 className="text-3xl font-bold text-white tracking-tight">
+          <h1 className="text-4xl font-bold text-white tracking-tight">
             Stay Social <span className="text-primary">HUB</span>
           </h1>
-          <p className="text-white/60 mt-2 text-sm">
+          <p className="text-white/50 mt-2 text-sm">
             Sign in to manage your social content
           </p>
         </div>
 
         {/* Card */}
-        <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-6 space-y-5">
+        <div className="rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-sm p-6 space-y-5">
           <div className="text-center mb-2">
             <h2 className="text-lg font-semibold text-white">Welcome back</h2>
-            <p className="text-white/50 text-sm">Choose your preferred sign-in method</p>
+            <p className="text-white/40 text-sm">
+              Choose your preferred sign-in method
+            </p>
           </div>
 
           <Button
@@ -101,7 +105,9 @@ export default function Auth() {
             onClick={handleGoogleSignIn}
             disabled={loading}
           >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : (
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
               <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
                 <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -117,7 +123,7 @@ export default function Auth() {
               <span className="w-full border-t border-white/10" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="px-2 text-white/40" style={{ backgroundColor: "hsl(220 30% 6%)" }}>or</span>
+              <span className="px-2 text-white/30 bg-transparent backdrop-blur-sm">or</span>
             </div>
           </div>
 
@@ -159,7 +165,7 @@ export default function Auth() {
           )}
         </div>
 
-        <p className="text-center text-xs text-white/30 mt-6">
+        <p className="text-center text-xs text-white/25 mt-6">
           By signing in, you agree to Stay Social's terms of service.
         </p>
       </div>
