@@ -13,6 +13,9 @@ import type { Database } from "@/integrations/supabase/types";
 
 type RequestType = Database["public"]["Enums"]["request_type"];
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ACCEPTED_FILE_TYPES = ".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.webp,.csv,.xlsx,.pptx,.txt";
+
 interface MakeRequestDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -37,8 +40,8 @@ export default function MakeRequestDialog({
   const [submitting, setSubmitting] = useState(false);
   const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
 
-  // Load clients when dialog opens
   const loadClients = async () => {
     if (loaded) return;
     const { data } = await supabase.from("clients").select("id, name").eq("status", "active").order("name");
@@ -50,21 +53,46 @@ export default function MakeRequestDialog({
     if (o) {
       setTopic(prefillTopic);
       setNotes(prefillNotes);
+      setAttachmentFile(null);
       loadClients();
     }
     onOpenChange(o);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    if (file && file.size > MAX_FILE_SIZE) {
+      toast.error("File too large — maximum 10MB");
+      e.target.value = "";
+      return;
+    }
+    setAttachmentFile(file);
   };
 
   const handleSubmit = async () => {
     if (!clientId || !topic.trim() || !profile) return;
     setSubmitting(true);
     try {
+      // Upload attachment (non-blocking)
+      let attachments_url: string | null = null;
+      if (attachmentFile) {
+        const ext = attachmentFile.name.split(".").pop();
+        const path = `${clientId}/${crypto.randomUUID()}.${ext}`;
+        const { error: uploadError } = await supabase.storage.from("request-attachments").upload(path, attachmentFile);
+        if (uploadError) {
+          toast.warning("Attachment upload failed — request will be created without it");
+        } else {
+          attachments_url = path;
+        }
+      }
+
       const { error: reqErr } = await supabase.from("requests").insert({
         client_id: clientId,
         type,
         topic: topic.trim(),
         notes: notes.trim() || null,
         created_by_user_id: profile.id,
+        attachments_url,
       });
       if (reqErr) throw reqErr;
 
@@ -75,6 +103,7 @@ export default function MakeRequestDialog({
       setClientId("");
       setTopic("");
       setNotes("");
+      setAttachmentFile(null);
       onSuccess?.();
     } catch (err: any) {
       toast.error(err.message || "Failed to create request");
@@ -118,6 +147,11 @@ export default function MakeRequestDialog({
           <div>
             <Label>Notes</Label>
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Additional details..." />
+          </div>
+          <div>
+            <Label>Attachment (max 10MB)</Label>
+            <Input type="file" accept={ACCEPTED_FILE_TYPES} onChange={handleFileChange} />
+            <p className="text-xs text-muted-foreground mt-1">PDF, images, docs, spreadsheets, presentations</p>
           </div>
           <Button className="w-full" onClick={handleSubmit} disabled={!clientId || !topic.trim() || submitting}>
             {submitting ? "Creating..." : "Create Request & Add to Workflow"}

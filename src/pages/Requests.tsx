@@ -18,6 +18,9 @@ import RequestDetailDialog from "@/components/RequestDetailDialog";
 type RequestType = Database["public"]["Enums"]["request_type"];
 type RequestStatus = Database["public"]["Enums"]["request_status"];
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ACCEPTED_FILE_TYPES = ".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.webp,.csv,.xlsx,.pptx,.txt";
+
 const statusColors: Record<string, string> = {
   open: "bg-blue-100 text-blue-800",
   in_progress: "bg-yellow-100 text-yellow-800",
@@ -66,18 +69,32 @@ export default function Requests() {
     enabled: !!profile,
   });
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    if (file && file.size > MAX_FILE_SIZE) {
+      toast.error("File too large — maximum 10MB");
+      e.target.value = "";
+      return;
+    }
+    setAttachmentFile(file);
+  };
+
   const createRequest = useMutation({
     mutationFn: async () => {
       const clientId = isSSAdmin ? selectedClientId : profile?.client_id;
       if (!clientId) throw new Error("No client selected");
 
+      // Upload attachment (non-blocking)
       let attachments_url: string | null = null;
       if (attachmentFile) {
         const ext = attachmentFile.name.split(".").pop();
         const path = `${clientId}/${crypto.randomUUID()}.${ext}`;
         const { error: uploadError } = await supabase.storage.from("request-attachments").upload(path, attachmentFile);
-        if (uploadError) throw uploadError;
-        attachments_url = path;
+        if (uploadError) {
+          toast.warning("Attachment upload failed — request will be created without it");
+        } else {
+          attachments_url = path;
+        }
       }
 
       const notes = form.type === "email_campaign"
@@ -105,7 +122,7 @@ export default function Requests() {
       setAttachmentFile(null);
       setSelectedClientId("");
     },
-    onError: () => toast.error("Failed to submit request"),
+    onError: (err: any) => toast.error(err.message || "Failed to submit request"),
   });
 
   const updateStatus = useMutation({
@@ -197,7 +214,11 @@ export default function Requests() {
                 )}
 
                 <div><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Additional details..." /></div>
-                <div><Label>Attachment</Label><Input type="file" onChange={(e) => setAttachmentFile(e.target.files?.[0] || null)} /></div>
+                <div>
+                  <Label>Attachment (max 10MB)</Label>
+                  <Input type="file" accept={ACCEPTED_FILE_TYPES} onChange={handleFileChange} />
+                  <p className="text-xs text-muted-foreground mt-1">PDF, images, docs, spreadsheets, presentations</p>
+                </div>
 
                 <div>
                   <Label>Priority</Label>
