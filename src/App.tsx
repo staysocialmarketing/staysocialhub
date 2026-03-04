@@ -12,6 +12,7 @@ import PostDetail from "./pages/PostDetail";
 import Requests from "./pages/Requests";
 import Profile from "./pages/Profile";
 import WhatsNew from "./pages/WhatsNew";
+import Plan from "./pages/Plan";
 import ContentLibrary from "./pages/ContentLibrary";
 import AdminClients from "./pages/admin/AdminClients";
 import AdminUsers from "./pages/admin/AdminUsers";
@@ -60,6 +61,7 @@ const App = () => (
               <Route path="/requests" element={<Requests />} />
               <Route path="/content-library" element={<ContentLibrary />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/plan" element={<Plan />} />
               <Route path="/whats-new" element={<WhatsNew />} />
               <Route path="/admin/clients" element={<AdminRoute><AdminClients /></AdminRoute>} />
               <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />

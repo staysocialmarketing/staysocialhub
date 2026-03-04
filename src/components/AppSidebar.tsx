@@ -12,9 +12,9 @@ import {
   Image,
   ShoppingCart,
   LogOut,
+  ClipboardList,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Sidebar,
@@ -32,16 +32,13 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 
-const clientItems = [
+const superAdminItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Approvals", url: "/approvals", icon: CheckSquare },
   { title: "Requests", url: "/requests", icon: MessageSquarePlus },
-  { title: "Content Library", url: "/content-library", icon: FolderOpen },
-  { title: "Profile", url: "/profile", icon: UserCircle },
-  { title: "What's New", url: "/whats-new", icon: Sparkles },
 ];
 
-const adminItems = [
+const superAdminAdminItems = [
   { title: "Clients", url: "/admin/clients", icon: Building2 },
   { title: "Users", url: "/admin/users", icon: Users },
   { title: "Profile Updates", url: "/admin/profile-updates", icon: FileEdit },
@@ -49,11 +46,37 @@ const adminItems = [
   { title: "Add-On Requests", url: "/admin/addon-requests", icon: ShoppingCart },
 ];
 
+const teamItems = [
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Approvals", url: "/approvals", icon: CheckSquare },
+  { title: "Requests", url: "/requests", icon: MessageSquarePlus },
+];
+
+const teamAdminItems = [
+  { title: "Clients", url: "/admin/clients", icon: Building2 },
+  { title: "Users", url: "/admin/users", icon: Users },
+  { title: "Profile Updates", url: "/admin/profile-updates", icon: FileEdit },
+  { title: "Content", url: "/admin/content", icon: Image },
+];
+
+const clientItems = [
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Approvals", url: "/approvals", icon: CheckSquare },
+  { title: "Requests", url: "/requests", icon: MessageSquarePlus },
+  { title: "Content Library", url: "/content-library", icon: FolderOpen },
+  { title: "Profile", url: "/profile", icon: UserCircle },
+  { title: "Plan", url: "/plan", icon: ClipboardList },
+  { title: "What's New", url: "/whats-new", icon: Sparkles },
+];
+
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const location = useLocation();
-  const { profile, isSSRole, signOut } = useAuth();
+  const { profile, isSSAdmin, isSSTeam, signOut } = useAuth();
+
+  const mainItems = isSSAdmin ? superAdminItems : isSSTeam ? teamItems : clientItems;
+  const secondaryItems = isSSAdmin ? superAdminAdminItems : isSSTeam ? teamAdminItems : null;
+  const secondaryLabel = isSSAdmin ? "Admin" : isSSTeam ? "Team" : null;
 
   return (
     <Sidebar collapsible="icon">
@@ -76,7 +99,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Menu</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {clientItems.map((item) => (
+              {mainItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink
@@ -94,14 +117,14 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {isSSRole && (
+        {secondaryItems && (
           <>
             <SidebarSeparator />
             <SidebarGroup>
-              <SidebarGroupLabel>Admin</SidebarGroupLabel>
+              <SidebarGroupLabel>{secondaryLabel}</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {adminItems.map((item) => (
+                  {secondaryItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton asChild>
                         <NavLink
