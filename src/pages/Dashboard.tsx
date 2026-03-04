@@ -27,7 +27,7 @@ export default function Dashboard() {
       let query = supabase
         .from("posts")
         .select("id", { count: "exact", head: true })
-        .eq("status_column", "content_for_approval");
+        .eq("status_column", "client_approval");
       if (profile?.client_id) query = query.eq("client_id", profile.client_id);
       const { count } = await query;
       return count || 0;

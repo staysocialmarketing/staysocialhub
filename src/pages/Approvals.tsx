@@ -27,14 +27,21 @@ import type { Database } from "@/integrations/supabase/types";
 
 type PostStatus = Database["public"]["Enums"]["post_status"];
 
-const COLUMNS: { key: PostStatus; label: string }[] = [
-  { key: "new_requests", label: "NEW Requests HERE" },
-  { key: "content_process", label: "Content Process" },
-  { key: "design_process", label: "Design Process" },
-  { key: "request_changes", label: "Request Changes HERE" },
-  { key: "content_for_approval", label: "Content for Approval" },
-  { key: "approved", label: "Approved (by Client)" },
-  { key: "in_the_queue", label: "In The Queue" },
+const TEAM_COLUMNS: { key: PostStatus; label: string }[] = [
+  { key: "idea", label: "Idea" },
+  { key: "writing", label: "Writing" },
+  { key: "design", label: "Design" },
+  { key: "internal_review", label: "Internal Review" },
+  { key: "client_approval", label: "Client Approval" },
+  { key: "request_changes", label: "Request Changes" },
+  { key: "approved", label: "Approved" },
+  { key: "scheduled", label: "Scheduled" },
+  { key: "published", label: "Published" },
+];
+
+const CLIENT_COLUMNS: { key: PostStatus; label: string }[] = [
+  { key: "client_approval", label: "Content for Approval" },
+  { key: "approved", label: "Approved" },
   { key: "published", label: "Published" },
 ];
 
@@ -124,7 +131,7 @@ export default function Approvals() {
           hashtags: newPost.hashtags || null,
           creative_url,
           scheduled_at: newPost.scheduled_at?.toISOString() || null,
-          status_column: "content_process" as PostStatus,
+          status_column: "idea" as PostStatus,
           created_by_user_id: profile.id,
           internal_notes: newPost.internal_notes || null,
         } as any)
@@ -172,10 +179,12 @@ export default function Approvals() {
     const isAssistantAllowed = isClientAssistant && clientSettings?.assistants_can_approve;
     if (!isAdmin && !isAssistantAllowed) return false;
     return (
-      (from === "content_for_approval" && to === "approved") ||
-      (from === "content_for_approval" && to === "request_changes")
+      (from === "client_approval" && to === "approved") ||
+      (from === "client_approval" && to === "request_changes")
     );
   };
+
+  const columns = isSSRole ? TEAM_COLUMNS : CLIENT_COLUMNS;
 
   const handleDragStart = (e: React.DragEvent, postId: string, currentStatus: PostStatus) => {
     e.dataTransfer.setData("postId", postId);
@@ -318,8 +327,8 @@ export default function Approvals() {
 
         <TabsContent value="board" className="flex-1 mt-0">
           <ScrollArea className="flex-1">
-            <div className="flex gap-4 pb-4" style={{ minWidth: COLUMNS.length * 280 }}>
-              {COLUMNS.map((col) => {
+            <div className="flex gap-4 pb-4" style={{ minWidth: columns.length * 280 }}>
+              {columns.map((col) => {
                 const columnPosts = posts.filter((p: any) => p.status_column === col.key);
                 return (
                   <div
