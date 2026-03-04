@@ -9,8 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Save, Clock } from "lucide-react";
+import { Save, Clock, Upload, X, Image as ImageIcon } from "lucide-react";
+
+const PLATFORM_OPTIONS = ["Instagram", "Facebook", "LinkedIn", "TikTok", "Twitter/X", "YouTube"];
 
 export default function Profile() {
   const { profile, isClientAdmin } = useAuth();
@@ -52,13 +56,31 @@ export default function Profile() {
   const initDraft = () => {
     if (clientProfile) {
       setDraft({
-        business_info_json: clientProfile.business_info_json || {},
-        brand_voice_json: clientProfile.brand_voice_json || {},
-        offers_json: clientProfile.offers_json || {},
-        content_prefs_json: clientProfile.content_prefs_json || {},
-        assets_json: clientProfile.assets_json || {},
+        business_info_json: { ...(clientProfile.business_info_json as any || {}) },
+        brand_voice_json: { ...(clientProfile.brand_voice_json as any || {}) },
+        offers_json: { ...(clientProfile.offers_json as any || {}) },
+        content_prefs_json: { ...(clientProfile.content_prefs_json as any || {}) },
+        assets_json: { ...(clientProfile.assets_json as any || {}) },
       });
     }
+  };
+
+  const updateDraftField = (section: string, key: string, value: any) => {
+    setDraft((prev: any) => ({
+      ...prev,
+      [section]: { ...prev[section], [key]: value },
+    }));
+  };
+
+  const handleAssetUpload = async (field: string, file: File) => {
+    if (!profile?.client_id) return;
+    const ext = file.name.split(".").pop();
+    const path = `${profile.client_id}/${field}_${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("profile-assets").upload(path, file);
+    if (error) { toast.error("Upload failed"); return; }
+    const { data: urlData } = supabase.storage.from("profile-assets").getPublicUrl(path);
+    updateDraftField("assets_json", field, urlData.publicUrl);
+    toast.success("File uploaded");
   };
 
   const submitForReview = useMutation({
@@ -83,16 +105,40 @@ export default function Profile() {
     return <div className="p-6"><p className="text-muted-foreground">Loading profile...</p></div>;
   }
 
-  const biz = (clientProfile?.business_info_json || {}) as Record<string, any>;
-  const voice = (clientProfile?.brand_voice_json || {}) as Record<string, any>;
-  const offers = (clientProfile?.offers_json || {}) as Record<string, any>;
-  const prefs = (clientProfile?.content_prefs_json || {}) as Record<string, any>;
+  const biz = (draft ? draft.business_info_json : clientProfile?.business_info_json || {}) as Record<string, any>;
+  const voice = (draft ? draft.brand_voice_json : clientProfile?.brand_voice_json || {}) as Record<string, any>;
+  const offers = (draft ? draft.offers_json : clientProfile?.offers_json || {}) as Record<string, any>;
+  const prefs = (draft ? draft.content_prefs_json : clientProfile?.content_prefs_json || {}) as Record<string, any>;
+  const assets = (draft ? draft.assets_json : clientProfile?.assets_json || {}) as Record<string, any>;
+  const editing = !!draft;
+
+  const Field = ({ label, section, field, multiline }: { label: string; section: string; field: string; multiline?: boolean }) => {
+    const val = draft?.[section]?.[field] ?? "";
+    if (!editing) {
+      return (
+        <div>
+          <Label className="text-muted-foreground">{label}</Label>
+          <p className="font-medium">{val || "—"}</p>
+        </div>
+      );
+    }
+    return (
+      <div>
+        <Label>{label}</Label>
+        {multiline ? (
+          <Textarea value={val} onChange={(e) => updateDraftField(section, field, e.target.value)} />
+        ) : (
+          <Input value={val} onChange={(e) => updateDraftField(section, field, e.target.value)} />
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-foreground">Client Profile</h2>
+          <h2 className="text-2xl font-bold text-foreground">Brand Voice Hub</h2>
           <p className="text-muted-foreground">Your brand information and preferences</p>
         </div>
         {pendingUpdate && (
@@ -126,11 +172,13 @@ export default function Profile() {
               <CardHeader><CardTitle>Business Information</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div><Label className="text-muted-foreground">Business Name</Label><p className="font-medium">{biz.name || "—"}</p></div>
-                  <div><Label className="text-muted-foreground">Website</Label><p className="font-medium">{biz.website || "—"}</p></div>
-                  <div><Label className="text-muted-foreground">Contact Email</Label><p className="font-medium">{biz.contact_email || "—"}</p></div>
-                  <div><Label className="text-muted-foreground">Booking Link</Label><p className="font-medium">{biz.booking_link || "—"}</p></div>
-                  <div className="col-span-2"><Label className="text-muted-foreground">Service Area</Label><p className="font-medium">{biz.service_area || "—"}</p></div>
+                  <Field label="Business Name" section="business_info_json" field="name" />
+                  <Field label="Location" section="business_info_json" field="location" />
+                  <Field label="Website" section="business_info_json" field="website" />
+                  <Field label="Booking Link" section="business_info_json" field="booking_link" />
+                  <div className="col-span-2">
+                    <Field label="Contact Email" section="business_info_json" field="contact_email" />
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -140,11 +188,11 @@ export default function Profile() {
             <Card>
               <CardHeader><CardTitle>Brand Voice</CardTitle></CardHeader>
               <CardContent className="space-y-4">
-                <div><Label className="text-muted-foreground">Voice Description</Label><p className="font-medium">{voice.description || "—"}</p></div>
-                <div><Label className="text-muted-foreground">Do's</Label><p className="font-medium">{voice.dos || "—"}</p></div>
-                <div><Label className="text-muted-foreground">Don'ts</Label><p className="font-medium">{voice.donts || "—"}</p></div>
-                <div><Label className="text-muted-foreground">Topics to Focus On</Label><p className="font-medium">{voice.focus_topics || "—"}</p></div>
-                <div><Label className="text-muted-foreground">Topics to Avoid</Label><p className="font-medium">{voice.avoid_topics || "—"}</p></div>
+                <Field label="Tone Description" section="brand_voice_json" field="description" multiline />
+                <Field label="Topics to Focus On" section="brand_voice_json" field="focus_topics" multiline />
+                <Field label="Topics to Avoid" section="brand_voice_json" field="avoid_topics" multiline />
+                <Field label="Do's" section="brand_voice_json" field="dos" multiline />
+                <Field label="Don'ts" section="brand_voice_json" field="donts" multiline />
               </CardContent>
             </Card>
           </TabsContent>
@@ -153,10 +201,10 @@ export default function Profile() {
             <Card>
               <CardHeader><CardTitle>Offers & Services</CardTitle></CardHeader>
               <CardContent className="space-y-4">
-                <div><Label className="text-muted-foreground">Services</Label><p className="font-medium">{offers.services || "—"}</p></div>
-                <div><Label className="text-muted-foreground">Current Promotions</Label><p className="font-medium">{offers.promos || "—"}</p></div>
-                <div><Label className="text-muted-foreground">Target Audience</Label><p className="font-medium">{offers.target_audience || "—"}</p></div>
-                <div><Label className="text-muted-foreground">FAQs</Label><p className="font-medium">{offers.faqs || "—"}</p></div>
+                <Field label="Services" section="offers_json" field="services" multiline />
+                <Field label="Current Promotions" section="offers_json" field="promos" multiline />
+                <Field label="Target Audience" section="offers_json" field="target_audience" multiline />
+                <Field label="FAQs" section="offers_json" field="faqs" multiline />
               </CardContent>
             </Card>
           </TabsContent>
@@ -165,10 +213,56 @@ export default function Profile() {
             <Card>
               <CardHeader><CardTitle>Content Preferences</CardTitle></CardHeader>
               <CardContent className="space-y-4">
-                <div><Label className="text-muted-foreground">Platforms</Label><p className="font-medium">{prefs.platforms || "—"}</p></div>
-                <div><Label className="text-muted-foreground">Posting Cadence</Label><p className="font-medium">{prefs.cadence || "—"}</p></div>
-                <div><Label className="text-muted-foreground">Content Mix</Label><p className="font-medium">{prefs.content_mix || "—"}</p></div>
-                <div><Label className="text-muted-foreground">Approval Lead Time</Label><p className="font-medium">{prefs.approval_lead_time || "—"}</p></div>
+                {editing ? (
+                  <>
+                    <div>
+                      <Label>Platforms</Label>
+                      <div className="flex flex-wrap gap-3 mt-1">
+                        {PLATFORM_OPTIONS.map((p) => {
+                          const current = (prefs.platforms || "").split(",").map((s: string) => s.trim()).filter(Boolean);
+                          return (
+                            <label key={p} className="flex items-center gap-2 text-sm">
+                              <Checkbox
+                                checked={current.includes(p)}
+                                onCheckedChange={(checked) => {
+                                  const updated = checked
+                                    ? [...current, p]
+                                    : current.filter((x: string) => x !== p);
+                                  updateDraftField("content_prefs_json", "platforms", updated.join(", "));
+                                }}
+                              />
+                              {p}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Posting Frequency</Label>
+                      <Select
+                        value={prefs.cadence || ""}
+                        onValueChange={(v) => updateDraftField("content_prefs_json", "cadence", v)}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Select frequency" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="daily">Daily</SelectItem>
+                          <SelectItem value="3x_week">3x per week</SelectItem>
+                          <SelectItem value="2x_week">2x per week</SelectItem>
+                          <SelectItem value="weekly">Weekly</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Field label="Content Mix" section="content_prefs_json" field="content_mix" multiline />
+                    <Field label="Approval Lead Time" section="content_prefs_json" field="approval_lead_time" />
+                  </>
+                ) : (
+                  <>
+                    <div><Label className="text-muted-foreground">Platforms</Label><p className="font-medium">{prefs.platforms || "—"}</p></div>
+                    <div><Label className="text-muted-foreground">Posting Cadence</Label><p className="font-medium">{prefs.cadence || "—"}</p></div>
+                    <div><Label className="text-muted-foreground">Content Mix</Label><p className="font-medium">{prefs.content_mix || "—"}</p></div>
+                    <div><Label className="text-muted-foreground">Approval Lead Time</Label><p className="font-medium">{prefs.approval_lead_time || "—"}</p></div>
+                  </>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -176,8 +270,47 @@ export default function Profile() {
           <TabsContent value="assets">
             <Card>
               <CardHeader><CardTitle>Brand Assets</CardTitle></CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Brand assets managed by your Stay Social team.</p>
+              <CardContent className="space-y-4">
+                {editing ? (
+                  <>
+                    {["logo", "headshots", "brand_images"].map((field) => (
+                      <div key={field}>
+                        <Label className="capitalize">{field.replace("_", " ")}</Label>
+                        {assets[field] && (
+                          <div className="flex items-center gap-2 mt-1 mb-2">
+                            <img src={assets[field]} alt="" className="h-16 w-16 rounded object-cover" />
+                            <Button variant="ghost" size="icon" onClick={() => updateDraftField("assets_json", field, null)}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleAssetUpload(field, file);
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </>
+                ) : (
+                  <div className="grid grid-cols-3 gap-4">
+                    {["logo", "headshots", "brand_images"].map((field) => (
+                      <div key={field} className="text-center">
+                        <Label className="text-muted-foreground capitalize text-xs">{field.replace("_", " ")}</Label>
+                        {assets[field] ? (
+                          <img src={assets[field]} alt="" className="h-20 w-20 rounded object-cover mx-auto mt-1" />
+                        ) : (
+                          <div className="h-20 w-20 rounded bg-muted flex items-center justify-center mx-auto mt-1">
+                            <ImageIcon className="h-6 w-6 text-muted-foreground/30" />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -186,27 +319,20 @@ export default function Profile() {
 
       {isClientAdmin && clientProfile && !pendingUpdate && (
         <div className="flex justify-end">
-          <Button variant="outline" onClick={initDraft} disabled={!!draft}>
-            <Save className="h-4 w-4 mr-2" />
-            Edit & Submit Changes
-          </Button>
+          {!draft ? (
+            <Button variant="outline" onClick={initDraft}>
+              <Save className="h-4 w-4 mr-2" />
+              Edit & Submit Changes
+            </Button>
+          ) : (
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={() => setDraft(null)}>Cancel</Button>
+              <Button onClick={() => submitForReview.mutate()} disabled={submitForReview.isPending}>
+                Submit Changes for Review
+              </Button>
+            </div>
+          )}
         </div>
-      )}
-
-      {draft && (
-        <Card className="border-primary">
-          <CardContent className="py-4">
-            <p className="text-sm text-muted-foreground mb-3">
-              You're editing a draft. Changes won't go live until approved by Stay Social.
-            </p>
-            <Button onClick={() => submitForReview.mutate()} disabled={submitForReview.isPending}>
-              Submit Changes for Review
-            </Button>
-            <Button variant="ghost" className="ml-2" onClick={() => setDraft(null)}>
-              Cancel
-            </Button>
-          </CardContent>
-        </Card>
       )}
     </div>
   );

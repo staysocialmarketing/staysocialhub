@@ -1,0 +1,1 @@
+ALTER TABLE public.posts ADD COLUMN internal_notes text;

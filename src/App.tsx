@@ -8,6 +8,7 @@ import { AppLayout } from "@/components/AppLayout";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Approvals from "./pages/Approvals";
+import PostDetail from "./pages/PostDetail";
 import Requests from "./pages/Requests";
 import Profile from "./pages/Profile";
 import WhatsNew from "./pages/WhatsNew";
@@ -53,6 +54,7 @@ const App = () => (
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/approvals" element={<Approvals />} />
+              <Route path="/approvals/:postId" element={<PostDetail />} />
               <Route path="/requests" element={<Requests />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/whats-new" element={<WhatsNew />} />
