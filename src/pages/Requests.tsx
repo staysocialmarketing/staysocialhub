@@ -98,6 +98,7 @@ export default function Requests() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["requests"] });
+      queryClient.invalidateQueries({ queryKey: ["workflow-posts"] });
       toast.success("Request submitted!");
       setOpen(false);
       setForm({ type: "social_post", topic: "", notes: "", preferred_publish_window: "", priority: "normal", link: "", campaign_type: "newsletter", audience: "", deadline: "" });
