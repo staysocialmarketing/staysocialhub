@@ -20,6 +20,8 @@ interface AuthContextType {
   roles: AppRole[];
   loading: boolean;
   isSSRole: boolean;
+  isSSAdmin: boolean;
+  isSSTeam: boolean;
   isClientAdmin: boolean;
   isClientAssistant: boolean;
   signOut: () => Promise<void>;
@@ -32,6 +34,8 @@ const AuthContext = createContext<AuthContextType>({
   roles: [],
   loading: true,
   isSSRole: false,
+  isSSAdmin: false,
+  isSSTeam: false,
   isClientAdmin: false,
   isClientAssistant: false,
   signOut: async () => {},
@@ -103,6 +107,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isSSRole = roles.some((r) => r === "ss_admin" || r === "ss_producer" || r === "ss_ops");
+  const isSSAdmin = roles.includes("ss_admin");
+  const isSSTeam = roles.includes("ss_producer") || roles.includes("ss_ops");
   const isClientAdmin = roles.includes("client_admin");
   const isClientAssistant = roles.includes("client_assistant");
 
@@ -115,6 +121,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         roles,
         loading,
         isSSRole,
+        isSSAdmin,
+        isSSTeam,
         isClientAdmin,
         isClientAssistant,
         signOut,

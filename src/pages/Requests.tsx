@@ -25,10 +25,11 @@ const statusColors: Record<string, string> = {
 };
 
 export default function Requests() {
-  const { profile, isSSRole } = useAuth();
+  const { profile, isSSRole, isSSAdmin } = useAuth();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [form, setForm] = useState({
     type: "social_post" as RequestType,
     topic: "",
@@ -41,10 +42,20 @@ export default function Requests() {
     deadline: "",
   });
 
+  // Fetch clients for SS Admin client selector
+  const { data: clients = [] } = useQuery({
+    queryKey: ["all-clients"],
+    queryFn: async () => {
+      const { data } = await supabase.from("clients").select("id, name").eq("status", "active").order("name");
+      return data || [];
+    },
+    enabled: isSSAdmin,
+  });
+
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ["requests", profile?.client_id],
     queryFn: async () => {
-      let query = supabase.from("requests").select("*, users!requests_created_by_user_id_fkey(name, email)").order("created_at", { ascending: false });
+      let query = supabase.from("requests").select("*, users!requests_created_by_user_id_fkey(name, email), clients(name)").order("created_at", { ascending: false });
       if (profile?.client_id) query = query.eq("client_id", profile.client_id);
       const { data, error } = await query;
       if (error) throw error;
@@ -55,15 +66,14 @@ export default function Requests() {
 
   const createRequest = useMutation({
     mutationFn: async () => {
-      if (!profile?.client_id) throw new Error("No client assigned");
+      const clientId = isSSAdmin ? selectedClientId : profile?.client_id;
+      if (!clientId) throw new Error("No client selected");
 
       let attachments_url: string | null = null;
       if (attachmentFile) {
         const ext = attachmentFile.name.split(".").pop();
-        const path = `${profile.client_id}/${crypto.randomUUID()}.${ext}`;
-        const { error: uploadError } = await supabase.storage
-          .from("request-attachments")
-          .upload(path, attachmentFile);
+        const path = `${clientId}/${crypto.randomUUID()}.${ext}`;
+        const { error: uploadError } = await supabase.storage.from("request-attachments").upload(path, attachmentFile);
         if (uploadError) throw uploadError;
         attachments_url = path;
       }
@@ -73,13 +83,13 @@ export default function Requests() {
         : form.notes;
 
       const { error } = await supabase.from("requests").insert({
-        client_id: profile.client_id,
+        client_id: clientId,
         type: form.type,
         topic: form.topic,
         notes: notes || null,
         preferred_publish_window: form.preferred_publish_window || null,
         priority: form.priority,
-        created_by_user_id: profile.id,
+        created_by_user_id: profile!.id,
         attachments_url,
       });
       if (error) throw error;
@@ -90,6 +100,7 @@ export default function Requests() {
       setOpen(false);
       setForm({ type: "social_post", topic: "", notes: "", preferred_publish_window: "", priority: "normal", link: "", campaign_type: "newsletter", audience: "", deadline: "" });
       setAttachmentFile(null);
+      setSelectedClientId("");
     },
     onError: () => toast.error("Failed to submit request"),
   });
@@ -106,6 +117,8 @@ export default function Requests() {
     onError: () => toast.error("Failed to update status"),
   });
 
+  const canCreate = !!profile?.client_id || isSSAdmin;
+
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
@@ -113,7 +126,7 @@ export default function Requests() {
           <h2 className="text-2xl font-bold text-foreground">Requests</h2>
           <p className="text-muted-foreground">Submit and track content requests</p>
         </div>
-        {profile?.client_id && (
+        {canCreate && (
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button><Plus className="h-4 w-4 mr-2" />New Request</Button>
@@ -123,17 +136,28 @@ export default function Requests() {
                 <DialogTitle>New Content Request</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 mt-2">
+                {/* SS Admin client selector */}
+                {isSSAdmin && (
+                  <div>
+                    <Label>Client</Label>
+                    <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+                      <SelectTrigger><SelectValue placeholder="Select a client" /></SelectTrigger>
+                      <SelectContent>
+                        {clients.map((c: any) => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 <div>
                   <Label>Request Type</Label>
                   <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v as RequestType })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="social_post">
-                        <span className="flex items-center gap-2"><FileText className="h-3 w-3" /> Social Post</span>
-                      </SelectItem>
-                      <SelectItem value="email_campaign">
-                        <span className="flex items-center gap-2"><Mail className="h-3 w-3" /> Email Campaign</span>
-                      </SelectItem>
+                      <SelectItem value="social_post"><span className="flex items-center gap-2"><FileText className="h-3 w-3" /> Social Post</span></SelectItem>
+                      <SelectItem value="email_campaign"><span className="flex items-center gap-2"><Mail className="h-3 w-3" /> Email Campaign</span></SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -145,14 +169,8 @@ export default function Requests() {
 
                 {form.type === "social_post" && (
                   <>
-                    <div>
-                      <Label>Link (optional)</Label>
-                      <Input value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} placeholder="https://..." type="url" />
-                    </div>
-                    <div>
-                      <Label>Preferred Publish Window</Label>
-                      <Input value={form.preferred_publish_window} onChange={(e) => setForm({ ...form, preferred_publish_window: e.target.value })} placeholder="e.g. Next week, March 15" />
-                    </div>
+                    <div><Label>Link (optional)</Label><Input value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} placeholder="https://..." type="url" /></div>
+                    <div><Label>Preferred Publish Window</Label><Input value={form.preferred_publish_window} onChange={(e) => setForm({ ...form, preferred_publish_window: e.target.value })} placeholder="e.g. Next week, March 15" /></div>
                   </>
                 )}
 
@@ -170,26 +188,13 @@ export default function Requests() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div>
-                      <Label>Audience</Label>
-                      <Input value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value })} placeholder="Who is this for?" />
-                    </div>
-                    <div>
-                      <Label>Deadline</Label>
-                      <Input type="date" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} />
-                    </div>
+                    <div><Label>Audience</Label><Input value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value })} placeholder="Who is this for?" /></div>
+                    <div><Label>Deadline</Label><Input type="date" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} /></div>
                   </>
                 )}
 
-                <div>
-                  <Label>Notes</Label>
-                  <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Additional details..." />
-                </div>
-
-                <div>
-                  <Label>Attachment</Label>
-                  <Input type="file" onChange={(e) => setAttachmentFile(e.target.files?.[0] || null)} />
-                </div>
+                <div><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Additional details..." /></div>
+                <div><Label>Attachment</Label><Input type="file" onChange={(e) => setAttachmentFile(e.target.files?.[0] || null)} /></div>
 
                 <div>
                   <Label>Priority</Label>
@@ -204,7 +209,7 @@ export default function Requests() {
                   </Select>
                 </div>
 
-                <Button className="w-full" onClick={() => createRequest.mutate()} disabled={!form.topic || createRequest.isPending}>
+                <Button className="w-full" onClick={() => createRequest.mutate()} disabled={!form.topic || createRequest.isPending || (isSSAdmin && !selectedClientId)}>
                   {createRequest.isPending ? "Submitting..." : "Submit Request"}
                 </Button>
               </div>
@@ -229,27 +234,19 @@ export default function Requests() {
               <CardContent className="py-4 flex items-center justify-between">
                 <div className="space-y-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    {req.type === "social_post" ? (
-                      <FileText className="h-4 w-4 text-primary shrink-0" />
-                    ) : (
-                      <Mail className="h-4 w-4 text-primary shrink-0" />
-                    )}
+                    {req.type === "social_post" ? <FileText className="h-4 w-4 text-primary shrink-0" /> : <Mail className="h-4 w-4 text-primary shrink-0" />}
                     <h4 className="font-medium text-foreground truncate">{req.topic}</h4>
                   </div>
                   <p className="text-xs text-muted-foreground">
+                    {req.clients?.name && <span className="font-medium">{req.clients.name} · </span>}
                     By {req.users?.name || req.users?.email || "Unknown"} · {new Date(req.created_at).toLocaleDateString()}
                     {req.attachments_url && " · 📎 Attachment"}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {isSSRole ? (
-                    <Select
-                      value={req.status}
-                      onValueChange={(v) => updateStatus.mutate({ id: req.id, status: v as RequestStatus })}
-                    >
-                      <SelectTrigger className="w-[130px] h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
+                    <Select value={req.status} onValueChange={(v) => updateStatus.mutate({ id: req.id, status: v as RequestStatus })}>
+                      <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="open">Open</SelectItem>
                         <SelectItem value="in_progress">In Progress</SelectItem>
@@ -258,9 +255,7 @@ export default function Requests() {
                       </SelectContent>
                     </Select>
                   ) : (
-                    <Badge className={statusColors[req.status] || ""}>
-                      {req.status.replace("_", " ")}
-                    </Badge>
+                    <Badge className={statusColors[req.status] || ""}>{req.status.replace("_", " ")}</Badge>
                   )}
                   <Badge variant="outline" className="text-xs capitalize">{req.priority}</Badge>
                 </div>
