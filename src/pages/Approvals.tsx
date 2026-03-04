@@ -16,8 +16,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarWidget } from "@/components/ui/calendar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import CalendarView from "@/components/approvals/CalendarView";
 import {
-  MessageSquare, Calendar, Image as ImageIcon, Plus, Upload, Hash,
+  MessageSquare, Calendar, Image as ImageIcon, Plus, Upload, Hash, LayoutGrid, CalendarDays,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -304,92 +306,109 @@ export default function Approvals() {
         )}
       </div>
 
-      <ScrollArea className="flex-1">
-        <div className="flex gap-4 pb-4" style={{ minWidth: COLUMNS.length * 280 }}>
-          {COLUMNS.map((col) => {
-            const columnPosts = posts.filter((p: any) => p.status_column === col.key);
-            return (
-              <div
-                key={col.key}
-                className="w-[260px] shrink-0 flex flex-col bg-muted/50 rounded-lg"
-                onDrop={(e) => handleDrop(e, col.key)}
-                onDragOver={handleDragOver}
-              >
-                <div className="px-3 py-2 flex items-center justify-between">
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    {col.label}
-                  </h3>
-                  <Badge variant="secondary" className="text-xs">
-                    {columnPosts.length}
-                  </Badge>
-                </div>
-                <div className="px-2 pb-2 space-y-2 flex-1 min-h-[100px]">
-                  {columnPosts.map((post: any) => (
-                    <Tooltip key={post.id}>
-                      <TooltipTrigger asChild>
-                        <Card
-                          className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, post.id, post.status_column)}
-                          onClick={() => navigate(`/approvals/${post.id}`)}
-                        >
-                          <CardContent className="p-3 space-y-2">
-                            {post.creative_url ? (
-                              <div className="aspect-video bg-muted rounded overflow-hidden">
-                                <img src={post.creative_url} alt="" className="w-full h-full object-cover" />
-                              </div>
-                            ) : (
-                              <div className="aspect-video bg-muted rounded flex items-center justify-center">
-                                <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
-                              </div>
+      <Tabs defaultValue="board" className="flex-1 flex flex-col">
+        <TabsList className="w-fit mb-4">
+          <TabsTrigger value="board" className="gap-2">
+            <LayoutGrid className="h-4 w-4" /> Board
+          </TabsTrigger>
+          <TabsTrigger value="calendar" className="gap-2">
+            <CalendarDays className="h-4 w-4" /> Calendar
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="board" className="flex-1 mt-0">
+          <ScrollArea className="flex-1">
+            <div className="flex gap-4 pb-4" style={{ minWidth: COLUMNS.length * 280 }}>
+              {COLUMNS.map((col) => {
+                const columnPosts = posts.filter((p: any) => p.status_column === col.key);
+                return (
+                  <div
+                    key={col.key}
+                    className="w-[260px] shrink-0 flex flex-col bg-muted/50 rounded-lg"
+                    onDrop={(e) => handleDrop(e, col.key)}
+                    onDragOver={handleDragOver}
+                  >
+                    <div className="px-3 py-2 flex items-center justify-between">
+                      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        {col.label}
+                      </h3>
+                      <Badge variant="secondary" className="text-xs">
+                        {columnPosts.length}
+                      </Badge>
+                    </div>
+                    <div className="px-2 pb-2 space-y-2 flex-1 min-h-[100px]">
+                      {columnPosts.map((post: any) => (
+                        <Tooltip key={post.id}>
+                          <TooltipTrigger asChild>
+                            <Card
+                              className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, post.id, post.status_column)}
+                              onClick={() => navigate(`/approvals/${post.id}`)}
+                            >
+                              <CardContent className="p-3 space-y-2">
+                                {post.creative_url ? (
+                                  <div className="aspect-video bg-muted rounded overflow-hidden">
+                                    <img src={post.creative_url} alt="" className="w-full h-full object-cover" />
+                                  </div>
+                                ) : (
+                                  <div className="aspect-video bg-muted rounded flex items-center justify-center">
+                                    <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
+                                  </div>
+                                )}
+                                <h4 className="text-sm font-medium text-foreground line-clamp-2">{post.title}</h4>
+                                <div className="flex flex-wrap gap-1">
+                                  {post.platform?.split(",").map((p: string) => (
+                                    <Badge
+                                      key={p}
+                                      variant="secondary"
+                                      className={`text-[10px] ${platformColors[p.trim().toLowerCase()] || ""}`}
+                                    >
+                                      {p.trim()}
+                                    </Badge>
+                                  ))}
+                                </div>
+                                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    {post.scheduled_at
+                                      ? new Date(post.scheduled_at).toLocaleDateString()
+                                      : "TBD"}
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <MessageSquare className="h-3 w-3" />
+                                    {post.comments?.length || 0}
+                                  </span>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="max-w-[250px]">
+                            <p className="text-xs line-clamp-3">
+                              {post.caption ? post.caption.substring(0, 120) + (post.caption.length > 120 ? "…" : "") : "No caption"}
+                            </p>
+                            {post.hashtags && (
+                              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                <Hash className="h-3 w-3" />
+                                {post.hashtags.split(/\s+/).length} tags
+                              </p>
                             )}
-                            <h4 className="text-sm font-medium text-foreground line-clamp-2">{post.title}</h4>
-                            <div className="flex flex-wrap gap-1">
-                              {post.platform?.split(",").map((p: string) => (
-                                <Badge
-                                  key={p}
-                                  variant="secondary"
-                                  className={`text-[10px] ${platformColors[p.trim().toLowerCase()] || ""}`}
-                                >
-                                  {p.trim()}
-                                </Badge>
-                              ))}
-                            </div>
-                            <div className="flex items-center justify-between text-xs text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                {post.scheduled_at
-                                  ? new Date(post.scheduled_at).toLocaleDateString()
-                                  : "TBD"}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <MessageSquare className="h-3 w-3" />
-                                {post.comments?.length || 0}
-                              </span>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </TooltipTrigger>
-                      <TooltipContent side="right" className="max-w-[250px]">
-                        <p className="text-xs line-clamp-3">
-                          {post.caption ? post.caption.substring(0, 120) + (post.caption.length > 120 ? "…" : "") : "No caption"}
-                        </p>
-                        {post.hashtags && (
-                          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                            <Hash className="h-3 w-3" />
-                            {post.hashtags.split(/\s+/).length} tags
-                          </p>
-                        )}
-                      </TooltipContent>
-                    </Tooltip>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+                          </TooltipContent>
+                        </Tooltip>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        </TabsContent>
+
+        <TabsContent value="calendar" className="flex-1 mt-0">
+          <CalendarView posts={posts} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
