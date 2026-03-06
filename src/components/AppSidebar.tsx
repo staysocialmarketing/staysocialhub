@@ -166,7 +166,7 @@ export function AppSidebar() {
           {!collapsed && (
             <div className="flex flex-col min-w-0">
               <span className="text-sm font-semibold text-sidebar-foreground truncate">Stay Social</span>
-              <span className="text-xs text-sidebar-foreground/60 truncate">HUB</span>
+              <span className="text-xs text-sidebar-foreground/60 truncate">Client HUB</span>
             </div>
           )}
         </div>
