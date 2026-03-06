@@ -1,73 +1,57 @@
 
 
-# Dashboard & Navigation Overhaul
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-This is a large set of changes spanning the client dashboard, sidebar navigation, and admin media library. Here's the breakdown:
+## Summary of Changes
 
-## 1. Client Dashboard Reorder (`src/pages/Dashboard.tsx`)
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
-- Change subtitle from "Here's what's happening with your social content" to "Here's what's happening with your marketing"
-- Move **Quick Actions** to the top (right after welcome)
-- Remove the **Content Library** stat card (3rd card in the grid — keep only Awaiting Approval + Open Requests)
-- Move **Current Plan** card to the very bottom
-- Add a **"What's New?"** section below Current Plan showing recommended add-ons filtered by a per-client toggle setting (see DB change below)
+## 1. Database: Update Auto-Assignment Triggers
 
-## 2. Database: Per-Client "What's New" Toggle
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-- Add a `whats_new_items` jsonb column (or a new table) to `clients` to let admins toggle which add-ons appear in each client's dashboard What's New section
-- Simpler approach: add `whats_new_visible_addons` (jsonb, default `'[]'`) to `clients` table. Admin can toggle individual add-on names per client.
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
-## 3. Admin "What's New" Management
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
 
-- On the **AdminClients** page, add a section/dialog per client to toggle which add-ons are visible in their "What's New" dashboard widget
-- The full What's New page (`/whats-new`) remains unchanged — it always shows all add-ons
+## 2. Approvals Page — Separate Media from Published Content
 
-## 4. Sidebar Navigation Restructure (`src/components/AppSidebar.tsx`)
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
 
-**Super Admin sidebar:**
-- Menu: Dashboard, Workflow, Approvals, Requests
-- Team: Think Tank, Projects, Tasks
-- Admin: Clients, Users, Media, Add-On Requests
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
 
-**Team sidebar:**
-- Menu: Dashboard, Workflow, Approvals, Requests
-- Team: Think Tank, Projects, Tasks
-- Admin (read-only label): Clients, Users, Media *(no editing — handled in components)*
-- Remove: Content, Profile Updates, Add-On Requests
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
 
-**Client sidebar — rename items:**
-- "Content Library" → "My Media"
-- "Profile" → "My Profile"
-- "Plan" → "My Plan"
-- Keep: Dashboard, Approvals, Requests, What's New
+## 3. Workflow Page — Move Internal Review to Bottom Section
 
-## 5. Shared Media Library for Admin/Team (`src/pages/admin/AdminMedia.tsx`)
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
 
-- New page at `/admin/media` showing all client media organized by client name
-- Query `posts` with `status_column = 'published'` joined with `clients(name)`, grouped/filtered by client
-- Also query `creative-assets` storage bucket organized by client folder
-- Read-only for Team role, full access for Admin
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
 
-## 6. Team Admin Read-Only
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
 
-- On AdminClients, AdminUsers, and AdminMedia pages, check `isSSAdmin` vs `isSSTeam` to conditionally hide edit/delete/create buttons for team members
-- Team can view but not modify
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
-## 7. Route Updates (`src/App.tsx`)
-
-- Add `/admin/media` route pointing to new AdminMedia component
-- Keep existing routes, no removals needed
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| Migration SQL | Add `whats_new_visible_addons` jsonb column to `clients` |
-| `src/pages/Dashboard.tsx` | Reorder client dashboard: Quick Actions top, remove Content Library card, Plan to bottom, add What's New widget |
-| `src/components/AppSidebar.tsx` | Restructure all 3 sidebar configs: split Team/Admin sections for super admin, simplify team admin, rename client items |
-| `src/pages/admin/AdminMedia.tsx` | New shared media library page organized by client |
-| `src/pages/admin/AdminClients.tsx` | Add per-client What's New toggle UI |
-| `src/pages/admin/AdminUsers.tsx` | Hide edit controls for team role |
-| `src/App.tsx` | Add `/admin/media` route |
-| `src/pages/ContentLibrary.tsx` | Update page title to "My Media" |
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 
