@@ -30,7 +30,6 @@ const WORKFLOW_COLUMNS: { key: PostStatus; label: string }[] = [
   { key: "idea", label: "Idea" },
   { key: "writing", label: "Writing" },
   { key: "design", label: "Design" },
-  { key: "internal_review", label: "Internal Review" },
 ];
 
 const platformColors: Record<string, string> = {
@@ -448,6 +447,101 @@ export default function Workflow() {
         </div>
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
+
+      {/* Internal Review — bottom grid section */}
+      {(() => {
+        const internalReviewPosts = posts.filter((p: any) => p.status_column === "internal_review" && (contentTypeFilter === "all" || p.content_type === contentTypeFilter));
+        return (
+          <section className="mt-6">
+            <div className="flex items-center gap-2 mb-3">
+              <h3 className="text-lg font-semibold text-foreground">Internal Review</h3>
+              <Badge variant="secondary">{internalReviewPosts.length}</Badge>
+            </div>
+            {internalReviewPosts.length === 0 ? (
+              <Card><CardContent className="py-8 text-center text-muted-foreground">No posts in internal review</CardContent></Card>
+            ) : (
+              <div
+                className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 bg-muted/50 rounded-lg p-4 min-h-[100px]"
+                onDrop={(e) => handleDrop(e, "internal_review")}
+                onDragOver={handleDragOver}
+              >
+                {internalReviewPosts.map((post: any) => {
+                  const dueDateColor = getDueDateColor(post.due_at);
+                  const ct = post.content_type ? contentTypeConfig[post.content_type] : null;
+                  return (
+                    <Card
+                      key={post.id}
+                      className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, post.id, post.status_column)}
+                      onClick={() => setSelectedPost(post)}
+                    >
+                      <CardContent className="p-3 space-y-2">
+                        {post.creative_url ? (
+                          <div className="aspect-video bg-muted rounded overflow-hidden">
+                            <img src={post.creative_url} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <div className="aspect-video bg-muted rounded flex items-center justify-center">
+                            <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
+                          </div>
+                        )}
+                        <h4 className="text-sm font-medium text-foreground line-clamp-2">{post.title}</h4>
+                        <div className="flex flex-wrap gap-1">
+                          {post.clients?.name && (
+                            <Badge variant="outline" className="text-[10px]">{post.clients.name}</Badge>
+                          )}
+                          {ct && (
+                            <Badge variant="secondary" className={cn("text-[10px] gap-1", ct.className)}>
+                              {ct.icon}{ct.label}
+                            </Badge>
+                          )}
+                          {post.request_id && (
+                            <Badge variant="secondary" className="text-[10px] bg-accent text-accent-foreground gap-1">
+                              <FileText className="h-2.5 w-2.5" />Request
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {post.platform?.split(",").map((p: string) => (
+                            <Badge key={p} variant="secondary" className={`text-[10px] ${platformColors[p.trim().toLowerCase()] || ""}`}>
+                              {p.trim()}
+                            </Badge>
+                          ))}
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <div className="flex items-center gap-2">
+                            {post.due_at && (
+                              <span className={cn("flex items-center gap-1", dueDateColor)}>
+                                <Clock className="h-3 w-3" />
+                                {format(new Date(post.due_at), "MMM d")}
+                              </span>
+                            )}
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {post.scheduled_at ? new Date(post.scheduled_at).toLocaleDateString() : "TBD"}
+                            </span>
+                          </div>
+                          <span className="flex items-center gap-1">
+                            <MessageSquare className="h-3 w-3" />
+                            {post.comments?.length || 0}
+                          </span>
+                        </div>
+                        {post.assigned_user?.name && (
+                          <div className="flex items-center gap-1 pt-1 border-t border-border/50">
+                            <UserInitials name={post.assigned_user.name} />
+                            <span className="text-[10px] text-muted-foreground truncate">{post.assigned_user.name}</span>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        );
+      })()}
 
       {/* Inline edit dialog */}
       {selectedPost && (
