@@ -129,6 +129,7 @@ function AdminApprovals() {
         .from("posts")
         .select("*, comments(id), assigned_user:assigned_to_user_id(name), clients(name)")
         .in("status_column", ["internal_review", "client_approval", "request_changes", "approved", "published"])
+        .not("request_id", "is", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -248,6 +249,7 @@ function ClientApprovals() {
         .select("*, comments(id), clients(name)")
         .eq("client_id", profile.client_id)
         .in("status_column", ["client_approval", "approved", "request_changes", "published"])
+        .not("request_id", "is", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];

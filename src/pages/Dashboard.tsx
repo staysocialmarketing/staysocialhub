@@ -91,6 +91,24 @@ function SuperAdminDashboard() {
     },
   });
 
+  const { data: myAssignments = [] } = useQuery({
+    queryKey: ["sa-my-assignments", profile?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("posts").select("id, title, status_column, due_at, clients(name)").eq("assigned_to_user_id", profile!.id).not("status_column", "eq", "published").order("due_at", { ascending: true, nullsFirst: false }).limit(10);
+      return data || [];
+    },
+    enabled: !!profile,
+  });
+
+  const { data: myTasks = [] } = useQuery({
+    queryKey: ["sa-my-tasks", profile?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("tasks").select("id, title, status, priority, due_at, project_id, projects(name)").eq("assigned_to_user_id", profile!.id).neq("status", "done").order("due_at", { ascending: true, nullsFirst: false }).limit(10);
+      return data || [];
+    },
+    enabled: !!profile,
+  });
+
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <div>
@@ -195,6 +213,60 @@ function SuperAdminDashboard() {
         </div>
       )}
 
+      {myAssignments.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <CheckSquare className="h-5 w-5 text-primary" />
+            <h3 className="text-lg font-semibold text-foreground">My Assignments</h3>
+          </div>
+          <Card>
+            <CardContent className="p-0">
+              <ul className="divide-y divide-border">
+                {myAssignments.map((post: any) => (
+                  <li key={post.id} className="flex items-center justify-between px-4 py-3 hover:bg-accent/50 cursor-pointer transition-colors" onClick={() => navigate(`/approvals/${post.id}`)}>
+                    <div className="flex items-center gap-3">
+                      {post.due_at && <span className="text-sm font-medium text-muted-foreground min-w-[80px]">{format(new Date(post.due_at), "MMM d")}</span>}
+                      <span className="text-sm font-medium text-foreground">{post.title}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs">{post.status_column.replace(/_/g, " ")}</Badge>
+                      {post.clients?.name && <span className="text-xs text-muted-foreground">{post.clients.name}</span>}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {myTasks.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <ClipboardList className="h-5 w-5 text-primary" />
+            <h3 className="text-lg font-semibold text-foreground">My Tasks</h3>
+          </div>
+          <Card>
+            <CardContent className="p-0">
+              <ul className="divide-y divide-border">
+                {myTasks.map((task: any) => (
+                  <li key={task.id} className="flex items-center justify-between px-4 py-3 hover:bg-accent/50 cursor-pointer transition-colors" onClick={() => navigate("/team/tasks")}>
+                    <div className="flex items-center gap-3">
+                      {task.due_at && <span className="text-sm font-medium text-muted-foreground min-w-[80px]">{format(new Date(task.due_at), "MMM d")}</span>}
+                      <span className="text-sm font-medium text-foreground">{task.title}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs">{task.status}</Badge>
+                      <Badge variant="outline" className="text-[10px] capitalize">{task.priority}</Badge>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <div>
         <h3 className="text-lg font-semibold text-foreground mb-3">Quick Actions</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -265,6 +337,15 @@ function TeamDashboard() {
       const { data } = await supabase.from("requests").select("id, topic, type, priority, status, created_at, clients(name)").order("created_at", { ascending: false }).limit(10);
       return data || [];
     },
+  });
+
+  const { data: myTasks = [] } = useQuery({
+    queryKey: ["team-my-tasks", profile?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("tasks").select("id, title, status, priority, due_at, project_id, projects(name)").eq("assigned_to_user_id", profile!.id).neq("status", "done").order("due_at", { ascending: true, nullsFirst: false }).limit(10);
+      return data || [];
+    },
+    enabled: !!profile,
   });
 
   return (
@@ -353,6 +434,33 @@ function TeamDashboard() {
                     <div className="flex items-center gap-2 shrink-0">
                       <Badge variant="secondary" className="text-[10px]">{req.status.replace("_", " ")}</Badge>
                       <Badge variant="outline" className="text-[10px] capitalize">{req.priority}</Badge>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {myTasks.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <ClipboardList className="h-5 w-5 text-primary" />
+            <h3 className="text-lg font-semibold text-foreground">My Tasks</h3>
+          </div>
+          <Card>
+            <CardContent className="p-0">
+              <ul className="divide-y divide-border">
+                {myTasks.map((task: any) => (
+                  <li key={task.id} className="flex items-center justify-between px-4 py-3 hover:bg-accent/50 cursor-pointer transition-colors" onClick={() => navigate("/team/tasks")}>
+                    <div className="flex items-center gap-3">
+                      {task.due_at && <span className="text-sm font-medium text-muted-foreground min-w-[80px]">{format(new Date(task.due_at), "MMM d")}</span>}
+                      <span className="text-sm font-medium text-foreground">{task.title}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs">{task.status}</Badge>
+                      <Badge variant="outline" className="text-[10px] capitalize">{task.priority}</Badge>
                     </div>
                   </li>
                 ))}
