@@ -21,10 +21,10 @@ export default function Auth() {
         redirect_uri: window.location.origin + "/dashboard",
       });
       if (result.error) {
-        toast.error("Google sign-in failed. Please try again.");
+        toast.error("Google sign-in was blocked. This may be due to your organization's settings. Try using the magic link below instead.");
       }
-    } catch {
-      toast.error("Something went wrong.");
+    } catch (err: any) {
+      toast.error("Google sign-in was blocked. Try using the magic link below instead.");
     } finally {
       setLoading(false);
     }
@@ -42,8 +42,9 @@ export default function Auth() {
       if (error) throw error;
       setMagicLinkSent(true);
       toast.success("Check your email for the magic link!");
-    } catch {
-      toast.error("Failed to send magic link.");
+    } catch (err: any) {
+      const msg = err?.message || "Failed to send magic link.";
+      toast.error(msg.includes("rate") ? "Too many attempts. Please wait a moment and try again." : "Failed to send magic link. Please check your email and try again.");
     } finally {
       setLoading(false);
     }
