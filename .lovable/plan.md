@@ -1,54 +1,57 @@
 
 
-# Storage & Data Management Strategy
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-## Current State
+## Summary of Changes
 
-You have 3 storage buckets (creative-assets, request-attachments, profile-assets) with a 10MB per-file limit. Files are uploaded but **never cleaned up** — archived/deleted posts leave orphaned files in storage. There's also no image compression or thumbnail generation, so raw full-size uploads accumulate indefinitely.
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
-## What This Means Long-Term
+## 1. Database: Update Auto-Assignment Triggers
 
-As clients grow, storage will balloon — especially with video. A single client uploading 5 videos/week at 10MB each = ~2.5GB/year per client. Without cleanup or optimization, this becomes costly and slow.
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-## Recommended Plan (Incremental, Won't Break Anything)
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
-### Phase 1 — Image Compression on Upload (Now, V1)
-- **Client-side image resize** before uploading: compress images to max 1920px wide and ~80% quality using canvas API. This alone can reduce image storage by 60-80%.
-- Apply to all upload points: ContentLibrary, Workflow, AdminContent, PostDetail, Profile, Requests.
-- Extract into a shared `compressImage()` utility.
-- Videos stay as-is (already capped at 10MB).
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
 
-### Phase 2 — Orphan Cleanup on Delete/Archive (Now, V1)
-- When a post is deleted or archived in AdminMedia, also delete the corresponding file from the `creative-assets` bucket.
-- Same for request attachments when requests are deleted.
-- This prevents dead files from accumulating.
+## 2. Approvals Page — Separate Media from Published Content
 
-### Phase 3 — Lazy Loading & Pagination (Now, V1)
-- Media library queries currently fetch ALL published posts. Add `.limit(50)` with a "Load More" button or infinite scroll to avoid loading hundreds of thumbnails at once.
-- Already important for mobile performance.
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
 
-### Phase 4 — Future Versions (V2+)
-- **Thumbnail generation**: Edge function that creates small preview thumbnails on upload, serving those in grids instead of full-size images.
-- **Storage quotas per client**: Track usage and enforce limits.
-- **CDN caching**: Lovable Cloud storage already serves via CDN, but adding cache headers can improve repeat load times.
-- **Video transcoding**: Convert uploaded videos to optimized web formats.
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
 
-## Files to Change
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
+
+## 3. Workflow Page — Move Internal Review to Bottom Section
+
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
+
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
+
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
+
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+
+## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/lib/imageUtils.ts` (new) | Shared `compressImage()` utility — resizes to max 1920px, outputs WebP/JPEG at 80% quality |
-| `src/pages/ContentLibrary.tsx` | Use `compressImage()` before upload |
-| `src/pages/Workflow.tsx` | Use `compressImage()` before upload |
-| `src/pages/admin/AdminContent.tsx` | Use `compressImage()` before upload |
-| `src/pages/PostDetail.tsx` | Use `compressImage()` before upload |
-| `src/pages/Profile.tsx` | Use `compressImage()` before upload |
-| `src/components/MakeRequestDialog.tsx` | Use `compressImage()` before upload |
-| `src/components/RequestDetailDialog.tsx` | Use `compressImage()` before upload |
-| `src/pages/Requests.tsx` | Use `compressImage()` before upload |
-| `src/pages/admin/AdminMedia.tsx` | Delete storage file on post delete; add pagination (limit 50 + Load More) |
-| `src/pages/ContentLibrary.tsx` | Add pagination (limit 50 + Load More) |
-
-## Security Note
-Your RLS policies are solid — all tables enforce `is_ss_role()` or `can_access_client()`. The `SECURITY DEFINER` functions properly bypass RLS for role checks without exposing data. No changes needed there. The compression and cleanup work is purely about resource efficiency, not security.
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 

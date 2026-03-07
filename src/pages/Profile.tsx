@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Save, Clock, Upload, X, Image as ImageIcon } from "lucide-react";
+import { compressImage } from "@/lib/imageUtils";
 
 const PLATFORM_OPTIONS = ["Instagram", "Facebook", "LinkedIn", "TikTok", "Twitter/X", "YouTube"];
 
@@ -74,9 +75,10 @@ export default function Profile() {
 
   const handleAssetUpload = async (field: string, file: File) => {
     if (!profile?.client_id) return;
-    const ext = file.name.split(".").pop();
+    const compressed = await compressImage(file);
+    const ext = compressed.name.split(".").pop();
     const path = `${profile.client_id}/${field}_${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("profile-assets").upload(path, file);
+    const { error } = await supabase.storage.from("profile-assets").upload(path, compressed);
     if (error) { toast.error("Upload failed"); return; }
     const { data: urlData } = supabase.storage.from("profile-assets").getPublicUrl(path);
     updateDraftField("assets_json", field, urlData.publicUrl);

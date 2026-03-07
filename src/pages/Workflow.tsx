@@ -21,6 +21,7 @@ import {
 import { toast } from "sonner";
 import { format, isToday, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
+import { compressImage } from "@/lib/imageUtils";
 import type { Database } from "@/integrations/supabase/types";
 import WorkflowCardDialog from "@/components/WorkflowCardDialog";
 
@@ -132,9 +133,10 @@ export default function Workflow() {
       if (!profile) throw new Error("Not logged in");
       let creative_url: string | null = null;
       if (creativeFile) {
-        const ext = creativeFile.name.split(".").pop();
+        const compressed = await compressImage(creativeFile);
+        const ext = compressed.name.split(".").pop();
         const path = `${crypto.randomUUID()}.${ext}`;
-        const { error: uploadError } = await supabase.storage.from("creative-assets").upload(path, creativeFile);
+        const { error: uploadError } = await supabase.storage.from("creative-assets").upload(path, compressed);
         if (uploadError) throw uploadError;
         const { data: urlData } = supabase.storage.from("creative-assets").getPublicUrl(path);
         creative_url = urlData.publicUrl;

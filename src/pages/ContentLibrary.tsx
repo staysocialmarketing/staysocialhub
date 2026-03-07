@@ -14,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ImageIcon, Film, Video, FolderOpen, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { compressImage } from "@/lib/imageUtils";
 
 function isVideo(url: string | null) {
   if (!url) return false;
@@ -33,6 +34,7 @@ export default function ContentLibrary() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadTitle, setUploadTitle] = useState("");
+  const [visibleCount, setVisibleCount] = useState(50);
 
   const { data: posts = [], isLoading } = useQuery({
     queryKey: ["content-library"],
@@ -50,9 +52,10 @@ export default function ContentLibrary() {
   const uploadMutation = useMutation({
     mutationFn: async () => {
       if (!uploadFile || !profile?.client_id) throw new Error("Missing file or client");
-      const ext = uploadFile.name.split(".").pop();
+      const compressed = await compressImage(uploadFile);
+      const ext = compressed.name.split(".").pop();
       const path = `${profile.client_id}/${crypto.randomUUID()}.${ext}`;
-      const { error: storageErr } = await supabase.storage.from("creative-assets").upload(path, uploadFile);
+      const { error: storageErr } = await supabase.storage.from("creative-assets").upload(path, compressed);
       if (storageErr) throw storageErr;
       const { data: { publicUrl } } = supabase.storage.from("creative-assets").getPublicUrl(path);
 
@@ -76,10 +79,19 @@ export default function ContentLibrary() {
   });
 
   const filterPosts = (tab: string) => {
-    if (tab === "all") return posts;
-    if (tab === "reels") return posts.filter((p) => isReel(p.platform));
-    if (tab === "videos") return posts.filter((p) => isVideo(p.creative_url) && !isReel(p.platform));
-    return posts.filter((p) => p.creative_url && !isVideo(p.creative_url) && !isReel(p.platform));
+    let filtered;
+    if (tab === "all") filtered = posts;
+    else if (tab === "reels") filtered = posts.filter((p) => isReel(p.platform));
+    else if (tab === "videos") filtered = posts.filter((p) => isVideo(p.creative_url) && !isReel(p.platform));
+    else filtered = posts.filter((p) => p.creative_url && !isVideo(p.creative_url) && !isReel(p.platform));
+    return filtered.slice(0, visibleCount);
+  };
+
+  const totalForTab = (tab: string) => {
+    if (tab === "all") return posts.length;
+    if (tab === "reels") return posts.filter((p) => isReel(p.platform)).length;
+    if (tab === "videos") return posts.filter((p) => isVideo(p.creative_url) && !isReel(p.platform)).length;
+    return posts.filter((p) => p.creative_url && !isVideo(p.creative_url) && !isReel(p.platform)).length;
   };
 
   const PostGrid = ({ items }: { items: typeof posts }) => {
@@ -163,7 +175,16 @@ export default function ContentLibrary() {
             <TabsTrigger value="reels"><Film className="h-3.5 w-3.5 mr-1" /> Reels</TabsTrigger>
           </TabsList>
           {["all", "images", "videos", "reels"].map((tab) => (
-            <TabsContent key={tab} value={tab}><PostGrid items={filterPosts(tab)} /></TabsContent>
+            <TabsContent key={tab} value={tab}>
+              <PostGrid items={filterPosts(tab)} />
+              {totalForTab(tab) > visibleCount && (
+                <div className="flex justify-center pt-4">
+                  <Button variant="outline" onClick={() => setVisibleCount((c) => c + 50)}>
+                    Load More ({totalForTab(tab) - visibleCount} remaining)
+                  </Button>
+                </div>
+              )}
+            </TabsContent>
           ))}
         </Tabs>
       )}

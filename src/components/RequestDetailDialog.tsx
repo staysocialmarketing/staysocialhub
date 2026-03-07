@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { FileText, Mail, Download, Send, Pencil, Save, X, Upload, Loader2 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
+import { compressImage } from "@/lib/imageUtils";
 
 type RequestStatus = Database["public"]["Enums"]["request_status"];
 type RequestType = Database["public"]["Enums"]["request_type"];
@@ -133,9 +134,10 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
     }
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop();
+      const compressed = await compressImage(file);
+      const ext = compressed.name.split(".").pop();
       const path = `${request.client_id}/${crypto.randomUUID()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("request-attachments").upload(path, file);
+      const { error: uploadError } = await supabase.storage.from("request-attachments").upload(path, compressed);
       if (uploadError) throw uploadError;
       const { error: updateError } = await supabase.from("requests").update({ attachments_url: path }).eq("id", request.id);
       if (updateError) throw updateError;

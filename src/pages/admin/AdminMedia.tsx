@@ -15,6 +15,7 @@ import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
 import { format } from "date-fns";
 import { ImageIcon, Film, FolderOpen, Archive, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { extractStoragePath } from "@/lib/imageUtils";
 
 function isVideo(url: string | null) {
   if (!url) return false;
@@ -29,6 +30,8 @@ export default function AdminMedia() {
   const [editTitle, setEditTitle] = useState("");
   const [editClientId, setEditClientId] = useState("");
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
+  const [pageSize] = useState(50);
+  const [visibleCount, setVisibleCount] = useState(50);
 
   const { data: clients = [] } = useQuery({
     queryKey: ["media-clients"],
@@ -53,8 +56,10 @@ export default function AdminMedia() {
   });
 
   const filteredPosts = clientFilter === "all" ? posts : posts.filter((p: any) => p.client_id === clientFilter);
+  const paginatedPosts = filteredPosts.slice(0, visibleCount);
+  const hasMore = filteredPosts.length > visibleCount;
 
-  const grouped = filteredPosts.reduce((acc: Record<string, any[]>, post: any) => {
+  const grouped = paginatedPosts.reduce((acc: Record<string, any[]>, post: any) => {
     const name = post.clients?.name || "Unknown";
     if (!acc[name]) acc[name] = [];
     acc[name].push(post);
@@ -89,8 +94,17 @@ export default function AdminMedia() {
 
   const handleDelete = async () => {
     if (!deletePostId) return;
+    // Find the post to clean up storage
+    const postToDelete = posts.find((p: any) => p.id === deletePostId);
     const { error } = await supabase.from("posts").delete().eq("id", deletePostId);
     if (error) { toast.error(error.message); return; }
+    // Clean up storage file
+    if (postToDelete?.creative_url) {
+      const storagePath = extractStoragePath(postToDelete.creative_url, "creative-assets");
+      if (storagePath) {
+        await supabase.storage.from("creative-assets").remove([storagePath]);
+      }
+    }
     toast.success("Media deleted");
     setDeletePostId(null);
     setEditPost(null);
@@ -154,6 +168,14 @@ export default function AdminMedia() {
             </div>
           </div>
         ))
+      )}
+
+      {hasMore && (
+        <div className="flex justify-center pt-4">
+          <Button variant="outline" onClick={() => setVisibleCount((c) => c + pageSize)}>
+            Load More ({filteredPosts.length - visibleCount} remaining)
+          </Button>
+        </div>
       )}
 
       {/* Edit Media Dialog */}

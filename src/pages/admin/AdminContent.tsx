@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { Image as ImageIcon, Plus, Calendar, Upload, Eye } from "lucide-react";
 import { format } from "date-fns";
 import type { Database } from "@/integrations/supabase/types";
+import { compressImage } from "@/lib/imageUtils";
 
 type PostStatus = Database["public"]["Enums"]["post_status"];
 
@@ -76,9 +77,10 @@ export default function AdminContent() {
       let creative_url: string | null = null;
 
       if (creativeFile) {
-        const ext = creativeFile.name.split(".").pop();
+        const compressed = await compressImage(creativeFile);
+        const ext = compressed.name.split(".").pop();
         const path = `${crypto.randomUUID()}.${ext}`;
-        const { error: uploadError } = await supabase.storage.from("creative-assets").upload(path, creativeFile);
+        const { error: uploadError } = await supabase.storage.from("creative-assets").upload(path, compressed);
         if (uploadError) throw uploadError;
         const { data: urlData } = supabase.storage.from("creative-assets").getPublicUrl(path);
         creative_url = urlData.publicUrl;

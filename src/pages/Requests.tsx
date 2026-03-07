@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { Plus, FileText, Mail } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import RequestDetailDialog from "@/components/RequestDetailDialog";
+import { compressImage } from "@/lib/imageUtils";
 
 type RequestType = Database["public"]["Enums"]["request_type"];
 type RequestStatus = Database["public"]["Enums"]["request_status"];
@@ -87,9 +88,10 @@ export default function Requests() {
       // Upload attachment (non-blocking)
       let attachments_url: string | null = null;
       if (attachmentFile) {
-        const ext = attachmentFile.name.split(".").pop();
+        const compressed = await compressImage(attachmentFile);
+        const ext = compressed.name.split(".").pop();
         const path = `${clientId}/${crypto.randomUUID()}.${ext}`;
-        const { error: uploadError } = await supabase.storage.from("request-attachments").upload(path, attachmentFile);
+        const { error: uploadError } = await supabase.storage.from("request-attachments").upload(path, compressed);
         if (uploadError) {
           toast.warning("Attachment upload failed — request will be created without it");
         } else {
