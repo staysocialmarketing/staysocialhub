@@ -288,65 +288,68 @@ export default function Workflow() {
 
     return (
       <div key={post.id} className="space-y-1.5">
-        <Card
-          className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
+        <div
+          className="card-elevated p-4 space-y-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-all"
           draggable
           onDragStart={(e) => handleDragStart(e, post.id, post.status_column)}
           onClick={() => setSelectedPost(post)}
         >
-          <CardContent className="p-3 space-y-2">
-            {post.creative_url ? (
-              <div className="aspect-video bg-muted rounded overflow-hidden">
-                <img src={post.creative_url} alt="" className="w-full h-full object-cover" />
-              </div>
-            ) : (
-              <div className="aspect-video bg-muted rounded flex items-center justify-center">
-                {post.content_type === "email_campaign" ? <Mail className="h-6 w-6 text-muted-foreground/40" /> : <ImageIcon className="h-6 w-6 text-muted-foreground/40" />}
-              </div>
+          {post.creative_url && (
+            <div className="aspect-video bg-muted rounded-lg overflow-hidden">
+              <img src={post.creative_url} alt="" className="w-full h-full object-cover" />
+            </div>
+          )}
+          {!post.creative_url && ct && (
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              {ct.icon}
+              <span className="text-[11px]">{ct.label}</span>
+            </div>
+          )}
+          <h4 className="text-sm font-semibold text-foreground line-clamp-2">{post.title}</h4>
+          {post.content_type === "email_campaign" && post.subject_line && (
+            <p className="text-xs text-muted-foreground/70 line-clamp-1">Subject: {post.subject_line}</p>
+          )}
+          <div className="flex flex-wrap gap-1">
+            {post.clients?.name && <Badge variant="outline" className="text-[11px]">{post.clients.name}</Badge>}
+            {post.request_id && (
+              <Badge variant="secondary" className="text-[11px] gap-1">
+                <FileText className="h-2.5 w-2.5" />Request
+              </Badge>
             )}
-            <h4 className="text-sm font-medium text-foreground line-clamp-2">{post.title}</h4>
-            {post.content_type === "email_campaign" && post.subject_line && (
-              <p className="text-xs text-muted-foreground line-clamp-1">Subject: {post.subject_line}</p>
-            )}
+          </div>
+          {post.platform && (
             <div className="flex flex-wrap gap-1">
-              {post.clients?.name && <Badge variant="outline" className="text-[10px]">{post.clients.name}</Badge>}
-              {ct && <Badge variant="secondary" className={cn("text-[10px] gap-1", ct.className)}>{ct.icon}{ct.label}</Badge>}
-              {post.request_id && (
-                <Badge variant="secondary" className="text-[10px] bg-accent text-accent-foreground gap-1">
-                  <FileText className="h-2.5 w-2.5" />Request
-                </Badge>
+              {post.platform.split(",").map((p: string) => (
+                <Badge key={p} variant="secondary" className={`text-[11px] ${platformColors[p.trim().toLowerCase()] || ""}`}>{p.trim()}</Badge>
+              ))}
+            </div>
+          )}
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <div className="flex items-center gap-2">
+              {post.due_at && (
+                <span className={cn("flex items-center gap-1", dueDateColor)}>
+                  <Clock className="h-3 w-3" />{format(new Date(post.due_at), "MMM d")}
+                </span>
+              )}
+              {post.scheduled_at && (
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />{new Date(post.scheduled_at).toLocaleDateString()}
+                </span>
               )}
             </div>
-            {post.platform && (
-              <div className="flex flex-wrap gap-1">
-                {post.platform.split(",").map((p: string) => (
-                  <Badge key={p} variant="secondary" className={`text-[10px] ${platformColors[p.trim().toLowerCase()] || ""}`}>{p.trim()}</Badge>
-                ))}
-              </div>
-            )}
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <div className="flex items-center gap-2">
-                {post.due_at && (
-                  <span className={cn("flex items-center gap-1", dueDateColor)}>
-                    <Clock className="h-3 w-3" />{format(new Date(post.due_at), "MMM d")}
-                  </span>
-                )}
-                <span className="flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />{post.scheduled_at ? new Date(post.scheduled_at).toLocaleDateString() : "TBD"}
-                </span>
-              </div>
+            {(post.comments?.length || 0) > 0 && (
               <span className="flex items-center gap-1">
-                <MessageSquare className="h-3 w-3" />{post.comments?.length || 0}
+                <MessageSquare className="h-3 w-3" />{post.comments.length}
               </span>
-            </div>
-            {post.assigned_user?.name && (
-              <div className="flex items-center gap-1 pt-1 border-t border-border/50">
-                <UserInitials name={post.assigned_user.name} />
-                <span className="text-[10px] text-muted-foreground truncate">{post.assigned_user.name}</span>
-              </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+          {post.assigned_user?.name && (
+            <div className="flex items-center gap-1.5 pt-2">
+              <UserInitials name={post.assigned_user.name} />
+              <span className="text-[11px] text-muted-foreground truncate">{post.assigned_user.name}</span>
+            </div>
+          )}
+        </div>
         {showApprovalActions && (
           <ApprovalActions
             postId={post.id}
