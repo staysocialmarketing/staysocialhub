@@ -129,6 +129,7 @@ export default function AdminClients() {
 
   const whatsNewClientData = clients.find((c: any) => c.id === whatsNewClient);
   const currentAddons: string[] = whatsNewClientData ? ((whatsNewClientData as any).whats_new_visible_addons || []) : [];
+  const currentRecommendedId: string | null = whatsNewClientData ? (whatsNewClientData as any).recommended_item_id : null;
 
   const toggleAddon = (addon: string) => {
     if (!whatsNewClient) return;
