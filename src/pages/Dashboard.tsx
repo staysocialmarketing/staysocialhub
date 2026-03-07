@@ -19,14 +19,6 @@ import {
   Sparkles,
 } from "lucide-react";
 
-const ALL_ADDONS = [
-  { title: "Email Marketing", desc: "Monthly email campaigns to nurture your audience and drive conversions.", icon: "📧", price: "From $299/mo" },
-  { title: "Reels & Short-Form Video", desc: "Engaging vertical video content for Instagram Reels, TikTok, and Shorts.", icon: "🎬", price: "From $499/mo" },
-  { title: "Paid Social Ads", desc: "Strategic ad campaigns with targeting, creative, and reporting.", icon: "📊", price: "From $599/mo" },
-  { title: "Blog & SEO Content", desc: "Monthly blog posts optimized for search to drive organic traffic.", icon: "✍️", price: "From $399/mo" },
-  { title: "Photography Sessions", desc: "Professional brand photography for your social content library.", icon: "📷", price: "From $799/session" },
-  { title: "Community Management", desc: "Active engagement with your audience — comments, DMs, and more.", icon: "💬", price: "From $349/mo" },
-];
 
 // ─── Super Admin Dashboard ───────────────────────────────────────────────────
 
