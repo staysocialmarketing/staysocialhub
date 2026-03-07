@@ -13,7 +13,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Lightbulb, FileText, Brain, Archive, Zap, Send, FolderOpen, ListTodo, ChevronDown, Pencil, Trash2 } from "lucide-react";
+import { Plus, Lightbulb, FileText, Brain, Archive, Zap, Send, FolderOpen, ListTodo, ChevronDown, Pencil, Trash2, Sparkles } from "lucide-react";
+import AIFieldsPanel from "@/components/AIFieldsPanel";
+import StrategyBriefPanel from "@/components/StrategyBriefPanel";
+import RunStrategyButton from "@/components/RunStrategyButton";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import MakeRequestDialog from "@/components/MakeRequestDialog";
