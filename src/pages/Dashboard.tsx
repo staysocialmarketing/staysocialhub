@@ -116,7 +116,7 @@ function SuperAdminDashboard() {
         <p className="text-muted-foreground mt-1">Here's your overview across all clients.</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/approvals")}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Pending Approvals</CardTitle>
@@ -144,6 +144,13 @@ function SuperAdminDashboard() {
             <Clock className="h-4 w-4 text-warning" />
           </CardHeader>
           <CardContent><div className="text-3xl font-bold text-warning">{dueTodayPosts}</div></CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/team/tasks")}>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">My Tasks</CardTitle>
+            <ClipboardList className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent><div className="text-3xl font-bold text-foreground">{myTasks.length}</div></CardContent>
         </Card>
       </div>
 
