@@ -33,7 +33,7 @@ export default function MakeRequestDialog({
   prefillNotes = "",
   onSuccess,
 }: MakeRequestDialogProps) {
-  const { profile } = useAuth();
+  const { profile, isSSRole } = useAuth();
   const queryClient = useQueryClient();
   const [clientId, setClientId] = useState("");
   const [type, setType] = useState<RequestType>("social_post");
