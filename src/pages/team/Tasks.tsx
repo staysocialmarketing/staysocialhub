@@ -90,6 +90,7 @@ export default function Tasks() {
     setEditTitle(task.title);
     setEditDescription(task.description || "");
     setEditProjectId(task.project_id || "");
+    setEditClientId((task as any).client_id || "");
     setEditAssigneeId(task.assigned_to_user_id || "");
     setEditPriority(task.priority);
     setEditDueAt(task.due_at ? task.due_at.slice(0, 16) : "");
