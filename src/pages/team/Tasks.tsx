@@ -86,7 +86,11 @@ export default function Tasks() {
     if (filterAssignee === "__pending__") return;
     let query = supabase.from("tasks").select("*").order("created_at", { ascending: false });
     if (filterProject !== "all") query = query.eq("project_id", filterProject);
-    if (filterAssignee !== "all") query = query.eq("assigned_to_user_id", filterAssignee);
+    if (filterAssignee === "team") {
+      query = query.eq("assigned_to_team", true);
+    } else if (filterAssignee !== "all") {
+      query = query.eq("assigned_to_user_id", filterAssignee);
+    }
     const { data } = await query;
     setTasks((data as Task[]) || []);
     setLoading(false);
