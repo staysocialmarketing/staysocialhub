@@ -870,6 +870,7 @@ export type Database = {
         | "ss_admin"
         | "ss_producer"
         | "ss_ops"
+        | "ss_team"
       approval_type: "approve" | "approve_with_notes" | "request_changes"
       post_status:
         | "idea"
@@ -1021,6 +1022,7 @@ export const Constants = {
         "ss_admin",
         "ss_producer",
         "ss_ops",
+        "ss_team",
       ],
       approval_type: ["approve", "approve_with_notes", "request_changes"],
       post_status: [
