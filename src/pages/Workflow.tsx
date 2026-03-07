@@ -21,6 +21,7 @@ import {
 import { toast } from "sonner";
 import { format, isToday, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
+import { compressImage } from "@/lib/imageUtils";
 import type { Database } from "@/integrations/supabase/types";
 import WorkflowCardDialog from "@/components/WorkflowCardDialog";
 
