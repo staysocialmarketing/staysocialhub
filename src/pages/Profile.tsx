@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Save, Clock, Upload, X, Image as ImageIcon } from "lucide-react";
+import { compressImage } from "@/lib/imageUtils";
 
 const PLATFORM_OPTIONS = ["Instagram", "Facebook", "LinkedIn", "TikTok", "Twitter/X", "YouTube"];
 
