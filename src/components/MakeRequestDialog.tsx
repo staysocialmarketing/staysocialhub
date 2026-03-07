@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,7 +33,7 @@ export default function MakeRequestDialog({
   prefillNotes = "",
   onSuccess,
 }: MakeRequestDialogProps) {
-  const { profile } = useAuth();
+  const { profile, isSSRole } = useAuth();
   const queryClient = useQueryClient();
   const [clientId, setClientId] = useState("");
   const [type, setType] = useState<RequestType>("social_post");
@@ -56,7 +56,11 @@ export default function MakeRequestDialog({
       setTopic(prefillTopic);
       setNotes(prefillNotes);
       setAttachmentFile(null);
-      loadClients();
+      if (isSSRole) {
+        loadClients();
+      } else if (profile?.client_id) {
+        setClientId(profile.client_id);
+      }
     }
     onOpenChange(o);
   };
@@ -122,10 +126,12 @@ export default function MakeRequestDialog({
           <DialogTitle>Make This a Request</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 mt-2">
-          <div>
-            <Label>Client</Label>
-            <ClientSelectWithCreate value={clientId} onValueChange={setClientId} allowNone={false} placeholder="Select client" />
-          </div>
+          {isSSRole && (
+            <div>
+              <Label>Client</Label>
+              <ClientSelectWithCreate value={clientId} onValueChange={setClientId} allowNone={false} placeholder="Select client" />
+            </div>
+          )}
           <div>
             <Label>Type</Label>
             <Select value={type} onValueChange={(v) => setType(v as RequestType)}>

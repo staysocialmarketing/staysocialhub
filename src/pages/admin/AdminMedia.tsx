@@ -13,13 +13,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
 import { format } from "date-fns";
-import { ImageIcon, Film, FolderOpen, Archive, Trash2, Download, Link2 } from "lucide-react";
+import { ImageIcon, Film, FolderOpen, Archive, Trash2, Download, Link2, Mic } from "lucide-react";
 import { toast } from "sonner";
 import { extractStoragePath } from "@/lib/imageUtils";
 
 function isVideo(url: string | null) {
   if (!url) return false;
-  return /\.(mp4|mov|webm|avi)$/i.test(url);
+  return /\.(mp4|mov|webm|avi)$/i.test(url) && !isVoiceNote(url);
+}
+
+function isVoiceNote(url: string | null) {
+  if (!url) return false;
+  return /voice-notes\/.*\.webm$/i.test(url) || /voice-\d+\.webm$/i.test(url);
 }
 
 function isDocument(url: string | null) {
@@ -29,6 +34,7 @@ function isDocument(url: string | null) {
 
 function getMediaType(url: string | null): string {
   if (!url) return "other";
+  if (isVoiceNote(url)) return "voice";
   if (isVideo(url)) return "video";
   if (isDocument(url)) return "document";
   return "image";
@@ -156,6 +162,7 @@ export default function AdminMedia() {
               <SelectItem value="all">All Types</SelectItem>
               <SelectItem value="image">Images</SelectItem>
               <SelectItem value="video">Videos</SelectItem>
+              <SelectItem value="voice">Voice Notes</SelectItem>
               <SelectItem value="document">Documents</SelectItem>
             </SelectContent>
           </Select>
@@ -189,7 +196,12 @@ export default function AdminMedia() {
                 <Card key={post.id} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden group" onClick={() => openEdit(post)}>
                   <AspectRatio ratio={1}>
                     {post.creative_url ? (
-                      isVideo(post.creative_url) ? (
+                      isVoiceNote(post.creative_url) ? (
+                        <div className="w-full h-full bg-muted flex flex-col items-center justify-center gap-2 p-4">
+                          <Mic className="h-10 w-10 text-primary/50" />
+                          <audio src={post.creative_url} controls className="w-full max-w-[90%]" onClick={(e) => e.stopPropagation()} />
+                        </div>
+                      ) : isVideo(post.creative_url) ? (
                         <div className="w-full h-full bg-muted flex items-center justify-center"><Film className="h-10 w-10 text-muted-foreground/50" /></div>
                       ) : (
                         <img src={post.creative_url} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />

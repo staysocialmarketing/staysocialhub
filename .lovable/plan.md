@@ -1,41 +1,57 @@
 
 
-# Client Capture Improvements — Plan
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-## Changes Overview
+## Summary of Changes
 
-Three things to fix:
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
-### 1. MakeRequestDialog: Hide client field for client users
-`MakeRequestDialog.tsx` always shows the Client selector. For client users, hide it and auto-set `clientId` from `profile.client_id`.
+## 1. Database: Update Auto-Assignment Triggers
 
-- Import `useAuth` to check `isSSRole`
-- If not SS role, auto-set `clientId = profile.client_id` on open, skip `loadClients()`, hide the Client field
-- Adjust submit validation: for clients, `clientId` is auto-populated so the button stays enabled
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-### 2. Voice notes stored with `voice-notes/` prefix for categorization
-Currently voice notes go to `{clientId}/voice-{timestamp}.webm` in `creative-assets`. Change the path to `{clientId}/voice-notes/voice-{timestamp}.webm` so they can be identified and displayed in a dedicated section.
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
-Same for images from the capture button — already going to `{clientId}/` which is fine.
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
 
-### 3. ContentLibrary.tsx (client "My Media"): Add Voice Notes section
-Add a new tab "Voice Notes" alongside Images/Videos/Reels. This tab lists `.webm` files from the `creative-assets` bucket under the client's folder (`{clientId}/voice-notes/`).
+## 2. Approvals Page — Separate Media from Published Content
 
-- Use `supabase.storage.from("creative-assets").list()` to fetch voice note files for the client's folder
-- Display them with audio player, download, and copy link actions
-- Since these are in the shared `creative-assets` bucket, Admin/Team media (`AdminMedia.tsx`) already has access to them
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
 
-### 4. AdminMedia.tsx: Add voice notes awareness
-Add a "Voice Notes" media type filter option. Detect `.webm` files as voice notes in the existing `getMediaType` function, and render them with an audio player instead of an image placeholder.
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
 
-## Files to Change
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
+
+## 3. Workflow Page — Move Internal Review to Bottom Section
+
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
+
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
+
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
+
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+
+## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/components/MakeRequestDialog.tsx` | Hide client field for client users, auto-set from profile |
-| `src/components/GlobalCaptureButton.tsx` | Update voice note path to include `voice-notes/` subfolder |
-| `src/pages/ContentLibrary.tsx` | Add "Voice Notes" tab fetching from storage bucket |
-| `src/pages/admin/AdminMedia.tsx` | Add voice note type detection and audio rendering |
-
-No database changes needed.
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 
