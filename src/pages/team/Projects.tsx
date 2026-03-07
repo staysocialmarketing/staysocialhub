@@ -13,7 +13,7 @@ import { Plus, ChevronDown, FolderOpen, ListTodo, Send, Pencil, User, Calendar }
 import { toast } from "sonner";
 import { format } from "date-fns";
 import MakeRequestDialog from "@/components/MakeRequestDialog";
-
+import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
 interface Project {
   id: string;
   name: string;
