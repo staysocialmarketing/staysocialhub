@@ -12,11 +12,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Building2, Sparkles, FolderOpen, ListTodo, Lightbulb } from "lucide-react";
+import { Plus, Building2, Sparkles, FolderOpen, ListTodo, Lightbulb, MessageSquarePlus } from "lucide-react";
 
 export default function AdminClients() {
   const queryClient = useQueryClient();
-  const { isSSAdmin } = useAuth();
+  const { isSSAdmin, isSSTeam } = useAuth();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [whatsNewClient, setWhatsNewClient] = useState<string | null>(null);
@@ -24,6 +24,8 @@ export default function AdminClients() {
 
   // Edit client state
   const [editClient, setEditClient] = useState<any | null>(null);
+  // Read-only view for team
+  const [viewClient, setViewClient] = useState<any | null>(null);
   const [editName, setEditName] = useState("");
   const [editStatus, setEditStatus] = useState("active");
   const [editPlanId, setEditPlanId] = useState("");
@@ -53,21 +55,24 @@ export default function AdminClients() {
     });
   }, []);
 
-  // Linked data for the edit dialog
+  // Linked data for edit/view dialogs
+  const activeClientId = editClient?.id || viewClient?.id;
   const { data: linkedData } = useQuery({
-    queryKey: ["client-linked-data", editClient?.id],
-    enabled: !!editClient,
+    queryKey: ["client-linked-data", activeClientId],
+    enabled: !!activeClientId,
     queryFn: async () => {
-      const cid = editClient.id;
-      const [projects, tasks, thinkTank] = await Promise.all([
+      const cid = activeClientId;
+      const [projects, tasks, thinkTank, requests] = await Promise.all([
         supabase.from("projects").select("id, name, status").eq("client_id", cid).order("created_at", { ascending: false }).limit(10),
         supabase.from("tasks").select("id, title, status").eq("client_id", cid).order("created_at", { ascending: false }).limit(10),
         supabase.from("think_tank_items").select("id, title, status").eq("client_id", cid).order("created_at", { ascending: false }).limit(10),
+        supabase.from("requests").select("id, topic, status").eq("client_id", cid).order("created_at", { ascending: false }).limit(10),
       ]);
       return {
         projects: projects.data || [],
         tasks: tasks.data || [],
         thinkTank: thinkTank.data || [],
+        requests: requests.data || [],
       };
     },
   });
@@ -153,6 +158,66 @@ export default function AdminClients() {
     setEditPlanId(client.plan_id || "");
     setEditAssistants(client.assistants_can_approve);
   };
+
+  function LinkedActivitySection({ linkedData }: { linkedData: { projects: any[]; tasks: any[]; thinkTank: any[]; requests: any[] } }) {
+    return (
+      <div className="space-y-3 border-t pt-3">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Linked Activity</p>
+
+        {linkedData.requests.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-xs font-medium flex items-center gap-1"><MessageSquarePlus className="h-3 w-3" /> Requests ({linkedData.requests.length})</p>
+            {linkedData.requests.map((r: any) => (
+              <div key={r.id} className="flex items-center justify-between text-xs pl-4">
+                <span>{r.topic}</span>
+                <Badge variant="outline" className="text-[10px]">{r.status}</Badge>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {linkedData.projects.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-xs font-medium flex items-center gap-1"><FolderOpen className="h-3 w-3" /> Projects ({linkedData.projects.length})</p>
+            {linkedData.projects.map((p: any) => (
+              <div key={p.id} className="flex items-center justify-between text-xs pl-4">
+                <span>{p.name}</span>
+                <Badge variant="outline" className="text-[10px]">{p.status}</Badge>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {linkedData.tasks.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-xs font-medium flex items-center gap-1"><ListTodo className="h-3 w-3" /> Tasks ({linkedData.tasks.length})</p>
+            {linkedData.tasks.map((t: any) => (
+              <div key={t.id} className="flex items-center justify-between text-xs pl-4">
+                <span>{t.title}</span>
+                <Badge variant="outline" className="text-[10px]">{t.status}</Badge>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {linkedData.thinkTank.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-xs font-medium flex items-center gap-1"><Lightbulb className="h-3 w-3" /> Think Tank ({linkedData.thinkTank.length})</p>
+            {linkedData.thinkTank.map((i: any) => (
+              <div key={i.id} className="flex items-center justify-between text-xs pl-4">
+                <span>{i.title}</span>
+                <Badge variant="outline" className="text-[10px]">{i.status}</Badge>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {linkedData.projects.length === 0 && linkedData.tasks.length === 0 && linkedData.thinkTank.length === 0 && linkedData.requests.length === 0 && (
+          <p className="text-xs text-muted-foreground">No linked activity yet.</p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
@@ -250,51 +315,7 @@ export default function AdminClients() {
             </div>
 
             {/* Linked data */}
-            {linkedData && (
-              <div className="space-y-3 border-t pt-3">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Linked Activity</p>
-                
-                {linkedData.projects.length > 0 && (
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium flex items-center gap-1"><FolderOpen className="h-3 w-3" /> Projects ({linkedData.projects.length})</p>
-                    {linkedData.projects.map((p: any) => (
-                      <div key={p.id} className="flex items-center justify-between text-xs pl-4">
-                        <span>{p.name}</span>
-                        <Badge variant="outline" className="text-[10px]">{p.status}</Badge>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {linkedData.tasks.length > 0 && (
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium flex items-center gap-1"><ListTodo className="h-3 w-3" /> Tasks ({linkedData.tasks.length})</p>
-                    {linkedData.tasks.map((t: any) => (
-                      <div key={t.id} className="flex items-center justify-between text-xs pl-4">
-                        <span>{t.title}</span>
-                        <Badge variant="outline" className="text-[10px]">{t.status}</Badge>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {linkedData.thinkTank.length > 0 && (
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium flex items-center gap-1"><Lightbulb className="h-3 w-3" /> Think Tank ({linkedData.thinkTank.length})</p>
-                    {linkedData.thinkTank.map((i: any) => (
-                      <div key={i.id} className="flex items-center justify-between text-xs pl-4">
-                        <span>{i.title}</span>
-                        <Badge variant="outline" className="text-[10px]">{i.status}</Badge>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {linkedData.projects.length === 0 && linkedData.tasks.length === 0 && linkedData.thinkTank.length === 0 && (
-                  <p className="text-xs text-muted-foreground">No linked projects, tasks, or ideas yet.</p>
-                )}
-              </div>
-            )}
+            {linkedData && <LinkedActivitySection linkedData={linkedData} />}
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setEditClient(null)}>Cancel</Button>
@@ -303,10 +324,22 @@ export default function AdminClients() {
         </DialogContent>
       </Dialog>
 
+      {/* Read-only Client View Dialog (Team) */}
+      <Dialog open={!!viewClient} onOpenChange={(o) => !o && setViewClient(null)}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{viewClient?.name}</DialogTitle></DialogHeader>
+          <div className="flex items-center gap-2 mb-2">
+            <Badge variant={viewClient?.status === "active" ? "default" : "secondary"}>{viewClient?.status}</Badge>
+            <span className="text-xs text-muted-foreground">Plan: {viewClient?.plans?.name || "None"}</span>
+          </div>
+          {linkedData && <LinkedActivitySection linkedData={linkedData} />}
+        </DialogContent>
+      </Dialog>
+
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : (
         <div className="space-y-3">
           {clients.map((c: any) => (
-            <Card key={c.id} className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => isSSAdmin && openEditClient(c)}>
+            <Card key={c.id} className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => { if (isSSAdmin) openEditClient(c); else if (isSSTeam) setViewClient(c); }}>
               <CardContent className="py-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Building2 className="h-5 w-5 text-muted-foreground" />

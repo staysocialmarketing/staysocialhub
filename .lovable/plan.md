@@ -1,52 +1,57 @@
 
 
-# Team Client Access, Dashboard Reorder, and Task Syncing
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-## Changes
+## Summary of Changes
 
-### 1. Team can click clients (read-only linked activity view)
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
-**File: `src/pages/admin/AdminClients.tsx`**
+## 1. Database: Update Auto-Assignment Triggers
 
-Currently line 309 restricts click to `isSSAdmin`. Change to allow `isSSTeam` to also click, but open a **separate read-only dialog** that only shows linked activity (projects, tasks, requests, think tank) — no edit fields.
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-- Add `isSSTeam` from `useAuth()`
-- On card click: if `isSSAdmin` → open edit dialog (existing). If `isSSTeam` → open a new read-only "Client Details" dialog showing only the linked data section (projects, tasks, think tank) plus requests for that client
-- Add requests to the linked data query (`requests` table filtered by `client_id`)
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
-### 2. Admin Dashboard — reorder sections
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
 
-**File: `src/pages/Dashboard.tsx` — `SuperAdminDashboard`**
+## 2. Approvals Page — Separate Media from Published Content
 
-Reorder the rendered sections to match priority:
-1. Stats cards (keep at top)
-2. **Quick Actions** (move from bottom to right after stats)
-3. **Recent Client Requests** (move up)
-4. **My Tasks** (move up)
-5. **Team Activity** (move to bottom)
-6. My Assignments (keep below team activity)
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
 
-### 3. Dashboard task queries — include team-assigned tasks
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
 
-**File: `src/pages/Dashboard.tsx`**
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
 
-Both `SuperAdminDashboard` and `TeamDashboard` currently query `myTasks` with `.eq("assigned_to_user_id", profile!.id)`. This misses team-assigned tasks.
+## 3. Workflow Page — Move Internal Review to Bottom Section
 
-Update both queries to use `.or()`:
-```
-.or(`assigned_to_user_id.eq.${profile!.id},assigned_to_team.eq.true`)
-```
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
 
-Also update the `myTasks.length` stat card count and the "My Tasks" header to reflect the combined count.
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
 
-### 4. Team Dashboard — same task sync
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
 
-Keep TeamDashboard layout as-is, but apply the same `.or()` filter for the `myTasks` query so team members see their individual + team tasks on the dashboard.
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/pages/admin/AdminClients.tsx` | Allow team click → read-only linked activity dialog with requests |
-| `src/pages/Dashboard.tsx` | Reorder admin sections; update myTasks queries to include team tasks |
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 
