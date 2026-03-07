@@ -1,57 +1,90 @@
 
 
-# Workflow, Approvals, and Auto-Assignment Overhaul
+# Email Campaign Workflow Update
 
-## Summary of Changes
+## Overview
 
-This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
+Add content-type-aware workflow branching so that after Client Approval, different work types follow different final stages. Add email-specific fields to the posts table.
 
-## 1. Database: Update Auto-Assignment Triggers
+## Database Migration
 
-**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
+### 1. Add new post_status enum values
+- `ready_to_send` — email campaigns awaiting send
+- `sent` — email campaigns that have been sent
+- `complete` — for other work types (ad creative, landing pages, etc.)
 
-**Changes (migration)**:
-- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
-- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
-- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
-- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
+### 2. Add email-specific columns to posts table
+- `subject_line` (text, nullable)
+- `preview_text` (text, nullable)
+- `email_body` (text, nullable)
+- `audience` (text, nullable) — e.g. "Client Database", "Realtor Partners", etc.
+- `send_date` (timestamptz, nullable)
+- `campaign_link` (text, nullable)
 
-All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
+### 3. Add new content_type values
+The `content_type` column is a plain text field (not an enum), so no migration needed — just use new values in the UI: `email_campaign`, `ad_creative`, `landing_page`, `graphic_design`, `website_update`, `general_task`.
 
-## 2. Approvals Page — Separate Media from Published Content
+## Workflow Branching Logic
 
-**Client Approvals (`ClientApprovals`)**: 
-- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
-- Alternatively, only show posts in Published that were moved there by admin approval flow
+The shared kanban columns remain: **New, In Progress, Internal Review, Client Approval**
 
-**Admin Approvals (`AdminApprovals`)**:
-- Same fix for Published column — filter to only show posts linked to requests
+After Client Approval, the board shows type-specific final sections:
 
-**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
+| Content Type | Post-Approval Flow |
+|---|---|
+| Social (image, video, reel, carousel) | Scheduled → Published |
+| Email Campaign | Ready to Send → Scheduled → Sent |
+| Other (ad_creative, landing_page, etc.) | Complete |
 
-## 3. Workflow Page — Move Internal Review to Bottom Section
+## File Changes
 
-**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
+### `src/pages/Workflow.tsx`
+- Update `CONTENT_TYPES` filter to include email_campaign and other types
+- Keep 4 shared kanban columns (New, In Progress, Internal Review, Client Approval)
+- Bottom sections become dynamic based on content type filter:
+  - "all" or social types: show Scheduled + Published
+  - email_campaign: show Ready to Send + Scheduled + Sent
+  - other types: show Complete
+- Update the "New Post" dialog to show content type selector; when `email_campaign` is selected, show email-specific fields (subject line, preview text, email body, audience) instead of caption/hashtags/platform
+- Add "Send Now" and "Schedule" action buttons on cards in `ready_to_send` status
 
-**New layout**:
-- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
-- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
+### `src/components/WorkflowCardDialog.tsx`
+- In read-only and edit modes, show email-specific fields when content_type is `email_campaign`
+- Add send_date and campaign_link fields
+- Show "Send Now" / "Schedule" actions when status is `ready_to_send`
 
-## 4. Admin & Team Dashboards — Show Assignments + Tasks
+### `src/components/ApprovalActions.tsx`
+- Update `approveTarget` logic: when approving from `client_approval`, determine target based on content type:
+  - Social → `scheduled`
+  - Email → `ready_to_send`
+  - Other → `complete`
 
-**SuperAdminDashboard**: Already shows team activity. Add:
-- "My Assignments" section showing posts assigned to the current admin user
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+### `src/pages/Approvals.tsx`
+- Client view: add "Sent Campaigns" section showing posts with `content_type = 'email_campaign'` and `status_column = 'sent'`
+- Admin view: show Ready to Send section for email campaigns
 
-**TeamDashboard**: Already shows "My Assignments". Add:
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+### `src/pages/Dashboard.tsx`
+- Client dashboard: add "Sent Campaigns" stat card counting sent email campaigns
+- Show sent campaigns in the content history
 
-## Files Changed
+### `src/components/RequestChangesModal.tsx`
+No changes needed — works the same for all content types.
+
+## Content Type Awareness in ApprovalActions
+
+The `ApprovalActions` component currently receives a hardcoded `approveTarget`. This needs to change so the approve target is determined by the post's content type:
+
+- Workflow.tsx and Approvals.tsx will pass `contentType` to `ApprovalActions`
+- ApprovalActions will compute the correct target internally based on the content type and current status
+
+## Summary
 
 | File | Change |
 |------|--------|
-| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
-| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
-| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
-| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
+| Migration SQL | Add `ready_to_send`, `sent`, `complete` to post_status enum; add email columns to posts |
+| `src/pages/Workflow.tsx` | Content-type-aware branching, email fields in create dialog, Send Now/Schedule actions |
+| `src/components/WorkflowCardDialog.tsx` | Email-specific fields in read/edit views, send actions |
+| `src/components/ApprovalActions.tsx` | Content-type-aware approve targets |
+| `src/pages/Approvals.tsx` | Sent Campaigns section for clients |
+| `src/pages/Dashboard.tsx` | Sent Campaigns stat for client dashboard |
 
