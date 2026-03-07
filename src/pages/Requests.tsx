@@ -32,6 +32,7 @@ const statusColors: Record<string, string> = {
 
 export default function Requests() {
   const { profile, isSSRole, isSSAdmin } = useAuth();
+  const { selectedClientId: globalClientId } = useClientFilter();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
