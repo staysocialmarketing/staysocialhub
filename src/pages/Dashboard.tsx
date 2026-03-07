@@ -80,7 +80,7 @@ function WorkQueueDashboard() {
 
   // ── My Requests ──
   const { data: myRequests = [] } = useQuery({
-    queryKey: ["wq-requests", profile?.id, filter],
+    queryKey: ["wq-requests", profile?.id, filter, globalClientId],
     queryFn: async () => {
       let q = supabase.from("requests")
         .select("id, topic, type, priority, status, created_at, assigned_to_user_id, client_id, created_by_user_id, clients(name), users!requests_created_by_user_id_fkey(name)")
@@ -90,6 +90,7 @@ function WorkQueueDashboard() {
       if (filter === "my") {
         q = q.eq("assigned_to_user_id", profile!.id);
       }
+      if (globalClientId) q = q.eq("client_id", globalClientId);
       const { data } = await q;
       return data || [];
     },
