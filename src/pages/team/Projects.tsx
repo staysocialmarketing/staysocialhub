@@ -543,6 +543,7 @@ export default function Projects() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Unassigned</SelectItem>
+                  <SelectItem value="__team__">🤝 Team (All Hands)</SelectItem>
                   {ssUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
                 </SelectContent>
               </Select>
