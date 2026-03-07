@@ -42,6 +42,7 @@ const TASK_STATUS_LABELS: Record<string, string> = {
 
 function WorkQueueDashboard() {
   const { profile, isSSAdmin } = useAuth();
+  const { selectedClientId: globalClientId } = useClientFilter();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<"my" | "team" | "all">("my");
