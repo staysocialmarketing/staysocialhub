@@ -15,7 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarWidget } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  MessageSquare, Calendar, Image as ImageIcon, Plus, Clock, FileText, Film, LayoutGrid, Play,
+  MessageSquare, Calendar, Image as ImageIcon, Plus, Clock, FileText, Film, LayoutGrid, Play, Mail, Send, CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, isToday, startOfDay } from "date-fns";
@@ -24,6 +24,7 @@ import { compressImage } from "@/lib/imageUtils";
 import type { Database } from "@/integrations/supabase/types";
 import WorkflowCardDialog from "@/components/WorkflowCardDialog";
 import ApprovalActions from "@/components/ApprovalActions";
+import { getContentCategory, CONTENT_TYPE_OPTIONS, AUDIENCE_OPTIONS } from "@/lib/workflowUtils";
 
 type PostStatus = Database["public"]["Enums"]["post_status"];
 
@@ -32,11 +33,6 @@ const KANBAN_COLUMNS: { key: PostStatus; label: string }[] = [
   { key: "in_progress" as PostStatus, label: "In Progress" },
   { key: "internal_review", label: "Internal Review" },
   { key: "client_approval", label: "Client Approval" },
-];
-
-const BOTTOM_SECTIONS: { key: PostStatus; label: string }[] = [
-  { key: "scheduled", label: "Scheduled" },
-  { key: "published", label: "Published" },
 ];
 
 const platformColors: Record<string, string> = {
@@ -53,6 +49,12 @@ const contentTypeConfig: Record<string, { icon: React.ReactNode; label: string; 
   video: { icon: <Film className="h-3 w-3" />, label: "Video", className: "bg-violet-100 text-violet-800" },
   reel: { icon: <Play className="h-3 w-3" />, label: "Reel", className: "bg-rose-100 text-rose-800" },
   carousel: { icon: <LayoutGrid className="h-3 w-3" />, label: "Carousel", className: "bg-amber-100 text-amber-800" },
+  email_campaign: { icon: <Mail className="h-3 w-3" />, label: "Email", className: "bg-blue-100 text-blue-800" },
+  ad_creative: { icon: <ImageIcon className="h-3 w-3" />, label: "Ad Creative", className: "bg-teal-100 text-teal-800" },
+  landing_page: { icon: <FileText className="h-3 w-3" />, label: "Landing Page", className: "bg-indigo-100 text-indigo-800" },
+  graphic_design: { icon: <ImageIcon className="h-3 w-3" />, label: "Design", className: "bg-fuchsia-100 text-fuchsia-800" },
+  website_update: { icon: <FileText className="h-3 w-3" />, label: "Website", className: "bg-cyan-100 text-cyan-800" },
+  general_task: { icon: <CheckCircle2 className="h-3 w-3" />, label: "Task", className: "bg-gray-100 text-gray-800" },
 };
 
 function getDueDateColor(dueAt: string | null) {
@@ -73,6 +75,25 @@ function UserInitials({ name, className }: { name: string | null; className?: st
   );
 }
 
+function getBottomSections(contentTypeFilter: string): { key: PostStatus; label: string }[] {
+  if (contentTypeFilter === "email_campaign") {
+    return [
+      { key: "ready_to_send" as PostStatus, label: "Ready to Send" },
+      { key: "scheduled", label: "Scheduled" },
+      { key: "sent" as PostStatus, label: "Sent" },
+    ];
+  }
+  const category = contentTypeFilter === "all" ? "all" : getContentCategory(contentTypeFilter);
+  if (category === "other") {
+    return [{ key: "complete" as PostStatus, label: "Complete" }];
+  }
+  // social or all
+  return [
+    { key: "scheduled", label: "Scheduled" },
+    { key: "published", label: "Published" },
+  ];
+}
+
 export default function Workflow() {
   const { profile, isSSAdmin } = useAuth();
   const queryClient = useQueryClient();
@@ -83,6 +104,7 @@ export default function Workflow() {
   const [newPost, setNewPost] = useState({
     client_id: "",
     title: "",
+    content_type: "",
     platforms: [] as string[],
     caption: "",
     hashtags: "",
@@ -91,19 +113,27 @@ export default function Workflow() {
     assigned_to_user_id: "",
     reviewer_user_id: "",
     due_at: null as Date | null,
+    // Email fields
+    subject_line: "",
+    preview_text: "",
+    email_body: "",
+    audience: "",
   });
   const [creativeFile, setCreativeFile] = useState<File | null>(null);
 
-  const ALL_STATUSES = [...KANBAN_COLUMNS, ...BOTTOM_SECTIONS].map(c => c.key);
+  const bottomSections = getBottomSections(contentTypeFilter);
+  const ALL_STATUSES: PostStatus[] = [
+    ...KANBAN_COLUMNS.map(c => c.key),
+    "scheduled", "published", "ready_to_send" as PostStatus, "sent" as PostStatus, "complete" as PostStatus,
+  ];
 
   const { data: posts = [], isLoading } = useQuery({
     queryKey: ["workflow-posts"],
     queryFn: async () => {
-      const statuses: PostStatus[] = [...KANBAN_COLUMNS, ...BOTTOM_SECTIONS].map(c => c.key);
       const { data, error } = await supabase
         .from("posts")
         .select("*, comments(id), assigned_user:assigned_to_user_id(name), reviewer:reviewer_user_id(name), clients(name)")
-        .in("status_column", statuses)
+        .in("status_column", ALL_STATUSES)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -137,6 +167,8 @@ export default function Workflow() {
     },
   });
 
+  const isEmailType = newPost.content_type === "email_campaign";
+
   const createPost = useMutation({
     mutationFn: async () => {
       if (!profile) throw new Error("Not logged in");
@@ -155,9 +187,10 @@ export default function Workflow() {
         .insert({
           client_id: newPost.client_id,
           title: newPost.title,
-          platform: newPost.platforms.join(", "),
-          caption: newPost.caption || null,
-          hashtags: newPost.hashtags || null,
+          content_type: newPost.content_type || null,
+          platform: isEmailType ? null : (newPost.platforms.join(", ") || null),
+          caption: isEmailType ? null : (newPost.caption || null),
+          hashtags: isEmailType ? null : (newPost.hashtags || null),
           creative_url,
           scheduled_at: newPost.scheduled_at?.toISOString() || null,
           status_column: "idea" as PostStatus,
@@ -166,6 +199,10 @@ export default function Workflow() {
           assigned_to_user_id: newPost.assigned_to_user_id || null,
           reviewer_user_id: newPost.reviewer_user_id || null,
           due_at: newPost.due_at?.toISOString() || null,
+          subject_line: isEmailType ? (newPost.subject_line || null) : null,
+          preview_text: isEmailType ? (newPost.preview_text || null) : null,
+          email_body: isEmailType ? (newPost.email_body || null) : null,
+          audience: isEmailType ? (newPost.audience || null) : null,
         } as any)
         .select()
         .single();
@@ -174,8 +211,8 @@ export default function Workflow() {
         post_id: postData.id,
         version_number: 1,
         creative_url,
-        caption: newPost.caption || null,
-        hashtags: newPost.hashtags || null,
+        caption: isEmailType ? null : (newPost.caption || null),
+        hashtags: isEmailType ? null : (newPost.hashtags || null),
         created_by_user_id: profile.id,
       });
       return postData;
@@ -184,7 +221,7 @@ export default function Workflow() {
       queryClient.invalidateQueries({ queryKey: ["workflow-posts"] });
       toast.success("Post created!");
       setCreateOpen(false);
-      setNewPost({ client_id: "", title: "", platforms: [], caption: "", hashtags: "", internal_notes: "", scheduled_at: null, assigned_to_user_id: "", reviewer_user_id: "", due_at: null });
+      setNewPost({ client_id: "", title: "", content_type: "", platforms: [], caption: "", hashtags: "", internal_notes: "", scheduled_at: null, assigned_to_user_id: "", reviewer_user_id: "", due_at: null, subject_line: "", preview_text: "", email_body: "", audience: "" });
       setCreativeFile(null);
     },
     onError: (err: any) => toast.error(err.message || "Failed to create post"),
@@ -200,6 +237,21 @@ export default function Workflow() {
       toast.success("Post moved");
     },
     onError: () => toast.error("Failed to move post"),
+  });
+
+  const sendNow = useMutation({
+    mutationFn: async (postId: string) => {
+      const { error } = await supabase.from("posts").update({
+        status_column: "sent" as any,
+        send_date: new Date().toISOString(),
+      } as any).eq("id", postId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workflow-posts"] });
+      toast.success("Campaign sent!");
+    },
+    onError: () => toast.error("Failed to send"),
   });
 
   const handleDragStart = (e: React.DragEvent, postId: string, currentStatus: PostStatus) => {
@@ -232,6 +284,7 @@ export default function Workflow() {
     const dueDateColor = getDueDateColor(post.due_at);
     const ct = post.content_type ? contentTypeConfig[post.content_type] : null;
     const showApprovalActions = isSSAdmin && post.status_column === "internal_review";
+    const showSendActions = isSSAdmin && post.status_column === "ready_to_send";
 
     return (
       <div key={post.id} className="space-y-1.5">
@@ -248,10 +301,13 @@ export default function Workflow() {
               </div>
             ) : (
               <div className="aspect-video bg-muted rounded flex items-center justify-center">
-                <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
+                {post.content_type === "email_campaign" ? <Mail className="h-6 w-6 text-muted-foreground/40" /> : <ImageIcon className="h-6 w-6 text-muted-foreground/40" />}
               </div>
             )}
             <h4 className="text-sm font-medium text-foreground line-clamp-2">{post.title}</h4>
+            {post.content_type === "email_campaign" && post.subject_line && (
+              <p className="text-xs text-muted-foreground line-clamp-1">Subject: {post.subject_line}</p>
+            )}
             <div className="flex flex-wrap gap-1">
               {post.clients?.name && <Badge variant="outline" className="text-[10px]">{post.clients.name}</Badge>}
               {ct && <Badge variant="secondary" className={cn("text-[10px] gap-1", ct.className)}>{ct.icon}{ct.label}</Badge>}
@@ -261,11 +317,13 @@ export default function Workflow() {
                 </Badge>
               )}
             </div>
-            <div className="flex flex-wrap gap-1">
-              {post.platform?.split(",").map((p: string) => (
-                <Badge key={p} variant="secondary" className={`text-[10px] ${platformColors[p.trim().toLowerCase()] || ""}`}>{p.trim()}</Badge>
-              ))}
-            </div>
+            {post.platform && (
+              <div className="flex flex-wrap gap-1">
+                {post.platform.split(",").map((p: string) => (
+                  <Badge key={p} variant="secondary" className={`text-[10px] ${platformColors[p.trim().toLowerCase()] || ""}`}>{p.trim()}</Badge>
+                ))}
+              </div>
+            )}
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <div className="flex items-center gap-2">
                 {post.due_at && (
@@ -294,8 +352,18 @@ export default function Workflow() {
             postId={post.id}
             postTitle={post.title}
             currentStatus={post.status_column}
-            approveTarget="client_approval"
+            contentType={post.content_type}
           />
+        )}
+        {showSendActions && (
+          <div className="flex gap-2">
+            <Button size="sm" className="flex-1 gap-1" onClick={(e) => { e.stopPropagation(); sendNow.mutate(post.id); }}>
+              <Send className="h-3.5 w-3.5" />Send Now
+            </Button>
+            <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={(e) => { e.stopPropagation(); movePost.mutate({ postId: post.id, newStatus: "scheduled" as PostStatus }); }}>
+              <Calendar className="h-3.5 w-3.5" />Schedule
+            </Button>
+          </div>
         )}
       </div>
     );
@@ -310,13 +378,12 @@ export default function Workflow() {
         </div>
         <div className="flex items-center gap-3">
           <Select value={contentTypeFilter} onValueChange={setContentTypeFilter}>
-            <SelectTrigger className="w-36 h-9"><SelectValue placeholder="All Types" /></SelectTrigger>
+            <SelectTrigger className="w-40 h-9"><SelectValue placeholder="All Types" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="image">Image</SelectItem>
-              <SelectItem value="video">Video</SelectItem>
-              <SelectItem value="reel">Reel</SelectItem>
-              <SelectItem value="carousel">Carousel</SelectItem>
+              {CONTENT_TYPE_OPTIONS.map(t => (
+                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
@@ -335,15 +402,51 @@ export default function Workflow() {
                 </div>
                 <div><Label>Post Title</Label><Input value={newPost.title} onChange={e => setNewPost({ ...newPost, title: e.target.value })} placeholder="Post title" /></div>
                 <div>
-                  <Label>Platform(s)</Label>
-                  <div className="flex flex-wrap gap-3 mt-1">
-                    {PLATFORM_OPTIONS.map(p => (
-                      <label key={p} className="flex items-center gap-2 text-sm">
-                        <Checkbox checked={newPost.platforms.includes(p)} onCheckedChange={() => togglePlatform(p)} />{p}
-                      </label>
-                    ))}
-                  </div>
+                  <Label>Content Type</Label>
+                  <Select value={newPost.content_type} onValueChange={(v) => setNewPost({ ...newPost, content_type: v })}>
+                    <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                    <SelectContent>
+                      {CONTENT_TYPE_OPTIONS.map(t => (
+                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
+
+                {isEmailType ? (
+                  /* Email-specific fields */
+                  <>
+                    <div><Label>Subject Line</Label><Input value={newPost.subject_line} onChange={e => setNewPost({ ...newPost, subject_line: e.target.value })} placeholder="Email subject line" /></div>
+                    <div><Label>Preview Text</Label><Input value={newPost.preview_text} onChange={e => setNewPost({ ...newPost, preview_text: e.target.value })} placeholder="Preview text shown in inbox" /></div>
+                    <div><Label>Email Body</Label><Textarea value={newPost.email_body} onChange={e => setNewPost({ ...newPost, email_body: e.target.value })} placeholder="Email content..." rows={4} /></div>
+                    <div>
+                      <Label>Audience</Label>
+                      <Select value={newPost.audience} onValueChange={(v) => setNewPost({ ...newPost, audience: v })}>
+                        <SelectTrigger><SelectValue placeholder="Select audience" /></SelectTrigger>
+                        <SelectContent>
+                          {AUDIENCE_OPTIONS.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                ) : (
+                  /* Social / Other fields */
+                  <>
+                    <div>
+                      <Label>Platform(s)</Label>
+                      <div className="flex flex-wrap gap-3 mt-1">
+                        {PLATFORM_OPTIONS.map(p => (
+                          <label key={p} className="flex items-center gap-2 text-sm">
+                            <Checkbox checked={newPost.platforms.includes(p)} onCheckedChange={() => togglePlatform(p)} />{p}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div><Label>Caption</Label><Textarea value={newPost.caption} onChange={e => setNewPost({ ...newPost, caption: e.target.value })} placeholder="Post caption" /></div>
+                    <div><Label>Hashtags</Label><Input value={newPost.hashtags} onChange={e => setNewPost({ ...newPost, hashtags: e.target.value })} placeholder="#hashtags" /></div>
+                  </>
+                )}
+
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Assign to</Label>
@@ -373,8 +476,6 @@ export default function Workflow() {
                     </PopoverContent>
                   </Popover>
                 </div>
-                <div><Label>Caption</Label><Textarea value={newPost.caption} onChange={e => setNewPost({ ...newPost, caption: e.target.value })} placeholder="Post caption" /></div>
-                <div><Label>Hashtags</Label><Input value={newPost.hashtags} onChange={e => setNewPost({ ...newPost, hashtags: e.target.value })} placeholder="#hashtags" /></div>
                 <div><Label>Creative</Label><Input type="file" accept="image/*,video/*" onChange={e => setCreativeFile(e.target.files?.[0] || null)} /></div>
                 <div>
                   <Label>Schedule Date</Label>
@@ -420,9 +521,13 @@ export default function Workflow() {
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
 
-      {/* Bottom sections: Scheduled + Published */}
-      {BOTTOM_SECTIONS.map(section => {
-        const sectionPosts = posts.filter((p: any) => p.status_column === section.key && (contentTypeFilter === "all" || p.content_type === contentTypeFilter));
+      {/* Dynamic bottom sections based on content type */}
+      {bottomSections.map(section => {
+        const sectionPosts = posts.filter((p: any) => {
+          if (p.status_column !== section.key) return false;
+          if (contentTypeFilter === "all") return true;
+          return p.content_type === contentTypeFilter;
+        });
         if (sectionPosts.length === 0) return null;
         return (
           <section key={section.key} className="mt-6">
