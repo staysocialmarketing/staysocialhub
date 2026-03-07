@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Outlet } from "react-router-dom";
@@ -5,9 +6,25 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { useAuth } from "@/contexts/AuthContext";
 import { X } from "lucide-react";
 import { GlobalCaptureButton } from "@/components/GlobalCaptureButton";
+import { supabase } from "@/integrations/supabase/client";
 
 export function AppLayout() {
   const { profile, isViewingAs, setViewAs } = useAuth();
+  const [versionLabel, setVersionLabel] = useState("");
+
+  useEffect(() => {
+    supabase
+      .from("platform_versions")
+      .select("major_version, minor_version")
+      .order("published_at", { ascending: false })
+      .limit(1)
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          const v = data[0] as any;
+          setVersionLabel(`V${v.major_version}.${v.minor_version}`);
+        }
+      });
+  }, []);
 
   return (
     <SidebarProvider>
@@ -28,7 +45,12 @@ export function AppLayout() {
           <header className="h-14 flex items-center border-b bg-card px-4 shrink-0">
             <SidebarTrigger className="mr-4" />
             <div className="flex items-center gap-2 flex-1">
-              <h1 className="text-lg font-semibold text-foreground">Stay Social <span className="text-primary">HUB</span></h1>
+              <h1 className="text-lg font-semibold text-foreground">
+                Stay Social <span className="text-primary">HUB</span>
+              </h1>
+              {versionLabel && (
+                <span className="text-xs text-muted-foreground font-medium">{versionLabel}</span>
+              )}
             </div>
             {profile && <NotificationBell />}
           </header>

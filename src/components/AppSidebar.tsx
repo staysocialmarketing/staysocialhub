@@ -18,6 +18,8 @@ import {
   Lightbulb,
   FolderKanban,
   ListTodo,
+  Tag,
+  Inbox,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -57,6 +59,7 @@ const menuSection = [
 ];
 
 const teamSection = [
+  { title: "Inbox", url: "/team/inbox", icon: Inbox },
   { title: "Projects", url: "/team/projects", icon: FolderKanban },
   { title: "Tasks", url: "/team/tasks", icon: ListTodo },
   { title: "Think Tank", url: "/team/think-tank", icon: Lightbulb },
@@ -67,6 +70,7 @@ const adminSection = [
   { title: "Media Library", url: "/admin/media", icon: Image },
   { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
   { title: "Users", url: "/admin/users", icon: Users },
+  { title: "Versions", url: "/admin/versions", icon: Tag },
 ];
 
 // ─── Client nav ──────────────────────────────────────────────────────────────
@@ -112,7 +116,9 @@ export function AppSidebar() {
   }, [actualIsSSAdmin]);
 
   const isInternalUser = isSSAdmin || isSSTeam;
-  const visibleAdminItems = isSSAdmin ? adminSection : adminSection.filter((i) => i.title !== "Users");
+  const visibleAdminItems = isSSAdmin
+    ? adminSection
+    : adminSection.filter((i) => i.title !== "Users" && i.title !== "Versions");
 
   const ssUsers = allUsers.filter((u) => u.roles.some((r) => ["ss_admin", "ss_producer", "ss_ops", "ss_team"].includes(r)));
   const clientUsers = allUsers.filter((u) => u.roles.some((r) => ["client_admin", "client_assistant"].includes(r)));

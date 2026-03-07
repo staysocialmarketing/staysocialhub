@@ -1,123 +1,57 @@
 
 
-# Stay Social HUB – V1 Final Updates
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-## Scope Summary
+## Summary of Changes
 
-This covers 4 implementation areas. Items 3 (system review) and 6 (approval/workflow check) are validation tasks, not code changes — the existing workflow already matches the described flows based on code review.
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
----
+## 1. Database: Update Auto-Assignment Triggers
 
-## 1. Versioning System
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-### Database
-New table: `platform_versions`
-- `id` uuid PK
-- `major_version` int NOT NULL DEFAULT 1
-- `minor_version` int NOT NULL DEFAULT 0
-- `title` text
-- `notes` text
-- `published_by_user_id` uuid
-- `published_at` timestamptz DEFAULT now()
-- `visible_to_clients` boolean DEFAULT false
-- `created_at` timestamptz DEFAULT now()
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
-RLS: SS roles can manage, all authenticated can SELECT.
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
 
-### UI Changes
+## 2. Approvals Page — Separate Media from Published Content
 
-**`src/components/AppLayout.tsx`** — Fetch latest version, display `Stay Social HUB V{major}.{minor}` in the header next to the title.
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
 
-**New page: `src/pages/admin/AdminVersions.tsx`**
-- Admin-only page to manage versions
-- Form: major version, minor version, title, release notes, visible to clients toggle
-- List of past releases with version, date, title, notes
-- Only ss_admin can change major version; minor version auto-increments on new entry
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
 
-**`src/components/AppSidebar.tsx`** — Add "Versions" link under Admin section (ss_admin only).
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
 
-**`src/pages/WhatsNew.tsx`** — Add a "Release Notes" section at the bottom showing client-visible version entries.
+## 3. Workflow Page — Move Internal Review to Bottom Section
 
-**`src/App.tsx`** — Add route `/admin/versions`.
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
 
----
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
 
-## 2. Universal Inbox
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
 
-### Database
-New table: `universal_inbox`
-- `id` uuid PK
-- `source_type` text (email, screenshot, voice_note, quick_capture, automation)
-- `title` text
-- `raw_input_text` text
-- `attachment_url` text
-- `voice_transcript` text
-- `suggested_client` text
-- `suggested_item_type` text
-- `suggested_content_type` text
-- `suggested_priority` text
-- `suggested_assignee` text
-- `suggested_project` text
-- `suggested_subproject` text
-- `agent_confidence` numeric
-- `status` text DEFAULT 'new' (new, ai_processed, needs_review, converted, archived)
-- `converted_to_type` text (task, request, think_tank)
-- `converted_to_id` uuid
-- `created_by_user_id` uuid NOT NULL
-- `created_at` timestamptz DEFAULT now()
-- `updated_at` timestamptz DEFAULT now()
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
-RLS: SS roles only (full CRUD).
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
-### UI Changes
+## Files Changed
 
-**New page: `src/pages/team/UniversalInbox.tsx`**
-- Table/list view of inbox items with status badges, source type icons
-- Filters by status and source type
-- Detail view showing all fields
-- Actions: Convert to Task / Request / Think Tank item, Archive
-- Convert action creates the appropriate record and updates `converted_to_type`/`converted_to_id`, sets status to "converted"
-
-**`src/components/AppSidebar.tsx`** — Add "Inbox" link in Team section.
-
-**`src/App.tsx`** — Add route `/team/inbox`.
-
----
-
-## 3. Capture Button Routing Update
-
-**`src/components/GlobalCaptureButton.tsx`**
-- For "Upload Screenshot/Image" and "Record Voice Note": add a destination selector at the bottom of the form — "Save to: Media Library | Universal Inbox"
-- Default remains Media Library
-- When Universal Inbox is selected, create a `universal_inbox` record instead of uploading directly to storage
-- "Capture Idea" continues to Think Tank directly
-- "Create Task" and "Create Request" continue directly
-
----
-
-## 4. Version Display
-
-**`src/components/AppLayout.tsx`**
-- Query latest `platform_versions` row (order by published_at DESC, limit 1)
-- Display version string in header: `Stay Social HUB V1.0`
-- Subtle for all roles, same position
-
----
-
-## Files Summary
-
-| Action | File |
-|--------|------|
-| Migration | 1 SQL: `platform_versions` table + `universal_inbox` table |
-| New | `src/pages/admin/AdminVersions.tsx` |
-| New | `src/pages/team/UniversalInbox.tsx` |
-| Edit | `src/components/AppLayout.tsx` (version display) |
-| Edit | `src/components/AppSidebar.tsx` (nav links) |
-| Edit | `src/components/GlobalCaptureButton.tsx` (inbox routing) |
-| Edit | `src/pages/WhatsNew.tsx` (release notes section) |
-| Edit | `src/App.tsx` (routes) |
-
-## Notes
-- Items 3 and 6 (system review, workflow check) describe existing behavior that is already implemented. No code changes needed — these are validation items to test manually after V1 publish.
-- Item 7 (publish readiness) is an operational step, not a code change.
+| File | Change |
+|------|--------|
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 

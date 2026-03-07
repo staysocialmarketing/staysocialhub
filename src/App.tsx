@@ -22,9 +22,11 @@ import AdminProfileUpdates from "./pages/admin/AdminProfileUpdates";
 import AdminContent from "./pages/admin/AdminContent";
 import AdminMarketplace from "./pages/admin/AdminMarketplace";
 import AdminMedia from "./pages/admin/AdminMedia";
+import AdminVersions from "./pages/admin/AdminVersions";
 import ThinkTank from "./pages/team/ThinkTank";
 import Projects from "./pages/team/Projects";
 import Tasks from "./pages/team/Tasks";
+import UniversalInbox from "./pages/team/UniversalInbox";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -77,9 +79,11 @@ const App = () => (
               <Route path="/admin/content" element={<AdminRoute><AdminContent /></AdminRoute>} />
               <Route path="/admin/marketplace" element={<AdminRoute><AdminMarketplace /></AdminRoute>} />
               <Route path="/admin/media" element={<AdminRoute><AdminMedia /></AdminRoute>} />
+              <Route path="/admin/versions" element={<AdminRoute><AdminVersions /></AdminRoute>} />
               <Route path="/team/think-tank" element={<AdminRoute><ThinkTank /></AdminRoute>} />
               <Route path="/team/projects" element={<AdminRoute><Projects /></AdminRoute>} />
               <Route path="/team/tasks" element={<AdminRoute><Tasks /></AdminRoute>} />
+              <Route path="/team/inbox" element={<AdminRoute><UniversalInbox /></AdminRoute>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

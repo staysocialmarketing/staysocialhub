@@ -17,6 +17,7 @@ import { compressImage } from "@/lib/imageUtils";
 import { cn } from "@/lib/utils";
 
 type CaptureMode = null | "task" | "idea" | "image" | "voice";
+type SaveDestination = "media" | "inbox";
 
 export function GlobalCaptureButton() {
   const { isSSRole, isClientAdmin, isClientAssistant, profile } = useAuth();
@@ -46,11 +47,13 @@ export function GlobalCaptureButton() {
   // Image upload
   const [imgFile, setImgFile] = useState<File | null>(null);
   const [imgClient, setImgClient] = useState("");
+  const [imgDest, setImgDest] = useState<SaveDestination>("media");
 
   // Voice recording
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [voiceClient, setVoiceClient] = useState("");
+  const [voiceDest, setVoiceDest] = useState<SaveDestination>("media");
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
@@ -63,8 +66,8 @@ export function GlobalCaptureButton() {
     setTaskTitle(""); setTaskClient(""); setTaskProject(""); setTaskPriority("normal");
     setTaskAssign(""); setTaskDue(""); setTaskDesc("");
     setIdeaTitle(""); setIdeaDesc(""); setIdeaType("idea"); setIdeaClient(""); setIdeaFile(null);
-    setImgFile(null); setImgClient("");
-    setAudioBlob(null); setVoiceClient("");
+    setImgFile(null); setImgClient(""); setImgDest("media");
+    setAudioBlob(null); setVoiceClient(""); setVoiceDest("media");
     setIsRecording(false);
     setSaving(false);
   };
@@ -72,7 +75,6 @@ export function GlobalCaptureButton() {
   const handleOpen = async (isOpen: boolean) => {
     setOpen(isOpen);
     if (isOpen && isSSRole) {
-      // Only load SS users and projects for SS roles
       const [usersRes, projectsRes] = await Promise.all([
         supabase.from("users").select("id, name").in("id",
           (await supabase.from("user_roles").select("user_id").in("role", ["ss_admin", "ss_team", "ss_producer", "ss_ops"])).data?.map(r => r.user_id) || []
@@ -145,12 +147,30 @@ export function GlobalCaptureButton() {
     if (!imgFile || !profile) return;
     setSaving(true);
     const compressed = await compressImage(imgFile);
-    const folder = isClient ? (profile.client_id || "general") : (imgClient || "general");
-    const path = `${folder}/${Date.now()}-${compressed.name}`;
-    const { error } = await supabase.storage.from("creative-assets").upload(path, compressed);
-    setSaving(false);
-    if (error) { toast.error("Upload failed"); return; }
-    toast.success("Image uploaded to Media Library");
+
+    if (isSSRole && imgDest === "inbox") {
+      // Upload to storage first, then create inbox item
+      const path = `inbox/${Date.now()}-${compressed.name}`;
+      const { error: upErr } = await supabase.storage.from("creative-assets").upload(path, compressed);
+      if (upErr) { setSaving(false); toast.error("Upload failed"); return; }
+      const url = supabase.storage.from("creative-assets").getPublicUrl(path).data.publicUrl;
+      const { error } = await supabase.from("universal_inbox").insert({
+        title: compressed.name,
+        source_type: "screenshot",
+        attachment_url: url,
+        created_by_user_id: profile.id,
+      } as any);
+      setSaving(false);
+      if (error) { toast.error("Failed to save to inbox"); return; }
+      toast.success("Image sent to Universal Inbox");
+    } else {
+      const folder = isClient ? (profile.client_id || "general") : (imgClient || "general");
+      const path = `${folder}/${Date.now()}-${compressed.name}`;
+      const { error } = await supabase.storage.from("creative-assets").upload(path, compressed);
+      setSaving(false);
+      if (error) { toast.error("Upload failed"); return; }
+      toast.success("Image uploaded to Media Library");
+    }
     handleOpen(false);
   };
 
@@ -182,12 +202,29 @@ export function GlobalCaptureButton() {
   const saveVoiceNote = async () => {
     if (!audioBlob || !profile) return;
     setSaving(true);
-    const folder = isClient ? (profile.client_id || "general") : (voiceClient || "general");
-    const path = `${folder}/voice-notes/voice-${Date.now()}.webm`;
-    const { error } = await supabase.storage.from("creative-assets").upload(path, audioBlob, { contentType: "audio/webm" });
-    setSaving(false);
-    if (error) { toast.error("Upload failed"); return; }
-    toast.success("Voice note saved");
+
+    if (isSSRole && voiceDest === "inbox") {
+      const path = `inbox/voice-${Date.now()}.webm`;
+      const { error: upErr } = await supabase.storage.from("creative-assets").upload(path, audioBlob, { contentType: "audio/webm" });
+      if (upErr) { setSaving(false); toast.error("Upload failed"); return; }
+      const url = supabase.storage.from("creative-assets").getPublicUrl(path).data.publicUrl;
+      const { error } = await supabase.from("universal_inbox").insert({
+        title: `Voice note ${new Date().toLocaleString()}`,
+        source_type: "voice_note",
+        attachment_url: url,
+        created_by_user_id: profile.id,
+      } as any);
+      setSaving(false);
+      if (error) { toast.error("Failed to save to inbox"); return; }
+      toast.success("Voice note sent to Universal Inbox");
+    } else {
+      const folder = isClient ? (profile.client_id || "general") : (voiceClient || "general");
+      const path = `${folder}/voice-notes/voice-${Date.now()}.webm`;
+      const { error } = await supabase.storage.from("creative-assets").upload(path, audioBlob, { contentType: "audio/webm" });
+      setSaving(false);
+      if (error) { toast.error("Upload failed"); return; }
+      toast.success("Voice note saved");
+    }
     handleOpen(false);
   };
 
@@ -201,6 +238,20 @@ export function GlobalCaptureButton() {
     { key: "voice" as const, icon: Mic, label: "Voice Note", desc: "Record audio", ssOnly: false },
   ];
   const options = allOptions.filter(o => isSSRole || !o.ssOnly);
+
+  const DestinationSelector = ({ value, onChange }: { value: SaveDestination; onChange: (v: SaveDestination) => void }) => (
+    <div>
+      <Label className="text-xs text-muted-foreground">Save to</Label>
+      <div className="flex gap-2 mt-1">
+        <Button type="button" variant={value === "media" ? "default" : "outline"} size="sm" onClick={() => onChange("media")} className="flex-1 text-xs">
+          Media Library
+        </Button>
+        <Button type="button" variant={value === "inbox" ? "default" : "outline"} size="sm" onClick={() => onChange("inbox")} className="flex-1 text-xs">
+          Universal Inbox
+        </Button>
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -338,8 +389,9 @@ export function GlobalCaptureButton() {
                   <img src={URL.createObjectURL(imgFile)} alt="Preview" className="max-h-48 w-full object-contain bg-muted" />
                 </div>
               )}
+              {isSSRole && <DestinationSelector value={imgDest} onChange={setImgDest} />}
               <Button onClick={saveImage} disabled={!imgFile || saving} className="w-full">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Upload Image"}
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : imgDest === "inbox" && isSSRole ? "Send to Inbox" : "Upload Image"}
               </Button>
             </div>
           )}
@@ -371,8 +423,9 @@ export function GlobalCaptureButton() {
                 </p>
               </div>
               {isSSRole && <div><Label>Client</Label><ClientSelectWithCreate value={voiceClient} onValueChange={setVoiceClient} /></div>}
+              {isSSRole && <DestinationSelector value={voiceDest} onChange={setVoiceDest} />}
               <Button onClick={saveVoiceNote} disabled={!audioBlob || saving} className="w-full">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Voice Note"}
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : voiceDest === "inbox" && isSSRole ? "Send to Inbox" : "Save Voice Note"}
               </Button>
             </div>
           )}
