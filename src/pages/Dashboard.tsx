@@ -309,50 +309,7 @@ function WorkQueueDashboard() {
         )}
       </DashboardSection>
 
-      {/* Approvals Waiting Section */}
-      <DashboardSection title="Approvals Waiting" icon={<CheckSquare className="h-5 w-5 text-primary" />} viewAllUrl="/approvals" onViewAll={() => navigate("/approvals")}>
-        {approvalsWaiting.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6">No content awaiting approval</p>
-        ) : (
-          <ul className="divide-y divide-border">
-            {approvalsWaiting.map((post: any) => (
-              <li key={post.id} className="flex items-center justify-between px-4 py-3 hover:bg-accent/50 cursor-pointer transition-colors" onClick={() => navigate(`/approvals/${post.id}`)}>
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="text-sm font-medium text-foreground truncate">{post.title}</span>
-                  {post.clients?.name && <span className="text-xs text-muted-foreground">{post.clients.name}</span>}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {post.content_type && <Badge variant="secondary" className="text-[10px]">{post.content_type}</Badge>}
-                  <span className="text-xs text-muted-foreground">{format(new Date(post.created_at), "MMM d")}</span>
-                  <Badge variant="secondary" className="text-[10px]">Waiting</Badge>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </DashboardSection>
 
-      {/* Overdue Work Section */}
-      {overdueItems.length > 0 && (
-        <DashboardSection title="Overdue Work" icon={<AlertTriangle className="h-5 w-5 text-destructive" />}>
-          <ul className="divide-y divide-border">
-            {overdueItems.map((item: any) => (
-              <li key={`${item._type}-${item.id}`} className="flex items-center justify-between px-4 py-3 bg-destructive/5 hover:bg-destructive/10 cursor-pointer transition-colors"
-                onClick={() => navigate(item._type === "task" ? "/team/tasks" : `/approvals/${item.id}`)}>
-                <div className="flex items-center gap-3 min-w-0">
-                  <Badge variant="outline" className="text-[10px] border-destructive/30 text-destructive">{item._type === "task" ? "Task" : "Post"}</Badge>
-                  <span className="text-sm font-medium text-foreground truncate">{item.title}</span>
-                  {item.clients?.name && <span className="text-xs text-muted-foreground">{item.clients.name}</span>}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-xs font-medium text-destructive">Due {format(new Date(item.due_at), "MMM d")}</span>
-                  <Badge variant="secondary" className="text-[10px]">{(item._status || "").replace(/_/g, " ")}</Badge>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </DashboardSection>
-      )}
     </div>
   );
 }
