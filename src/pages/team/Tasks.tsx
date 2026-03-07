@@ -79,7 +79,7 @@ export default function Tasks() {
   // Set default filter once profile loads
   useEffect(() => {
     if (profile && filterAssignee === "__pending__") {
-      setFilterAssignee(isSSAdmin ? "all" : profile.id);
+      setFilterAssignee(isSSAdmin ? "all" : "mine");
     }
   }, [profile, isSSAdmin]);
 
