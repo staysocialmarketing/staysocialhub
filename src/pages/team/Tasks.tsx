@@ -260,11 +260,12 @@ export default function Tasks() {
             {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={filterAssignee === "__pending__" ? "all" : filterAssignee} onValueChange={setFilterAssignee}>
+        <Select value={filterAssignee === "__pending__" ? "mine" : filterAssignee} onValueChange={setFilterAssignee}>
           <SelectTrigger className="w-44"><SelectValue placeholder="All Assignees" /></SelectTrigger>
           <SelectContent>
+            <SelectItem value="mine">Mine + Team</SelectItem>
             <SelectItem value="all">All Assignees</SelectItem>
-            <SelectItem value="team">🤝 Team</SelectItem>
+            <SelectItem value="team">🤝 Team Only</SelectItem>
             {ssUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
           </SelectContent>
         </Select>
