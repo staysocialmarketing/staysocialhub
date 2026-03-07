@@ -43,6 +43,7 @@ function getMediaType(url: string | null): string {
 
 export default function AdminMedia() {
   const { isSSAdmin } = useAuth();
+  const { selectedClientId: globalClientId } = useClientFilter();
   const queryClient = useQueryClient();
   const [clientFilter, setClientFilter] = useState<string>("all");
   const [mediaTypeFilter, setMediaTypeFilter] = useState<string>("all");
