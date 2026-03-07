@@ -344,7 +344,20 @@ export default function Projects() {
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground" onClick={(e) => e.stopPropagation()}>
                       {clientName(project.client_id) && <Badge variant="secondary">{clientName(project.client_id)}</Badge>}
-                      <span className="flex items-center gap-1"><ListTodo className="h-3 w-3" /> {tasks.length} tasks</span>
+                      {(() => {
+                        const directTasks = tasks.filter(t => t.status !== "done");
+                        const subIds = subs.map(s => s.id);
+                        const subTaskCount = Object.entries(projectTasks).filter(([pid]) => subIds.includes(pid)).reduce((sum, [, ts]) => sum + ts.filter(t => t.status !== "done").length, 0);
+                        const total = directTasks.filter(t => t.status !== "done").length + subTaskCount;
+                        return (
+                          <span className="flex items-center gap-1">
+                            <ListTodo className="h-3 w-3" /> {total} active task{total !== 1 ? "s" : ""}
+                            {subs.length > 0 && subTaskCount > 0 && (
+                              <span className="text-muted-foreground/60">({directTasks.filter(t => t.status !== "done").length} direct, {subTaskCount} in sub-projects)</span>
+                            )}
+                          </span>
+                        );
+                      })()}
                       {canEditDeleteProject(project) && (
                         <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openEditProject(project)}>
                           <Pencil className="h-3.5 w-3.5" />
