@@ -179,7 +179,7 @@ export default function Projects() {
     setEditTaskTitle(task.title);
     setEditTaskDescription(task.description || "");
     setEditTaskProjectId(task.project_id || "");
-    setEditTaskAssigneeId(task.assigned_to_user_id || "");
+    setEditTaskAssigneeId(task.assigned_to_team ? "__team__" : (task.assigned_to_user_id || ""));
     setEditTaskPriority(task.priority);
     setEditTaskDueAt(task.due_at || "");
     setEditTaskStatus(task.status);
