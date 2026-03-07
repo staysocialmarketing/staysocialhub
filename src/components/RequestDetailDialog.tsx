@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { FileText, Mail, Download, Send, Pencil, Save, X, Upload, Loader2 } from "lucide-react";
+import { FileText, Mail, Download, Send, Pencil, Save, X, Loader2 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { compressImage } from "@/lib/imageUtils";
 
@@ -35,7 +35,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function RequestDetailDialog({ request, open, onOpenChange }: RequestDetailDialogProps) {
-  const { profile, isSSRole } = useAuth();
+  const { profile, isSSRole, isSSAdmin } = useAuth();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [commentBody, setCommentBody] = useState("");
@@ -48,6 +48,20 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
     preferred_publish_window: "",
     status: "open" as RequestStatus,
     type: "social_post" as RequestType,
+    assigned_to_user_id: "" as string,
+  });
+
+  // Fetch SS users for assignment
+  const { data: ssUsers = [] } = useQuery({
+    queryKey: ["ss-users-for-assign"],
+    queryFn: async () => {
+      const { data: roles } = await supabase.from("user_roles").select("user_id, role").in("role", ["ss_admin", "ss_producer", "ss_ops", "ss_team"]);
+      if (!roles?.length) return [];
+      const userIds = [...new Set(roles.map((r) => r.user_id))];
+      const { data: users } = await supabase.from("users").select("id, name, email").in("id", userIds);
+      return users || [];
+    },
+    enabled: isSSRole && open,
   });
 
   useEffect(() => {
@@ -59,6 +73,7 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
         preferred_publish_window: request.preferred_publish_window || "",
         status: request.status,
         type: request.type,
+        assigned_to_user_id: request.assigned_to_user_id || "",
       });
       setEditing(false);
     }
@@ -89,6 +104,9 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
       if (isSSRole) {
         updateData.status = form.status;
         updateData.type = form.type;
+      }
+      if (isSSAdmin) {
+        updateData.assigned_to_user_id = form.assigned_to_user_id || null;
       }
       const { error } = await supabase.from("requests").update(updateData).eq("id", request.id);
       if (error) throw error;
@@ -155,6 +173,7 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
   if (!request) return null;
 
   const canEdit = isSSRole || request.created_by_user_id === profile?.id;
+  const assignedUserName = ssUsers.find((u: any) => u.id === request.assigned_to_user_id);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -164,10 +183,13 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
             {request.type === "social_post" ? <FileText className="h-5 w-5 text-primary" /> : <Mail className="h-5 w-5 text-primary" />}
             <DialogTitle className="text-xl">{request.topic}</DialogTitle>
           </div>
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
             {request.clients?.name && <Badge variant="outline">{request.clients.name}</Badge>}
             <Badge className={statusColors[request.status] || ""}>{request.status.replace("_", " ")}</Badge>
             <Badge variant="outline" className="capitalize">{request.priority}</Badge>
+            {assignedUserName && (
+              <Badge variant="secondary" className="text-xs">Assigned: {(assignedUserName as any).name || (assignedUserName as any).email}</Badge>
+            )}
           </div>
         </DialogHeader>
 
@@ -212,6 +234,21 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
                 </div>
               )}
 
+              {isSSAdmin && (
+                <div>
+                  <Label>Assign To</Label>
+                  <Select value={form.assigned_to_user_id || "__none__"} onValueChange={(v) => setForm({ ...form, assigned_to_user_id: v === "__none__" ? "" : v })}>
+                    <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Unassigned</SelectItem>
+                      {ssUsers.map((u: any) => (
+                        <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>Priority</Label>
@@ -236,7 +273,6 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
                 <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={4} />
               </div>
 
-              {/* Attachment upload in edit mode */}
               <div>
                 <Label>{request.attachments_url ? "Replace Attachment" : "Add Attachment"} (max 10MB)</Label>
                 <div className="flex items-center gap-2 mt-1">
@@ -265,6 +301,9 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
                 {request.preferred_publish_window && (
                   <div className="col-span-2"><span className="text-muted-foreground">Publish Window:</span> {request.preferred_publish_window}</div>
                 )}
+                {assignedUserName && (
+                  <div className="col-span-2"><span className="text-muted-foreground">Assigned to:</span> {(assignedUserName as any).name || (assignedUserName as any).email}</div>
+                )}
               </div>
 
               {request.notes && (
@@ -284,7 +323,6 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
 
           <Separator />
 
-          {/* Comments Section */}
           <div>
             <h4 className="font-medium text-sm mb-3">Comments</h4>
             {commentsLoading ? (

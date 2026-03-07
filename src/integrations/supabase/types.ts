@@ -235,6 +235,7 @@ export type Database = {
       }
       marketplace_items: {
         Row: {
+          billing_type: string | null
           category: string
           created_at: string | null
           description: string | null
@@ -247,6 +248,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          billing_type?: string | null
           category?: string
           created_at?: string | null
           description?: string | null
@@ -259,6 +261,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          billing_type?: string | null
           category?: string
           created_at?: string | null
           description?: string | null
@@ -585,6 +588,7 @@ export type Database = {
       }
       requests: {
         Row: {
+          assigned_to_user_id: string | null
           attachments_url: string | null
           client_id: string
           created_at: string
@@ -598,6 +602,7 @@ export type Database = {
           type: Database["public"]["Enums"]["request_type"]
         }
         Insert: {
+          assigned_to_user_id?: string | null
           attachments_url?: string | null
           client_id: string
           created_at?: string
@@ -611,6 +616,7 @@ export type Database = {
           type: Database["public"]["Enums"]["request_type"]
         }
         Update: {
+          assigned_to_user_id?: string | null
           attachments_url?: string | null
           client_id?: string
           created_at?: string
@@ -624,6 +630,13 @@ export type Database = {
           type?: Database["public"]["Enums"]["request_type"]
         }
         Relationships: [
+          {
+            foreignKeyName: "requests_assigned_to_user_id_fkey"
+            columns: ["assigned_to_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "requests_client_id_fkey"
             columns: ["client_id"]
@@ -846,6 +859,32 @@ export type Database = {
           },
         ]
       }
+      workflow_stage_assignments: {
+        Row: {
+          assigned_user_id: string | null
+          stage: string
+          updated_at: string | null
+        }
+        Insert: {
+          assigned_user_id?: string | null
+          stage: string
+          updated_at?: string | null
+        }
+        Update: {
+          assigned_user_id?: string | null
+          stage?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_stage_assignments_assigned_user_id_fkey"
+            columns: ["assigned_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -870,6 +909,7 @@ export type Database = {
         | "ss_admin"
         | "ss_producer"
         | "ss_ops"
+        | "ss_team"
       approval_type: "approve" | "approve_with_notes" | "request_changes"
       post_status:
         | "idea"
@@ -1021,6 +1061,7 @@ export const Constants = {
         "ss_admin",
         "ss_producer",
         "ss_ops",
+        "ss_team",
       ],
       approval_type: ["approve", "approve_with_notes", "request_changes"],
       post_status: [

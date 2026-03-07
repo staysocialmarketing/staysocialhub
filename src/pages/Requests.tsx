@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus, FileText, Mail } from "lucide-react";
+import { Plus, FileText, Mail, User } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import RequestDetailDialog from "@/components/RequestDetailDialog";
 import { compressImage } from "@/lib/imageUtils";
@@ -19,7 +19,7 @@ import { compressImage } from "@/lib/imageUtils";
 type RequestType = Database["public"]["Enums"]["request_type"];
 type RequestStatus = Database["public"]["Enums"]["request_status"];
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ACCEPTED_FILE_TYPES = ".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.webp,.csv,.xlsx,.pptx,.txt";
 
 const statusColors: Record<string, string> = {
@@ -48,7 +48,6 @@ export default function Requests() {
     deadline: "",
   });
 
-  // Fetch clients for SS Admin client selector
   const { data: clients = [] } = useQuery({
     queryKey: ["all-clients"],
     queryFn: async () => {
@@ -56,6 +55,19 @@ export default function Requests() {
       return data || [];
     },
     enabled: isSSAdmin,
+  });
+
+  // Fetch SS users for showing assigned_to names
+  const { data: ssUsers = [] } = useQuery({
+    queryKey: ["ss-users-list"],
+    queryFn: async () => {
+      const { data: roles } = await supabase.from("user_roles").select("user_id").in("role", ["ss_admin", "ss_producer", "ss_ops", "ss_team"]);
+      if (!roles?.length) return [];
+      const userIds = [...new Set(roles.map((r) => r.user_id))];
+      const { data } = await supabase.from("users").select("id, name, email").in("id", userIds);
+      return data || [];
+    },
+    enabled: isSSRole,
   });
 
   const { data: requests = [], isLoading } = useQuery({
@@ -85,7 +97,6 @@ export default function Requests() {
       const clientId = isSSAdmin ? selectedClientId : profile?.client_id;
       if (!clientId) throw new Error("No client selected");
 
-      // Upload attachment (non-blocking)
       let attachments_url: string | null = null;
       if (attachmentFile) {
         const compressed = await compressImage(attachmentFile);
@@ -141,6 +152,12 @@ export default function Requests() {
 
   const canCreate = !!profile?.client_id || isSSAdmin;
 
+  const getAssignedName = (userId: string | null) => {
+    if (!userId) return null;
+    const u = ssUsers.find((u: any) => u.id === userId);
+    return u ? ((u as any).name || (u as any).email) : null;
+  };
+
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
@@ -158,7 +175,6 @@ export default function Requests() {
                 <DialogTitle>New Content Request</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 mt-2">
-                {/* SS Admin client selector */}
                 {isSSAdmin && (
                   <div>
                     <Label>Client</Label>
@@ -255,39 +271,47 @@ export default function Requests() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {requests.map((req: any) => (
-            <Card key={req.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSelectedRequest(req)}>
-              <CardContent className="py-4 flex items-center justify-between">
-                <div className="space-y-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    {req.type === "social_post" ? <FileText className="h-4 w-4 text-primary shrink-0" /> : <Mail className="h-4 w-4 text-primary shrink-0" />}
-                    <h4 className="font-medium text-foreground truncate">{req.topic}</h4>
+          {requests.map((req: any) => {
+            const assignedName = isSSRole ? getAssignedName(req.assigned_to_user_id) : null;
+            return (
+              <Card key={req.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSelectedRequest(req)}>
+                <CardContent className="py-4 flex items-center justify-between">
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      {req.type === "social_post" ? <FileText className="h-4 w-4 text-primary shrink-0" /> : <Mail className="h-4 w-4 text-primary shrink-0" />}
+                      <h4 className="font-medium text-foreground truncate">{req.topic}</h4>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {req.clients?.name && <span className="font-medium">{req.clients.name} · </span>}
+                      By {req.users?.name || req.users?.email || "Unknown"} · {new Date(req.created_at).toLocaleDateString()}
+                      {req.attachments_url && " · 📎 Attachment"}
+                    </p>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {req.clients?.name && <span className="font-medium">{req.clients.name} · </span>}
-                    By {req.users?.name || req.users?.email || "Unknown"} · {new Date(req.created_at).toLocaleDateString()}
-                    {req.attachments_url && " · 📎 Attachment"}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                  {isSSRole ? (
-                    <Select value={req.status} onValueChange={(v) => updateStatus.mutate({ id: req.id, status: v as RequestStatus })}>
-                      <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="open">Open</SelectItem>
-                        <SelectItem value="in_progress">In Progress</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Badge className={statusColors[req.status] || ""}>{req.status.replace("_", " ")}</Badge>
-                  )}
-                  <Badge variant="outline" className="text-xs capitalize">{req.priority}</Badge>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    {assignedName && (
+                      <Badge variant="secondary" className="text-[10px] gap-1">
+                        <User className="h-3 w-3" /> {assignedName}
+                      </Badge>
+                    )}
+                    {isSSRole ? (
+                      <Select value={req.status} onValueChange={(v) => updateStatus.mutate({ id: req.id, status: v as RequestStatus })}>
+                        <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="open">Open</SelectItem>
+                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Badge className={statusColors[req.status] || ""}>{req.status.replace("_", " ")}</Badge>
+                    )}
+                    <Badge variant="outline" className="text-xs capitalize">{req.priority}</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 

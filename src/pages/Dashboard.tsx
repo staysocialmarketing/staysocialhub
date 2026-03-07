@@ -63,7 +63,7 @@ function SuperAdminDashboard() {
   const { data: teamActivity = [] } = useQuery({
     queryKey: ["sa-team-activity"],
     queryFn: async () => {
-      const { data: teamRoles } = await supabase.from("user_roles").select("user_id, role").in("role", ["ss_producer", "ss_ops"]);
+      const { data: teamRoles } = await supabase.from("user_roles").select("user_id, role").in("role", ["ss_team", "ss_producer", "ss_ops"]);
       if (!teamRoles?.length) return [];
       const userIds = [...new Set(teamRoles.map((r) => r.user_id))];
       const { data: users } = await supabase.from("users").select("id, name, email").in("id", userIds);
@@ -95,7 +95,7 @@ function SuperAdminDashboard() {
   const { data: myTasks = [] } = useQuery({
     queryKey: ["sa-my-tasks", profile?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("tasks").select("id, title, status, priority, due_at, assigned_to_team, project_id, projects(name)").or(`assigned_to_user_id.eq.${profile!.id},assigned_to_team.eq.true`).neq("status", "done").order("due_at", { ascending: true, nullsFirst: false }).limit(10);
+      const { data } = await supabase.from("tasks").select("id, title, status, priority, due_at, assigned_to_team, project_id, projects(name)").or(`assigned_to_user_id.eq.${profile!.id},assigned_to_team.eq.true`).not("status", "in", '("complete","done")').order("due_at", { ascending: true, nullsFirst: false }).limit(10);
       return data || [];
     },
     enabled: !!profile,
@@ -353,7 +353,7 @@ function TeamDashboard() {
   const { data: myTasks = [] } = useQuery({
     queryKey: ["team-my-tasks", profile?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("tasks").select("id, title, status, priority, due_at, assigned_to_team, project_id, projects(name)").or(`assigned_to_user_id.eq.${profile!.id},assigned_to_team.eq.true`).neq("status", "done").order("due_at", { ascending: true, nullsFirst: false }).limit(10);
+      const { data } = await supabase.from("tasks").select("id, title, status, priority, due_at, assigned_to_team, project_id, projects(name)").or(`assigned_to_user_id.eq.${profile!.id},assigned_to_team.eq.true`).not("status", "in", '("complete","done")').order("due_at", { ascending: true, nullsFirst: false }).limit(10);
       return data || [];
     },
     enabled: !!profile,
