@@ -71,15 +71,6 @@ export default function Tasks() {
   const [requestTask, setRequestTask] = useState<Task | null>(null);
 
   const [editTask, setEditTask] = useState<Task | null>(null);
-  const [editTitle, setEditTitle] = useState("");
-  const [editDescription, setEditDescription] = useState("");
-  const [editProjectId, setEditProjectId] = useState("");
-  const [editClientId, setEditClientId] = useState("");
-  const [editAssigneeId, setEditAssigneeId] = useState("");
-  const [editAssignToTeam, setEditAssignToTeam] = useState(false);
-  const [editPriority, setEditPriority] = useState("normal");
-  const [editDueAt, setEditDueAt] = useState("");
-  const [editStatus, setEditStatus] = useState("todo");
 
   const [ssUsers, setSsUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
 
