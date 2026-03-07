@@ -21,7 +21,7 @@ export default function Auth() {
         redirect_uri: window.location.origin + "/dashboard",
       });
       if (result.error) {
-        toast.error("Google sign-in failed. Please try again.");
+        toast.error("Google sign-in was blocked. This may be due to your organization's settings. Try using the magic link below instead.");
       }
     } catch {
       toast.error("Something went wrong.");
