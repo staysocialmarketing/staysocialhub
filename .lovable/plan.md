@@ -1,57 +1,132 @@
 
 
-# Workflow, Approvals, and Auto-Assignment Overhaul
+# Zapier / AI Agent Preparation Update
 
-## Summary of Changes
+## Overview
 
-This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
+Add AI/agent metadata fields and strategy brief support across Tasks, Think Tank, and Requests. Add a "Run Strategy" webhook button. Prepare all item types for external automation via Zapier write-backs.
 
-## 1. Database: Update Auto-Assignment Triggers
+## Phase 1: Database Migration
 
-**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
+### New columns on `tasks` table
+- `source_type` (text, nullable) — e.g. "capture", "request", "zapier"
+- `raw_input_text` (text, nullable)
+- `raw_attachment_url` (text, nullable)
+- `voice_transcript` (text, nullable)
+- `agent_status` (text, nullable, default 'pending_ai_review') — values: pending_ai_review, ai_processed, needs_human_review, approved, rejected
+- `agent_confidence` (numeric, nullable)
+- `ai_summary` (text, nullable)
+- `ai_suggested_client` (text, nullable)
+- `ai_suggested_content_type` (text, nullable)
+- `ai_suggested_priority` (text, nullable)
+- `ai_suggested_assignee` (text, nullable)
+- `ai_suggested_project` (text, nullable)
+- `ai_suggested_subproject` (text, nullable)
+- `ai_suggested_next_action` (text, nullable)
+- `ai_suggested_item_type` (text, nullable)
+- `strategy_brief` (jsonb, nullable) — stores: objective, audience, angle, hook, cta, recommended_format, production_notes, subject_lines, preview_text, script_draft
 
-**Changes (migration)**:
-- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
-- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
-- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
-- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
+### New columns on `think_tank_items` table
+Same AI/agent fields as tasks:
+- `source_type`, `raw_input_text`, `raw_attachment_url`, `voice_transcript`
+- `agent_status`, `agent_confidence`
+- `ai_summary`, `ai_suggested_client`, `ai_suggested_content_type`, `ai_suggested_priority`, `ai_suggested_assignee`, `ai_suggested_project`, `ai_suggested_subproject`, `ai_suggested_next_action`
+- `strategy_brief` (jsonb, nullable)
 
-All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
+### New columns on `requests` table
+Same AI/agent fields:
+- `source_type`, `raw_input_text`, `raw_attachment_url`, `voice_transcript`
+- `agent_status`, `agent_confidence`
+- `ai_summary`, `ai_suggested_client`, `ai_suggested_content_type`, `ai_suggested_priority`, `ai_suggested_assignee`, `ai_suggested_project`, `ai_suggested_subproject`, `ai_suggested_next_action`
+- `strategy_brief` (jsonb, nullable)
+- `task_id` (uuid, nullable) — for linking back to auto-created task
 
-## 2. Approvals Page — Separate Media from Published Content
+### New columns on `tasks` table (linking)
+- `request_id` (uuid, nullable) — link task back to its source request
+- `parent_item_id` (uuid, nullable) — generic parent reference for Zapier chaining
 
-**Client Approvals (`ClientApprovals`)**: 
-- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
-- Alternatively, only show posts in Published that were moved there by admin approval flow
+All columns nullable with no defaults (except `agent_status` defaults to null). This is purely additive — no breaking changes.
 
-**Admin Approvals (`AdminApprovals`)**:
-- Same fix for Published column — filter to only show posts linked to requests
+## Phase 2: Global Capture Updates
 
-**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
+### `src/components/GlobalCaptureButton.tsx`
+- When saving a task, idea, or voice note via capture, populate:
+  - `source_type: "capture"`
+  - `raw_input_text` (the title + description text)
+  - `raw_attachment_url` (if image/voice was uploaded)
+- These get stored on the created record for downstream Zapier pickup.
 
-## 3. Workflow Page — Move Internal Review to Bottom Section
+## Phase 3: Strategy Brief Component
 
-**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
+### New file: `src/components/StrategyBriefPanel.tsx`
+- Reusable read-only panel that renders a `strategy_brief` JSONB object
+- Shows structured fields: Objective, Audience, Angle, Hook, CTA, Recommended Format, Production Notes, Subject Lines, Preview Text, Script Draft
+- Only renders fields that have values
+- Visible to SS roles only
 
-**New layout**:
-- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
-- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
+### New file: `src/components/RunStrategyButton.tsx`
+- Button labeled "Run Strategy"
+- On click, sends a POST to a configurable Zapier webhook URL (stored in a `strategy_webhook_url` field or app settings)
+- Sends the item's ID, type (task/request/think_tank), title, description, client_id, and any existing AI fields
+- Uses `no-cors` mode per Zapier pattern
+- Shows toast: "Strategy request sent to automation"
 
-## 4. Admin & Team Dashboards — Show Assignments + Tasks
+## Phase 4: AI Fields Panel
 
-**SuperAdminDashboard**: Already shows team activity. Add:
-- "My Assignments" section showing posts assigned to the current admin user
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+### New file: `src/components/AIFieldsPanel.tsx`
+- Reusable collapsible panel showing AI recommendation fields
+- Shows: AI Summary, Suggested Client, Content Type, Priority, Assignee, Project, Subproject, Next Action, Confidence Score, Agent Status
+- Read-only display with badges
+- Agent Status shown as a colored badge (pending_ai_review=yellow, ai_processed=blue, needs_human_review=orange, approved=green, rejected=red)
+- Only visible to SS roles
 
-**TeamDashboard**: Already shows "My Assignments". Add:
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+## Phase 5: Integration into Detail Views
 
-## Files Changed
+### `src/components/TaskDetailDialog.tsx`
+- Add new tabs: "AI Intake" and "Strategy"
+- "AI Intake" tab renders `AIFieldsPanel` with the task's AI fields
+- "Strategy" tab renders `StrategyBriefPanel` + `RunStrategyButton`
+- Both tabs only visible to SS roles
 
-| File | Change |
-|------|--------|
-| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
-| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
-| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
-| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
+### `src/pages/team/ThinkTank.tsx`
+- In the edit dialog, add collapsible sections for AI Fields and Strategy Brief
+- Add "Run Strategy" button to the Action dropdown menu
+- Show AI summary badge on cards if populated
+
+### `src/components/RequestDetailDialog.tsx`
+- Add collapsible AI Fields section (SS only)
+- Add Strategy Brief section and Run Strategy button
+- Show `task_id` link if available for request-task relationship
+
+## Phase 6: Webhook Edge Function
+
+### New edge function: `supabase/functions/run-strategy/index.ts`
+- Accepts POST with `{ item_type, item_id }`
+- Fetches the item from the appropriate table
+- Fetches client profile context if client_id is set
+- Forwards structured payload to a Zapier webhook URL (stored as a secret `STRATEGY_WEBHOOK_URL`)
+- Updates `agent_status` to 'pending_ai_review' on the item
+- Returns success
+
+### New edge function: `supabase/functions/agent-writeback/index.ts`
+- Accepts POST from Zapier with `{ item_type, item_id, ai_fields, strategy_brief }`
+- Validates the payload
+- Updates the appropriate table (tasks/requests/think_tank_items) with AI fields and/or strategy brief
+- Updates `agent_status` to 'ai_processed'
+- Secured with service role key check
+
+## Phase 7: Request-Task Linking
+
+- Update the `auto_create_task_from_request` trigger to set `request_id` on the new task (requires migration to alter the function)
+- The trigger already exists; we modify it to also populate the linking field
+
+## Summary
+
+| Area | Files |
+|------|-------|
+| Migration | 1 SQL migration (add ~15 columns each to 3 tables + linking columns + trigger update) |
+| Components | `StrategyBriefPanel.tsx`, `RunStrategyButton.tsx`, `AIFieldsPanel.tsx` (new) |
+| Updated UIs | `TaskDetailDialog.tsx`, `ThinkTank.tsx`, `RequestDetailDialog.tsx`, `GlobalCaptureButton.tsx` |
+| Edge Functions | `run-strategy/index.ts`, `agent-writeback/index.ts` (new) |
+| Secret needed | `STRATEGY_WEBHOOK_URL` — Zapier webhook URL for strategy processing |
 
