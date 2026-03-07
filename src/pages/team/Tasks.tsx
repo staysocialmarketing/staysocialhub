@@ -3,20 +3,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientFilter } from "@/contexts/ClientFilterContext";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Calendar, User, Send } from "lucide-react";
+import { Plus, Calendar, User } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import MakeRequestDialog from "@/components/MakeRequestDialog";
 import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
 import DatePickerField from "@/components/DatePickerField";
 import TaskDetailDialog from "@/components/TaskDetailDialog";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface Task {
   id: string;
@@ -70,9 +70,7 @@ export default function Tasks() {
   const [users, setUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
   const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
   const [requestTask, setRequestTask] = useState<Task | null>(null);
-
   const [editTask, setEditTask] = useState<Task | null>(null);
-
   const [ssUsers, setSsUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
 
   useEffect(() => {
@@ -113,8 +111,6 @@ export default function Tasks() {
     supabase.from("clients").select("id, name").eq("status", "active").then(({ data }) => setClients(data || []));
   }, [filterProject, filterAssignee, globalClientId]);
 
-  const openEdit = (task: Task) => setEditTask(task);
-
   const handleCreate = async () => {
     if (!title.trim() || !profile) return;
     const isTeam = assigneeId === "__team__";
@@ -154,19 +150,11 @@ export default function Tasks() {
 
   const tasksByStatus = (status: string) => tasks.filter((t) => t.status === status);
 
-  const StatusSelectOptions = () => (
-    <>
-      {statusColumns.map((s) => (
-        <SelectItem key={s} value={s}>{statusLabels[s]}</SelectItem>
-      ))}
-    </>
-  );
-
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Tasks</h1>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Tasks</h1>
           <p className="text-sm text-muted-foreground">Daily task tracker across projects</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -215,14 +203,14 @@ export default function Tasks() {
 
       <div className="flex gap-3 flex-wrap">
         <Select value={filterProject} onValueChange={setFilterProject}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="All Projects" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="All Projects" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Projects</SelectItem>
             {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterAssignee === "__pending__" ? "mine" : filterAssignee} onValueChange={setFilterAssignee}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="All Assignees" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="All Assignees" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="mine">My Tasks</SelectItem>
             <SelectItem value="all">All Tasks</SelectItem>
@@ -236,47 +224,52 @@ export default function Tasks() {
       {loading ? (
         <p className="text-muted-foreground">Loading...</p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-5">
           {statusColumns.map((col) => (
             <div key={col} className="space-y-3 min-w-0">
-              <div className="flex items-center gap-2 pb-2 border-b">
-                <h2 className="font-semibold text-xs text-foreground">{statusLabels[col]}</h2>
-                <Badge variant="secondary" className="text-[10px]">{tasksByStatus(col).length}</Badge>
+              <div className="flex items-center gap-2 pb-2">
+                <h2 className="text-sm font-semibold text-foreground">{statusLabels[col]}</h2>
+                <span className="text-xs text-muted-foreground">{tasksByStatus(col).length}</span>
               </div>
               {tasksByStatus(col).length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-8">No tasks</p>
+                <EmptyState title="No tasks" compact className="py-6" />
               ) : (
                 tasksByStatus(col).map((task) => (
-                  <Card key={task.id} className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => openEdit(task)}>
-                    <CardContent className="p-3 space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="text-xs font-medium leading-snug">{task.title}</span>
-                        <Badge variant="outline" className={`text-[10px] shrink-0 ${priorityColors[task.priority] || ""}`}>{task.priority}</Badge>
-                      </div>
-                      {task.description && <p className="text-[10px] text-muted-foreground line-clamp-2">{task.description}</p>}
-                      <div className="flex flex-wrap gap-1 text-[10px] text-muted-foreground">
-                        {projectName(task.project_id) && <Badge variant="secondary" className="text-[10px]">{projectName(task.project_id)}</Badge>}
-                        {userName(task) && (
-                          <span className="flex items-center gap-0.5">
-                            <User className="h-3 w-3" />
-                            {task.assigned_to_team ? <Badge variant="secondary" className="text-[10px]">🤝 Team</Badge> : userName(task)}
-                          </span>
-                        )}
-                        {task.due_at && (
-                          <span className="flex items-center gap-0.5"><Calendar className="h-3 w-3" /> {format(new Date(task.due_at), "MMM d")}</span>
-                        )}
-                      </div>
-                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                        <Select value={task.status} onValueChange={(s) => updateStatus(task.id, s)}>
-                          <SelectTrigger className="h-6 text-[10px] flex-1"><SelectValue /></SelectTrigger>
-                          <SelectContent><StatusSelectOptions /></SelectContent>
-                        </Select>
-                        <Button size="sm" variant="secondary" className="h-6 text-[10px] px-1.5" onClick={() => setRequestTask(task)}>
-                          <Send className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <div
+                    key={task.id}
+                    className="card-elevated p-4 space-y-3 cursor-pointer hover:shadow-md transition-all group"
+                    onClick={() => setEditTask(task)}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-sm font-semibold leading-snug text-foreground">{task.title}</span>
+                      <Badge variant="outline" className={`text-[11px] shrink-0 ${priorityColors[task.priority] || ""}`}>{task.priority}</Badge>
+                    </div>
+                    {task.description && <p className="text-xs text-muted-foreground/70 line-clamp-1">{task.description}</p>}
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      {projectName(task.project_id) && <Badge variant="secondary" className="text-[11px]">{projectName(task.project_id)}</Badge>}
+                      {userName(task) && (
+                        <span className="flex items-center gap-0.5">
+                          <User className="h-3 w-3" />
+                          {task.assigned_to_team ? "Team" : userName(task)}
+                        </span>
+                      )}
+                      {task.due_at && (
+                        <span className="flex items-center gap-0.5 ml-auto"><Calendar className="h-3 w-3" /> {format(new Date(task.due_at), "MMM d")}</span>
+                      )}
+                    </div>
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <Select value={task.status} onValueChange={(s) => updateStatus(task.id, s)}>
+                        <SelectTrigger className="h-7 text-[11px] w-full border-border/50 bg-transparent">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {statusColumns.map((s) => (
+                            <SelectItem key={s} value={s}>{statusLabels[s]}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 ))
               )}
             </div>
