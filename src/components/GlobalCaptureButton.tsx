@@ -71,8 +71,8 @@ export function GlobalCaptureButton() {
 
   const handleOpen = async (isOpen: boolean) => {
     setOpen(isOpen);
-    if (isOpen) {
-      // Load SS users and projects for selectors
+    if (isOpen && isSSRole) {
+      // Only load SS users and projects for SS roles
       const [usersRes, projectsRes] = await Promise.all([
         supabase.from("users").select("id, name").in("id",
           (await supabase.from("user_roles").select("user_id").in("role", ["ss_admin", "ss_team", "ss_producer", "ss_ops"])).data?.map(r => r.user_id) || []
@@ -81,7 +81,7 @@ export function GlobalCaptureButton() {
       ]);
       setSsUsers(usersRes.data?.map(u => ({ id: u.id, name: u.name || "Unnamed" })) || []);
       setProjects(projectsRes.data?.map(p => ({ id: p.id, name: p.name })) || []);
-    } else {
+    } else if (!isOpen) {
       resetAll();
     }
   };
