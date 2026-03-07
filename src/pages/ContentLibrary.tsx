@@ -175,7 +175,16 @@ export default function ContentLibrary() {
             <TabsTrigger value="reels"><Film className="h-3.5 w-3.5 mr-1" /> Reels</TabsTrigger>
           </TabsList>
           {["all", "images", "videos", "reels"].map((tab) => (
-            <TabsContent key={tab} value={tab}><PostGrid items={filterPosts(tab)} /></TabsContent>
+            <TabsContent key={tab} value={tab}>
+              <PostGrid items={filterPosts(tab)} />
+              {totalForTab(tab) > visibleCount && (
+                <div className="flex justify-center pt-4">
+                  <Button variant="outline" onClick={() => setVisibleCount((c) => c + 50)}>
+                    Load More ({totalForTab(tab) - visibleCount} remaining)
+                  </Button>
+                </div>
+              )}
+            </TabsContent>
           ))}
         </Tabs>
       )}
