@@ -290,8 +290,11 @@ export default function Tasks() {
                       {task.description && <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>}
                       <div className="flex flex-wrap gap-1.5 text-xs text-muted-foreground">
                         {projectName(task.project_id) && <Badge variant="secondary" className="text-[10px]">{projectName(task.project_id)}</Badge>}
-                        {userName(task.assigned_to_user_id) && (
-                          <span className="flex items-center gap-0.5"><User className="h-3 w-3" /> {userName(task.assigned_to_user_id)}</span>
+                        {userName(task) && (
+                          <span className="flex items-center gap-0.5">
+                            <User className="h-3 w-3" /> 
+                            {task.assigned_to_team ? <Badge variant="secondary" className="text-[10px]">🤝 Team</Badge> : userName(task)}
+                          </span>
                         )}
                         {task.due_at && (
                           <span className="flex items-center gap-0.5"><Calendar className="h-3 w-3" /> {format(new Date(task.due_at), "MMM d")}</span>
