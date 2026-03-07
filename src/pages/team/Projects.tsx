@@ -283,8 +283,8 @@ export default function Projects() {
     <div className="p-4 sm:p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Projects</h1>
-          <p className="text-sm text-muted-foreground">High-level project tracking with sub-projects</p>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Projects</h1>
+          <p className="text-sm text-muted-foreground">High-level project tracking</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
