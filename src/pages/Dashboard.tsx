@@ -159,7 +159,7 @@ function WorkQueueDashboard() {
   };
 
   const updateRequestStatus = async (requestId: string, status: string) => {
-    await supabase.from("requests").update({ status }).eq("id", requestId);
+    await supabase.from("requests").update({ status: status as any }).eq("id", requestId);
     queryClient.invalidateQueries({ queryKey: ["wq-requests"] });
   };
 
