@@ -657,24 +657,42 @@ function ClientDashboard() {
         </Card>
       )}
 
-      {/* What's New */}
-      {visibleAddons.length > 0 && (
+      {/* Recommended Upsell CTA */}
+      {(recommendedItem || newestItem) && (
         <div>
           <div className="flex items-center gap-2 mb-3">
             <Sparkles className="h-5 w-5 text-warning" />
-            <h3 className="text-lg font-semibold text-foreground">What's New</h3>
+            <h3 className="text-lg font-semibold text-foreground">Recommended for You</h3>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {visibleAddons.map((a) => (
-              <Card key={a.title} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate("/whats-new")}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {recommendedItem && (
+              <Card className="hover:shadow-md transition-shadow cursor-pointer border-primary/30 ring-1 ring-primary/10" onClick={() => navigate("/whats-new")}>
                 <CardContent className="pt-5 space-y-2">
-                  <span className="text-2xl">{a.icon}</span>
-                  <h4 className="font-semibold text-foreground text-sm">{a.title}</h4>
-                  <p className="text-xs text-muted-foreground">{a.desc}</p>
-                  <p className="text-xs font-medium text-primary">{a.price}</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">{(recommendedItem as any).icon || "⭐"}</span>
+                    <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px]">Recommended</Badge>
+                  </div>
+                  <h4 className="font-semibold text-foreground text-sm">{(recommendedItem as any).name}</h4>
+                  {(recommendedItem as any).description && <p className="text-xs text-muted-foreground">{(recommendedItem as any).description}</p>}
+                  {(recommendedItem as any).price && <p className="text-xs font-medium text-primary">{(recommendedItem as any).price}</p>}
+                  <Button size="sm" variant="default" className="mt-2">Learn More</Button>
                 </CardContent>
               </Card>
-            ))}
+            )}
+            {newestItem && (
+              <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate("/whats-new")}>
+                <CardContent className="pt-5 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">{(newestItem as any).icon || "🆕"}</span>
+                    <Badge variant="secondary" className="text-[10px]">New</Badge>
+                  </div>
+                  <h4 className="font-semibold text-foreground text-sm">{(newestItem as any).name}</h4>
+                  {(newestItem as any).description && <p className="text-xs text-muted-foreground">{(newestItem as any).description}</p>}
+                  {(newestItem as any).price && <p className="text-xs font-medium text-primary">{(newestItem as any).price}</p>}
+                  <Button size="sm" variant="outline" className="mt-2">Explore</Button>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       )}

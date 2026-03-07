@@ -81,6 +81,7 @@ const teamTeamItems = [
 const teamAdminItems = [
   { title: "Clients", url: "/admin/clients", icon: Building2 },
   { title: "Media", url: "/admin/media", icon: Image },
+  { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
 ];
 
 // ─── Client ──────────────────────────────────────────────────────────────────
