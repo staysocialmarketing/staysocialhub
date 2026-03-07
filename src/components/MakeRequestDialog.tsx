@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
+import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
 
 type RequestType = Database["public"]["Enums"]["request_type"];
 
