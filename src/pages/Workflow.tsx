@@ -533,12 +533,12 @@ export default function Workflow() {
         });
         if (sectionPosts.length === 0) return null;
         return (
-          <section key={section.key} className="mt-6">
-            <div className="flex items-center gap-2 mb-3">
-              <h3 className="text-lg font-semibold text-foreground">{section.label}</h3>
-              <Badge variant="secondary">{sectionPosts.length}</Badge>
+          <section key={section.key} className="mt-8">
+            <div className="flex items-center gap-2 mb-4">
+              <h3 className="text-base font-semibold text-foreground">{section.label}</h3>
+              <span className="text-xs text-muted-foreground">{sectionPosts.length}</span>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 bg-muted/50 rounded-lg p-4" onDrop={e => handleDrop(e, section.key)} onDragOver={handleDragOver}>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 bg-accent/30 rounded-xl p-4" onDrop={e => handleDrop(e, section.key)} onDragOver={handleDragOver}>
               {sectionPosts.map(renderCard)}
             </div>
           </section>
