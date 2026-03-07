@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Trash2, Plus, Paperclip, Download, Link2, X, Send, FileText, ListChecks, MessageSquare, Activity } from "lucide-react";
+import { Trash2, Plus, Paperclip, Download, Link2, X, Send, FileText, ListChecks, MessageSquare, Activity, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
@@ -89,6 +89,8 @@ export default function TaskDetailDialog({ task, onClose, onUpdated, projects, s
   const { profile, isSSAdmin } = useAuth();
   const canEdit = task ? (isSSAdmin || task.created_by_user_id === profile?.id) : false;
 
+  const [editing, setEditing] = useState(false);
+
   // Task fields
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -112,20 +114,25 @@ export default function TaskDetailDialog({ task, onClose, onUpdated, projects, s
 
   useEffect(() => {
     if (!task) return;
-    setTitle(task.title);
-    setDescription(task.description || "");
-    setProjectId(task.project_id || "");
-    setClientId(task.client_id || "");
-    setAssigneeId(task.assigned_to_team ? "__team__" : (task.assigned_to_user_id || ""));
-    setAssignToTeam(task.assigned_to_team);
-    setPriority(task.priority);
-    setDueAt(task.due_at || "");
-    setStatus(task.status);
+    resetFields(task);
+    setEditing(false);
     loadChecklist();
     loadAttachments();
     loadComments();
     loadActivity();
   }, [task?.id]);
+
+  const resetFields = (t: Task) => {
+    setTitle(t.title);
+    setDescription(t.description || "");
+    setProjectId(t.project_id || "");
+    setClientId(t.client_id || "");
+    setAssigneeId(t.assigned_to_team ? "__team__" : (t.assigned_to_user_id || ""));
+    setAssignToTeam(t.assigned_to_team);
+    setPriority(t.priority);
+    setDueAt(t.due_at || "");
+    setStatus(t.status);
+  };
 
   const loadChecklist = async () => {
     if (!task) return;
@@ -165,8 +172,8 @@ export default function TaskDetailDialog({ task, onClose, onUpdated, projects, s
     } as any).eq("id", task.id);
     if (error) { toast.error(error.message); return; }
     toast.success("Task updated!");
+    setEditing(false);
     onUpdated();
-    onClose();
   };
 
   const handleDelete = async () => {
@@ -251,12 +258,19 @@ export default function TaskDetailDialog({ task, onClose, onUpdated, projects, s
     }
   };
 
+  const getProjectName = (id: string) => projects.find(p => p.id === id)?.name || "—";
+  const getAssigneeName = () => {
+    if (assignToTeam) return "🤝 Team";
+    if (assigneeId) return userName(assigneeId);
+    return "Unassigned";
+  };
+
   return (
-    <Dialog open={!!task} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={!!task} onOpenChange={(o) => { if (!o) { setEditing(false); } !o && onClose(); }}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {canEdit ? (
+            {editing ? (
               <Input value={title} onChange={(e) => setTitle(e.target.value)} className="text-lg font-semibold border-none p-0 h-auto focus-visible:ring-0 shadow-none" />
             ) : (
               <span>{title}</span>
@@ -266,60 +280,89 @@ export default function TaskDetailDialog({ task, onClose, onUpdated, projects, s
         </DialogHeader>
 
         {/* Meta fields */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <div>
-            <Label className="text-xs text-muted-foreground">Status</Label>
-            <Select value={status} onValueChange={setStatus} disabled={!canEdit}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {statusColumns.map((s) => <SelectItem key={s} value={s}>{statusLabels[s]}</SelectItem>)}
-              </SelectContent>
-            </Select>
+        {editing ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div>
+              <Label className="text-xs text-muted-foreground">Status</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {statusColumns.map((s) => <SelectItem key={s} value={s}>{statusLabels[s]}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Priority</Label>
+              <Select value={priority} onValueChange={setPriority}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="normal">Normal</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="urgent">Urgent</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Due Date</Label>
+              <DatePickerField value={dueAt} onChange={setDueAt} placeholder="Pick date" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Client</Label>
+              <ClientSelectWithCreate value={clientId} onValueChange={setClientId} />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Project</Label>
+              <Select value={projectId || "__none__"} onValueChange={(v) => setProjectId(v === "__none__" ? "" : v)}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">No project</SelectItem>
+                  {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Assignee</Label>
+              <Select value={assigneeId || "__none__"} onValueChange={(v) => { setAssigneeId(v === "__none__" ? "" : v); setAssignToTeam(v === "__team__"); }}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Unassigned</SelectItem>
+                  <SelectItem value="__team__">🤝 Team</SelectItem>
+                  {ssUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div>
-            <Label className="text-xs text-muted-foreground">Priority</Label>
-            <Select value={priority} onValueChange={setPriority} disabled={!canEdit}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="low">Low</SelectItem>
-                <SelectItem value="normal">Normal</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="urgent">Urgent</SelectItem>
-              </SelectContent>
-            </Select>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div>
+              <Label className="text-xs text-muted-foreground">Status</Label>
+              <p className="text-sm font-medium">{statusLabels[status] || status}</p>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Priority</Label>
+              <p className="text-sm font-medium capitalize">{priority}</p>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Due Date</Label>
+              <p className="text-sm font-medium">{dueAt ? format(new Date(dueAt), "PPP") : "—"}</p>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Client</Label>
+              <p className="text-sm font-medium">{clientId ? "Assigned" : "—"}</p>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Project</Label>
+              <p className="text-sm font-medium">{projectId ? getProjectName(projectId) : "—"}</p>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Assignee</Label>
+              <p className="text-sm font-medium">{getAssigneeName()}</p>
+            </div>
           </div>
-          <div>
-            <Label className="text-xs text-muted-foreground">Due Date</Label>
-            <DatePickerField value={dueAt} onChange={setDueAt} placeholder="Pick date" />
-          </div>
-          <div>
-            <Label className="text-xs text-muted-foreground">Client</Label>
-            <ClientSelectWithCreate value={clientId} onValueChange={setClientId} />
-          </div>
-          <div>
-            <Label className="text-xs text-muted-foreground">Project</Label>
-            <Select value={projectId || "__none__"} onValueChange={(v) => setProjectId(v === "__none__" ? "" : v)} disabled={!canEdit}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">No project</SelectItem>
-                {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs text-muted-foreground">Assignee</Label>
-            <Select value={assigneeId || "__none__"} onValueChange={(v) => { setAssigneeId(v === "__none__" ? "" : v); setAssignToTeam(v === "__team__"); }} disabled={!canEdit}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">Unassigned</SelectItem>
-                <SelectItem value="__team__">🤝 Team</SelectItem>
-                {ssUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+        )}
 
-        {/* Tabs */}
+        {/* Tabs — always interactive */}
         <Tabs defaultValue="description" className="mt-2">
           <TabsList className="w-full justify-start">
             <TabsTrigger value="description" className="text-xs gap-1"><FileText className="h-3 w-3" /> Description</TabsTrigger>
@@ -331,13 +374,18 @@ export default function TaskDetailDialog({ task, onClose, onUpdated, projects, s
 
           {/* Description */}
           <TabsContent value="description">
-            <Textarea
-              placeholder="Add instructions or notes..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={!canEdit}
-              className="min-h-[120px]"
-            />
+            {editing ? (
+              <Textarea
+                placeholder="Add instructions or notes..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="min-h-[120px]"
+              />
+            ) : (
+              <div className="min-h-[60px] text-sm whitespace-pre-wrap text-muted-foreground">
+                {description || "No description"}
+              </div>
+            )}
           </TabsContent>
 
           {/* Checklist */}
@@ -434,27 +482,36 @@ export default function TaskDetailDialog({ task, onClose, onUpdated, projects, s
         </Tabs>
 
         <DialogFooter className="flex justify-between sm:justify-between">
-          {canEdit && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-1" /> Delete</Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete task?</AlertDialogTitle>
-                  <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+          {canEdit && !editing && (
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+                <Pencil className="h-4 w-4 mr-1" /> Edit
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-1" /> Delete</Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete task?</AlertDialogTitle>
+                    <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           )}
-          <div className="flex gap-2">
-            <Button variant="ghost" onClick={onClose}>Cancel</Button>
-            {canEdit && <Button onClick={handleSave} disabled={!title.trim()}>Save</Button>}
-          </div>
+          {editing ? (
+            <div className="flex gap-2 ml-auto">
+              <Button variant="ghost" onClick={() => { setEditing(false); if (task) resetFields(task); }}>Cancel</Button>
+              <Button onClick={handleSave} disabled={!title.trim()}>Save</Button>
+            </div>
+          ) : (
+            !canEdit && <Button variant="ghost" onClick={onClose}>Close</Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
