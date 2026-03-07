@@ -162,6 +162,7 @@ export default function AdminMedia() {
               <SelectItem value="all">All Types</SelectItem>
               <SelectItem value="image">Images</SelectItem>
               <SelectItem value="video">Videos</SelectItem>
+              <SelectItem value="voice">Voice Notes</SelectItem>
               <SelectItem value="document">Documents</SelectItem>
             </SelectContent>
           </Select>
