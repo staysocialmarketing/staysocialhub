@@ -82,6 +82,7 @@ export default function Tasks() {
     fetchTasks();
     supabase.from("projects").select("id, name").then(({ data }) => setProjects(data || []));
     supabase.from("users").select("id, name, email").then(({ data }) => setUsers(data || []));
+    supabase.from("clients").select("id, name").eq("status", "active").then(({ data }) => setClients(data || []));
   }, [filterProject, filterAssignee]);
 
   const openEdit = (task: Task) => {
