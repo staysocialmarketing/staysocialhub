@@ -110,7 +110,7 @@ export default function Tasks() {
     supabase.from("clients").select("id, name").eq("status", "active").then(({ data }) => setClients(data || []));
   }, [filterProject, filterAssignee]);
 
-  const canEditDelete = (task: Task) => isSSAdmin || task.created_by_user_id === profile?.id;
+  const canEditDelete = (task: Task | null) => task ? (isSSAdmin || task.created_by_user_id === profile?.id) : false;
 
   const openEdit = (task: Task) => {
     setEditTask(task);
