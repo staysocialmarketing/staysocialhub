@@ -19,7 +19,12 @@ import { extractStoragePath } from "@/lib/imageUtils";
 
 function isVideo(url: string | null) {
   if (!url) return false;
-  return /\.(mp4|mov|webm|avi)$/i.test(url);
+  return /\.(mp4|mov|webm|avi)$/i.test(url) && !isVoiceNote(url);
+}
+
+function isVoiceNote(url: string | null) {
+  if (!url) return false;
+  return /voice-notes\/.*\.webm$/i.test(url) || /voice-\d+\.webm$/i.test(url);
 }
 
 function isDocument(url: string | null) {
@@ -29,6 +34,7 @@ function isDocument(url: string | null) {
 
 function getMediaType(url: string | null): string {
   if (!url) return "other";
+  if (isVoiceNote(url)) return "voice";
   if (isVideo(url)) return "video";
   if (isDocument(url)) return "document";
   return "image";
