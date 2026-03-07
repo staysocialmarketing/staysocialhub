@@ -4,6 +4,7 @@ import { Outlet } from "react-router-dom";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useAuth } from "@/contexts/AuthContext";
 import { X } from "lucide-react";
+import { GlobalCaptureButton } from "@/components/GlobalCaptureButton";
 
 export function AppLayout() {
   const { profile, isViewingAs, setViewAs } = useAuth();
