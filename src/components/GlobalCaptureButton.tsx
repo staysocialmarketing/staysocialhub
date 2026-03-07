@@ -19,7 +19,8 @@ import { cn } from "@/lib/utils";
 type CaptureMode = null | "task" | "idea" | "image" | "voice";
 
 export function GlobalCaptureButton() {
-  const { isSSRole, profile } = useAuth();
+  const { isSSRole, isClientAdmin, isClientAssistant, profile } = useAuth();
+  const isClient = isClientAdmin || isClientAssistant;
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<CaptureMode>(null);
@@ -70,8 +71,8 @@ export function GlobalCaptureButton() {
 
   const handleOpen = async (isOpen: boolean) => {
     setOpen(isOpen);
-    if (isOpen) {
-      // Load SS users and projects for selectors
+    if (isOpen && isSSRole) {
+      // Only load SS users and projects for SS roles
       const [usersRes, projectsRes] = await Promise.all([
         supabase.from("users").select("id, name").in("id",
           (await supabase.from("user_roles").select("user_id").in("role", ["ss_admin", "ss_team", "ss_producer", "ss_ops"])).data?.map(r => r.user_id) || []
@@ -80,7 +81,7 @@ export function GlobalCaptureButton() {
       ]);
       setSsUsers(usersRes.data?.map(u => ({ id: u.id, name: u.name || "Unnamed" })) || []);
       setProjects(projectsRes.data?.map(p => ({ id: p.id, name: p.name })) || []);
-    } else {
+    } else if (!isOpen) {
       resetAll();
     }
   };
@@ -139,7 +140,7 @@ export function GlobalCaptureButton() {
     if (!imgFile || !profile) return;
     setSaving(true);
     const compressed = await compressImage(imgFile);
-    const folder = imgClient || "general";
+    const folder = isClient ? (profile.client_id || "general") : (imgClient || "general");
     const path = `${folder}/${Date.now()}-${compressed.name}`;
     const { error } = await supabase.storage.from("creative-assets").upload(path, compressed);
     setSaving(false);
@@ -176,7 +177,7 @@ export function GlobalCaptureButton() {
   const saveVoiceNote = async () => {
     if (!audioBlob || !profile) return;
     setSaving(true);
-    const folder = voiceClient || "general";
+    const folder = isClient ? (profile.client_id || "general") : (voiceClient || "general");
     const path = `${folder}/voice-${Date.now()}.webm`;
     const { error } = await supabase.storage.from("creative-assets").upload(path, audioBlob, { contentType: "audio/webm" });
     setSaving(false);
@@ -185,15 +186,16 @@ export function GlobalCaptureButton() {
     handleOpen(false);
   };
 
-  if (!isSSRole) return null;
+  if (!isSSRole && !isClient) return null;
 
-  const options = [
-    { key: "task" as const, icon: ListTodo, label: "Create Task", desc: "Quick task creation" },
-    { key: "request" as const, icon: MessageSquarePlus, label: "Create Request", desc: "New client request" },
-    { key: "idea" as const, icon: Lightbulb, label: "Capture Idea", desc: "Save to Think Tank" },
-    { key: "image" as const, icon: ImagePlus, label: "Upload Image", desc: "Add to Media Library" },
-    { key: "voice" as const, icon: Mic, label: "Voice Note", desc: "Record audio" },
+  const allOptions = [
+    { key: "task" as const, icon: ListTodo, label: "Create Task", desc: "Quick task creation", ssOnly: true },
+    { key: "request" as const, icon: MessageSquarePlus, label: "Create Request", desc: "New client request", ssOnly: false },
+    { key: "idea" as const, icon: Lightbulb, label: "Capture Idea", desc: "Save to Think Tank", ssOnly: true },
+    { key: "image" as const, icon: ImagePlus, label: "Upload Image", desc: "Add to Media Library", ssOnly: false },
+    { key: "voice" as const, icon: Mic, label: "Voice Note", desc: "Record audio", ssOnly: false },
   ];
+  const options = allOptions.filter(o => isSSRole || !o.ssOnly);
 
   return (
     <>
@@ -325,7 +327,7 @@ export function GlobalCaptureButton() {
                 <Label>Image *</Label>
                 <Input type="file" accept="image/*" onChange={e => setImgFile(e.target.files?.[0] || null)} />
               </div>
-              <div><Label>Client</Label><ClientSelectWithCreate value={imgClient} onValueChange={setImgClient} /></div>
+              {isSSRole && <div><Label>Client</Label><ClientSelectWithCreate value={imgClient} onValueChange={setImgClient} /></div>}
               {imgFile && (
                 <div className="rounded-lg border overflow-hidden">
                   <img src={URL.createObjectURL(imgFile)} alt="Preview" className="max-h-48 w-full object-contain bg-muted" />
@@ -363,7 +365,7 @@ export function GlobalCaptureButton() {
                   {isRecording ? "Recording... tap to stop" : audioBlob ? "Voice note ready" : "Tap to start recording"}
                 </p>
               </div>
-              <div><Label>Client</Label><ClientSelectWithCreate value={voiceClient} onValueChange={setVoiceClient} /></div>
+              {isSSRole && <div><Label>Client</Label><ClientSelectWithCreate value={voiceClient} onValueChange={setVoiceClient} /></div>}
               <Button onClick={saveVoiceNote} disabled={!audioBlob || saving} className="w-full">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Voice Note"}
               </Button>
