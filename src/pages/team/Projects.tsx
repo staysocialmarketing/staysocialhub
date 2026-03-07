@@ -246,13 +246,7 @@ export default function Projects() {
             <div className="space-y-4">
               <Input placeholder="Project name" value={name} onChange={(e) => setName(e.target.value)} />
               <Textarea placeholder="Description..." value={description} onChange={(e) => setDescription(e.target.value)} />
-              <Select value={selectedClientId || "__none__"} onValueChange={(v) => setSelectedClientId(v === "__none__" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="Link to client (optional)" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">No client</SelectItem>
-                  {clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <ClientSelectWithCreate value={selectedClientId} onValueChange={setSelectedClientId} placeholder="Link to client (optional)" />
               <Select value={parentProjectId || "__none__"} onValueChange={(v) => setParentProjectId(v === "__none__" ? "" : v)}>
                 <SelectTrigger><SelectValue placeholder="Parent project (optional)" /></SelectTrigger>
                 <SelectContent>
