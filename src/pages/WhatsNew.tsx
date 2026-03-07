@@ -70,8 +70,12 @@ export default function WhatsNew() {
     }
   };
 
-  const solutions = items.filter((i) => i.category === "solution");
-  const upgrades = items.filter((i) => i.category === "upgrade");
+  const filteredItems = visibleAddonIds.length > 0
+    ? items.filter((i) => visibleAddonIds.includes(i.id))
+    : items;
+
+  const solutions = filteredItems.filter((i) => i.category === "solution");
+  const upgrades = filteredItems.filter((i) => i.category === "upgrade");
 
   // Determine recommended item: admin-chosen or most recent
   const recommendedItem = recommendedItemId
