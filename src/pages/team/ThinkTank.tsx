@@ -343,6 +343,13 @@ export default function ThinkTank() {
               <Label className="text-xs text-muted-foreground">Client</Label>
               <ClientSelectWithCreate value={editClientId} onValueChange={setEditClientId} />
             </div>
+            {editItem && (
+              <div className="space-y-2 pt-2 border-t">
+                <AIFieldsPanel fields={editItem as any} />
+                <StrategyBriefPanel brief={(editItem as any).strategy_brief} />
+                <RunStrategyButton itemType="think_tank" itemId={editItem.id} />
+              </div>
+            )}
           </div>
           <DialogFooter className="flex justify-between sm:justify-between">
             {editItem && canEditDelete(editItem) && (

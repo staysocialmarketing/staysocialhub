@@ -484,6 +484,27 @@ export default function TaskDetailDialog({ task, onClose, onUpdated, projects, s
               </div>
             ))}
           </TabsContent>
+
+          {/* AI Intake */}
+          {isSSRole && (
+            <TabsContent value="ai">
+              <AIFieldsPanel fields={task as any} />
+              {!(task as any)?.ai_summary && !(task as any)?.agent_status && (
+                <p className="text-xs text-muted-foreground">No AI data yet. Use "Run Strategy" to process this item.</p>
+              )}
+            </TabsContent>
+          )}
+
+          {/* Strategy */}
+          {isSSRole && (
+            <TabsContent value="strategy" className="space-y-3">
+              <StrategyBriefPanel brief={(task as any)?.strategy_brief} />
+              {!(task as any)?.strategy_brief && (
+                <p className="text-xs text-muted-foreground mb-2">No strategy brief yet.</p>
+              )}
+              {task && <RunStrategyButton itemType="task" itemId={task.id} />}
+            </TabsContent>
+          )}
         </Tabs>
 
         <DialogFooter className="flex justify-between sm:justify-between">

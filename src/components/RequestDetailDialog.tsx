@@ -325,6 +325,22 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
             </div>
           )}
 
+          {/* AI & Strategy sections for SS roles */}
+          {isSSUser && request && (
+            <div className="space-y-2">
+              <AIFieldsPanel fields={request} />
+              <StrategyBriefPanel brief={request.strategy_brief} />
+              <RunStrategyButton itemType="request" itemId={request.id} />
+            </div>
+          )}
+
+          {/* Linked Task */}
+          {request?.task_id && (
+            <div className="text-xs text-muted-foreground">
+              Linked Task ID: <span className="font-mono">{request.task_id}</span>
+            </div>
+          )}
+
           <Separator />
 
           <div>
