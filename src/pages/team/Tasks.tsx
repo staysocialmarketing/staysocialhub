@@ -103,6 +103,7 @@ export default function Tasks() {
       title: editTitle.trim(),
       description: editDescription.trim() || null,
       project_id: editProjectId || null,
+      client_id: editClientId || null,
       assigned_to_user_id: editAssigneeId || null,
       priority: editPriority,
       due_at: editDueAt || null,
