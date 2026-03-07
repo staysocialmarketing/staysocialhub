@@ -87,7 +87,9 @@ export default function Tasks() {
     if (filterAssignee === "__pending__") return;
     let query = supabase.from("tasks").select("*").order("created_at", { ascending: false });
     if (filterProject !== "all") query = query.eq("project_id", filterProject);
-    if (filterAssignee === "team") {
+    if (filterAssignee === "mine" && profile) {
+      query = query.or(`assigned_to_user_id.eq.${profile.id},assigned_to_team.eq.true`);
+    } else if (filterAssignee === "team") {
       query = query.eq("assigned_to_team", true);
     } else if (filterAssignee !== "all") {
       query = query.eq("assigned_to_user_id", filterAssignee);
