@@ -645,12 +645,14 @@ export default function Projects() {
             <Button className="w-full" disabled={!addTaskTitle.trim()} onClick={async () => {
               if (!profile || !addTaskProjectId) return;
               const proj = projects.find((p) => p.id === addTaskProjectId);
+              const isTeam = addTaskAssigneeId === "__team__";
               const { error } = await supabase.from("tasks").insert({
                 title: addTaskTitle.trim(),
                 description: addTaskDescription.trim() || null,
                 project_id: addTaskProjectId,
                 client_id: proj?.client_id || null,
-                assigned_to_user_id: addTaskAssigneeId || null,
+                assigned_to_user_id: isTeam ? null : (addTaskAssigneeId || null),
+                assigned_to_team: isTeam,
                 priority: addTaskPriority,
                 due_at: addTaskDueAt || null,
                 created_by_user_id: profile.id,
