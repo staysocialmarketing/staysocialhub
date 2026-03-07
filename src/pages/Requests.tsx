@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { Plus, FileText, Mail } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import RequestDetailDialog from "@/components/RequestDetailDialog";
+import { compressImage } from "@/lib/imageUtils";
 
 type RequestType = Database["public"]["Enums"]["request_type"];
 type RequestStatus = Database["public"]["Enums"]["request_status"];
