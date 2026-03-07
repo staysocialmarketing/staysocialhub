@@ -24,7 +24,7 @@ export default function Auth() {
         toast.error("Google sign-in was blocked. This may be due to your organization's settings. Try using the magic link below instead.");
       }
     } catch (err: any) {
-      toast.error("Something went wrong.");
+      toast.error("Google sign-in was blocked. Try using the magic link below instead.");
     } finally {
       setLoading(false);
     }
