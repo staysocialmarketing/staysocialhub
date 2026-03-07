@@ -32,6 +32,7 @@ export default function PostDetail() {
   const [internalNotes, setInternalNotes] = useState<string | null>(null);
   const [approvalDialog, setApprovalDialog] = useState<ApprovalType | null>(null);
   const [approvalNote, setApprovalNote] = useState("");
+  const [lightboxVersion, setLightboxVersion] = useState<any>(null);
 
   // Fetch post
   const { data: post, isLoading } = useQuery({
