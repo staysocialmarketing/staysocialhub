@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useClientFilter } from "@/contexts/ClientFilterContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +58,7 @@ const priorityColors: Record<string, string> = {
 
 export default function Projects() {
   const { profile, isSSAdmin } = useAuth();
+  const { selectedClientId: globalClientId } = useClientFilter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectTasks, setProjectTasks] = useState<Record<string, Task[]>>({});
   const [loading, setLoading] = useState(true);
@@ -104,6 +106,7 @@ export default function Projects() {
   const fetchData = async () => {
     let query = supabase.from("projects").select("*").order("created_at", { ascending: false });
     if (filterStatus !== "all") query = query.eq("status", filterStatus);
+    if (globalClientId) query = query.eq("client_id", globalClientId);
     const { data } = await query;
     setProjects((data as Project[]) || []);
 
@@ -131,7 +134,7 @@ export default function Projects() {
         setSsUsers((allUsers || []).filter((u: any) => ssIds.has(u.id)));
       });
     });
-  }, [filterStatus]);
+  }, [filterStatus, globalClientId]);
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {

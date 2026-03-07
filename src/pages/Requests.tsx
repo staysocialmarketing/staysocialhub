@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useClientFilter } from "@/contexts/ClientFilterContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ const statusColors: Record<string, string> = {
 
 export default function Requests() {
   const { profile, isSSRole, isSSAdmin } = useAuth();
+  const { selectedClientId: globalClientId } = useClientFilter();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
@@ -71,10 +73,11 @@ export default function Requests() {
   });
 
   const { data: requests = [], isLoading } = useQuery({
-    queryKey: ["requests", profile?.client_id],
+    queryKey: ["requests", profile?.client_id, globalClientId],
     queryFn: async () => {
       let query = supabase.from("requests").select("*, users!requests_created_by_user_id_fkey(name, email), clients(name)").order("created_at", { ascending: false });
       if (profile?.client_id) query = query.eq("client_id", profile.client_id);
+      else if (globalClientId) query = query.eq("client_id", globalClientId);
       const { data, error } = await query;
       if (error) throw error;
       return data || [];

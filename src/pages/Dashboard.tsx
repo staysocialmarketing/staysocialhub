@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useClientFilter } from "@/contexts/ClientFilterContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +42,7 @@ const TASK_STATUS_LABELS: Record<string, string> = {
 
 function WorkQueueDashboard() {
   const { profile, isSSAdmin } = useAuth();
+  const { selectedClientId: globalClientId } = useClientFilter();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<"my" | "team" | "all">("my");
@@ -59,7 +61,7 @@ function WorkQueueDashboard() {
 
   // ── My Tasks ──
   const { data: myTasks = [] } = useQuery({
-    queryKey: ["wq-tasks", profile?.id, filter],
+    queryKey: ["wq-tasks", profile?.id, filter, globalClientId],
     queryFn: async () => {
       let q = supabase.from("tasks")
         .select("id, title, status, priority, due_at, assigned_to_user_id, assigned_to_team, client_id, project_id, clients(name), projects(name)")
@@ -69,7 +71,7 @@ function WorkQueueDashboard() {
       if (filter === "my") {
         q = q.or(`assigned_to_user_id.eq.${profile!.id},assigned_to_team.eq.true`);
       }
-      // "team" and "all" show everything (SS roles can see all tasks via RLS)
+      if (globalClientId) q = q.eq("client_id", globalClientId);
       const { data } = await q;
       return data || [];
     },
@@ -78,7 +80,7 @@ function WorkQueueDashboard() {
 
   // ── My Requests ──
   const { data: myRequests = [] } = useQuery({
-    queryKey: ["wq-requests", profile?.id, filter],
+    queryKey: ["wq-requests", profile?.id, filter, globalClientId],
     queryFn: async () => {
       let q = supabase.from("requests")
         .select("id, topic, type, priority, status, created_at, assigned_to_user_id, client_id, created_by_user_id, clients(name), users!requests_created_by_user_id_fkey(name)")
@@ -88,6 +90,7 @@ function WorkQueueDashboard() {
       if (filter === "my") {
         q = q.eq("assigned_to_user_id", profile!.id);
       }
+      if (globalClientId) q = q.eq("client_id", globalClientId);
       const { data } = await q;
       return data || [];
     },
@@ -109,7 +112,7 @@ function WorkQueueDashboard() {
 
   // ── Overdue Work ──
   const { data: overdueItems = [] } = useQuery({
-    queryKey: ["wq-overdue", profile?.id, filter],
+    queryKey: ["wq-overdue", profile?.id, filter, globalClientId],
     queryFn: async () => {
       const now = new Date().toISOString();
       let tq = supabase.from("tasks")
@@ -121,6 +124,7 @@ function WorkQueueDashboard() {
       if (filter === "my") {
         tq = tq.or(`assigned_to_user_id.eq.${profile!.id},assigned_to_team.eq.true`);
       }
+      if (globalClientId) tq = tq.eq("client_id", globalClientId);
       let pq = supabase.from("posts")
         .select("id, title, due_at, status_column, client_id, assigned_to_user_id, clients(name)")
         .lt("due_at", now)
@@ -130,6 +134,7 @@ function WorkQueueDashboard() {
       if (filter === "my") {
         pq = pq.eq("assigned_to_user_id", profile!.id);
       }
+      if (globalClientId) pq = pq.eq("client_id", globalClientId);
       const [{ data: tasks }, { data: posts }] = await Promise.all([tq, pq]);
       const items: any[] = [];
       (tasks || []).forEach(t => items.push({ ...t, _type: "task", _status: t.status }));

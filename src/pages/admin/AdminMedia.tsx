@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useClientFilter } from "@/contexts/ClientFilterContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ function getMediaType(url: string | null): string {
 
 export default function AdminMedia() {
   const { isSSAdmin } = useAuth();
+  const { selectedClientId: globalClientId } = useClientFilter();
   const queryClient = useQueryClient();
   const [clientFilter, setClientFilter] = useState<string>("all");
   const [mediaTypeFilter, setMediaTypeFilter] = useState<string>("all");
@@ -74,7 +76,8 @@ export default function AdminMedia() {
     },
   });
 
-  let filteredPosts = clientFilter === "all" ? posts : posts.filter((p: any) => p.client_id === clientFilter);
+  const effectiveClientFilter = globalClientId || (clientFilter !== "all" ? clientFilter : null);
+  let filteredPosts = effectiveClientFilter ? posts.filter((p: any) => p.client_id === effectiveClientFilter) : posts;
   if (mediaTypeFilter !== "all") {
     filteredPosts = filteredPosts.filter((p: any) => getMediaType(p.creative_url) === mediaTypeFilter);
   }

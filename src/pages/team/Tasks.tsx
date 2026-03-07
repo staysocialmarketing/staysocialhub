@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useClientFilter } from "@/contexts/ClientFilterContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +52,7 @@ const statusLabels: Record<string, string> = {
 
 export default function Tasks() {
   const { profile, isSSAdmin } = useAuth();
+  const { selectedClientId: globalClientId } = useClientFilter();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -82,6 +84,7 @@ export default function Tasks() {
   const fetchTasks = async () => {
     if (filterAssignee === "__pending__") return;
     let query = supabase.from("tasks").select("*").order("created_at", { ascending: false });
+    if (globalClientId) query = query.eq("client_id", globalClientId);
     if (filterProject !== "all") query = query.eq("project_id", filterProject);
     if (filterAssignee === "mine" && profile) {
       query = query.or(`assigned_to_user_id.eq.${profile.id},assigned_to_team.eq.true`);
@@ -108,7 +111,7 @@ export default function Tasks() {
       });
     });
     supabase.from("clients").select("id, name").eq("status", "active").then(({ data }) => setClients(data || []));
-  }, [filterProject, filterAssignee]);
+  }, [filterProject, filterAssignee, globalClientId]);
 
   const openEdit = (task: Task) => setEditTask(task);
 

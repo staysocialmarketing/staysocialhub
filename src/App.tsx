@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ClientFilterProvider } from "@/contexts/ClientFilterContext";
 import { AppLayout } from "@/components/AppLayout";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -56,6 +57,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <ClientFilterProvider>
           <Routes>
             <Route path="/auth" element={<AuthRoute />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -81,6 +83,7 @@ const App = () => (
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </ClientFilterProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
