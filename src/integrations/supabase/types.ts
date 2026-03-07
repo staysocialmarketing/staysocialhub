@@ -387,6 +387,8 @@ export type Database = {
       posts: {
         Row: {
           assigned_to_user_id: string | null
+          audience: string | null
+          campaign_link: string | null
           caption: string | null
           client_id: string
           content_type: string | null
@@ -394,18 +396,24 @@ export type Database = {
           created_by_user_id: string | null
           creative_url: string | null
           due_at: string | null
+          email_body: string | null
           hashtags: string | null
           id: string
           internal_notes: string | null
           platform: string | null
+          preview_text: string | null
           request_id: string | null
           reviewer_user_id: string | null
           scheduled_at: string | null
+          send_date: string | null
           status_column: Database["public"]["Enums"]["post_status"]
+          subject_line: string | null
           title: string
         }
         Insert: {
           assigned_to_user_id?: string | null
+          audience?: string | null
+          campaign_link?: string | null
           caption?: string | null
           client_id: string
           content_type?: string | null
@@ -413,18 +421,24 @@ export type Database = {
           created_by_user_id?: string | null
           creative_url?: string | null
           due_at?: string | null
+          email_body?: string | null
           hashtags?: string | null
           id?: string
           internal_notes?: string | null
           platform?: string | null
+          preview_text?: string | null
           request_id?: string | null
           reviewer_user_id?: string | null
           scheduled_at?: string | null
+          send_date?: string | null
           status_column?: Database["public"]["Enums"]["post_status"]
+          subject_line?: string | null
           title: string
         }
         Update: {
           assigned_to_user_id?: string | null
+          audience?: string | null
+          campaign_link?: string | null
           caption?: string | null
           client_id?: string
           content_type?: string | null
@@ -432,14 +446,18 @@ export type Database = {
           created_by_user_id?: string | null
           creative_url?: string | null
           due_at?: string | null
+          email_body?: string | null
           hashtags?: string | null
           id?: string
           internal_notes?: string | null
           platform?: string | null
+          preview_text?: string | null
           request_id?: string | null
           reviewer_user_id?: string | null
           scheduled_at?: string | null
+          send_date?: string | null
           status_column?: Database["public"]["Enums"]["post_status"]
+          subject_line?: string | null
           title?: string
         }
         Relationships: [
@@ -1043,6 +1061,9 @@ export type Database = {
         | "approved"
         | "scheduled"
         | "published"
+        | "ready_to_send"
+        | "sent"
+        | "complete"
       profile_update_status:
         | "pending"
         | "approved"
@@ -1197,6 +1218,9 @@ export const Constants = {
         "approved",
         "scheduled",
         "published",
+        "ready_to_send",
+        "sent",
+        "complete",
       ],
       profile_update_status: [
         "pending",
