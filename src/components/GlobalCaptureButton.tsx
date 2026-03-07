@@ -188,13 +188,14 @@ export function GlobalCaptureButton() {
 
   if (!isSSRole && !isClient) return null;
 
-  const options = [
-    { key: "task" as const, icon: ListTodo, label: "Create Task", desc: "Quick task creation" },
-    { key: "request" as const, icon: MessageSquarePlus, label: "Create Request", desc: "New client request" },
-    { key: "idea" as const, icon: Lightbulb, label: "Capture Idea", desc: "Save to Think Tank" },
-    { key: "image" as const, icon: ImagePlus, label: "Upload Image", desc: "Add to Media Library" },
-    { key: "voice" as const, icon: Mic, label: "Voice Note", desc: "Record audio" },
+  const allOptions = [
+    { key: "task" as const, icon: ListTodo, label: "Create Task", desc: "Quick task creation", ssOnly: true },
+    { key: "request" as const, icon: MessageSquarePlus, label: "Create Request", desc: "New client request", ssOnly: false },
+    { key: "idea" as const, icon: Lightbulb, label: "Capture Idea", desc: "Save to Think Tank", ssOnly: true },
+    { key: "image" as const, icon: ImagePlus, label: "Upload Image", desc: "Add to Media Library", ssOnly: false },
+    { key: "voice" as const, icon: Mic, label: "Voice Note", desc: "Record audio", ssOnly: false },
   ];
+  const options = allOptions.filter(o => isSSRole || !o.ssOnly);
 
   return (
     <>
