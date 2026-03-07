@@ -381,13 +381,7 @@ export default function Projects() {
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Client</Label>
-              <Select value={editClientId || "__none__"} onValueChange={(v) => setEditClientId(v === "__none__" ? "" : v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">No client</SelectItem>
-                  {clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <ClientSelectWithCreate value={editClientId} onValueChange={setEditClientId} />
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Parent Project</Label>

@@ -122,14 +122,7 @@ export default function MakeRequestDialog({
         <div className="space-y-4 mt-2">
           <div>
             <Label>Client</Label>
-            <Select value={clientId} onValueChange={setClientId}>
-              <SelectTrigger><SelectValue placeholder="Select client" /></SelectTrigger>
-              <SelectContent>
-                {clients.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <ClientSelectWithCreate value={clientId} onValueChange={setClientId} allowNone={false} placeholder="Select client" />
           </div>
           <div>
             <Label>Type</Label>

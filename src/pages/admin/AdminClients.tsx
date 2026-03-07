@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Building2, Sparkles } from "lucide-react";
+import { Plus, Building2, Sparkles, FolderOpen, ListTodo, Lightbulb } from "lucide-react";
 
 const ALL_ADDONS = [
   "Email Marketing",
@@ -29,12 +30,46 @@ export default function AdminClients() {
   const [name, setName] = useState("");
   const [whatsNewClient, setWhatsNewClient] = useState<string | null>(null);
 
+  // Edit client state
+  const [editClient, setEditClient] = useState<any | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editStatus, setEditStatus] = useState("active");
+  const [editPlanId, setEditPlanId] = useState("");
+  const [editAssistants, setEditAssistants] = useState(false);
+
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ["admin-clients"],
     queryFn: async () => {
       const { data, error } = await supabase.from("clients").select("*, plans(name)").order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
+    },
+  });
+
+  const { data: plans = [] } = useQuery({
+    queryKey: ["plans"],
+    queryFn: async () => {
+      const { data } = await supabase.from("plans").select("id, name").order("name");
+      return data || [];
+    },
+  });
+
+  // Linked data for the edit dialog
+  const { data: linkedData } = useQuery({
+    queryKey: ["client-linked-data", editClient?.id],
+    enabled: !!editClient,
+    queryFn: async () => {
+      const cid = editClient.id;
+      const [projects, tasks, thinkTank] = await Promise.all([
+        supabase.from("projects").select("id, name, status").eq("client_id", cid).order("created_at", { ascending: false }).limit(10),
+        supabase.from("tasks").select("id, title, status").eq("client_id", cid).order("created_at", { ascending: false }).limit(10),
+        supabase.from("think_tank_items").select("id, title, status").eq("client_id", cid).order("created_at", { ascending: false }).limit(10),
+      ]);
+      return {
+        projects: projects.data || [],
+        tasks: tasks.data || [],
+        thinkTank: thinkTank.data || [],
+      };
     },
   });
 
@@ -50,6 +85,25 @@ export default function AdminClients() {
       setName("");
     },
     onError: () => toast.error("Failed to create client"),
+  });
+
+  const updateClient = useMutation({
+    mutationFn: async () => {
+      if (!editClient) return;
+      const { error } = await supabase.from("clients").update({
+        name: editName.trim(),
+        status: editStatus,
+        plan_id: editPlanId || null,
+        assistants_can_approve: editAssistants,
+      }).eq("id", editClient.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
+      toast.success("Client updated");
+      setEditClient(null);
+    },
+    onError: () => toast.error("Failed to update client"),
   });
 
   const toggleAssistants = useMutation({
@@ -83,6 +137,14 @@ export default function AdminClients() {
       ? currentAddons.filter((a) => a !== addon)
       : [...currentAddons, addon];
     updateWhatsNew.mutate({ id: whatsNewClient, addons: updated });
+  };
+
+  const openEditClient = (client: any) => {
+    setEditClient(client);
+    setEditName(client.name);
+    setEditStatus(client.status);
+    setEditPlanId(client.plan_id || "");
+    setEditAssistants(client.assistants_can_approve);
   };
 
   return (
@@ -126,10 +188,99 @@ export default function AdminClients() {
         </DialogContent>
       </Dialog>
 
+      {/* Edit Client Dialog */}
+      <Dialog open={!!editClient} onOpenChange={(o) => !o && setEditClient(null)}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Edit Client — {editClient?.name}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs text-muted-foreground">Name</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Status</Label>
+              <Select value={editStatus} onValueChange={setEditStatus}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="paused">Paused</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Plan</Label>
+              <Select value={editPlanId || "__none__"} onValueChange={(v) => setEditPlanId(v === "__none__" ? "" : v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">No plan</SelectItem>
+                  {plans.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-3">
+              <Label className="text-xs text-muted-foreground">Assistants can approve</Label>
+              <Switch checked={editAssistants} onCheckedChange={setEditAssistants} />
+            </div>
+
+            {/* Linked data */}
+            {linkedData && (
+              <div className="space-y-3 border-t pt-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Linked Activity</p>
+                
+                {linkedData.projects.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium flex items-center gap-1"><FolderOpen className="h-3 w-3" /> Projects ({linkedData.projects.length})</p>
+                    {linkedData.projects.map((p: any) => (
+                      <div key={p.id} className="flex items-center justify-between text-xs pl-4">
+                        <span>{p.name}</span>
+                        <Badge variant="outline" className="text-[10px]">{p.status}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {linkedData.tasks.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium flex items-center gap-1"><ListTodo className="h-3 w-3" /> Tasks ({linkedData.tasks.length})</p>
+                    {linkedData.tasks.map((t: any) => (
+                      <div key={t.id} className="flex items-center justify-between text-xs pl-4">
+                        <span>{t.title}</span>
+                        <Badge variant="outline" className="text-[10px]">{t.status}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {linkedData.thinkTank.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium flex items-center gap-1"><Lightbulb className="h-3 w-3" /> Think Tank ({linkedData.thinkTank.length})</p>
+                    {linkedData.thinkTank.map((i: any) => (
+                      <div key={i.id} className="flex items-center justify-between text-xs pl-4">
+                        <span>{i.title}</span>
+                        <Badge variant="outline" className="text-[10px]">{i.status}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {linkedData.projects.length === 0 && linkedData.tasks.length === 0 && linkedData.thinkTank.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No linked projects, tasks, or ideas yet.</p>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditClient(null)}>Cancel</Button>
+            <Button onClick={() => updateClient.mutate()} disabled={!editName.trim()}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : (
         <div className="space-y-3">
           {clients.map((c: any) => (
-            <Card key={c.id}>
+            <Card key={c.id} className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => isSSAdmin && openEditClient(c)}>
               <CardContent className="py-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Building2 className="h-5 w-5 text-muted-foreground" />
@@ -138,7 +289,7 @@ export default function AdminClients() {
                     <p className="text-xs text-muted-foreground">Plan: {c.plans?.name || "None"}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4" onClick={(e) => e.stopPropagation()}>
                   {isSSAdmin && (
                     <>
                       <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => setWhatsNewClient(c.id)}>
