@@ -293,7 +293,15 @@ export default function ThinkTank() {
                           <DropdownMenuItem onClick={() => setRequestItem(item)}>
                             <Send className="h-4 w-4 mr-2" /> Make Request
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => {/* handled by RunStrategyButton inline */}}>
+                          <DropdownMenuItem onClick={async () => {
+                            try {
+                              const { error } = await supabase.functions.invoke("run-strategy", {
+                                body: { item_type: "think_tank", item_id: item.id },
+                              });
+                              if (error) throw error;
+                              toast.success("Strategy request sent to automation");
+                            } catch { toast.error("Failed to run strategy"); }
+                          }}>
                             <Sparkles className="h-4 w-4 mr-2" /> Run Strategy
                           </DropdownMenuItem>
                         </DropdownMenuContent>
