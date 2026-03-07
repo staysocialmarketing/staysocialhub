@@ -282,95 +282,14 @@ export default function Tasks() {
         </div>
       )}
 
-      {/* Edit Task Dialog */}
-      <Dialog open={!!editTask} onOpenChange={(o) => !o && setEditTask(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Edit Task</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label className="text-xs text-muted-foreground">Title</Label>
-              <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} disabled={!canEditDelete(editTask!)} />
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Description</Label>
-              <Textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} disabled={!canEditDelete(editTask!)} />
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Client</Label>
-              <ClientSelectWithCreate value={editClientId} onValueChange={setEditClientId} />
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Project</Label>
-              <Select value={editProjectId || "__none__"} onValueChange={(v) => setEditProjectId(v === "__none__" ? "" : v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">No project</SelectItem>
-                  {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Assignee</Label>
-              <Select value={editAssigneeId || "__none__"} onValueChange={(v) => { setEditAssigneeId(v === "__none__" ? "" : v); setEditAssignToTeam(v === "__team__"); }}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Unassigned</SelectItem>
-                  <SelectItem value="__team__">🤝 Team (All Hands)</SelectItem>
-                  {ssUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Priority</Label>
-              <Select value={editPriority} onValueChange={setEditPriority}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="normal">Normal</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="urgent">Urgent</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Status</Label>
-              <Select value={editStatus} onValueChange={setEditStatus}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent><StatusSelectOptions /></SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Due Date</Label>
-              <DatePickerField value={editDueAt} onChange={setEditDueAt} placeholder="Pick due date" />
-            </div>
-          </div>
-          <DialogFooter className="flex justify-between sm:justify-between">
-            {editTask && canEditDelete(editTask) && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-1" /> Delete</Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete task?</AlertDialogTitle>
-                    <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
-            <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => setEditTask(null)}>Cancel</Button>
-              {editTask && canEditDelete(editTask) && (
-                <Button onClick={handleSaveEdit} disabled={!editTitle.trim()}>Save</Button>
-              )}
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <TaskDetailDialog
+        task={editTask}
+        onClose={() => setEditTask(null)}
+        onUpdated={fetchTasks}
+        projects={projects}
+        ssUsers={ssUsers}
+        users={users}
+      />
 
       <MakeRequestDialog
         open={!!requestTask}
