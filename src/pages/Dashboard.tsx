@@ -387,6 +387,16 @@ function ClientDashboard() {
     },
   });
 
+  const { data: sentCampaigns = 0 } = useQuery({
+    queryKey: ["client-sent-campaigns", profile?.client_id],
+    queryFn: async () => {
+      if (!profile?.client_id) return 0;
+      const { count } = await supabase.from("posts").select("id", { count: "exact", head: true }).eq("status_column", "sent").eq("client_id", profile.client_id).eq("content_type", "email_campaign");
+      return count || 0;
+    },
+    enabled: !!profile?.client_id,
+  });
+
   const { data: scheduledPosts = [] } = useQuery({
     queryKey: ["client-scheduled-posts", profile?.client_id],
     queryFn: async () => {
