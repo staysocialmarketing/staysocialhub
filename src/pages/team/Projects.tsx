@@ -369,7 +369,7 @@ export default function Projects() {
                   {project.description && <p className="text-sm text-muted-foreground/70 mt-2 ml-8 line-clamp-1">{project.description}</p>}
                 </div>
                 {isExpanded && (
-                  <CardContent className="pt-0 space-y-3">
+                  <div className="px-5 pb-5 pt-0 space-y-4">
                     {subs.length > 0 && (
                       <div className="pl-6 space-y-2">
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sub-projects</p>
