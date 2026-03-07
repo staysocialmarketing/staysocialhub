@@ -54,7 +54,7 @@ export default function Tasks() {
   const [projectId, setProjectId] = useState("");
   const [clientId, setClientId] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
-  const [priority, setPriority] = useState("normal");
+  const [assignToTeam, setAssignToTeam] = useState(false);
   const [dueAt, setDueAt] = useState("");
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const [users, setUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
