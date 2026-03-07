@@ -22,6 +22,7 @@ export default function WhatsNew() {
   const { toast } = useToast();
   const [items, setItems] = useState<MarketplaceItem[]>([]);
   const [recommendedItemId, setRecommendedItemId] = useState<string | null>(null);
+  const [visibleAddonIds, setVisibleAddonIds] = useState<string[]>([]);
   const [requestedAddons, setRequestedAddons] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -32,6 +33,12 @@ export default function WhatsNew() {
     supabase.from("clients").select("recommended_item_id, whats_new_visible_addons").eq("id", profile.client_id).single().then(({ data }) => {
       if (data) {
         setRecommendedItemId((data as any).recommended_item_id);
+        const addons = (data as any).whats_new_visible_addons;
+        if (Array.isArray(addons) && addons.length > 0) {
+          setVisibleAddonIds(addons as string[]);
+        } else {
+          setVisibleAddonIds([]);
+        }
       }
     });
 
@@ -63,13 +70,17 @@ export default function WhatsNew() {
     }
   };
 
-  const solutions = items.filter((i) => i.category === "solution");
-  const upgrades = items.filter((i) => i.category === "upgrade");
+  const filteredItems = visibleAddonIds.length > 0
+    ? items.filter((i) => visibleAddonIds.includes(i.id))
+    : items;
+
+  const solutions = filteredItems.filter((i) => i.category === "solution");
+  const upgrades = filteredItems.filter((i) => i.category === "upgrade");
 
   // Determine recommended item: admin-chosen or most recent
   const recommendedItem = recommendedItemId
-    ? items.find((i) => i.id === recommendedItemId)
-    : items[0] || null;
+    ? filteredItems.find((i) => i.id === recommendedItemId)
+    : filteredItems[0] || null;
 
   const renderCard = (item: MarketplaceItem, isRecommended = false) => {
     const requested = requestedAddons.has(item.name);
@@ -149,7 +160,7 @@ export default function WhatsNew() {
         </div>
       )}
 
-      {items.length === 0 && (
+      {filteredItems.length === 0 && (
         <p className="text-muted-foreground text-center py-12">No services available right now. Check back soon!</p>
       )}
     </div>
