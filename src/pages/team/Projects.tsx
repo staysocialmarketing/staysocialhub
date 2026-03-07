@@ -253,8 +253,11 @@ export default function Projects() {
         <Badge variant="outline" className={`text-[10px] shrink-0 ${priorityColors[task.priority] || ""}`}>{task.priority}</Badge>
       </div>
       <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-        {userName(task.assigned_to_user_id) && (
-          <span className="text-xs text-muted-foreground flex items-center gap-0.5"><User className="h-3 w-3" />{userName(task.assigned_to_user_id)}</span>
+        {(userName(task.assigned_to_user_id, task.assigned_to_team)) && (
+          <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+            <User className="h-3 w-3" />
+            {task.assigned_to_team ? <Badge variant="secondary" className="text-[10px]">🤝 Team</Badge> : userName(task.assigned_to_user_id)}
+          </span>
         )}
         {task.due_at && (
           <span className="text-xs text-muted-foreground flex items-center gap-0.5"><Calendar className="h-3 w-3" />{format(new Date(task.due_at), "MMM d")}</span>
