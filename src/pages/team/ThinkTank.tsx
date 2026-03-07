@@ -16,6 +16,7 @@ import { Plus, Lightbulb, FileText, Brain, Archive, Zap, Send, FolderOpen, ListT
 import { toast } from "sonner";
 import { format } from "date-fns";
 import MakeRequestDialog from "@/components/MakeRequestDialog";
+import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
 
 interface ThinkTankItem {
   id: string;
