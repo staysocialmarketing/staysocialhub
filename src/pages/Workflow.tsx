@@ -381,7 +381,7 @@ export default function Workflow() {
         </div>
         <div className="flex items-center gap-3">
           <Select value={contentTypeFilter} onValueChange={setContentTypeFilter}>
-            <SelectTrigger className="w-40 h-9"><SelectValue placeholder="All Types" /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-40 h-9"><SelectValue placeholder="All Types" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
               {CONTENT_TYPE_OPTIONS.map(t => (
