@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { Image as ImageIcon, Plus, Calendar, Upload, Eye } from "lucide-react";
 import { format } from "date-fns";
 import type { Database } from "@/integrations/supabase/types";
+import { compressImage } from "@/lib/imageUtils";
 
 type PostStatus = Database["public"]["Enums"]["post_status"];
 
