@@ -30,6 +30,8 @@ export default function AdminMedia() {
   const [editTitle, setEditTitle] = useState("");
   const [editClientId, setEditClientId] = useState("");
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
+  const [pageSize] = useState(50);
+  const [visibleCount, setVisibleCount] = useState(50);
 
   const { data: clients = [] } = useQuery({
     queryKey: ["media-clients"],
