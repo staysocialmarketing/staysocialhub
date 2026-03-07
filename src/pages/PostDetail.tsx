@@ -19,6 +19,7 @@ import {
   Check, FileEdit, AlertTriangle, Save, Upload,
 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
+import { compressImage } from "@/lib/imageUtils";
 
 type ApprovalType = Database["public"]["Enums"]["approval_type"];
 
