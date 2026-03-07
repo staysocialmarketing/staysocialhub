@@ -19,7 +19,8 @@ import { cn } from "@/lib/utils";
 type CaptureMode = null | "task" | "idea" | "image" | "voice";
 
 export function GlobalCaptureButton() {
-  const { isSSRole, profile } = useAuth();
+  const { isSSRole, isClientAdmin, isClientAssistant, profile } = useAuth();
+  const isClient = isClientAdmin || isClientAssistant;
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<CaptureMode>(null);
