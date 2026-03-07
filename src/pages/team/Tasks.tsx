@@ -121,6 +121,7 @@ export default function Tasks() {
       title: title.trim(),
       description: description.trim() || null,
       project_id: projectId || null,
+      client_id: clientId || null,
       assigned_to_user_id: assigneeId || null,
       priority,
       due_at: dueAt || null,
