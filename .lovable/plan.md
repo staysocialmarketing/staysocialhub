@@ -1,57 +1,30 @@
 
 
-# Workflow, Approvals, and Auto-Assignment Overhaul
+# Global Capture Button — Client View Support
 
-## Summary of Changes
+## Changes to `src/components/GlobalCaptureButton.tsx`
 
-This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
+### 1. Remove the `isSSRole`-only guard
+Currently line 188 returns `null` if not SS role. Change to also render for `isClientAdmin` and `isClientAssistant`.
 
-## 1. Database: Update Auto-Assignment Triggers
+### 2. Filter options by role
+- **SS roles**: All 5 options (Task, Request, Idea, Image, Voice)
+- **Client roles**: Only 3 options (Request, Image, Voice) — no Task or Idea
 
-**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
+### 3. Auto-set client for client uploads
+For client users, skip the client selector entirely. Use `profile.client_id` as the upload folder so their media is automatically tied to their account. The `creative-assets` bucket is shared and public, so Admin/Team already see all files in it (the Media Library reads from the same bucket).
 
-**Changes (migration)**:
-- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
-- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
-- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
-- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
+### 4. Hide client selector for client roles
+In the Image and Voice forms, hide the `<ClientSelectWithCreate>` component when the user is a client role — their `client_id` is used automatically.
 
-All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
-
-## 2. Approvals Page — Separate Media from Published Content
-
-**Client Approvals (`ClientApprovals`)**: 
-- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
-- Alternatively, only show posts in Published that were moved there by admin approval flow
-
-**Admin Approvals (`AdminApprovals`)**:
-- Same fix for Published column — filter to only show posts linked to requests
-
-**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
-
-## 3. Workflow Page — Move Internal Review to Bottom Section
-
-**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
-
-**New layout**:
-- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
-- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
-
-## 4. Admin & Team Dashboards — Show Assignments + Tasks
-
-**SuperAdminDashboard**: Already shows team activity. Add:
-- "My Assignments" section showing posts assigned to the current admin user
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
-
-**TeamDashboard**: Already shows "My Assignments". Add:
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+### 5. Skip loading SS users/projects for client roles
+In `handleOpen`, only fetch SS users and projects when `isSSRole` is true (clients don't need those selectors).
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
-| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
-| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
-| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
+| `src/components/GlobalCaptureButton.tsx` | Add client role support, filter options, auto-set client_id for uploads |
+
+No database or storage changes needed — client uploads go to the same `creative-assets` bucket that Admin/Team already browse.
 
