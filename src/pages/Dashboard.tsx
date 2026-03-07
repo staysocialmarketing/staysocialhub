@@ -535,10 +535,18 @@ function ClientDashboard() {
     queryKey: ["client-plan-and-addons", profile?.client_id],
     queryFn: async () => {
       if (!profile?.client_id) return null;
-      const { data } = await supabase.from("clients").select("name, plans(name, includes_json), whats_new_visible_addons").eq("id", profile.client_id).single();
+      const { data } = await supabase.from("clients").select("name, plans(name, includes_json), whats_new_visible_addons, recommended_item_id").eq("id", profile.client_id).single();
       return data;
     },
     enabled: !!profile?.client_id,
+  });
+
+  const { data: marketplaceItems = [] } = useQuery({
+    queryKey: ["client-marketplace-items"],
+    queryFn: async () => {
+      const { data } = await supabase.from("marketplace_items").select("*").eq("is_active", true).order("created_at", { ascending: false });
+      return data || [];
+    },
   });
 
   const { data: scheduledPosts = [] } = useQuery({
