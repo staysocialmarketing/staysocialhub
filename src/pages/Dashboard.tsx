@@ -559,8 +559,12 @@ function ClientDashboard() {
     enabled: !!profile?.client_id,
   });
 
-  const visibleAddonNames: string[] = (clientData as any)?.whats_new_visible_addons || [];
-  const visibleAddons = ALL_ADDONS.filter((a) => visibleAddonNames.includes(a.title));
+  // Recommended upsell: admin-chosen or most recent
+  const recommendedItem = (clientData as any)?.recommended_item_id
+    ? marketplaceItems.find((i: any) => i.id === (clientData as any).recommended_item_id)
+    : marketplaceItems[0] || null;
+  // Most recently added (different from recommended)
+  const newestItem = marketplaceItems.find((i: any) => i.id !== recommendedItem?.id) || null;
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
