@@ -434,7 +434,7 @@ export default function Projects() {
                         <Plus className="h-3 w-3 mr-1" /> Add Task
                       </Button>
                     </div>
-                  </CardContent>
+                  </div>
                 )}
               </Card>
             );
