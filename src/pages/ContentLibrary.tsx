@@ -79,10 +79,19 @@ export default function ContentLibrary() {
   });
 
   const filterPosts = (tab: string) => {
-    if (tab === "all") return posts;
-    if (tab === "reels") return posts.filter((p) => isReel(p.platform));
-    if (tab === "videos") return posts.filter((p) => isVideo(p.creative_url) && !isReel(p.platform));
-    return posts.filter((p) => p.creative_url && !isVideo(p.creative_url) && !isReel(p.platform));
+    let filtered;
+    if (tab === "all") filtered = posts;
+    else if (tab === "reels") filtered = posts.filter((p) => isReel(p.platform));
+    else if (tab === "videos") filtered = posts.filter((p) => isVideo(p.creative_url) && !isReel(p.platform));
+    else filtered = posts.filter((p) => p.creative_url && !isVideo(p.creative_url) && !isReel(p.platform));
+    return filtered.slice(0, visibleCount);
+  };
+
+  const totalForTab = (tab: string) => {
+    if (tab === "all") return posts.length;
+    if (tab === "reels") return posts.filter((p) => isReel(p.platform)).length;
+    if (tab === "videos") return posts.filter((p) => isVideo(p.creative_url) && !isReel(p.platform)).length;
+    return posts.filter((p) => p.creative_url && !isVideo(p.creative_url) && !isReel(p.platform)).length;
   };
 
   const PostGrid = ({ items }: { items: typeof posts }) => {

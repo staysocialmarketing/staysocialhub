@@ -170,6 +170,14 @@ export default function AdminMedia() {
         ))
       )}
 
+      {hasMore && (
+        <div className="flex justify-center pt-4">
+          <Button variant="outline" onClick={() => setVisibleCount((c) => c + pageSize)}>
+            Load More ({filteredPosts.length - visibleCount} remaining)
+          </Button>
+        </div>
+      )}
+
       {/* Edit Media Dialog */}
       <Dialog open={!!editPost} onOpenChange={(o) => !o && setEditPost(null)}>
         <DialogContent className="max-w-md">
