@@ -180,17 +180,36 @@ export default function AdminClients() {
           <DialogHeader>
             <DialogTitle>What's New — {whatsNewClientData?.name}</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">Select which add-ons appear in this client's dashboard "What's New" section.</p>
-          <div className="space-y-3 mt-2">
-            {ALL_ADDONS.map((addon) => (
-              <label key={addon} className="flex items-center gap-3 cursor-pointer">
+          <p className="text-sm text-muted-foreground">Select which marketplace items appear in this client's "What's New" section and set a recommended upsell.</p>
+          
+          <div className="mb-4">
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Recommended Item</Label>
+            <Select value={currentRecommendedId || "__auto__"} onValueChange={(v) => setRecommended(v === "__auto__" ? null : v)}>
+              <SelectTrigger className="mt-1"><SelectValue placeholder="Auto (most recent)" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__auto__">Auto (most recent)</SelectItem>
+                {marketplaceItems.map((item: any) => (
+                  <SelectItem key={item.id} value={item.id}>{item.name} ({item.category})</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Visible Items</p>
+          <div className="space-y-3">
+            {marketplaceItems.map((item: any) => (
+              <label key={item.id} className="flex items-center gap-3 cursor-pointer">
                 <Checkbox
-                  checked={currentAddons.includes(addon)}
-                  onCheckedChange={() => toggleAddon(addon)}
+                  checked={currentAddons.includes(item.id)}
+                  onCheckedChange={() => toggleAddon(item.id)}
                 />
-                <span className="text-sm">{addon}</span>
+                <span className="text-sm">{item.name}</span>
+                <Badge variant="outline" className="text-[10px]">{item.category}</Badge>
               </label>
             ))}
+            {marketplaceItems.length === 0 && (
+              <p className="text-sm text-muted-foreground">No marketplace items yet. Add them in the Marketplace page.</p>
+            )}
           </div>
         </DialogContent>
       </Dialog>
