@@ -1,38 +1,57 @@
 
 
-# Expandable Project Folders with Inline Tasks + Dashboard Task Personalization
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-## 1. Projects Page — Click to Expand, Edit Button Separate
+## Summary of Changes
 
-**Current behavior**: Clicking a project card opens the edit dialog. Collapsible only expands for sub-projects.
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
-**New behavior**:
-- Clicking a project card **expands/collapses** it inline (always, not just when it has sub-projects)
-- When expanded, show: sub-projects (if any) + all linked tasks from the `tasks` table for that project
-- Each task row shows title, status, priority, assignee, due date — and is clickable to open the task edit dialog inline
-- Add an **Edit** button (pencil icon) on the card header that opens the existing edit dialog (stops propagation so it doesn't toggle expand)
-- Tasks within an expanded project should have a quick status toggle and link back to the project context
+## 1. Database: Update Auto-Assignment Triggers
 
-**Data flow**: Fetch all tasks grouped by `project_id` in a single query on mount (already partially done with `taskCounts`), store full task objects in a `Record<string, Task[]>` map. When a project expands, the tasks are already available.
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-## 2. Projects Page — Inline Task Edit Dialog
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
-- Reuse the same edit dialog pattern from `Tasks.tsx` (title, description, project, assignee, priority, due date, status)
-- When editing a task from within a project expansion, pre-select the current project
-- On save, refresh both projects and tasks data
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
 
-## 3. Dashboard — Personalized Outstanding Tasks
+## 2. Approvals Page — Separate Media from Published Content
 
-**Current state**: Both SuperAdmin and Team dashboards query `tasks` where `assigned_to_user_id = profile.id` and `status != done`. This already works but only shows when tasks exist.
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
 
-**Fix**: Always show the "My Tasks" section (even when empty, with a friendly "No outstanding tasks" message). Also show task count in the stat cards at the top alongside Assignments/Overdue/Due Today.
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
 
-Add a "My Tasks" stat card showing count of non-done tasks assigned to the user, linking to `/team/tasks`.
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
+
+## 3. Workflow Page — Move Internal Review to Bottom Section
+
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
+
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
+
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
+
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/pages/team/Projects.tsx` | Refactor: click expands card (not opens edit), show inline tasks list, add Edit button, add inline task edit dialog |
-| `src/pages/Dashboard.tsx` | Always show My Tasks section, add task count stat card for SuperAdmin and Team dashboards |
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 

@@ -116,7 +116,7 @@ function SuperAdminDashboard() {
         <p className="text-muted-foreground mt-1">Here's your overview across all clients.</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/approvals")}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Pending Approvals</CardTitle>
@@ -144,6 +144,13 @@ function SuperAdminDashboard() {
             <Clock className="h-4 w-4 text-warning" />
           </CardHeader>
           <CardContent><div className="text-3xl font-bold text-warning">{dueTodayPosts}</div></CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/team/tasks")}>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">My Tasks</CardTitle>
+            <ClipboardList className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent><div className="text-3xl font-bold text-foreground">{myTasks.length}</div></CardContent>
         </Card>
       </div>
 
@@ -240,14 +247,19 @@ function SuperAdminDashboard() {
         </div>
       )}
 
-      {myTasks.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-3">
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
             <ClipboardList className="h-5 w-5 text-primary" />
             <h3 className="text-lg font-semibold text-foreground">My Tasks</h3>
           </div>
-          <Card>
-            <CardContent className="p-0">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/team/tasks")}>View all <ArrowRight className="h-3 w-3 ml-1" /></Button>
+        </div>
+        <Card>
+          <CardContent className="p-0">
+            {myTasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">No outstanding tasks — you're all caught up! 🎉</p>
+            ) : (
               <ul className="divide-y divide-border">
                 {myTasks.map((task: any) => (
                   <li key={task.id} className="flex items-center justify-between px-4 py-3 hover:bg-accent/50 cursor-pointer transition-colors" onClick={() => navigate("/team/tasks")}>
@@ -258,14 +270,15 @@ function SuperAdminDashboard() {
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary" className="text-xs">{task.status}</Badge>
                       <Badge variant="outline" className="text-[10px] capitalize">{task.priority}</Badge>
+                      {task.projects?.name && <span className="text-xs text-muted-foreground">{task.projects.name}</span>}
                     </div>
                   </li>
                 ))}
               </ul>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <div>
         <h3 className="text-lg font-semibold text-foreground mb-3">Quick Actions</h3>
@@ -355,7 +368,7 @@ function TeamDashboard() {
         <p className="text-muted-foreground mt-1">Your production workspace.</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/approvals")}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">My Assignments</CardTitle>
@@ -383,6 +396,13 @@ function TeamDashboard() {
             <ClipboardList className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent><div className="text-3xl font-bold text-foreground">{pendingApprovals}</div></CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/team/tasks")}>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">My Tasks</CardTitle>
+            <ClipboardList className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent><div className="text-3xl font-bold text-foreground">{myTasks.length}</div></CardContent>
         </Card>
       </div>
 
@@ -443,14 +463,19 @@ function TeamDashboard() {
         </div>
       )}
 
-      {myTasks.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-3">
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
             <ClipboardList className="h-5 w-5 text-primary" />
             <h3 className="text-lg font-semibold text-foreground">My Tasks</h3>
           </div>
-          <Card>
-            <CardContent className="p-0">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/team/tasks")}>View all <ArrowRight className="h-3 w-3 ml-1" /></Button>
+        </div>
+        <Card>
+          <CardContent className="p-0">
+            {myTasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">No outstanding tasks — you're all caught up! 🎉</p>
+            ) : (
               <ul className="divide-y divide-border">
                 {myTasks.map((task: any) => (
                   <li key={task.id} className="flex items-center justify-between px-4 py-3 hover:bg-accent/50 cursor-pointer transition-colors" onClick={() => navigate("/team/tasks")}>
@@ -461,14 +486,15 @@ function TeamDashboard() {
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary" className="text-xs">{task.status}</Badge>
                       <Badge variant="outline" className="text-[10px] capitalize">{task.priority}</Badge>
+                      {task.projects?.name && <span className="text-xs text-muted-foreground">{task.projects.name}</span>}
                     </div>
                   </li>
                 ))}
               </ul>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <div>
         <h3 className="text-lg font-semibold text-foreground mb-3">Quick Actions</h3>
