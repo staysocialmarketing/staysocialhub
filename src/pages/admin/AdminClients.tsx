@@ -46,6 +46,13 @@ export default function AdminClients() {
     },
   });
 
+  // Fetch marketplace items for the What's New toggle
+  useEffect(() => {
+    supabase.from("marketplace_items").select("id, name, category, is_active").eq("is_active", true).order("sort_order").then(({ data }) => {
+      setMarketplaceItems(data || []);
+    });
+  }, []);
+
   // Linked data for the edit dialog
   const { data: linkedData } = useQuery({
     queryKey: ["client-linked-data", editClient?.id],
