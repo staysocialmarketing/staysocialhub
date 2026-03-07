@@ -35,6 +35,7 @@ interface Task {
   status: string;
   priority: string;
   assigned_to_user_id: string | null;
+  assigned_to_team: boolean;
   due_at: string | null;
   project_id: string | null;
   created_by_user_id: string;
