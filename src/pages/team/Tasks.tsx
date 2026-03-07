@@ -111,49 +111,7 @@ export default function Tasks() {
     supabase.from("clients").select("id, name").eq("status", "active").then(({ data }) => setClients(data || []));
   }, [filterProject, filterAssignee]);
 
-  const canEditDelete = (task: Task | null) => task ? (isSSAdmin || task.created_by_user_id === profile?.id) : false;
-
-  const openEdit = (task: Task) => {
-    setEditTask(task);
-    setEditTitle(task.title);
-    setEditDescription(task.description || "");
-    setEditProjectId(task.project_id || "");
-    setEditClientId((task as any).client_id || "");
-    setEditAssigneeId(task.assigned_to_team ? "__team__" : (task.assigned_to_user_id || ""));
-    setEditAssignToTeam(task.assigned_to_team);
-    setEditPriority(task.priority);
-    setEditDueAt(task.due_at || "");
-    setEditStatus(task.status);
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editTask || !editTitle.trim()) return;
-    const isTeam = editAssigneeId === "__team__";
-    const { error } = await supabase.from("tasks").update({
-      title: editTitle.trim(),
-      description: editDescription.trim() || null,
-      project_id: editProjectId || null,
-      client_id: editClientId || null,
-      assigned_to_user_id: isTeam ? null : (editAssigneeId || null),
-      assigned_to_team: isTeam,
-      priority: editPriority,
-      due_at: editDueAt || null,
-      status: editStatus,
-    } as any).eq("id", editTask.id);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Task updated!");
-    setEditTask(null);
-    fetchTasks();
-  };
-
-  const handleDelete = async () => {
-    if (!editTask) return;
-    const { error } = await supabase.from("tasks").delete().eq("id", editTask.id);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Task deleted");
-    setEditTask(null);
-    fetchTasks();
-  };
+  const openEdit = (task: Task) => setEditTask(task);
 
   const handleCreate = async () => {
     if (!title.trim() || !profile) return;
