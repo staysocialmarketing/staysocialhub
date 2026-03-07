@@ -42,8 +42,9 @@ export default function Auth() {
       if (error) throw error;
       setMagicLinkSent(true);
       toast.success("Check your email for the magic link!");
-    } catch {
-      toast.error("Failed to send magic link.");
+    } catch (err: any) {
+      const msg = err?.message || "Failed to send magic link.";
+      toast.error(msg.includes("rate") ? "Too many attempts. Please wait a moment and try again." : "Failed to send magic link. Please check your email and try again.");
     } finally {
       setLoading(false);
     }
