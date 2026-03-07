@@ -155,19 +155,21 @@ export default function Tasks() {
 
   const handleCreate = async () => {
     if (!title.trim() || !profile) return;
+    const isTeam = assigneeId === "__team__";
     const { error } = await supabase.from("tasks").insert({
       title: title.trim(),
       description: description.trim() || null,
       project_id: projectId || null,
       client_id: clientId || null,
-      assigned_to_user_id: assigneeId || null,
+      assigned_to_user_id: isTeam ? null : (assigneeId || null),
+      assigned_to_team: isTeam,
       priority,
       due_at: dueAt || null,
       created_by_user_id: profile.id,
     } as any);
     if (error) { toast.error(error.message); return; }
     toast.success("Task created!");
-    setTitle(""); setDescription(""); setProjectId(""); setClientId(""); setAssigneeId(""); setPriority("normal"); setDueAt(""); setDialogOpen(false);
+    setTitle(""); setDescription(""); setProjectId(""); setClientId(""); setAssigneeId(""); setAssignToTeam(false); setPriority("normal"); setDueAt(""); setDialogOpen(false);
     fetchTasks();
   };
 
