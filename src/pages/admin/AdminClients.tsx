@@ -12,11 +12,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Building2, Sparkles, FolderOpen, ListTodo, Lightbulb } from "lucide-react";
+import { Plus, Building2, Sparkles, FolderOpen, ListTodo, Lightbulb, MessageSquarePlus } from "lucide-react";
 
 export default function AdminClients() {
   const queryClient = useQueryClient();
-  const { isSSAdmin } = useAuth();
+  const { isSSAdmin, isSSTeam } = useAuth();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [whatsNewClient, setWhatsNewClient] = useState<string | null>(null);
