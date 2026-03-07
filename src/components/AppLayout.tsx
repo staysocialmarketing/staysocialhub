@@ -3,8 +3,12 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { Outlet } from "react-router-dom";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useAuth } from "@/contexts/AuthContext";
+import { useClientFilter } from "@/contexts/ClientFilterContext";
 import { X } from "lucide-react";
 import { GlobalCaptureButton } from "@/components/GlobalCaptureButton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 export function AppLayout() {
   const { profile, isViewingAs, setViewAs } = useAuth();
