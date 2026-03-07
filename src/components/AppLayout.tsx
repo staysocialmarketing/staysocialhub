@@ -29,19 +29,6 @@ export function AppLayout() {
             <SidebarTrigger className="mr-4" />
             <div className="flex items-center gap-2 flex-1">
               <h1 className="text-lg font-semibold text-foreground">Stay Social <span className="text-primary">HUB</span></h1>
-              {isSSRole && (
-                <Select value={selectedClientId || "__all__"} onValueChange={(v) => setSelectedClientId(v === "__all__" ? null : v)}>
-                  <SelectTrigger className="w-48 h-8 text-xs ml-4">
-                    <SelectValue placeholder="All Clients" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all__">All Clients</SelectItem>
-                    {clients.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
             </div>
             {profile && <NotificationBell />}
           </header>
