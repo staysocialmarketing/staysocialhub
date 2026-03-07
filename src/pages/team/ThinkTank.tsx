@@ -267,6 +267,9 @@ export default function ThinkTank() {
               </CardHeader>
               <CardContent className="flex-1 space-y-3">
                 {item.body && <p className="text-sm text-muted-foreground line-clamp-3">{item.body}</p>}
+                {(item as any).ai_summary && (
+                  <Badge variant="secondary" className="text-[10px]">AI: {(item as any).ai_summary.slice(0, 50)}...</Badge>
+                )}
                 <div className="text-xs text-muted-foreground space-y-0.5">
                   <p>By {creatorName(item.created_by_user_id)} · {format(new Date(item.created_at), "MMM d, yyyy")}</p>
                 </div>
