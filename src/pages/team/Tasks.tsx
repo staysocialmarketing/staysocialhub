@@ -117,7 +117,8 @@ export default function Tasks() {
     setEditDescription(task.description || "");
     setEditProjectId(task.project_id || "");
     setEditClientId((task as any).client_id || "");
-    setEditAssigneeId(task.assigned_to_user_id || "");
+    setEditAssigneeId(task.assigned_to_team ? "__team__" : (task.assigned_to_user_id || ""));
+    setEditAssignToTeam(task.assigned_to_team);
     setEditPriority(task.priority);
     setEditDueAt(task.due_at || "");
     setEditStatus(task.status);
