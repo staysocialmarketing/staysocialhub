@@ -131,12 +131,19 @@ export default function AdminClients() {
   const currentAddons: string[] = whatsNewClientData ? ((whatsNewClientData as any).whats_new_visible_addons || []) : [];
   const currentRecommendedId: string | null = whatsNewClientData ? (whatsNewClientData as any).recommended_item_id : null;
 
-  const toggleAddon = (addon: string) => {
+  const toggleAddon = (addonId: string) => {
     if (!whatsNewClient) return;
-    const updated = currentAddons.includes(addon)
-      ? currentAddons.filter((a) => a !== addon)
-      : [...currentAddons, addon];
+    const updated = currentAddons.includes(addonId)
+      ? currentAddons.filter((a) => a !== addonId)
+      : [...currentAddons, addonId];
     updateWhatsNew.mutate({ id: whatsNewClient, addons: updated });
+  };
+
+  const setRecommended = async (itemId: string | null) => {
+    if (!whatsNewClient) return;
+    await supabase.from("clients").update({ recommended_item_id: itemId } as any).eq("id", whatsNewClient);
+    queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
+    toast.success("Recommended item updated");
   };
 
   const openEditClient = (client: any) => {
