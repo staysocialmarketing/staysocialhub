@@ -34,6 +34,7 @@ export default function ContentLibrary() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadTitle, setUploadTitle] = useState("");
+  const [visibleCount, setVisibleCount] = useState(50);
 
   const { data: posts = [], isLoading } = useQuery({
     queryKey: ["content-library"],
