@@ -13,6 +13,7 @@ import { Plus, Calendar, User, Send } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import MakeRequestDialog from "@/components/MakeRequestDialog";
+import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
 
 interface Task {
   id: string;
