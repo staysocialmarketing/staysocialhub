@@ -24,6 +24,8 @@ export default function AdminClients() {
 
   // Edit client state
   const [editClient, setEditClient] = useState<any | null>(null);
+  // Read-only view for team
+  const [viewClient, setViewClient] = useState<any | null>(null);
   const [editName, setEditName] = useState("");
   const [editStatus, setEditStatus] = useState("active");
   const [editPlanId, setEditPlanId] = useState("");
