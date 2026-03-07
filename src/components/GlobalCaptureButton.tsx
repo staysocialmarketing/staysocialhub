@@ -327,7 +327,7 @@ export function GlobalCaptureButton() {
                 <Label>Image *</Label>
                 <Input type="file" accept="image/*" onChange={e => setImgFile(e.target.files?.[0] || null)} />
               </div>
-              <div><Label>Client</Label><ClientSelectWithCreate value={imgClient} onValueChange={setImgClient} /></div>
+              {isSSRole && <div><Label>Client</Label><ClientSelectWithCreate value={imgClient} onValueChange={setImgClient} /></div>}
               {imgFile && (
                 <div className="rounded-lg border overflow-hidden">
                   <img src={URL.createObjectURL(imgFile)} alt="Preview" className="max-h-48 w-full object-contain bg-muted" />
