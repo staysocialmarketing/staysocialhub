@@ -79,7 +79,7 @@ export default function Tasks() {
   // Set default filter once profile loads
   useEffect(() => {
     if (profile && filterAssignee === "__pending__") {
-      setFilterAssignee(isSSAdmin ? "all" : profile.id);
+      setFilterAssignee(isSSAdmin ? "all" : "mine");
     }
   }, [profile, isSSAdmin]);
 
@@ -87,7 +87,9 @@ export default function Tasks() {
     if (filterAssignee === "__pending__") return;
     let query = supabase.from("tasks").select("*").order("created_at", { ascending: false });
     if (filterProject !== "all") query = query.eq("project_id", filterProject);
-    if (filterAssignee === "team") {
+    if (filterAssignee === "mine" && profile) {
+      query = query.or(`assigned_to_user_id.eq.${profile.id},assigned_to_team.eq.true`);
+    } else if (filterAssignee === "team") {
       query = query.eq("assigned_to_team", true);
     } else if (filterAssignee !== "all") {
       query = query.eq("assigned_to_user_id", filterAssignee);
@@ -258,11 +260,12 @@ export default function Tasks() {
             {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={filterAssignee === "__pending__" ? "all" : filterAssignee} onValueChange={setFilterAssignee}>
+        <Select value={filterAssignee === "__pending__" ? "mine" : filterAssignee} onValueChange={setFilterAssignee}>
           <SelectTrigger className="w-44"><SelectValue placeholder="All Assignees" /></SelectTrigger>
           <SelectContent>
+            <SelectItem value="mine">Mine + Team</SelectItem>
             <SelectItem value="all">All Assignees</SelectItem>
-            <SelectItem value="team">🤝 Team</SelectItem>
+            <SelectItem value="team">🤝 Team Only</SelectItem>
             {ssUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
           </SelectContent>
         </Select>
