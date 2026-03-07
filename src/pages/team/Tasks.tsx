@@ -129,7 +129,7 @@ export default function Tasks() {
     } as any);
     if (error) { toast.error(error.message); return; }
     toast.success("Task created!");
-    setTitle(""); setDescription(""); setProjectId(""); setAssigneeId(""); setPriority("normal"); setDueAt(""); setDialogOpen(false);
+    setTitle(""); setDescription(""); setProjectId(""); setClientId(""); setAssigneeId(""); setPriority("normal"); setDueAt(""); setDialogOpen(false);
     fetchTasks();
   };
 
