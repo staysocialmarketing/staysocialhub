@@ -117,7 +117,14 @@ export default function Projects() {
   useEffect(() => {
     fetchData();
     supabase.from("clients").select("id, name").then(({ data }) => setClients(data || []));
-    supabase.from("users").select("id, name, email").then(({ data }) => setUsers(data || []));
+    supabase.from("users").select("id, name, email").then(({ data: allUsers }) => {
+      setUsers(allUsers || []);
+      // Filter to SS roles only for assignee dropdowns
+      supabase.from("user_roles").select("user_id, role").in("role", ["ss_admin", "ss_producer", "ss_ops"]).then(({ data: roles }) => {
+        const ssIds = new Set((roles || []).map((r: any) => r.user_id));
+        setSsUsers((allUsers || []).filter((u: any) => ssIds.has(u.id)));
+      });
+    });
   }, [filterStatus]);
 
   const toggleExpand = (id: string) => {
