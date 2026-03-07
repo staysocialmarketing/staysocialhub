@@ -63,6 +63,7 @@ export default function Tasks() {
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editProjectId, setEditProjectId] = useState("");
+  const [editClientId, setEditClientId] = useState("");
   const [editAssigneeId, setEditAssigneeId] = useState("");
   const [editPriority, setEditPriority] = useState("normal");
   const [editDueAt, setEditDueAt] = useState("");
