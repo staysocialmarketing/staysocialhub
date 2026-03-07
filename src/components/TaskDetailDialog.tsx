@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Trash2, Plus, Paperclip, Download, Link2, X, Send, FileText, ListChecks, MessageSquare, Activity, Pencil } from "lucide-react";
+import { Trash2, Plus, Paperclip, Download, Link2, X, Send, FileText, ListChecks, MessageSquare, Activity, Pencil, Bot, Target } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
