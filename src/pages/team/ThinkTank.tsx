@@ -292,6 +292,9 @@ export default function ThinkTank() {
                           <DropdownMenuItem onClick={() => setRequestItem(item)}>
                             <Send className="h-4 w-4 mr-2" /> Make Request
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {/* handled by RunStrategyButton inline */}}>
+                            <Sparkles className="h-4 w-4 mr-2" /> Run Strategy
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                       <Button size="sm" variant="ghost" onClick={() => updateStatus(item.id, "archived")}>
