@@ -1,57 +1,56 @@
 
 
-# Workflow, Approvals, and Auto-Assignment Overhaul
+# Calendar Date Picker, Project Descriptions, Edit/Delete Permissions, and Task Default Filter
 
-## Summary of Changes
+## 1. Calendar Date Picker Component
 
-This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
+Create a reusable `DatePickerField` component using Popover + Calendar (shadcn pattern) that replaces all `<Input type="datetime-local">` fields across the app.
 
-## 1. Database: Update Auto-Assignment Triggers
+- Uses `CalendarIcon` button trigger, opens a full monthly calendar via Popover + Calendar
+- Stores selected date as ISO string for compatibility with existing code
+- Replace in: Tasks (create + edit + project add-task), Projects (edit task due date), and any other due date fields
 
-**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
+**Files**: New `src/components/DatePickerField.tsx`, then update `Tasks.tsx`, `Projects.tsx`
 
-**Changes (migration)**:
-- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
-- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
-- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
-- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
+## 2. Projects — Show Description Preview + Sub-projects in Expanded View
 
-All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
+Currently the description is shown in the card header (line 328). The sub-projects section already renders when expanded (lines 332-367). Need to verify:
+- Description preview is always visible as a brief `line-clamp-2` snippet even when collapsed (already on line 328 — confirmed working)
+- Sub-projects are shown when expanded (already working at lines 332-367)
 
-## 2. Approvals Page — Separate Media from Published Content
+No changes needed here — already implemented. Will verify during implementation.
 
-**Client Approvals (`ClientApprovals`)**: 
-- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
-- Alternatively, only show posts in Published that were moved there by admin approval flow
+## 3. Edit + Delete Permissions (Own vs Admin)
 
-**Admin Approvals (`AdminApprovals`)**:
-- Same fix for Published column — filter to only show posts linked to requests
+Add edit and delete capabilities with ownership rules:
+- **Team members** (ss_producer, ss_ops) can edit and delete only items they created (`created_by_user_id === profile.id`)
+- **Admin** (ss_admin) can edit and delete all items
 
-**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
+Apply to:
+- **Tasks** — add Delete button in edit dialog, conditionally shown
+- **Projects** — add Delete button in edit dialog, conditionally shown
+- **Think Tank** — add Edit dialog (currently missing), add Delete button
 
-## 3. Workflow Page — Move Internal Review to Bottom Section
+Use `isSSAdmin` from `useAuth()` to check admin status. Compare `created_by_user_id` to `profile.id` for ownership.
 
-**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
+**Files**: `Tasks.tsx`, `Projects.tsx`, `ThinkTank.tsx`
 
-**New layout**:
-- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
-- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
+## 4. Tasks — Default Filter to Current User (Team Only)
 
-## 4. Admin & Team Dashboards — Show Assignments + Tasks
+Currently `filterAssignee` defaults to `"all"`. Change behavior:
+- For **team members** (non-admin): default `filterAssignee` to `profile.id` so they see only their own tasks
+- For **admin**: keep default as `"all"` for the birds-eye view
 
-**SuperAdminDashboard**: Already shows team activity. Add:
-- "My Assignments" section showing posts assigned to the current admin user
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+Use `isSSAdmin` from auth context. Initialize `filterAssignee` to `profile?.id` for non-admins once profile loads.
 
-**TeamDashboard**: Already shows "My Assignments". Add:
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+**File**: `Tasks.tsx`
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
-| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
-| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
-| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
+| `src/components/DatePickerField.tsx` | **New** — reusable calendar date picker with Popover + Calendar |
+| `src/pages/team/Tasks.tsx` | Replace datetime-local inputs with DatePickerField, add Delete button in edit dialog, default filter to own tasks for team |
+| `src/pages/team/Projects.tsx` | Replace datetime-local inputs with DatePickerField, add Delete button in edit dialogs |
+| `src/pages/team/ThinkTank.tsx` | Add Edit dialog for items, add Delete capability with ownership check |
 
