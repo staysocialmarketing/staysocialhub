@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
+import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
 
 type RequestType = Database["public"]["Enums"]["request_type"];
 
@@ -121,14 +122,7 @@ export default function MakeRequestDialog({
         <div className="space-y-4 mt-2">
           <div>
             <Label>Client</Label>
-            <Select value={clientId} onValueChange={setClientId}>
-              <SelectTrigger><SelectValue placeholder="Select client" /></SelectTrigger>
-              <SelectContent>
-                {clients.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <ClientSelectWithCreate value={clientId} onValueChange={setClientId} allowNone={false} placeholder="Select client" />
           </div>
           <div>
             <Label>Type</Label>

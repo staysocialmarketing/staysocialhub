@@ -13,7 +13,7 @@ import { Plus, ChevronDown, FolderOpen, ListTodo, Send, Pencil, User, Calendar }
 import { toast } from "sonner";
 import { format } from "date-fns";
 import MakeRequestDialog from "@/components/MakeRequestDialog";
-
+import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
 interface Project {
   id: string;
   name: string;
@@ -246,13 +246,7 @@ export default function Projects() {
             <div className="space-y-4">
               <Input placeholder="Project name" value={name} onChange={(e) => setName(e.target.value)} />
               <Textarea placeholder="Description..." value={description} onChange={(e) => setDescription(e.target.value)} />
-              <Select value={selectedClientId || "__none__"} onValueChange={(v) => setSelectedClientId(v === "__none__" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="Link to client (optional)" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">No client</SelectItem>
-                  {clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <ClientSelectWithCreate value={selectedClientId} onValueChange={setSelectedClientId} placeholder="Link to client (optional)" />
               <Select value={parentProjectId || "__none__"} onValueChange={(v) => setParentProjectId(v === "__none__" ? "" : v)}>
                 <SelectTrigger><SelectValue placeholder="Parent project (optional)" /></SelectTrigger>
                 <SelectContent>
@@ -387,13 +381,7 @@ export default function Projects() {
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Client</Label>
-              <Select value={editClientId || "__none__"} onValueChange={(v) => setEditClientId(v === "__none__" ? "" : v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">No client</SelectItem>
-                  {clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <ClientSelectWithCreate value={editClientId} onValueChange={setEditClientId} />
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Parent Project</Label>

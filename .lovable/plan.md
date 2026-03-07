@@ -1,45 +1,57 @@
 
 
-# Inline Client Creation + Clickable Admin Clients + Client Linking for Think Tank/Projects/Tasks
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-## 1. Reusable "Create Client" Inline Option
+## Summary of Changes
 
-Create a shared component `ClientSelectWithCreate` that wraps a `Select` dropdown with all existing clients **plus** a "+ New Client" option at the bottom. When selected, it shows inline fields (name input + create button) within the `SelectContent` or opens a small dialog. On creation, it inserts into the `clients` table, refreshes the client list, and auto-selects the new client.
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
-This component will be used in:
-- **Projects.tsx** — new project dialog + edit project dialog
-- **Tasks.tsx** — new task dialog + edit task dialog (tasks don't have `client_id` yet — see section 4)
-- **ThinkTank.tsx** — new item dialog + create project/task from action
-- **MakeRequestDialog.tsx** — client select
+## 1. Database: Update Auto-Assignment Triggers
 
-Only visible to SS roles (team + admin).
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-## 2. Clickable + Editable Admin Clients
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
-Update `AdminClients.tsx`:
-- Make each client card clickable to open an **edit dialog** with fields: name, status, plan, assistants_can_approve
-- Add ability to view linked projects, tasks, and think tank items for that client (fetched by `client_id`)
-- This gives admins a client-level overview of all activity
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
 
-## 3. Client Linking on Tasks
+## 2. Approvals Page — Separate Media from Published Content
 
-The `tasks` table currently has no `client_id` column. Add a migration to add `client_id uuid references clients(id)` to the tasks table. This enables filtering and tracking tasks per client.
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
 
-## 4. Database Migration
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
 
-```sql
-ALTER TABLE public.tasks ADD COLUMN client_id uuid REFERENCES public.clients(id);
-```
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
 
-## 5. Files Changed
+## 3. Workflow Page — Move Internal Review to Bottom Section
+
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
+
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
+
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
+
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+
+## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/components/ClientSelectWithCreate.tsx` | **New** — reusable client dropdown with "+ New Client" inline creation |
-| `src/pages/team/Projects.tsx` | Replace client `Select` with `ClientSelectWithCreate` in create + edit dialogs |
-| `src/pages/team/Tasks.tsx` | Add client select to create + edit dialogs using `ClientSelectWithCreate` |
-| `src/pages/team/ThinkTank.tsx` | Replace client `Select` with `ClientSelectWithCreate` |
-| `src/components/MakeRequestDialog.tsx` | Replace client `Select` with `ClientSelectWithCreate` |
-| `src/pages/admin/AdminClients.tsx` | Make cards clickable → edit dialog (name, status, plan); show linked projects/tasks/think tank items |
-| Migration | Add `client_id` column to `tasks` table |
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 

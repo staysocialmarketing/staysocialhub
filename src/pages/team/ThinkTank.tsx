@@ -16,6 +16,7 @@ import { Plus, Lightbulb, FileText, Brain, Archive, Zap, Send, FolderOpen, ListT
 import { toast } from "sonner";
 import { format } from "date-fns";
 import MakeRequestDialog from "@/components/MakeRequestDialog";
+import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
 
 interface ThinkTankItem {
   id: string;
@@ -104,6 +105,7 @@ export default function ThinkTank() {
       name: actionName.trim(),
       description: actionDesc.trim() || null,
       created_by_user_id: profile.id,
+      client_id: createProjectItem.client_id || null,
     } as any);
     if (error) { toast.error(error.message); return; }
     await updateStatus(createProjectItem.id, "actioned");
@@ -118,6 +120,7 @@ export default function ThinkTank() {
       title: actionName.trim(),
       description: actionDesc.trim() || null,
       created_by_user_id: profile.id,
+      client_id: createTaskItem.client_id || null,
     } as any);
     if (error) { toast.error(error.message); return; }
     await updateStatus(createTaskItem.id, "actioned");
@@ -167,13 +170,7 @@ export default function ThinkTank() {
                   <SelectItem value="brainstorm">🧠 Brainstorm</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={selectedClientId || "__none__"} onValueChange={(v) => setSelectedClientId(v === "__none__" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="Link to client (optional)" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">No client</SelectItem>
-                  {clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <ClientSelectWithCreate value={selectedClientId} onValueChange={setSelectedClientId} placeholder="Link to client (optional)" />
               <Button className="w-full" onClick={handleCreate} disabled={!title.trim()}>Create</Button>
             </div>
           </DialogContent>

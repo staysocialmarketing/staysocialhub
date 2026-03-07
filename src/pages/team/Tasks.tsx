@@ -13,12 +13,14 @@ import { Plus, Calendar, User, Send } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import MakeRequestDialog from "@/components/MakeRequestDialog";
+import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
 
 interface Task {
   id: string;
   title: string;
   description: string | null;
   project_id: string | null;
+  client_id: string | null;
   assigned_to_user_id: string | null;
   status: string;
   priority: string;
@@ -47,11 +49,13 @@ export default function Tasks() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [projectId, setProjectId] = useState("");
+  const [clientId, setClientId] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
   const [priority, setPriority] = useState("normal");
   const [dueAt, setDueAt] = useState("");
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const [users, setUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
+  const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
   const [requestTask, setRequestTask] = useState<Task | null>(null);
 
   // Edit state
@@ -59,6 +63,7 @@ export default function Tasks() {
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editProjectId, setEditProjectId] = useState("");
+  const [editClientId, setEditClientId] = useState("");
   const [editAssigneeId, setEditAssigneeId] = useState("");
   const [editPriority, setEditPriority] = useState("normal");
   const [editDueAt, setEditDueAt] = useState("");
@@ -77,6 +82,7 @@ export default function Tasks() {
     fetchTasks();
     supabase.from("projects").select("id, name").then(({ data }) => setProjects(data || []));
     supabase.from("users").select("id, name, email").then(({ data }) => setUsers(data || []));
+    supabase.from("clients").select("id, name").eq("status", "active").then(({ data }) => setClients(data || []));
   }, [filterProject, filterAssignee]);
 
   const openEdit = (task: Task) => {
@@ -84,6 +90,7 @@ export default function Tasks() {
     setEditTitle(task.title);
     setEditDescription(task.description || "");
     setEditProjectId(task.project_id || "");
+    setEditClientId((task as any).client_id || "");
     setEditAssigneeId(task.assigned_to_user_id || "");
     setEditPriority(task.priority);
     setEditDueAt(task.due_at ? task.due_at.slice(0, 16) : "");
@@ -96,6 +103,7 @@ export default function Tasks() {
       title: editTitle.trim(),
       description: editDescription.trim() || null,
       project_id: editProjectId || null,
+      client_id: editClientId || null,
       assigned_to_user_id: editAssigneeId || null,
       priority: editPriority,
       due_at: editDueAt || null,
@@ -113,6 +121,7 @@ export default function Tasks() {
       title: title.trim(),
       description: description.trim() || null,
       project_id: projectId || null,
+      client_id: clientId || null,
       assigned_to_user_id: assigneeId || null,
       priority,
       due_at: dueAt || null,
@@ -120,7 +129,7 @@ export default function Tasks() {
     } as any);
     if (error) { toast.error(error.message); return; }
     toast.success("Task created!");
-    setTitle(""); setDescription(""); setProjectId(""); setAssigneeId(""); setPriority("normal"); setDueAt(""); setDialogOpen(false);
+    setTitle(""); setDescription(""); setProjectId(""); setClientId(""); setAssigneeId(""); setPriority("normal"); setDueAt(""); setDialogOpen(false);
     fetchTasks();
   };
 
@@ -158,6 +167,7 @@ export default function Tasks() {
             <div className="space-y-4">
               <Input placeholder="Task title" value={title} onChange={(e) => setTitle(e.target.value)} />
               <Textarea placeholder="Description..." value={description} onChange={(e) => setDescription(e.target.value)} />
+              <ClientSelectWithCreate value={clientId} onValueChange={setClientId} placeholder="Client (optional)" />
               <Select value={projectId || "__none__"} onValueChange={(v) => setProjectId(v === "__none__" ? "" : v)}>
                 <SelectTrigger><SelectValue placeholder="Project (optional)" /></SelectTrigger>
                 <SelectContent>
@@ -269,6 +279,10 @@ export default function Tasks() {
             <div>
               <Label className="text-xs text-muted-foreground">Description</Label>
               <Textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Client</Label>
+              <ClientSelectWithCreate value={editClientId} onValueChange={setEditClientId} />
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Project</Label>
