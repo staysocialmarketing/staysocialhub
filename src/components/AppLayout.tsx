@@ -4,6 +4,7 @@ import { Outlet } from "react-router-dom";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useAuth } from "@/contexts/AuthContext";
 import { X } from "lucide-react";
+import { GlobalCaptureButton } from "@/components/GlobalCaptureButton";
 
 export function AppLayout() {
   const { profile, isViewingAs, setViewAs } = useAuth();
@@ -34,6 +35,7 @@ export function AppLayout() {
           <main className="flex-1 overflow-auto">
             <Outlet />
           </main>
+          <GlobalCaptureButton />
         </div>
       </div>
     </SidebarProvider>
