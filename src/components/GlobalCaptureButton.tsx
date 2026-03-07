@@ -178,7 +178,7 @@ export function GlobalCaptureButton() {
     if (!audioBlob || !profile) return;
     setSaving(true);
     const folder = isClient ? (profile.client_id || "general") : (voiceClient || "general");
-    const path = `${folder}/voice-${Date.now()}.webm`;
+    const path = `${folder}/voice-notes/voice-${Date.now()}.webm`;
     const { error } = await supabase.storage.from("creative-assets").upload(path, audioBlob, { contentType: "audio/webm" });
     setSaving(false);
     if (error) { toast.error("Upload failed"); return; }

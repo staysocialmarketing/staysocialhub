@@ -126,10 +126,12 @@ export default function MakeRequestDialog({
           <DialogTitle>Make This a Request</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 mt-2">
-          <div>
-            <Label>Client</Label>
-            <ClientSelectWithCreate value={clientId} onValueChange={setClientId} allowNone={false} placeholder="Select client" />
-          </div>
+          {isSSRole && (
+            <div>
+              <Label>Client</Label>
+              <ClientSelectWithCreate value={clientId} onValueChange={setClientId} allowNone={false} placeholder="Select client" />
+            </div>
+          )}
           <div>
             <Label>Type</Label>
             <Select value={type} onValueChange={(v) => setType(v as RequestType)}>
