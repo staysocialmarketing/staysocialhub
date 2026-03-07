@@ -379,7 +379,7 @@ export default function Projects() {
                           return (
                             <div key={sub.id}>
                               <div
-                                className="flex items-center justify-between p-2 rounded-md border cursor-pointer hover:bg-accent/50"
+                                className="flex items-center justify-between p-2.5 rounded-lg hover:bg-accent/50 transition-colors"
                                 onClick={() => toggleExpand(sub.id)}
                               >
                                 <div className="flex items-center gap-2">
