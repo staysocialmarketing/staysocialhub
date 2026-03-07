@@ -95,7 +95,7 @@ function SuperAdminDashboard() {
   const { data: myTasks = [] } = useQuery({
     queryKey: ["sa-my-tasks", profile?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("tasks").select("id, title, status, priority, due_at, assigned_to_team, project_id, projects(name)").or(`assigned_to_user_id.eq.${profile!.id},assigned_to_team.eq.true`).neq("status", "done").order("due_at", { ascending: true, nullsFirst: false }).limit(10);
+      const { data } = await supabase.from("tasks").select("id, title, status, priority, due_at, assigned_to_team, project_id, projects(name)").or(`assigned_to_user_id.eq.${profile!.id},assigned_to_team.eq.true`).not("status", "in", '("complete","done")').order("due_at", { ascending: true, nullsFirst: false }).limit(10);
       return data || [];
     },
     enabled: !!profile,
