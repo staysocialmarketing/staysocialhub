@@ -6,7 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Calendar, User, Send } from "lucide-react";
 import { toast } from "sonner";
@@ -53,6 +54,16 @@ export default function Tasks() {
   const [users, setUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
   const [requestTask, setRequestTask] = useState<Task | null>(null);
 
+  // Edit state
+  const [editTask, setEditTask] = useState<Task | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editProjectId, setEditProjectId] = useState("");
+  const [editAssigneeId, setEditAssigneeId] = useState("");
+  const [editPriority, setEditPriority] = useState("normal");
+  const [editDueAt, setEditDueAt] = useState("");
+  const [editStatus, setEditStatus] = useState("todo");
+
   const fetchTasks = async () => {
     let query = supabase.from("tasks").select("*").order("created_at", { ascending: false });
     if (filterProject !== "all") query = query.eq("project_id", filterProject);
@@ -67,6 +78,34 @@ export default function Tasks() {
     supabase.from("projects").select("id, name").then(({ data }) => setProjects(data || []));
     supabase.from("users").select("id, name, email").then(({ data }) => setUsers(data || []));
   }, [filterProject, filterAssignee]);
+
+  const openEdit = (task: Task) => {
+    setEditTask(task);
+    setEditTitle(task.title);
+    setEditDescription(task.description || "");
+    setEditProjectId(task.project_id || "");
+    setEditAssigneeId(task.assigned_to_user_id || "");
+    setEditPriority(task.priority);
+    setEditDueAt(task.due_at ? task.due_at.slice(0, 16) : "");
+    setEditStatus(task.status);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editTask || !editTitle.trim()) return;
+    const { error } = await supabase.from("tasks").update({
+      title: editTitle.trim(),
+      description: editDescription.trim() || null,
+      project_id: editProjectId || null,
+      assigned_to_user_id: editAssigneeId || null,
+      priority: editPriority,
+      due_at: editDueAt || null,
+      status: editStatus,
+    } as any).eq("id", editTask.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Task updated!");
+    setEditTask(null);
+    fetchTasks();
+  };
 
   const handleCreate = async () => {
     if (!title.trim() || !profile) return;
@@ -180,7 +219,7 @@ export default function Tasks() {
                 <p className="text-xs text-muted-foreground text-center py-8">No tasks</p>
               ) : (
                 tasksByStatus(col).map((task) => (
-                  <Card key={task.id} className="cursor-default">
+                  <Card key={task.id} className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => openEdit(task)}>
                     <CardContent className="p-3 space-y-2">
                       <div className="flex items-start justify-between gap-2">
                         <span className="text-sm font-medium leading-snug">{task.title}</span>
@@ -196,7 +235,7 @@ export default function Tasks() {
                           <span className="flex items-center gap-0.5"><Calendar className="h-3 w-3" /> {format(new Date(task.due_at), "MMM d")}</span>
                         )}
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                         <Select value={task.status} onValueChange={(s) => updateStatus(task.id, s)}>
                           <SelectTrigger className="h-7 text-xs flex-1"><SelectValue /></SelectTrigger>
                           <SelectContent>
@@ -217,6 +256,74 @@ export default function Tasks() {
           ))}
         </div>
       )}
+
+      {/* Edit Task Dialog */}
+      <Dialog open={!!editTask} onOpenChange={(o) => !o && setEditTask(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Edit Task</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs text-muted-foreground">Title</Label>
+              <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Description</Label>
+              <Textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Project</Label>
+              <Select value={editProjectId || "__none__"} onValueChange={(v) => setEditProjectId(v === "__none__" ? "" : v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">No project</SelectItem>
+                  {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Assignee</Label>
+              <Select value={editAssigneeId || "__none__"} onValueChange={(v) => setEditAssigneeId(v === "__none__" ? "" : v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Unassigned</SelectItem>
+                  {users.map((u) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Priority</Label>
+              <Select value={editPriority} onValueChange={setEditPriority}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="normal">Normal</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="urgent">Urgent</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Status</Label>
+              <Select value={editStatus} onValueChange={setEditStatus}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todo">To Do</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="done">Done</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Due Date</Label>
+              <Input type="datetime-local" value={editDueAt} onChange={(e) => setEditDueAt(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditTask(null)}>Cancel</Button>
+            <Button onClick={handleSaveEdit} disabled={!editTitle.trim()}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <MakeRequestDialog
         open={!!requestTask}
