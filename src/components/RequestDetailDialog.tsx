@@ -14,6 +14,9 @@ import { toast } from "sonner";
 import { FileText, Mail, Download, Send, Pencil, Save, X, Loader2 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { compressImage } from "@/lib/imageUtils";
+import AIFieldsPanel from "@/components/AIFieldsPanel";
+import StrategyBriefPanel from "@/components/StrategyBriefPanel";
+import RunStrategyButton from "@/components/RunStrategyButton";
 
 type RequestStatus = Database["public"]["Enums"]["request_status"];
 type RequestType = Database["public"]["Enums"]["request_type"];
@@ -36,6 +39,7 @@ const statusColors: Record<string, string> = {
 
 export default function RequestDetailDialog({ request, open, onOpenChange }: RequestDetailDialogProps) {
   const { profile, isSSRole, isSSAdmin } = useAuth();
+  const isSSUser = isSSRole;
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [commentBody, setCommentBody] = useState("");
@@ -318,6 +322,22 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
                   <Download className="h-3 w-3 mr-1" /> Download Attachment
                 </Button>
               )}
+            </div>
+          )}
+
+          {/* AI & Strategy sections for SS roles */}
+          {isSSUser && request && (
+            <div className="space-y-2">
+              <AIFieldsPanel fields={request} />
+              <StrategyBriefPanel brief={request.strategy_brief} />
+              <RunStrategyButton itemType="request" itemId={request.id} />
+            </div>
+          )}
+
+          {/* Linked Task */}
+          {request?.task_id && (
+            <div className="text-xs text-muted-foreground">
+              Linked Task ID: <span className="font-mono">{request.task_id}</span>
             </div>
           )}
 

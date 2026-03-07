@@ -13,7 +13,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Lightbulb, FileText, Brain, Archive, Zap, Send, FolderOpen, ListTodo, ChevronDown, Pencil, Trash2 } from "lucide-react";
+import { Plus, Lightbulb, FileText, Brain, Archive, Zap, Send, FolderOpen, ListTodo, ChevronDown, Pencil, Trash2, Sparkles } from "lucide-react";
+import AIFieldsPanel from "@/components/AIFieldsPanel";
+import StrategyBriefPanel from "@/components/StrategyBriefPanel";
+import RunStrategyButton from "@/components/RunStrategyButton";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import MakeRequestDialog from "@/components/MakeRequestDialog";
@@ -264,6 +267,9 @@ export default function ThinkTank() {
               </CardHeader>
               <CardContent className="flex-1 space-y-3">
                 {item.body && <p className="text-sm text-muted-foreground line-clamp-3">{item.body}</p>}
+                {(item as any).ai_summary && (
+                  <Badge variant="secondary" className="text-[10px]">AI: {(item as any).ai_summary.slice(0, 50)}...</Badge>
+                )}
                 <div className="text-xs text-muted-foreground space-y-0.5">
                   <p>By {creatorName(item.created_by_user_id)} · {format(new Date(item.created_at), "MMM d, yyyy")}</p>
                 </div>
@@ -285,6 +291,17 @@ export default function ThinkTank() {
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setRequestItem(item)}>
                             <Send className="h-4 w-4 mr-2" /> Make Request
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={async () => {
+                            try {
+                              const { error } = await supabase.functions.invoke("run-strategy", {
+                                body: { item_type: "think_tank", item_id: item.id },
+                              });
+                              if (error) throw error;
+                              toast.success("Strategy request sent to automation");
+                            } catch { toast.error("Failed to run strategy"); }
+                          }}>
+                            <Sparkles className="h-4 w-4 mr-2" /> Run Strategy
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -334,6 +351,13 @@ export default function ThinkTank() {
               <Label className="text-xs text-muted-foreground">Client</Label>
               <ClientSelectWithCreate value={editClientId} onValueChange={setEditClientId} />
             </div>
+            {editItem && (
+              <div className="space-y-2 pt-2 border-t">
+                <AIFieldsPanel fields={editItem as any} />
+                <StrategyBriefPanel brief={(editItem as any).strategy_brief} />
+                <RunStrategyButton itemType="think_tank" itemId={editItem.id} />
+              </div>
+            )}
           </div>
           <DialogFooter className="flex justify-between sm:justify-between">
             {editItem && canEditDelete(editItem) && (

@@ -616,6 +616,16 @@ export type Database = {
       }
       requests: {
         Row: {
+          agent_confidence: number | null
+          agent_status: string | null
+          ai_suggested_assignee: string | null
+          ai_suggested_client: string | null
+          ai_suggested_content_type: string | null
+          ai_suggested_next_action: string | null
+          ai_suggested_priority: string | null
+          ai_suggested_project: string | null
+          ai_suggested_subproject: string | null
+          ai_summary: string | null
           assigned_to_user_id: string | null
           attachments_url: string | null
           client_id: string
@@ -625,11 +635,27 @@ export type Database = {
           notes: string | null
           preferred_publish_window: string | null
           priority: string | null
+          raw_attachment_url: string | null
+          raw_input_text: string | null
+          source_type: string | null
           status: Database["public"]["Enums"]["request_status"]
+          strategy_brief: Json | null
+          task_id: string | null
           topic: string
           type: Database["public"]["Enums"]["request_type"]
+          voice_transcript: string | null
         }
         Insert: {
+          agent_confidence?: number | null
+          agent_status?: string | null
+          ai_suggested_assignee?: string | null
+          ai_suggested_client?: string | null
+          ai_suggested_content_type?: string | null
+          ai_suggested_next_action?: string | null
+          ai_suggested_priority?: string | null
+          ai_suggested_project?: string | null
+          ai_suggested_subproject?: string | null
+          ai_summary?: string | null
           assigned_to_user_id?: string | null
           attachments_url?: string | null
           client_id: string
@@ -639,11 +665,27 @@ export type Database = {
           notes?: string | null
           preferred_publish_window?: string | null
           priority?: string | null
+          raw_attachment_url?: string | null
+          raw_input_text?: string | null
+          source_type?: string | null
           status?: Database["public"]["Enums"]["request_status"]
+          strategy_brief?: Json | null
+          task_id?: string | null
           topic: string
           type: Database["public"]["Enums"]["request_type"]
+          voice_transcript?: string | null
         }
         Update: {
+          agent_confidence?: number | null
+          agent_status?: string | null
+          ai_suggested_assignee?: string | null
+          ai_suggested_client?: string | null
+          ai_suggested_content_type?: string | null
+          ai_suggested_next_action?: string | null
+          ai_suggested_priority?: string | null
+          ai_suggested_project?: string | null
+          ai_suggested_subproject?: string | null
+          ai_summary?: string | null
           assigned_to_user_id?: string | null
           attachments_url?: string | null
           client_id?: string
@@ -653,9 +695,15 @@ export type Database = {
           notes?: string | null
           preferred_publish_window?: string | null
           priority?: string | null
+          raw_attachment_url?: string | null
+          raw_input_text?: string | null
+          source_type?: string | null
           status?: Database["public"]["Enums"]["request_status"]
+          strategy_brief?: Json | null
+          task_id?: string | null
           topic?: string
           type?: Database["public"]["Enums"]["request_type"]
+          voice_transcript?: string | null
         }
         Relationships: [
           {
@@ -677,6 +725,13 @@ export type Database = {
             columns: ["created_by_user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requests_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
             referencedColumns: ["id"]
           },
         ]
@@ -794,6 +849,17 @@ export type Database = {
       }
       tasks: {
         Row: {
+          agent_confidence: number | null
+          agent_status: string | null
+          ai_suggested_assignee: string | null
+          ai_suggested_client: string | null
+          ai_suggested_content_type: string | null
+          ai_suggested_item_type: string | null
+          ai_suggested_next_action: string | null
+          ai_suggested_priority: string | null
+          ai_suggested_project: string | null
+          ai_suggested_subproject: string | null
+          ai_summary: string | null
           assigned_to_team: boolean
           assigned_to_user_id: string | null
           client_id: string | null
@@ -802,13 +868,31 @@ export type Database = {
           description: string | null
           due_at: string | null
           id: string
+          parent_item_id: string | null
           priority: string
           project_id: string | null
+          raw_attachment_url: string | null
+          raw_input_text: string | null
+          request_id: string | null
+          source_type: string | null
           status: string
+          strategy_brief: Json | null
           title: string
           updated_at: string
+          voice_transcript: string | null
         }
         Insert: {
+          agent_confidence?: number | null
+          agent_status?: string | null
+          ai_suggested_assignee?: string | null
+          ai_suggested_client?: string | null
+          ai_suggested_content_type?: string | null
+          ai_suggested_item_type?: string | null
+          ai_suggested_next_action?: string | null
+          ai_suggested_priority?: string | null
+          ai_suggested_project?: string | null
+          ai_suggested_subproject?: string | null
+          ai_summary?: string | null
           assigned_to_team?: boolean
           assigned_to_user_id?: string | null
           client_id?: string | null
@@ -817,13 +901,31 @@ export type Database = {
           description?: string | null
           due_at?: string | null
           id?: string
+          parent_item_id?: string | null
           priority?: string
           project_id?: string | null
+          raw_attachment_url?: string | null
+          raw_input_text?: string | null
+          request_id?: string | null
+          source_type?: string | null
           status?: string
+          strategy_brief?: Json | null
           title: string
           updated_at?: string
+          voice_transcript?: string | null
         }
         Update: {
+          agent_confidence?: number | null
+          agent_status?: string | null
+          ai_suggested_assignee?: string | null
+          ai_suggested_client?: string | null
+          ai_suggested_content_type?: string | null
+          ai_suggested_item_type?: string | null
+          ai_suggested_next_action?: string | null
+          ai_suggested_priority?: string | null
+          ai_suggested_project?: string | null
+          ai_suggested_subproject?: string | null
+          ai_summary?: string | null
           assigned_to_team?: boolean
           assigned_to_user_id?: string | null
           client_id?: string | null
@@ -832,11 +934,18 @@ export type Database = {
           description?: string | null
           due_at?: string | null
           id?: string
+          parent_item_id?: string | null
           priority?: string
           project_id?: string | null
+          raw_attachment_url?: string | null
+          raw_input_text?: string | null
+          request_id?: string | null
+          source_type?: string | null
           status?: string
+          strategy_brief?: Json | null
           title?: string
           updated_at?: string
+          voice_transcript?: string | null
         }
         Relationships: [
           {
@@ -867,44 +976,96 @@ export type Database = {
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "tasks_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
         ]
       }
       think_tank_items: {
         Row: {
+          agent_confidence: number | null
+          agent_status: string | null
+          ai_suggested_assignee: string | null
+          ai_suggested_client: string | null
+          ai_suggested_content_type: string | null
+          ai_suggested_next_action: string | null
+          ai_suggested_priority: string | null
+          ai_suggested_project: string | null
+          ai_suggested_subproject: string | null
+          ai_summary: string | null
           body: string | null
           client_id: string | null
           created_at: string
           created_by_user_id: string
           id: string
           project_id: string | null
+          raw_attachment_url: string | null
+          raw_input_text: string | null
+          source_type: string | null
           status: string
+          strategy_brief: Json | null
           title: string
           type: string
           updated_at: string
+          voice_transcript: string | null
         }
         Insert: {
+          agent_confidence?: number | null
+          agent_status?: string | null
+          ai_suggested_assignee?: string | null
+          ai_suggested_client?: string | null
+          ai_suggested_content_type?: string | null
+          ai_suggested_next_action?: string | null
+          ai_suggested_priority?: string | null
+          ai_suggested_project?: string | null
+          ai_suggested_subproject?: string | null
+          ai_summary?: string | null
           body?: string | null
           client_id?: string | null
           created_at?: string
           created_by_user_id: string
           id?: string
           project_id?: string | null
+          raw_attachment_url?: string | null
+          raw_input_text?: string | null
+          source_type?: string | null
           status?: string
+          strategy_brief?: Json | null
           title: string
           type?: string
           updated_at?: string
+          voice_transcript?: string | null
         }
         Update: {
+          agent_confidence?: number | null
+          agent_status?: string | null
+          ai_suggested_assignee?: string | null
+          ai_suggested_client?: string | null
+          ai_suggested_content_type?: string | null
+          ai_suggested_next_action?: string | null
+          ai_suggested_priority?: string | null
+          ai_suggested_project?: string | null
+          ai_suggested_subproject?: string | null
+          ai_summary?: string | null
           body?: string | null
           client_id?: string | null
           created_at?: string
           created_by_user_id?: string
           id?: string
           project_id?: string | null
+          raw_attachment_url?: string | null
+          raw_input_text?: string | null
+          source_type?: string | null
           status?: string
+          strategy_brief?: Json | null
           title?: string
           type?: string
           updated_at?: string
+          voice_transcript?: string | null
         }
         Relationships: [
           {

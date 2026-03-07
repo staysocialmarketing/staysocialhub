@@ -12,11 +12,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Trash2, Plus, Paperclip, Download, Link2, X, Send, FileText, ListChecks, MessageSquare, Activity, Pencil } from "lucide-react";
+import { Trash2, Plus, Paperclip, Download, Link2, X, Send, FileText, ListChecks, MessageSquare, Activity, Pencil, Bot, Target } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
 import DatePickerField from "@/components/DatePickerField";
+import AIFieldsPanel from "@/components/AIFieldsPanel";
+import StrategyBriefPanel from "@/components/StrategyBriefPanel";
+import RunStrategyButton from "@/components/RunStrategyButton";
 
 interface Task {
   id: string;
@@ -86,7 +89,7 @@ interface TaskDetailDialogProps {
 }
 
 export default function TaskDetailDialog({ task, onClose, onUpdated, projects, ssUsers, users }: TaskDetailDialogProps) {
-  const { profile, isSSAdmin } = useAuth();
+  const { profile, isSSAdmin, isSSRole } = useAuth();
   const canEdit = task ? (isSSAdmin || task.created_by_user_id === profile?.id) : false;
 
   const [editing, setEditing] = useState(false);
@@ -370,6 +373,8 @@ export default function TaskDetailDialog({ task, onClose, onUpdated, projects, s
             <TabsTrigger value="attachments" className="text-xs gap-1"><Paperclip className="h-3 w-3" /> Files {attachments.length > 0 && `(${attachments.length})`}</TabsTrigger>
             <TabsTrigger value="comments" className="text-xs gap-1"><MessageSquare className="h-3 w-3" /> Comments {comments.length > 0 && `(${comments.length})`}</TabsTrigger>
             <TabsTrigger value="activity" className="text-xs gap-1"><Activity className="h-3 w-3" /> Activity</TabsTrigger>
+            {isSSRole && <TabsTrigger value="ai" className="text-xs gap-1"><Bot className="h-3 w-3" /> AI</TabsTrigger>}
+            {isSSRole && <TabsTrigger value="strategy" className="text-xs gap-1"><Target className="h-3 w-3" /> Strategy</TabsTrigger>}
           </TabsList>
 
           {/* Description */}
@@ -479,6 +484,27 @@ export default function TaskDetailDialog({ task, onClose, onUpdated, projects, s
               </div>
             ))}
           </TabsContent>
+
+          {/* AI Intake */}
+          {isSSRole && (
+            <TabsContent value="ai">
+              <AIFieldsPanel fields={task as any} />
+              {!(task as any)?.ai_summary && !(task as any)?.agent_status && (
+                <p className="text-xs text-muted-foreground">No AI data yet. Use "Run Strategy" to process this item.</p>
+              )}
+            </TabsContent>
+          )}
+
+          {/* Strategy */}
+          {isSSRole && (
+            <TabsContent value="strategy" className="space-y-3">
+              <StrategyBriefPanel brief={(task as any)?.strategy_brief} />
+              {!(task as any)?.strategy_brief && (
+                <p className="text-xs text-muted-foreground mb-2">No strategy brief yet.</p>
+              )}
+              {task && <RunStrategyButton itemType="task" itemId={task.id} />}
+            </TabsContent>
+          )}
         </Tabs>
 
         <DialogFooter className="flex justify-between sm:justify-between">
