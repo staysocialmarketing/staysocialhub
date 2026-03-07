@@ -140,7 +140,7 @@ export function GlobalCaptureButton() {
     if (!imgFile || !profile) return;
     setSaving(true);
     const compressed = await compressImage(imgFile);
-    const folder = imgClient || "general";
+    const folder = isClient ? (profile.client_id || "general") : (imgClient || "general");
     const path = `${folder}/${Date.now()}-${compressed.name}`;
     const { error } = await supabase.storage.from("creative-assets").upload(path, compressed);
     setSaving(false);
