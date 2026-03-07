@@ -261,6 +261,7 @@ export default function Tasks() {
           <SelectTrigger className="w-44"><SelectValue placeholder="All Assignees" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Assignees</SelectItem>
+            <SelectItem value="team">🤝 Team</SelectItem>
             {ssUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
           </SelectContent>
         </Select>
