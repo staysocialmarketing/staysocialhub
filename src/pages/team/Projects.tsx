@@ -106,6 +106,7 @@ export default function Projects() {
   const fetchData = async () => {
     let query = supabase.from("projects").select("*").order("created_at", { ascending: false });
     if (filterStatus !== "all") query = query.eq("status", filterStatus);
+    if (globalClientId) query = query.eq("client_id", globalClientId);
     const { data } = await query;
     setProjects((data as Project[]) || []);
 
