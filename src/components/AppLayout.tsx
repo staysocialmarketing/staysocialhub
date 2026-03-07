@@ -11,7 +11,17 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export function AppLayout() {
-  const { profile, isViewingAs, setViewAs } = useAuth();
+  const { profile, isViewingAs, setViewAs, isSSRole } = useAuth();
+  const { selectedClientId, setSelectedClientId } = useClientFilter();
+
+  const { data: clients = [] } = useQuery({
+    queryKey: ["header-clients"],
+    queryFn: async () => {
+      const { data } = await supabase.from("clients").select("id, name").eq("status", "active").order("name");
+      return data || [];
+    },
+    enabled: isSSRole,
+  });
 
   return (
     <SidebarProvider>
