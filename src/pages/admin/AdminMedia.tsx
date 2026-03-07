@@ -90,8 +90,17 @@ export default function AdminMedia() {
 
   const handleDelete = async () => {
     if (!deletePostId) return;
+    // Find the post to clean up storage
+    const postToDelete = posts.find((p: any) => p.id === deletePostId);
     const { error } = await supabase.from("posts").delete().eq("id", deletePostId);
     if (error) { toast.error(error.message); return; }
+    // Clean up storage file
+    if (postToDelete?.creative_url) {
+      const storagePath = extractStoragePath(postToDelete.creative_url, "creative-assets");
+      if (storagePath) {
+        await supabase.storage.from("creative-assets").remove([storagePath]);
+      }
+    }
     toast.success("Media deleted");
     setDeletePostId(null);
     setEditPost(null);
