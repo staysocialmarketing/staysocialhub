@@ -20,6 +20,7 @@ interface Task {
   title: string;
   description: string | null;
   project_id: string | null;
+  client_id: string | null;
   assigned_to_user_id: string | null;
   status: string;
   priority: string;
