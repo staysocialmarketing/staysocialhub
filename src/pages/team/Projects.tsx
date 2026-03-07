@@ -249,26 +249,26 @@ export default function Projects() {
   const renderTaskRow = (task: Task) => (
     <div
       key={task.id}
-      className="flex items-center justify-between p-2 rounded-md border cursor-pointer hover:bg-accent/50 transition-colors"
+      className="flex items-center justify-between p-3 rounded-lg bg-accent/30 cursor-pointer hover:bg-accent/50 transition-colors group"
       onClick={(e) => { e.stopPropagation(); openEditTask(task); }}
     >
       <div className="flex items-center gap-2 min-w-0">
         <ListTodo className="h-3 w-3 text-muted-foreground shrink-0" />
         <span className="text-sm font-medium truncate">{task.title}</span>
-        <Badge variant="outline" className={`text-[10px] shrink-0 ${priorityColors[task.priority] || ""}`}>{task.priority}</Badge>
+        <Badge variant="outline" className={`text-[11px] shrink-0 ${priorityColors[task.priority] || ""}`}>{task.priority}</Badge>
       </div>
       <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
         {(userName(task.assigned_to_user_id, task.assigned_to_team)) && (
-          <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+          <span className="text-xs text-muted-foreground flex items-center gap-0.5 hidden sm:flex">
             <User className="h-3 w-3" />
-            {task.assigned_to_team ? <Badge variant="secondary" className="text-[10px]">🤝 Team</Badge> : userName(task.assigned_to_user_id)}
+            {task.assigned_to_team ? "Team" : userName(task.assigned_to_user_id)}
           </span>
         )}
         {task.due_at && (
-          <span className="text-xs text-muted-foreground flex items-center gap-0.5"><Calendar className="h-3 w-3" />{format(new Date(task.due_at), "MMM d")}</span>
+          <span className="text-xs text-muted-foreground flex items-center gap-0.5 hidden sm:flex"><Calendar className="h-3 w-3" />{format(new Date(task.due_at), "MMM d")}</span>
         )}
         <Select value={task.status} onValueChange={(s) => updateTaskStatus(task.id, s)}>
-          <SelectTrigger className="h-6 text-[10px] w-24"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-7 text-[11px] w-24 border-border/50 bg-transparent"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todo">To Do</SelectItem>
             <SelectItem value="in_progress">In Progress</SelectItem>
