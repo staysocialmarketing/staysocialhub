@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
+import { compressImage } from "@/lib/imageUtils";
 
 type RequestType = Database["public"]["Enums"]["request_type"];
 
