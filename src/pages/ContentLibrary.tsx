@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { ImageIcon, Film, Video, FolderOpen, Upload } from "lucide-react";
+import { ImageIcon, Film, Video, FolderOpen, Upload, Download, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { compressImage } from "@/lib/imageUtils";
 
@@ -94,6 +94,23 @@ export default function ContentLibrary() {
     return posts.filter((p) => p.creative_url && !isVideo(p.creative_url) && !isReel(p.platform)).length;
   };
 
+  const handleDownload = (url: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "";
+    a.target = "_blank";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const handleCopyLink = (url: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(url);
+    toast.success("Link copied to clipboard");
+  };
+
   const PostGrid = ({ items }: { items: typeof posts }) => {
     if (items.length === 0) {
       return (
@@ -122,9 +139,21 @@ export default function ContentLibrary() {
             <CardContent className="p-3">
               <p className="text-sm font-medium truncate">{post.title}</p>
               <div className="flex items-center justify-between mt-1.5">
-                {post.platform && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{post.platform}</Badge>}
+                <div className="flex items-center gap-1">
+                  {post.platform && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{post.platform}</Badge>}
+                </div>
                 <span className="text-[10px] text-muted-foreground ml-auto">{format(new Date(post.scheduled_at || post.created_at), "MMM d, yyyy")}</span>
               </div>
+              {post.creative_url && (
+                <div className="flex gap-1 mt-2" onClick={(e) => e.stopPropagation()}>
+                  <Button variant="ghost" size="sm" className="h-6 text-[10px] px-1.5" onClick={(e) => handleDownload(post.creative_url!, e)}>
+                    <Download className="h-3 w-3 mr-0.5" /> Download
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-6 text-[10px] px-1.5" onClick={(e) => handleCopyLink(post.creative_url!, e)}>
+                    <Link2 className="h-3 w-3 mr-0.5" /> Copy Link
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}

@@ -39,8 +39,15 @@ const priorityColors: Record<string, string> = {
   urgent: "bg-red-500/15 text-red-700 border-red-500/20",
 };
 
-const statusColumns = ["todo", "in_progress", "done"] as const;
-const statusLabels: Record<string, string> = { todo: "To Do", in_progress: "In Progress", done: "Done" };
+const statusColumns = ["backlog", "todo", "in_progress", "waiting", "review", "complete"] as const;
+const statusLabels: Record<string, string> = {
+  backlog: "Backlog",
+  todo: "To Do",
+  in_progress: "In Progress",
+  waiting: "Waiting",
+  review: "Review",
+  complete: "Complete",
+};
 
 export default function Tasks() {
   const { profile, isSSAdmin } = useAuth();
@@ -62,7 +69,6 @@ export default function Tasks() {
   const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
   const [requestTask, setRequestTask] = useState<Task | null>(null);
 
-  // Edit state
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -76,7 +82,6 @@ export default function Tasks() {
 
   const [ssUsers, setSsUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
 
-  // Set default filter once profile loads
   useEffect(() => {
     if (profile && filterAssignee === "__pending__") {
       setFilterAssignee(isSSAdmin ? "all" : "mine");
@@ -91,6 +96,8 @@ export default function Tasks() {
       query = query.or(`assigned_to_user_id.eq.${profile.id},assigned_to_team.eq.true`);
     } else if (filterAssignee === "team") {
       query = query.eq("assigned_to_team", true);
+    } else if (filterAssignee === "unassigned") {
+      query = query.is("assigned_to_user_id", null).eq("assigned_to_team", false);
     } else if (filterAssignee !== "all") {
       query = query.eq("assigned_to_user_id", filterAssignee);
     }
@@ -104,7 +111,7 @@ export default function Tasks() {
     supabase.from("projects").select("id, name").then(({ data }) => setProjects(data || []));
     supabase.from("users").select("id, name, email").then(({ data: allUsers }) => {
       setUsers(allUsers || []);
-      supabase.from("user_roles").select("user_id, role").in("role", ["ss_admin", "ss_producer", "ss_ops"]).then(({ data: roles }) => {
+      supabase.from("user_roles").select("user_id, role").in("role", ["ss_admin", "ss_producer", "ss_ops", "ss_team"]).then(({ data: roles }) => {
         const ssIds = new Set((roles || []).map((r: any) => r.user_id));
         setSsUsers((allUsers || []).filter((u: any) => ssIds.has(u.id)));
       });
@@ -188,18 +195,20 @@ export default function Tasks() {
     return u?.name || u?.email;
   };
 
-  const userNameById = (id: string | null) => {
-    if (!id) return null;
-    const u = users.find((u) => u.id === id);
-    return u?.name || u?.email;
-  };
-
   const projectName = (id: string | null) => {
     if (!id) return null;
     return projects.find((p) => p.id === id)?.name;
   };
 
   const tasksByStatus = (status: string) => tasks.filter((t) => t.status === status);
+
+  const StatusSelectOptions = () => (
+    <>
+      {statusColumns.map((s) => (
+        <SelectItem key={s} value={s}>{statusLabels[s]}</SelectItem>
+      ))}
+    </>
+  );
 
   return (
     <div className="p-6 space-y-6">
@@ -252,7 +261,7 @@ export default function Tasks() {
         </Dialog>
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 flex-wrap">
         <Select value={filterProject} onValueChange={setFilterProject}>
           <SelectTrigger className="w-44"><SelectValue placeholder="All Projects" /></SelectTrigger>
           <SelectContent>
@@ -263,8 +272,9 @@ export default function Tasks() {
         <Select value={filterAssignee === "__pending__" ? "mine" : filterAssignee} onValueChange={setFilterAssignee}>
           <SelectTrigger className="w-44"><SelectValue placeholder="All Assignees" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="mine">Mine + Team</SelectItem>
-            <SelectItem value="all">All Assignees</SelectItem>
+            <SelectItem value="mine">My Tasks</SelectItem>
+            <SelectItem value="all">All Tasks</SelectItem>
+            <SelectItem value="unassigned">Unassigned</SelectItem>
             <SelectItem value="team">🤝 Team Only</SelectItem>
             {ssUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
           </SelectContent>
@@ -274,12 +284,12 @@ export default function Tasks() {
       {loading ? (
         <p className="text-muted-foreground">Loading...</p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {statusColumns.map((col) => (
-            <div key={col} className="space-y-3">
+            <div key={col} className="space-y-3 min-w-0">
               <div className="flex items-center gap-2 pb-2 border-b">
-                <h2 className="font-semibold text-sm text-foreground">{statusLabels[col]}</h2>
-                <Badge variant="secondary" className="text-xs">{tasksByStatus(col).length}</Badge>
+                <h2 className="font-semibold text-xs text-foreground">{statusLabels[col]}</h2>
+                <Badge variant="secondary" className="text-[10px]">{tasksByStatus(col).length}</Badge>
               </div>
               {tasksByStatus(col).length === 0 ? (
                 <p className="text-xs text-muted-foreground text-center py-8">No tasks</p>
@@ -288,15 +298,15 @@ export default function Tasks() {
                   <Card key={task.id} className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => openEdit(task)}>
                     <CardContent className="p-3 space-y-2">
                       <div className="flex items-start justify-between gap-2">
-                        <span className="text-sm font-medium leading-snug">{task.title}</span>
+                        <span className="text-xs font-medium leading-snug">{task.title}</span>
                         <Badge variant="outline" className={`text-[10px] shrink-0 ${priorityColors[task.priority] || ""}`}>{task.priority}</Badge>
                       </div>
-                      {task.description && <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>}
-                      <div className="flex flex-wrap gap-1.5 text-xs text-muted-foreground">
+                      {task.description && <p className="text-[10px] text-muted-foreground line-clamp-2">{task.description}</p>}
+                      <div className="flex flex-wrap gap-1 text-[10px] text-muted-foreground">
                         {projectName(task.project_id) && <Badge variant="secondary" className="text-[10px]">{projectName(task.project_id)}</Badge>}
                         {userName(task) && (
                           <span className="flex items-center gap-0.5">
-                            <User className="h-3 w-3" /> 
+                            <User className="h-3 w-3" />
                             {task.assigned_to_team ? <Badge variant="secondary" className="text-[10px]">🤝 Team</Badge> : userName(task)}
                           </span>
                         )}
@@ -304,16 +314,12 @@ export default function Tasks() {
                           <span className="flex items-center gap-0.5"><Calendar className="h-3 w-3" /> {format(new Date(task.due_at), "MMM d")}</span>
                         )}
                       </div>
-                      <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                         <Select value={task.status} onValueChange={(s) => updateStatus(task.id, s)}>
-                          <SelectTrigger className="h-7 text-xs flex-1"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="todo">To Do</SelectItem>
-                            <SelectItem value="in_progress">In Progress</SelectItem>
-                            <SelectItem value="done">Done</SelectItem>
-                          </SelectContent>
+                          <SelectTrigger className="h-6 text-[10px] flex-1"><SelectValue /></SelectTrigger>
+                          <SelectContent><StatusSelectOptions /></SelectContent>
                         </Select>
-                        <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => setRequestTask(task)}>
+                        <Button size="sm" variant="secondary" className="h-6 text-[10px] px-1.5" onClick={() => setRequestTask(task)}>
                           <Send className="h-3 w-3" />
                         </Button>
                       </div>
@@ -380,11 +386,7 @@ export default function Tasks() {
               <Label className="text-xs text-muted-foreground">Status</Label>
               <Select value={editStatus} onValueChange={setEditStatus}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todo">To Do</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="done">Done</SelectItem>
-                </SelectContent>
+                <SelectContent><StatusSelectOptions /></SelectContent>
               </Select>
             </div>
             <div>

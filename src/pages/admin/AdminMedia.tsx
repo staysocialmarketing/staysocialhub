@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
 import { format } from "date-fns";
-import { ImageIcon, Film, FolderOpen, Archive, Trash2 } from "lucide-react";
+import { ImageIcon, Film, FolderOpen, Archive, Trash2, Download, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { extractStoragePath } from "@/lib/imageUtils";
 
@@ -22,10 +22,23 @@ function isVideo(url: string | null) {
   return /\.(mp4|mov|webm|avi)$/i.test(url);
 }
 
+function isDocument(url: string | null) {
+  if (!url) return false;
+  return /\.(pdf|doc|docx|txt|csv|xlsx|pptx)$/i.test(url);
+}
+
+function getMediaType(url: string | null): string {
+  if (!url) return "other";
+  if (isVideo(url)) return "video";
+  if (isDocument(url)) return "document";
+  return "image";
+}
+
 export default function AdminMedia() {
   const { isSSAdmin } = useAuth();
   const queryClient = useQueryClient();
   const [clientFilter, setClientFilter] = useState<string>("all");
+  const [mediaTypeFilter, setMediaTypeFilter] = useState<string>("all");
   const [editPost, setEditPost] = useState<any>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editClientId, setEditClientId] = useState("");
@@ -55,7 +68,10 @@ export default function AdminMedia() {
     },
   });
 
-  const filteredPosts = clientFilter === "all" ? posts : posts.filter((p: any) => p.client_id === clientFilter);
+  let filteredPosts = clientFilter === "all" ? posts : posts.filter((p: any) => p.client_id === clientFilter);
+  if (mediaTypeFilter !== "all") {
+    filteredPosts = filteredPosts.filter((p: any) => getMediaType(p.creative_url) === mediaTypeFilter);
+  }
   const paginatedPosts = filteredPosts.slice(0, visibleCount);
   const hasMore = filteredPosts.length > visibleCount;
 
@@ -94,11 +110,9 @@ export default function AdminMedia() {
 
   const handleDelete = async () => {
     if (!deletePostId) return;
-    // Find the post to clean up storage
     const postToDelete = posts.find((p: any) => p.id === deletePostId);
     const { error } = await supabase.from("posts").delete().eq("id", deletePostId);
     if (error) { toast.error(error.message); return; }
-    // Clean up storage file
     if (postToDelete?.creative_url) {
       const storagePath = extractStoragePath(postToDelete.creative_url, "creative-assets");
       if (storagePath) {
@@ -111,24 +125,52 @@ export default function AdminMedia() {
     queryClient.invalidateQueries({ queryKey: ["admin-media-posts"] });
   };
 
+  const handleDownload = (url: string) => {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "";
+    a.target = "_blank";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const handleCopyLink = (url: string) => {
+    navigator.clipboard.writeText(url);
+    toast.success("Link copied to clipboard");
+  };
+
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Media Library</h1>
           <p className="text-sm text-muted-foreground">All published client media, organized by client</p>
         </div>
-        <Select value={clientFilter} onValueChange={setClientFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="All Clients" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Clients</SelectItem>
-            {clients.map((c) => (
-              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          <Select value={mediaTypeFilter} onValueChange={setMediaTypeFilter}>
+            <SelectTrigger className="w-36">
+              <SelectValue placeholder="All Types" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="image">Images</SelectItem>
+              <SelectItem value="video">Videos</SelectItem>
+              <SelectItem value="document">Documents</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={clientFilter} onValueChange={setClientFilter}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="All Clients" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Clients</SelectItem>
+              {clients.map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {isLoading ? (
@@ -192,13 +234,23 @@ export default function AdminMedia() {
               <ClientSelectWithCreate value={editClientId} onValueChange={setEditClientId} allowNone={false} />
             </div>
             {editPost?.creative_url && (
-              <div className="rounded-md overflow-hidden border">
-                {isVideo(editPost.creative_url) ? (
-                  <video src={editPost.creative_url} controls className="w-full max-h-48 object-contain" />
-                ) : (
-                  <img src={editPost.creative_url} alt={editTitle} className="w-full max-h-48 object-contain" />
-                )}
-              </div>
+              <>
+                <div className="rounded-md overflow-hidden border">
+                  {isVideo(editPost.creative_url) ? (
+                    <video src={editPost.creative_url} controls className="w-full max-h-48 object-contain" />
+                  ) : (
+                    <img src={editPost.creative_url} alt={editTitle} className="w-full max-h-48 object-contain" />
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => handleDownload(editPost.creative_url)}>
+                    <Download className="h-3.5 w-3.5 mr-1" /> Download
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => handleCopyLink(editPost.creative_url)}>
+                    <Link2 className="h-3.5 w-3.5 mr-1" /> Copy Link
+                  </Button>
+                </div>
+              </>
             )}
           </div>
           <DialogFooter className="flex justify-between sm:justify-between">

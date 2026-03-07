@@ -12,12 +12,13 @@ import type { Database } from "@/integrations/supabase/types";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
-const ALL_ROLES: AppRole[] = ["ss_admin", "ss_producer", "ss_ops", "client_admin", "client_assistant"];
+const ALL_ROLES: AppRole[] = ["ss_admin", "ss_team", "client_admin", "client_assistant"];
 
 const roleLabels: Record<AppRole, string> = {
   ss_admin: "SS Admin",
-  ss_producer: "SS Producer",
-  ss_ops: "SS Ops",
+  ss_team: "SS Team",
+  ss_producer: "SS Team",
+  ss_ops: "SS Team",
   client_admin: "Client Admin",
   client_assistant: "Client Assistant",
 };
@@ -108,7 +109,6 @@ export default function AdminUsers() {
                     </div>
                   </div>
 
-                  {/* Roles */}
                   <div className="flex flex-wrap items-center gap-1.5">
                     {(u.user_roles || []).map((r: any) => (
                       <Badge key={r.id} variant="secondary" className="text-xs gap-1 pr-1">
@@ -143,7 +143,6 @@ export default function AdminUsers() {
                     )}
                   </div>
 
-                  {/* Client assignment — admin only */}
                   {isSSAdmin && (
                     <div className="flex items-center gap-2">
                       <Building2 className="h-4 w-4 text-muted-foreground" />

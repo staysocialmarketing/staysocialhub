@@ -58,7 +58,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [realRoles, setRealRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // View-as state
   const [viewAsUserId, setViewAsUserId] = useState<string | null>(null);
   const [viewAsProfile, setViewAsProfile] = useState<UserProfile | null>(null);
   const [viewAsRoles, setViewAsRoles] = useState<AppRole[]>([]);
@@ -91,7 +90,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setViewAsRoles([]);
       return;
     }
-    // Fetch the target user's profile and roles
     const { data: profileData } = await supabase
       .from("users")
       .select("*")
@@ -149,17 +147,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setViewAsRoles([]);
   };
 
-  // Real role booleans (never change regardless of view-as)
   const actualIsSSAdmin = realRoles.includes("ss_admin");
 
-  // Effective values: use view-as when active, otherwise real
   const isViewingAs = viewAsUserId !== null && viewAsProfile !== null;
   const profile = isViewingAs ? viewAsProfile : realProfile;
   const roles = isViewingAs ? viewAsRoles : realRoles;
 
-  const isSSRole = roles.some((r) => r === "ss_admin" || r === "ss_producer" || r === "ss_ops");
+  const isSSRole = roles.some((r) => r === "ss_admin" || r === "ss_producer" || r === "ss_ops" || r === "ss_team");
   const isSSAdmin = roles.includes("ss_admin");
-  const isSSTeam = roles.includes("ss_producer") || roles.includes("ss_ops");
+  const isSSTeam = roles.includes("ss_team") || roles.includes("ss_producer") || roles.includes("ss_ops");
   const isClientAdmin = roles.includes("client_admin");
   const isClientAssistant = roles.includes("client_assistant");
 

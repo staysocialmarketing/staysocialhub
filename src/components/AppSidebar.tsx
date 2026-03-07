@@ -47,11 +47,12 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 
-// ─── Super Admin ─────────────────────────────────────────────────────────────
+// ─── Super Admin nav ─────────────────────────────────────────────────────────
 const superAdminMenuItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Workflow", url: "/workflow", icon: ClipboardList },
   { title: "Approvals", url: "/approvals", icon: CheckSquare },
+  { title: "Clients", url: "/admin/clients", icon: Building2 },
   { title: "Requests", url: "/requests", icon: MessageSquarePlus },
 ];
 const superAdminTeamItems = [
@@ -60,17 +61,17 @@ const superAdminTeamItems = [
   { title: "Tasks", url: "/team/tasks", icon: ListTodo },
 ];
 const superAdminAdminItems = [
-  { title: "Clients", url: "/admin/clients", icon: Building2 },
-  { title: "Users", url: "/admin/users", icon: Users },
-  { title: "Media", url: "/admin/media", icon: Image },
+  { title: "Media Library", url: "/admin/media", icon: Image },
   { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
+  { title: "Users", url: "/admin/users", icon: Users },
 ];
 
-// ─── Team ────────────────────────────────────────────────────────────────────
+// ─── Team nav ────────────────────────────────────────────────────────────────
 const teamMenuItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Workflow", url: "/workflow", icon: ClipboardList },
   { title: "Approvals", url: "/approvals", icon: CheckSquare },
+  { title: "Clients", url: "/admin/clients", icon: Building2 },
   { title: "Requests", url: "/requests", icon: MessageSquarePlus },
 ];
 const teamTeamItems = [
@@ -79,12 +80,11 @@ const teamTeamItems = [
   { title: "Tasks", url: "/team/tasks", icon: ListTodo },
 ];
 const teamAdminItems = [
-  { title: "Clients", url: "/admin/clients", icon: Building2 },
-  { title: "Media", url: "/admin/media", icon: Image },
+  { title: "Media Library", url: "/admin/media", icon: Image },
   { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
 ];
 
-// ─── Client ──────────────────────────────────────────────────────────────────
+// ─── Client nav ──────────────────────────────────────────────────────────────
 const clientItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Approvals", url: "/approvals", icon: CheckSquare },
@@ -126,12 +126,11 @@ export function AppSidebar() {
     fetchUsers();
   }, [actualIsSSAdmin]);
 
-  // Determine nav sections based on role
   const menuItems = isSSAdmin ? superAdminMenuItems : isSSTeam ? teamMenuItems : clientItems;
   const teamSection = isSSAdmin ? superAdminTeamItems : isSSTeam ? teamTeamItems : null;
   const adminSection = isSSAdmin ? superAdminAdminItems : isSSTeam ? teamAdminItems : null;
 
-  const ssUsers = allUsers.filter((u) => u.roles.some((r) => ["ss_admin", "ss_producer", "ss_ops"].includes(r)));
+  const ssUsers = allUsers.filter((u) => u.roles.some((r) => ["ss_admin", "ss_producer", "ss_ops", "ss_team"].includes(r)));
   const clientUsers = allUsers.filter((u) => u.roles.some((r) => ["client_admin", "client_assistant"].includes(r)));
 
   const renderNavSection = (items: typeof menuItems, label: string) => (
@@ -172,7 +171,6 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
 
-      {/* View As selector — only for actual super admin */}
       {actualIsSSAdmin && !collapsed && (
         <div className="px-3 pb-2">
           <div className="flex items-center gap-1.5 mb-1.5">
