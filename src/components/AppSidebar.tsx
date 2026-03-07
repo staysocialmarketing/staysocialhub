@@ -47,33 +47,25 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 
-// ─── Admin nav (flat, ordered) ───────────────────────────────────────────────
-const adminMenuItems = [
+// ─── Sections for admin/team views ───────────────────────────────────────────
+const menuSection = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Workflow", url: "/workflow", icon: ClipboardList },
   { title: "Approvals", url: "/approvals", icon: CheckSquare },
-  { title: "Clients", url: "/admin/clients", icon: Building2 },
   { title: "Requests", url: "/requests", icon: MessageSquarePlus },
+];
+
+const teamSection = [
   { title: "Projects", url: "/team/projects", icon: FolderKanban },
   { title: "Tasks", url: "/team/tasks", icon: ListTodo },
   { title: "Think Tank", url: "/team/think-tank", icon: Lightbulb },
+];
+
+const adminSection = [
+  { title: "Clients", url: "/admin/clients", icon: Building2 },
   { title: "Media Library", url: "/admin/media", icon: Image },
   { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
   { title: "Users", url: "/admin/users", icon: Users },
-];
-
-// ─── Team nav (same minus Users) ─────────────────────────────────────────────
-const teamMenuItems = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Workflow", url: "/workflow", icon: ClipboardList },
-  { title: "Approvals", url: "/approvals", icon: CheckSquare },
-  { title: "Clients", url: "/admin/clients", icon: Building2 },
-  { title: "Requests", url: "/requests", icon: MessageSquarePlus },
-  { title: "Projects", url: "/team/projects", icon: FolderKanban },
-  { title: "Tasks", url: "/team/tasks", icon: ListTodo },
-  { title: "Think Tank", url: "/team/think-tank", icon: Lightbulb },
-  { title: "Media Library", url: "/admin/media", icon: Image },
-  { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
 ];
 
 // ─── Client nav ──────────────────────────────────────────────────────────────
