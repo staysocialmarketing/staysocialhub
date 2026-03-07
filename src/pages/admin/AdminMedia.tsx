@@ -56,8 +56,10 @@ export default function AdminMedia() {
   });
 
   const filteredPosts = clientFilter === "all" ? posts : posts.filter((p: any) => p.client_id === clientFilter);
+  const paginatedPosts = filteredPosts.slice(0, visibleCount);
+  const hasMore = filteredPosts.length > visibleCount;
 
-  const grouped = filteredPosts.reduce((acc: Record<string, any[]>, post: any) => {
+  const grouped = paginatedPosts.reduce((acc: Record<string, any[]>, post: any) => {
     const name = post.clients?.name || "Unknown";
     if (!acc[name]) acc[name] = [];
     acc[name].push(post);
