@@ -3,25 +3,11 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { Outlet } from "react-router-dom";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useAuth } from "@/contexts/AuthContext";
-import { useClientFilter } from "@/contexts/ClientFilterContext";
 import { X } from "lucide-react";
 import { GlobalCaptureButton } from "@/components/GlobalCaptureButton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 
 export function AppLayout() {
-  const { profile, isViewingAs, setViewAs, isSSRole } = useAuth();
-  const { selectedClientId, setSelectedClientId } = useClientFilter();
-
-  const { data: clients = [] } = useQuery({
-    queryKey: ["header-clients"],
-    queryFn: async () => {
-      const { data } = await supabase.from("clients").select("id, name").eq("status", "active").order("name");
-      return data || [];
-    },
-    enabled: isSSRole,
-  });
+  const { profile, isViewingAs, setViewAs } = useAuth();
 
   return (
     <SidebarProvider>
@@ -43,19 +29,6 @@ export function AppLayout() {
             <SidebarTrigger className="mr-4" />
             <div className="flex items-center gap-2 flex-1">
               <h1 className="text-lg font-semibold text-foreground">Stay Social <span className="text-primary">HUB</span></h1>
-              {isSSRole && (
-                <Select value={selectedClientId || "__all__"} onValueChange={(v) => setSelectedClientId(v === "__all__" ? null : v)}>
-                  <SelectTrigger className="w-48 h-8 text-xs ml-4">
-                    <SelectValue placeholder="All Clients" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all__">All Clients</SelectItem>
-                    {clients.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
             </div>
             {profile && <NotificationBell />}
           </header>
