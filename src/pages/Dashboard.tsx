@@ -63,7 +63,7 @@ function SuperAdminDashboard() {
   const { data: teamActivity = [] } = useQuery({
     queryKey: ["sa-team-activity"],
     queryFn: async () => {
-      const { data: teamRoles } = await supabase.from("user_roles").select("user_id, role").in("role", ["ss_producer", "ss_ops"]);
+      const { data: teamRoles } = await supabase.from("user_roles").select("user_id, role").in("role", ["ss_team", "ss_producer", "ss_ops"]);
       if (!teamRoles?.length) return [];
       const userIds = [...new Set(teamRoles.map((r) => r.user_id))];
       const { data: users } = await supabase.from("users").select("id, name, email").in("id", userIds);
