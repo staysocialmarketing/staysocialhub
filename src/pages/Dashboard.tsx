@@ -247,14 +247,19 @@ function SuperAdminDashboard() {
         </div>
       )}
 
-      {myTasks.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-3">
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
             <ClipboardList className="h-5 w-5 text-primary" />
             <h3 className="text-lg font-semibold text-foreground">My Tasks</h3>
           </div>
-          <Card>
-            <CardContent className="p-0">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/team/tasks")}>View all <ArrowRight className="h-3 w-3 ml-1" /></Button>
+        </div>
+        <Card>
+          <CardContent className="p-0">
+            {myTasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">No outstanding tasks — you're all caught up! 🎉</p>
+            ) : (
               <ul className="divide-y divide-border">
                 {myTasks.map((task: any) => (
                   <li key={task.id} className="flex items-center justify-between px-4 py-3 hover:bg-accent/50 cursor-pointer transition-colors" onClick={() => navigate("/team/tasks")}>
@@ -265,14 +270,15 @@ function SuperAdminDashboard() {
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary" className="text-xs">{task.status}</Badge>
                       <Badge variant="outline" className="text-[10px] capitalize">{task.priority}</Badge>
+                      {task.projects?.name && <span className="text-xs text-muted-foreground">{task.projects.name}</span>}
                     </div>
                   </li>
                 ))}
               </ul>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <div>
         <h3 className="text-lg font-semibold text-foreground mb-3">Quick Actions</h3>
