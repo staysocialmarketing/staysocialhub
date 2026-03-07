@@ -1,57 +1,35 @@
 
 
-# Workflow, Approvals, and Auto-Assignment Overhaul
+# Add Task from Projects, Restrict Assignees, Remove Users for Team, Editable Media
 
-## Summary of Changes
+## 1. Projects Page — Add Task Button in Expanded View
 
-This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
+In `Projects.tsx`, when a project card is expanded, add a `+ Add Task` button below the task list (shown regardless of whether tasks exist). Clicking it opens a small inline dialog pre-filled with `project_id` set to the current project. On save, refresh data so the new task appears immediately.
 
-## 1. Database: Update Auto-Assignment Triggers
+Also need to add `client_id` auto-linking: when creating a task from within a project, inherit the project's `client_id`.
 
-**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
+## 2. Restrict Task Assignees to SS Roles Only
 
-**Changes (migration)**:
-- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
-- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
-- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
-- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
+In both `Projects.tsx` and `Tasks.tsx`, filter the users list for assignee dropdowns to only show users with SS roles (`ss_admin`, `ss_producer`, `ss_ops`). Fetch `user_roles` alongside users and filter accordingly — show only Corey, Tristan, and Gavin.
 
-All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
+## 3. Remove Admin > Users from Team Sidebar
 
-## 2. Approvals Page — Separate Media from Published Content
+In `AppSidebar.tsx`, remove the `Users` entry from `teamAdminItems` (line 83). Team members will only see Clients and Media.
 
-**Client Approvals (`ClientApprovals`)**: 
-- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
-- Alternatively, only show posts in Published that were moved there by admin approval flow
+## 4. Admin Media — Edit, Archive, Delete
 
-**Admin Approvals (`AdminApprovals`)**:
-- Same fix for Published column — filter to only show posts linked to requests
-
-**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
-
-## 3. Workflow Page — Move Internal Review to Bottom Section
-
-**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
-
-**New layout**:
-- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
-- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
-
-## 4. Admin & Team Dashboards — Show Assignments + Tasks
-
-**SuperAdminDashboard**: Already shows team activity. Add:
-- "My Assignments" section showing posts assigned to the current admin user
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
-
-**TeamDashboard**: Already shows "My Assignments". Add:
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+Rewrite `AdminMedia.tsx` to support:
+- **Edit**: Click a media card to open a dialog where you can change the post title and reassign the client (via `ClientSelectWithCreate`)
+- **Archive**: Button to set `status_column` to `archived` (admin only)
+- **Delete**: Button to delete the post entirely (admin only, with confirmation)
+- Team members can edit name/client but cannot archive or delete
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
-| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
-| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
-| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
+| `src/pages/team/Projects.tsx` | Add "+ Add Task" button in expanded project, filter assignees to SS roles, inherit client_id |
+| `src/pages/team/Tasks.tsx` | Filter assignees to SS roles only |
+| `src/components/AppSidebar.tsx` | Remove Users from teamAdminItems |
+| `src/pages/admin/AdminMedia.tsx` | Add edit dialog (title, client), archive and delete for admin |
 
