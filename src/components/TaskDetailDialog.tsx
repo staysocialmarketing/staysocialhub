@@ -17,6 +17,9 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
 import DatePickerField from "@/components/DatePickerField";
+import AIFieldsPanel from "@/components/AIFieldsPanel";
+import StrategyBriefPanel from "@/components/StrategyBriefPanel";
+import RunStrategyButton from "@/components/RunStrategyButton";
 
 interface Task {
   id: string;
