@@ -505,16 +505,16 @@ export default function Workflow() {
 
       {/* Kanban columns */}
       <ScrollArea className="flex-1">
-        <div className="flex gap-4 pb-4" style={{ minWidth: KANBAN_COLUMNS.length * 280 }}>
+        <div className="flex gap-5 pb-4" style={{ minWidth: KANBAN_COLUMNS.length * 290 }}>
           {KANBAN_COLUMNS.map(col => {
             const columnPosts = posts.filter((p: any) => p.status_column === col.key && (contentTypeFilter === "all" || p.content_type === contentTypeFilter));
             return (
-              <div key={col.key} className="w-[260px] shrink-0 flex flex-col bg-muted/50 rounded-lg" onDrop={e => handleDrop(e, col.key)} onDragOver={handleDragOver}>
-                <div className="px-3 py-2 flex items-center justify-between">
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{col.label}</h3>
-                  <Badge variant="secondary" className="text-xs">{columnPosts.length}</Badge>
+              <div key={col.key} className="w-[270px] shrink-0 flex flex-col bg-accent/30 rounded-xl" onDrop={e => handleDrop(e, col.key)} onDragOver={handleDragOver}>
+                <div className="px-4 py-3 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-foreground">{col.label}</h3>
+                  <span className="text-xs text-muted-foreground">{columnPosts.length}</span>
                 </div>
-                <div className="px-2 pb-2 space-y-2 flex-1 min-h-[100px]">
+                <div className="px-2 pb-3 space-y-2 flex-1 min-h-[100px]">
                   {columnPosts.map(renderCard)}
                 </div>
               </div>
