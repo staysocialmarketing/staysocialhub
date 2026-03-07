@@ -160,7 +160,7 @@ export default function WhatsNew() {
         </div>
       )}
 
-      {items.length === 0 && (
+      {filteredItems.length === 0 && (
         <p className="text-muted-foreground text-center py-12">No services available right now. Check back soon!</p>
       )}
     </div>
