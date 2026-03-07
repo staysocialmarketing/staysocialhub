@@ -97,15 +97,15 @@ function WorkQueueDashboard() {
     enabled: !!profile,
   });
 
-  // ── Approvals Waiting ──
+  // ── Approvals Waiting (internal_review + client_approval) ──
   const { data: approvalsWaiting = [] } = useQuery({
     queryKey: ["wq-approvals"],
     queryFn: async () => {
       const { data } = await supabase.from("posts")
         .select("id, title, content_type, created_at, status_column, client_id, clients(name)")
-        .eq("status_column", "client_approval")
+        .in("status_column", ["internal_review", "client_approval"])
         .order("created_at", { ascending: false })
-        .limit(10);
+        .limit(20);
       return data || [];
     },
   });

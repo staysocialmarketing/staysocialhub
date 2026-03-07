@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,7 @@ import { Calendar as CalendarWidget } from "@/components/ui/calendar";
 import { Clock, ExternalLink, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import ApprovalActions from "@/components/ApprovalActions";
 
 const CONTENT_TYPES = [
   { value: "image", label: "Image" },
@@ -32,6 +34,7 @@ interface WorkflowCardDialogProps {
 export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }: WorkflowCardDialogProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { isSSAdmin, isClientAdmin, isClientAssistant } = useAuth();
 
   const [title, setTitle] = useState(post.title);
   const [caption, setCaption] = useState(post.caption || "");
@@ -78,6 +81,10 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
     onError: (err: any) => toast.error(err.message || "Failed to update"),
   });
 
+  // Show approval actions in dialog for mobile access
+  const showAdminApproval = isSSAdmin && post.status_column === "internal_review";
+  const showClientApproval = (isClientAdmin || isClientAssistant) && post.status_column === "client_approval";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
@@ -86,15 +93,27 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
             Edit Post
             {post.request_id && (
               <Badge variant="secondary" className="text-[10px] bg-accent text-accent-foreground">
-                <FileText className="h-3 w-3 mr-1" />
-                From Request
+                <FileText className="h-3 w-3 mr-1" />From Request
               </Badge>
             )}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 mt-2">
-          {/* Client (read-only) */}
+          {/* Approval actions for mobile — visible at top */}
+          {showAdminApproval && (
+            <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
+              <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Internal Review</p>
+              <ApprovalActions postId={post.id} postTitle={post.title} currentStatus={post.status_column} approveTarget="client_approval" />
+            </div>
+          )}
+          {showClientApproval && (
+            <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
+              <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Your Approval</p>
+              <ApprovalActions postId={post.id} postTitle={post.title} currentStatus={post.status_column} approveTarget="scheduled" />
+            </div>
+          )}
+
           {post.clients?.name && (
             <div>
               <Label className="text-muted-foreground text-xs">Client</Label>
@@ -102,27 +121,14 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
             </div>
           )}
 
-          <div>
-            <Label>Title</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} />
-          </div>
-
-          <div>
-            <Label>Caption / Description</Label>
-            <Textarea value={caption} onChange={(e) => setCaption(e.target.value)} rows={3} />
-          </div>
+          <div><Label>Title</Label><Input value={title} onChange={e => setTitle(e.target.value)} /></div>
+          <div><Label>Caption / Description</Label><Textarea value={caption} onChange={e => setCaption(e.target.value)} rows={3} /></div>
 
           <div>
             <Label>Content Type</Label>
             <Select value={contentType} onValueChange={setContentType}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                {CONTENT_TYPES.map((t) => (
-                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                ))}
-              </SelectContent>
+              <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+              <SelectContent>{CONTENT_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
 
@@ -131,12 +137,11 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="w-full justify-start text-left font-normal">
-                  <Clock className="h-4 w-4 mr-2" />
-                  {dueAt ? format(dueAt, "PPP") : "Pick a due date"}
+                  <Clock className="h-4 w-4 mr-2" />{dueAt ? format(dueAt, "PPP") : "Pick a due date"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0">
-                <CalendarWidget mode="single" selected={dueAt || undefined} onSelect={(d) => setDueAt(d || null)} className="p-3 pointer-events-auto" />
+                <CalendarWidget mode="single" selected={dueAt || undefined} onSelect={d => setDueAt(d || null)} className="p-3 pointer-events-auto" />
               </PopoverContent>
             </Popover>
           </div>
@@ -146,27 +151,18 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
               <Label>Assigned to</Label>
               <Select value={assignedTo} onValueChange={setAssignedTo}>
                 <SelectTrigger><SelectValue placeholder="Select user" /></SelectTrigger>
-                <SelectContent>
-                  {ssUsers.map((u: any) => (
-                    <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>
-                  ))}
-                </SelectContent>
+                <SelectContent>{ssUsers.map((u: any) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>
               <Label>Reviewer</Label>
               <Select value={reviewer} onValueChange={setReviewer}>
                 <SelectTrigger><SelectValue placeholder="Select reviewer" /></SelectTrigger>
-                <SelectContent>
-                  {ssUsers.map((u: any) => (
-                    <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>
-                  ))}
-                </SelectContent>
+                <SelectContent>{ssUsers.map((u: any) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}</SelectContent>
               </Select>
             </div>
           </div>
 
-          {/* Platform badges (read-only) */}
           {post.platform && (
             <div>
               <Label className="text-muted-foreground text-xs">Platforms</Label>
@@ -178,7 +174,6 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
             </div>
           )}
 
-          {/* Linked request details */}
           {linkedRequest && (
             <div className="rounded-md border border-border p-3 space-y-1 bg-muted/30">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Original Request</p>
@@ -197,8 +192,7 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
               {updatePost.isPending ? "Saving..." : "Save Changes"}
             </Button>
             <Button variant="outline" onClick={() => { onOpenChange(false); navigate(`/approvals/${post.id}`); }}>
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Full View
+              <ExternalLink className="h-4 w-4 mr-2" />Full View
             </Button>
           </div>
         </div>
