@@ -134,7 +134,7 @@ export default function Projects() {
         setSsUsers((allUsers || []).filter((u: any) => ssIds.has(u.id)));
       });
     });
-  }, [filterStatus]);
+  }, [filterStatus, globalClientId]);
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {

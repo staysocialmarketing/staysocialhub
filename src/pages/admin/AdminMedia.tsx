@@ -76,7 +76,8 @@ export default function AdminMedia() {
     },
   });
 
-  let filteredPosts = clientFilter === "all" ? posts : posts.filter((p: any) => p.client_id === clientFilter);
+  const effectiveClientFilter = globalClientId || (clientFilter !== "all" ? clientFilter : null);
+  let filteredPosts = effectiveClientFilter ? posts.filter((p: any) => p.client_id === effectiveClientFilter) : posts;
   if (mediaTypeFilter !== "all") {
     filteredPosts = filteredPosts.filter((p: any) => getMediaType(p.creative_url) === mediaTypeFilter);
   }

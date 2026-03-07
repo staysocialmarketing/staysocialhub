@@ -112,7 +112,7 @@ function WorkQueueDashboard() {
 
   // ── Overdue Work ──
   const { data: overdueItems = [] } = useQuery({
-    queryKey: ["wq-overdue", profile?.id, filter],
+    queryKey: ["wq-overdue", profile?.id, filter, globalClientId],
     queryFn: async () => {
       const now = new Date().toISOString();
       let tq = supabase.from("tasks")
@@ -124,6 +124,7 @@ function WorkQueueDashboard() {
       if (filter === "my") {
         tq = tq.or(`assigned_to_user_id.eq.${profile!.id},assigned_to_team.eq.true`);
       }
+      if (globalClientId) tq = tq.eq("client_id", globalClientId);
       let pq = supabase.from("posts")
         .select("id, title, due_at, status_column, client_id, assigned_to_user_id, clients(name)")
         .lt("due_at", now)
@@ -133,6 +134,7 @@ function WorkQueueDashboard() {
       if (filter === "my") {
         pq = pq.eq("assigned_to_user_id", profile!.id);
       }
+      if (globalClientId) pq = pq.eq("client_id", globalClientId);
       const [{ data: tasks }, { data: posts }] = await Promise.all([tq, pq]);
       const items: any[] = [];
       (tasks || []).forEach(t => items.push({ ...t, _type: "task", _status: t.status }));

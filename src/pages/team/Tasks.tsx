@@ -111,7 +111,7 @@ export default function Tasks() {
       });
     });
     supabase.from("clients").select("id, name").eq("status", "active").then(({ data }) => setClients(data || []));
-  }, [filterProject, filterAssignee]);
+  }, [filterProject, filterAssignee, globalClientId]);
 
   const openEdit = (task: Task) => setEditTask(task);
 
