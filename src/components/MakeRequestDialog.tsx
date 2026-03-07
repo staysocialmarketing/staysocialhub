@@ -56,7 +56,11 @@ export default function MakeRequestDialog({
       setTopic(prefillTopic);
       setNotes(prefillNotes);
       setAttachmentFile(null);
-      loadClients();
+      if (isSSRole) {
+        loadClients();
+      } else if (profile?.client_id) {
+        setClientId(profile.client_id);
+      }
     }
     onOpenChange(o);
   };
