@@ -105,6 +105,7 @@ export default function ThinkTank() {
       name: actionName.trim(),
       description: actionDesc.trim() || null,
       created_by_user_id: profile.id,
+      client_id: createProjectItem.client_id || null,
     } as any);
     if (error) { toast.error(error.message); return; }
     await updateStatus(createProjectItem.id, "actioned");
