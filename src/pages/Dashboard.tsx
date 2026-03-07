@@ -437,7 +437,7 @@ function ClientDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/approvals")}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Awaiting Approval</CardTitle>
@@ -456,6 +456,16 @@ function ClientDashboard() {
           <CardContent>
             <div className="text-3xl font-bold text-foreground">{openRequests}</div>
             <p className="text-xs text-muted-foreground mt-1">Requests being worked on</p>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/approvals")}>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Sent Campaigns</CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-foreground">{sentCampaigns}</div>
+            <p className="text-xs text-muted-foreground mt-1">Email campaigns sent</p>
           </CardContent>
         </Card>
       </div>
