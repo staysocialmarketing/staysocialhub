@@ -177,7 +177,7 @@ export function GlobalCaptureButton() {
   const saveVoiceNote = async () => {
     if (!audioBlob || !profile) return;
     setSaving(true);
-    const folder = voiceClient || "general";
+    const folder = isClient ? (profile.client_id || "general") : (voiceClient || "general");
     const path = `${folder}/voice-${Date.now()}.webm`;
     const { error } = await supabase.storage.from("creative-assets").upload(path, audioBlob, { contentType: "audio/webm" });
     setSaving(false);
@@ -186,7 +186,7 @@ export function GlobalCaptureButton() {
     handleOpen(false);
   };
 
-  if (!isSSRole) return null;
+  if (!isSSRole && !isClient) return null;
 
   const options = [
     { key: "task" as const, icon: ListTodo, label: "Create Task", desc: "Quick task creation" },
