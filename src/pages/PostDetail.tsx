@@ -315,7 +315,7 @@ export default function PostDetail() {
               ) : (
                 <div className="space-y-3">
                   {versions.map((v: any) => (
-                    <div key={v.id} className="flex items-start gap-3 p-2 rounded-md hover:bg-muted/50">
+                    <div key={v.id} className="flex items-start gap-3 p-2 rounded-md hover:bg-muted/50 cursor-pointer" onClick={() => setLightboxVersion(v)}>
                       <div className="h-12 w-12 rounded bg-muted flex items-center justify-center shrink-0 overflow-hidden">
                         {v.creative_url ? (
                           <img src={v.creative_url} alt="" className="h-12 w-12 object-cover" />
