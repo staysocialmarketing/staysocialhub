@@ -55,21 +55,24 @@ export default function AdminClients() {
     });
   }, []);
 
-  // Linked data for the edit dialog
+  // Linked data for edit/view dialogs
+  const activeClientId = editClient?.id || viewClient?.id;
   const { data: linkedData } = useQuery({
-    queryKey: ["client-linked-data", editClient?.id],
-    enabled: !!editClient,
+    queryKey: ["client-linked-data", activeClientId],
+    enabled: !!activeClientId,
     queryFn: async () => {
-      const cid = editClient.id;
-      const [projects, tasks, thinkTank] = await Promise.all([
+      const cid = activeClientId;
+      const [projects, tasks, thinkTank, requests] = await Promise.all([
         supabase.from("projects").select("id, name, status").eq("client_id", cid).order("created_at", { ascending: false }).limit(10),
         supabase.from("tasks").select("id, title, status").eq("client_id", cid).order("created_at", { ascending: false }).limit(10),
         supabase.from("think_tank_items").select("id, title, status").eq("client_id", cid).order("created_at", { ascending: false }).limit(10),
+        supabase.from("requests").select("id, topic, status").eq("client_id", cid).order("created_at", { ascending: false }).limit(10),
       ]);
       return {
         projects: projects.data || [],
         tasks: tasks.data || [],
         thinkTank: thinkTank.data || [],
+        requests: requests.data || [],
       };
     },
   });
