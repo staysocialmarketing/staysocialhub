@@ -14,14 +14,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { toast } from "sonner";
 import { Plus, Building2, Sparkles, FolderOpen, ListTodo, Lightbulb } from "lucide-react";
 
-const ALL_ADDONS = [
-  "Email Marketing",
-  "Reels & Short-Form Video",
-  "Paid Social Ads",
-  "Blog & SEO Content",
-  "Photography Sessions",
-  "Community Management",
-];
 
 export default function AdminClients() {
   const queryClient = useQueryClient();
