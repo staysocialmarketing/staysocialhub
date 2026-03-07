@@ -1,92 +1,157 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Check, Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Sparkles, Check, Loader2, Star } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-const addons = [
-  { title: "Email Marketing", desc: "Monthly email campaigns to nurture your audience and drive conversions.", icon: "📧", price: "From $299/mo" },
-  { title: "Reels & Short-Form Video", desc: "Engaging vertical video content for Instagram Reels, TikTok, and Shorts.", icon: "🎬", price: "From $499/mo" },
-  { title: "Paid Social Ads", desc: "Strategic ad campaigns with targeting, creative, and reporting.", icon: "📊", price: "From $599/mo" },
-  { title: "Blog & SEO Content", desc: "Monthly blog posts optimized for search to drive organic traffic.", icon: "✍️", price: "From $399/mo" },
-  { title: "Photography Sessions", desc: "Professional brand photography for your social content library.", icon: "📷", price: "From $799/session" },
-  { title: "Community Management", desc: "Active engagement with your audience — comments, DMs, and more.", icon: "💬", price: "From $349/mo" },
-];
+interface MarketplaceItem {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  icon: string | null;
+  price: string | null;
+  created_at: string;
+}
 
 export default function WhatsNew() {
   const { profile, user } = useAuth();
   const { toast } = useToast();
+  const [items, setItems] = useState<MarketplaceItem[]>([]);
+  const [recommendedItemId, setRecommendedItemId] = useState<string | null>(null);
   const [requestedAddons, setRequestedAddons] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profile?.client_id) return;
-    supabase
-      .from("addon_requests")
-      .select("addon_name")
-      .eq("client_id", profile.client_id)
-      .then(({ data }) => {
-        if (data) setRequestedAddons(new Set(data.map((r) => r.addon_name)));
-      });
+
+    // Fetch client data for recommended_item_id and visible addons
+    supabase.from("clients").select("recommended_item_id, whats_new_visible_addons").eq("id", profile.client_id).single().then(({ data }) => {
+      if (data) {
+        setRecommendedItemId((data as any).recommended_item_id);
+      }
+    });
+
+    // Fetch marketplace items
+    supabase.from("marketplace_items").select("*").eq("is_active", true).order("sort_order").order("created_at", { ascending: false }).then(({ data }) => {
+      setItems((data as MarketplaceItem[]) || []);
+    });
+
+    // Fetch existing requests
+    supabase.from("addon_requests").select("addon_name").eq("client_id", profile.client_id).then(({ data }) => {
+      if (data) setRequestedAddons(new Set(data.map((r) => r.addon_name)));
+    });
   }, [profile?.client_id]);
 
-  const handleRequest = async (addonName: string) => {
+  const handleRequest = async (itemName: string) => {
     if (!profile?.client_id || !user?.id) return;
-    setLoading(addonName);
+    setLoading(itemName);
     const { error } = await supabase.from("addon_requests").insert({
       client_id: profile.client_id,
       user_id: user.id,
-      addon_name: addonName,
+      addon_name: itemName,
     });
     setLoading(null);
     if (error) {
       toast({ title: "Error", description: "Could not submit request. Please try again.", variant: "destructive" });
     } else {
-      setRequestedAddons((prev) => new Set(prev).add(addonName));
-      toast({ title: "Request Sent!", description: `We'll be in touch about ${addonName}.` });
+      setRequestedAddons((prev) => new Set(prev).add(itemName));
+      toast({ title: "Request Sent!", description: `We'll be in touch about ${itemName}.` });
     }
   };
 
+  const solutions = items.filter((i) => i.category === "solution");
+  const upgrades = items.filter((i) => i.category === "upgrade");
+
+  // Determine recommended item: admin-chosen or most recent
+  const recommendedItem = recommendedItemId
+    ? items.find((i) => i.id === recommendedItemId)
+    : items[0] || null;
+
+  const renderCard = (item: MarketplaceItem, isRecommended = false) => {
+    const requested = requestedAddons.has(item.name);
+    const isLoading = loading === item.name;
+    return (
+      <Card key={item.id} className={`hover:shadow-md transition-shadow ${isRecommended ? "border-primary/40 ring-1 ring-primary/20" : ""}`}>
+        <CardContent className="pt-5 space-y-3">
+          <div className="flex items-start justify-between">
+            <span className="text-3xl">{item.icon || "📦"}</span>
+            {isRecommended && (
+              <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px]">
+                <Star className="h-3 w-3 mr-0.5" /> Recommended
+              </Badge>
+            )}
+          </div>
+          <h3 className="font-semibold text-foreground">{item.name}</h3>
+          {item.description && <p className="text-sm text-muted-foreground">{item.description}</p>}
+          {item.price && <p className="text-sm font-medium text-primary">{item.price}</p>}
+          <Button
+            variant={requested ? "secondary" : "default"}
+            size="sm"
+            disabled={requested || isLoading}
+            onClick={() => handleRequest(item.name)}
+          >
+            {isLoading ? (
+              <><Loader2 className="h-3 w-3 animate-spin" /> Sending…</>
+            ) : requested ? (
+              <><Check className="h-3 w-3" /> Requested</>
+            ) : (
+              "Request Package"
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-6 max-w-4xl mx-auto space-y-8">
       <div className="flex items-center gap-2">
         <Sparkles className="h-6 w-6 text-warning" />
-        <h2 className="text-2xl font-bold text-foreground">What's New / Add-ons</h2>
+        <h2 className="text-2xl font-bold text-foreground">What's New</h2>
       </div>
-      <p className="text-muted-foreground">Supercharge your social presence with these add-on services.</p>
+      <p className="text-muted-foreground">Supercharge your social presence with these services.</p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {addons.map((a) => {
-          const requested = requestedAddons.has(a.title);
-          const isLoading = loading === a.title;
-          return (
-            <Card key={a.title} className="hover:shadow-md transition-shadow">
-              <CardContent className="pt-5 space-y-3">
-                <span className="text-3xl">{a.icon}</span>
-                <h3 className="font-semibold text-foreground">{a.title}</h3>
-                <p className="text-sm text-muted-foreground">{a.desc}</p>
-                <p className="text-sm font-medium text-primary">{a.price}</p>
-                <Button
-                  variant={requested ? "secondary" : "default"}
-                  size="sm"
-                  disabled={requested || isLoading}
-                  onClick={() => handleRequest(a.title)}
-                >
-                  {isLoading ? (
-                    <><Loader2 className="h-3 w-3 animate-spin" /> Sending…</>
-                  ) : requested ? (
-                    <><Check className="h-3 w-3" /> Requested</>
-                  ) : (
-                    "Request Package"
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      {/* Recommended Section */}
+      {recommendedItem && (
+        <div>
+          <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+            <Star className="h-5 w-5 text-warning" /> Recommended for You
+          </h3>
+          <div className="max-w-sm">
+            {renderCard(recommendedItem, true)}
+          </div>
+        </div>
+      )}
+
+      {/* Solutions */}
+      {solutions.length > 0 && (
+        <div>
+          <h3 className="text-lg font-semibold text-foreground mb-3">Solutions</h3>
+          <p className="text-sm text-muted-foreground mb-4">Our done-for-you plans to take your brand further.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {solutions.map((item) => renderCard(item, item.id === recommendedItem?.id))}
+          </div>
+        </div>
+      )}
+
+      {/* Upgrades */}
+      {upgrades.length > 0 && (
+        <div>
+          <h3 className="text-lg font-semibold text-foreground mb-3">Upgrades</h3>
+          <p className="text-sm text-muted-foreground mb-4">Add-on services to enhance your current plan.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {upgrades.map((item) => renderCard(item, item.id === recommendedItem?.id))}
+          </div>
+        </div>
+      )}
+
+      {items.length === 0 && (
+        <p className="text-muted-foreground text-center py-12">No services available right now. Check back soon!</p>
+      )}
     </div>
   );
 }
