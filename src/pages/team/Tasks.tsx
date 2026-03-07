@@ -49,11 +49,13 @@ export default function Tasks() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [projectId, setProjectId] = useState("");
+  const [clientId, setClientId] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
   const [priority, setPriority] = useState("normal");
   const [dueAt, setDueAt] = useState("");
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const [users, setUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
+  const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
   const [requestTask, setRequestTask] = useState<Task | null>(null);
 
   // Edit state
