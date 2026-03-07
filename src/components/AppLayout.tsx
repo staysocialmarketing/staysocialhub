@@ -3,25 +3,11 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { Outlet } from "react-router-dom";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useAuth } from "@/contexts/AuthContext";
-import { useClientFilter } from "@/contexts/ClientFilterContext";
 import { X } from "lucide-react";
 import { GlobalCaptureButton } from "@/components/GlobalCaptureButton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 
 export function AppLayout() {
-  const { profile, isViewingAs, setViewAs, isSSRole } = useAuth();
-  const { selectedClientId, setSelectedClientId } = useClientFilter();
-
-  const { data: clients = [] } = useQuery({
-    queryKey: ["header-clients"],
-    queryFn: async () => {
-      const { data } = await supabase.from("clients").select("id, name").eq("status", "active").order("name");
-      return data || [];
-    },
-    enabled: isSSRole,
-  });
+  const { profile, isViewingAs, setViewAs } = useAuth();
 
   return (
     <SidebarProvider>
