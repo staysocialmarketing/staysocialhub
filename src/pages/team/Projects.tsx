@@ -64,8 +64,17 @@ export default function Projects() {
   const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
   const [users, setUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
+  const [ssUsers, setSsUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
   const [requestProject, setRequestProject] = useState<Project | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  // Add task from project state
+  const [addTaskProjectId, setAddTaskProjectId] = useState<string | null>(null);
+  const [addTaskTitle, setAddTaskTitle] = useState("");
+  const [addTaskDescription, setAddTaskDescription] = useState("");
+  const [addTaskAssigneeId, setAddTaskAssigneeId] = useState("");
+  const [addTaskPriority, setAddTaskPriority] = useState("normal");
+  const [addTaskDueAt, setAddTaskDueAt] = useState("");
 
   // Edit project state
   const [editProject, setEditProject] = useState<Project | null>(null);
