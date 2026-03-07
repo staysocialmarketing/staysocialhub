@@ -33,6 +33,12 @@ export default function WhatsNew() {
     supabase.from("clients").select("recommended_item_id, whats_new_visible_addons").eq("id", profile.client_id).single().then(({ data }) => {
       if (data) {
         setRecommendedItemId((data as any).recommended_item_id);
+        const addons = (data as any).whats_new_visible_addons;
+        if (Array.isArray(addons) && addons.length > 0) {
+          setVisibleAddonIds(addons as string[]);
+        } else {
+          setVisibleAddonIds([]);
+        }
       }
     });
 
