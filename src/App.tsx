@@ -19,7 +19,7 @@ import AdminClients from "./pages/admin/AdminClients";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminProfileUpdates from "./pages/admin/AdminProfileUpdates";
 import AdminContent from "./pages/admin/AdminContent";
-import AdminAddonRequests from "./pages/admin/AdminAddonRequests";
+import AdminMarketplace from "./pages/admin/AdminMarketplace";
 import AdminMedia from "./pages/admin/AdminMedia";
 import ThinkTank from "./pages/team/ThinkTank";
 import Projects from "./pages/team/Projects";
@@ -73,7 +73,7 @@ const App = () => (
               <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
               <Route path="/admin/profile-updates" element={<AdminRoute><AdminProfileUpdates /></AdminRoute>} />
               <Route path="/admin/content" element={<AdminRoute><AdminContent /></AdminRoute>} />
-              <Route path="/admin/addon-requests" element={<AdminRoute><AdminAddonRequests /></AdminRoute>} />
+              <Route path="/admin/marketplace" element={<AdminRoute><AdminMarketplace /></AdminRoute>} />
               <Route path="/admin/media" element={<AdminRoute><AdminMedia /></AdminRoute>} />
               <Route path="/team/think-tank" element={<AdminRoute><ThinkTank /></AdminRoute>} />
               <Route path="/team/projects" element={<AdminRoute><Projects /></AdminRoute>} />

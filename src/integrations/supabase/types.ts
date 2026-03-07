@@ -143,6 +143,7 @@ export type Database = {
           id: string
           name: string
           plan_id: string | null
+          recommended_item_id: string | null
           status: string
           whats_new_visible_addons: Json
         }
@@ -152,6 +153,7 @@ export type Database = {
           id?: string
           name: string
           plan_id?: string | null
+          recommended_item_id?: string | null
           status?: string
           whats_new_visible_addons?: Json
         }
@@ -161,6 +163,7 @@ export type Database = {
           id?: string
           name?: string
           plan_id?: string | null
+          recommended_item_id?: string | null
           status?: string
           whats_new_visible_addons?: Json
         }
@@ -170,6 +173,13 @@ export type Database = {
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clients_recommended_item_id_fkey"
+            columns: ["recommended_item_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_items"
             referencedColumns: ["id"]
           },
         ]
@@ -222,6 +232,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      marketplace_items: {
+        Row: {
+          category: string
+          created_at: string | null
+          description: string | null
+          icon: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          price: string | null
+          sort_order: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          price?: string | null
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          price?: string | null
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       notifications: {
         Row: {
@@ -593,6 +642,7 @@ export type Database = {
       }
       tasks: {
         Row: {
+          assigned_to_team: boolean
           assigned_to_user_id: string | null
           client_id: string | null
           created_at: string
@@ -607,6 +657,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          assigned_to_team?: boolean
           assigned_to_user_id?: string | null
           client_id?: string | null
           created_at?: string
@@ -621,6 +672,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          assigned_to_team?: boolean
           assigned_to_user_id?: string | null
           client_id?: string | null
           created_at?: string

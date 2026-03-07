@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,21 +14,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { toast } from "sonner";
 import { Plus, Building2, Sparkles, FolderOpen, ListTodo, Lightbulb } from "lucide-react";
 
-const ALL_ADDONS = [
-  "Email Marketing",
-  "Reels & Short-Form Video",
-  "Paid Social Ads",
-  "Blog & SEO Content",
-  "Photography Sessions",
-  "Community Management",
-];
-
 export default function AdminClients() {
   const queryClient = useQueryClient();
   const { isSSAdmin } = useAuth();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [whatsNewClient, setWhatsNewClient] = useState<string | null>(null);
+  const [marketplaceItems, setMarketplaceItems] = useState<any[]>([]);
 
   // Edit client state
   const [editClient, setEditClient] = useState<any | null>(null);
@@ -53,6 +45,13 @@ export default function AdminClients() {
       return data || [];
     },
   });
+
+  // Fetch marketplace items for the What's New toggle
+  useEffect(() => {
+    supabase.from("marketplace_items").select("id, name, category, is_active").eq("is_active", true).order("sort_order").then(({ data }) => {
+      setMarketplaceItems(data || []);
+    });
+  }, []);
 
   // Linked data for the edit dialog
   const { data: linkedData } = useQuery({
@@ -130,13 +129,21 @@ export default function AdminClients() {
 
   const whatsNewClientData = clients.find((c: any) => c.id === whatsNewClient);
   const currentAddons: string[] = whatsNewClientData ? ((whatsNewClientData as any).whats_new_visible_addons || []) : [];
+  const currentRecommendedId: string | null = whatsNewClientData ? (whatsNewClientData as any).recommended_item_id : null;
 
-  const toggleAddon = (addon: string) => {
+  const toggleAddon = (addonId: string) => {
     if (!whatsNewClient) return;
-    const updated = currentAddons.includes(addon)
-      ? currentAddons.filter((a) => a !== addon)
-      : [...currentAddons, addon];
+    const updated = currentAddons.includes(addonId)
+      ? currentAddons.filter((a) => a !== addonId)
+      : [...currentAddons, addonId];
     updateWhatsNew.mutate({ id: whatsNewClient, addons: updated });
+  };
+
+  const setRecommended = async (itemId: string | null) => {
+    if (!whatsNewClient) return;
+    await supabase.from("clients").update({ recommended_item_id: itemId } as any).eq("id", whatsNewClient);
+    queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
+    toast.success("Recommended item updated");
   };
 
   const openEditClient = (client: any) => {
@@ -173,17 +180,36 @@ export default function AdminClients() {
           <DialogHeader>
             <DialogTitle>What's New — {whatsNewClientData?.name}</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">Select which add-ons appear in this client's dashboard "What's New" section.</p>
-          <div className="space-y-3 mt-2">
-            {ALL_ADDONS.map((addon) => (
-              <label key={addon} className="flex items-center gap-3 cursor-pointer">
+          <p className="text-sm text-muted-foreground">Select which marketplace items appear in this client's "What's New" section and set a recommended upsell.</p>
+          
+          <div className="mb-4">
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Recommended Item</Label>
+            <Select value={currentRecommendedId || "__auto__"} onValueChange={(v) => setRecommended(v === "__auto__" ? null : v)}>
+              <SelectTrigger className="mt-1"><SelectValue placeholder="Auto (most recent)" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__auto__">Auto (most recent)</SelectItem>
+                {marketplaceItems.map((item: any) => (
+                  <SelectItem key={item.id} value={item.id}>{item.name} ({item.category})</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Visible Items</p>
+          <div className="space-y-3">
+            {marketplaceItems.map((item: any) => (
+              <label key={item.id} className="flex items-center gap-3 cursor-pointer">
                 <Checkbox
-                  checked={currentAddons.includes(addon)}
-                  onCheckedChange={() => toggleAddon(addon)}
+                  checked={currentAddons.includes(item.id)}
+                  onCheckedChange={() => toggleAddon(item.id)}
                 />
-                <span className="text-sm">{addon}</span>
+                <span className="text-sm">{item.name}</span>
+                <Badge variant="outline" className="text-[10px]">{item.category}</Badge>
               </label>
             ))}
+            {marketplaceItems.length === 0 && (
+              <p className="text-sm text-muted-foreground">No marketplace items yet. Add them in the Marketplace page.</p>
+            )}
           </div>
         </DialogContent>
       </Dialog>

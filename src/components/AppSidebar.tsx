@@ -63,7 +63,7 @@ const superAdminAdminItems = [
   { title: "Clients", url: "/admin/clients", icon: Building2 },
   { title: "Users", url: "/admin/users", icon: Users },
   { title: "Media", url: "/admin/media", icon: Image },
-  { title: "Add-On Requests", url: "/admin/addon-requests", icon: ShoppingCart },
+  { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
 ];
 
 // ─── Team ────────────────────────────────────────────────────────────────────
@@ -81,6 +81,7 @@ const teamTeamItems = [
 const teamAdminItems = [
   { title: "Clients", url: "/admin/clients", icon: Building2 },
   { title: "Media", url: "/admin/media", icon: Image },
+  { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
 ];
 
 // ─── Client ──────────────────────────────────────────────────────────────────

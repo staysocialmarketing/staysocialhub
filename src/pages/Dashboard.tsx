@@ -19,14 +19,6 @@ import {
   Sparkles,
 } from "lucide-react";
 
-const ALL_ADDONS = [
-  { title: "Email Marketing", desc: "Monthly email campaigns to nurture your audience and drive conversions.", icon: "📧", price: "From $299/mo" },
-  { title: "Reels & Short-Form Video", desc: "Engaging vertical video content for Instagram Reels, TikTok, and Shorts.", icon: "🎬", price: "From $499/mo" },
-  { title: "Paid Social Ads", desc: "Strategic ad campaigns with targeting, creative, and reporting.", icon: "📊", price: "From $599/mo" },
-  { title: "Blog & SEO Content", desc: "Monthly blog posts optimized for search to drive organic traffic.", icon: "✍️", price: "From $399/mo" },
-  { title: "Photography Sessions", desc: "Professional brand photography for your social content library.", icon: "📷", price: "From $799/session" },
-  { title: "Community Management", desc: "Active engagement with your audience — comments, DMs, and more.", icon: "💬", price: "From $349/mo" },
-];
 
 // ─── Super Admin Dashboard ───────────────────────────────────────────────────
 
@@ -543,10 +535,18 @@ function ClientDashboard() {
     queryKey: ["client-plan-and-addons", profile?.client_id],
     queryFn: async () => {
       if (!profile?.client_id) return null;
-      const { data } = await supabase.from("clients").select("name, plans(name, includes_json), whats_new_visible_addons").eq("id", profile.client_id).single();
+      const { data } = await supabase.from("clients").select("name, plans(name, includes_json), whats_new_visible_addons, recommended_item_id").eq("id", profile.client_id).single();
       return data;
     },
     enabled: !!profile?.client_id,
+  });
+
+  const { data: marketplaceItems = [] } = useQuery({
+    queryKey: ["client-marketplace-items"],
+    queryFn: async () => {
+      const { data } = await supabase.from("marketplace_items").select("*").eq("is_active", true).order("created_at", { ascending: false });
+      return data || [];
+    },
   });
 
   const { data: scheduledPosts = [] } = useQuery({
@@ -559,8 +559,12 @@ function ClientDashboard() {
     enabled: !!profile?.client_id,
   });
 
-  const visibleAddonNames: string[] = (clientData as any)?.whats_new_visible_addons || [];
-  const visibleAddons = ALL_ADDONS.filter((a) => visibleAddonNames.includes(a.title));
+  // Recommended upsell: admin-chosen or most recent
+  const recommendedItem = (clientData as any)?.recommended_item_id
+    ? marketplaceItems.find((i: any) => i.id === (clientData as any).recommended_item_id)
+    : marketplaceItems[0] || null;
+  // Most recently added (different from recommended)
+  const newestItem = marketplaceItems.find((i: any) => i.id !== recommendedItem?.id) || null;
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
@@ -653,24 +657,42 @@ function ClientDashboard() {
         </Card>
       )}
 
-      {/* What's New */}
-      {visibleAddons.length > 0 && (
+      {/* Recommended Upsell CTA */}
+      {(recommendedItem || newestItem) && (
         <div>
           <div className="flex items-center gap-2 mb-3">
             <Sparkles className="h-5 w-5 text-warning" />
-            <h3 className="text-lg font-semibold text-foreground">What's New</h3>
+            <h3 className="text-lg font-semibold text-foreground">Recommended for You</h3>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {visibleAddons.map((a) => (
-              <Card key={a.title} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate("/whats-new")}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {recommendedItem && (
+              <Card className="hover:shadow-md transition-shadow cursor-pointer border-primary/30 ring-1 ring-primary/10" onClick={() => navigate("/whats-new")}>
                 <CardContent className="pt-5 space-y-2">
-                  <span className="text-2xl">{a.icon}</span>
-                  <h4 className="font-semibold text-foreground text-sm">{a.title}</h4>
-                  <p className="text-xs text-muted-foreground">{a.desc}</p>
-                  <p className="text-xs font-medium text-primary">{a.price}</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">{(recommendedItem as any).icon || "⭐"}</span>
+                    <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px]">Recommended</Badge>
+                  </div>
+                  <h4 className="font-semibold text-foreground text-sm">{(recommendedItem as any).name}</h4>
+                  {(recommendedItem as any).description && <p className="text-xs text-muted-foreground">{(recommendedItem as any).description}</p>}
+                  {(recommendedItem as any).price && <p className="text-xs font-medium text-primary">{(recommendedItem as any).price}</p>}
+                  <Button size="sm" variant="default" className="mt-2">Learn More</Button>
                 </CardContent>
               </Card>
-            ))}
+            )}
+            {newestItem && (
+              <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate("/whats-new")}>
+                <CardContent className="pt-5 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">{(newestItem as any).icon || "🆕"}</span>
+                    <Badge variant="secondary" className="text-[10px]">New</Badge>
+                  </div>
+                  <h4 className="font-semibold text-foreground text-sm">{(newestItem as any).name}</h4>
+                  {(newestItem as any).description && <p className="text-xs text-muted-foreground">{(newestItem as any).description}</p>}
+                  {(newestItem as any).price && <p className="text-xs font-medium text-primary">{(newestItem as any).price}</p>}
+                  <Button size="sm" variant="outline" className="mt-2">Explore</Button>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       )}

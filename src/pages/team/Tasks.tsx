@@ -24,6 +24,7 @@ interface Task {
   project_id: string | null;
   client_id: string | null;
   assigned_to_user_id: string | null;
+  assigned_to_team: boolean;
   status: string;
   priority: string;
   due_at: string | null;
@@ -53,6 +54,7 @@ export default function Tasks() {
   const [projectId, setProjectId] = useState("");
   const [clientId, setClientId] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
+  const [assignToTeam, setAssignToTeam] = useState(false);
   const [priority, setPriority] = useState("normal");
   const [dueAt, setDueAt] = useState("");
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
@@ -67,6 +69,7 @@ export default function Tasks() {
   const [editProjectId, setEditProjectId] = useState("");
   const [editClientId, setEditClientId] = useState("");
   const [editAssigneeId, setEditAssigneeId] = useState("");
+  const [editAssignToTeam, setEditAssignToTeam] = useState(false);
   const [editPriority, setEditPriority] = useState("normal");
   const [editDueAt, setEditDueAt] = useState("");
   const [editStatus, setEditStatus] = useState("todo");
@@ -84,7 +87,11 @@ export default function Tasks() {
     if (filterAssignee === "__pending__") return;
     let query = supabase.from("tasks").select("*").order("created_at", { ascending: false });
     if (filterProject !== "all") query = query.eq("project_id", filterProject);
-    if (filterAssignee !== "all") query = query.eq("assigned_to_user_id", filterAssignee);
+    if (filterAssignee === "team") {
+      query = query.eq("assigned_to_team", true);
+    } else if (filterAssignee !== "all") {
+      query = query.eq("assigned_to_user_id", filterAssignee);
+    }
     const { data } = await query;
     setTasks((data as Task[]) || []);
     setLoading(false);
@@ -111,7 +118,8 @@ export default function Tasks() {
     setEditDescription(task.description || "");
     setEditProjectId(task.project_id || "");
     setEditClientId((task as any).client_id || "");
-    setEditAssigneeId(task.assigned_to_user_id || "");
+    setEditAssigneeId(task.assigned_to_team ? "__team__" : (task.assigned_to_user_id || ""));
+    setEditAssignToTeam(task.assigned_to_team);
     setEditPriority(task.priority);
     setEditDueAt(task.due_at || "");
     setEditStatus(task.status);
@@ -119,12 +127,14 @@ export default function Tasks() {
 
   const handleSaveEdit = async () => {
     if (!editTask || !editTitle.trim()) return;
+    const isTeam = editAssigneeId === "__team__";
     const { error } = await supabase.from("tasks").update({
       title: editTitle.trim(),
       description: editDescription.trim() || null,
       project_id: editProjectId || null,
       client_id: editClientId || null,
-      assigned_to_user_id: editAssigneeId || null,
+      assigned_to_user_id: isTeam ? null : (editAssigneeId || null),
+      assigned_to_team: isTeam,
       priority: editPriority,
       due_at: editDueAt || null,
       status: editStatus,
@@ -146,19 +156,21 @@ export default function Tasks() {
 
   const handleCreate = async () => {
     if (!title.trim() || !profile) return;
+    const isTeam = assigneeId === "__team__";
     const { error } = await supabase.from("tasks").insert({
       title: title.trim(),
       description: description.trim() || null,
       project_id: projectId || null,
       client_id: clientId || null,
-      assigned_to_user_id: assigneeId || null,
+      assigned_to_user_id: isTeam ? null : (assigneeId || null),
+      assigned_to_team: isTeam,
       priority,
       due_at: dueAt || null,
       created_by_user_id: profile.id,
     } as any);
     if (error) { toast.error(error.message); return; }
     toast.success("Task created!");
-    setTitle(""); setDescription(""); setProjectId(""); setClientId(""); setAssigneeId(""); setPriority("normal"); setDueAt(""); setDialogOpen(false);
+    setTitle(""); setDescription(""); setProjectId(""); setClientId(""); setAssigneeId(""); setAssignToTeam(false); setPriority("normal"); setDueAt(""); setDialogOpen(false);
     fetchTasks();
   };
 
@@ -167,7 +179,14 @@ export default function Tasks() {
     fetchTasks();
   };
 
-  const userName = (id: string | null) => {
+  const userName = (task: Task) => {
+    if (task.assigned_to_team) return "Team";
+    if (!task.assigned_to_user_id) return null;
+    const u = users.find((u) => u.id === task.assigned_to_user_id);
+    return u?.name || u?.email;
+  };
+
+  const userNameById = (id: string | null) => {
     if (!id) return null;
     const u = users.find((u) => u.id === id);
     return u?.name || u?.email;
@@ -204,10 +223,11 @@ export default function Tasks() {
                   {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <Select value={assigneeId || "__none__"} onValueChange={(v) => setAssigneeId(v === "__none__" ? "" : v)}>
+              <Select value={assigneeId || "__none__"} onValueChange={(v) => { setAssigneeId(v === "__none__" ? "" : v); setAssignToTeam(v === "__team__"); }}>
                 <SelectTrigger><SelectValue placeholder="Assign to (optional)" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Unassigned</SelectItem>
+                  <SelectItem value="__team__">🤝 Team (All Hands)</SelectItem>
                   {ssUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -242,6 +262,7 @@ export default function Tasks() {
           <SelectTrigger className="w-44"><SelectValue placeholder="All Assignees" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Assignees</SelectItem>
+            <SelectItem value="team">🤝 Team</SelectItem>
             {ssUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -270,8 +291,11 @@ export default function Tasks() {
                       {task.description && <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>}
                       <div className="flex flex-wrap gap-1.5 text-xs text-muted-foreground">
                         {projectName(task.project_id) && <Badge variant="secondary" className="text-[10px]">{projectName(task.project_id)}</Badge>}
-                        {userName(task.assigned_to_user_id) && (
-                          <span className="flex items-center gap-0.5"><User className="h-3 w-3" /> {userName(task.assigned_to_user_id)}</span>
+                        {userName(task) && (
+                          <span className="flex items-center gap-0.5">
+                            <User className="h-3 w-3" /> 
+                            {task.assigned_to_team ? <Badge variant="secondary" className="text-[10px]">🤝 Team</Badge> : userName(task)}
+                          </span>
                         )}
                         {task.due_at && (
                           <span className="flex items-center gap-0.5"><Calendar className="h-3 w-3" /> {format(new Date(task.due_at), "MMM d")}</span>
@@ -328,10 +352,11 @@ export default function Tasks() {
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Assignee</Label>
-              <Select value={editAssigneeId || "__none__"} onValueChange={(v) => setEditAssigneeId(v === "__none__" ? "" : v)}>
+              <Select value={editAssigneeId || "__none__"} onValueChange={(v) => { setEditAssigneeId(v === "__none__" ? "" : v); setEditAssignToTeam(v === "__team__"); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Unassigned</SelectItem>
+                  <SelectItem value="__team__">🤝 Team (All Hands)</SelectItem>
                   {ssUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
                 </SelectContent>
               </Select>
