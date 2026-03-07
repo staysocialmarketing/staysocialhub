@@ -202,7 +202,7 @@ export function GlobalCaptureButton() {
       {/* FAB */}
       <button
         onClick={() => handleOpen(true)}
-        className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all flex items-center justify-center"
+        className="fixed bottom-20 sm:bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all flex items-center justify-center"
         aria-label="Quick capture"
       >
         <Plus className={cn("h-6 w-6 transition-transform", open && "rotate-45")} />
