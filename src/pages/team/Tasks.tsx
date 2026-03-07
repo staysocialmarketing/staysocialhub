@@ -84,6 +84,7 @@ export default function Tasks() {
   const fetchTasks = async () => {
     if (filterAssignee === "__pending__") return;
     let query = supabase.from("tasks").select("*").order("created_at", { ascending: false });
+    if (globalClientId) query = query.eq("client_id", globalClientId);
     if (filterProject !== "all") query = query.eq("project_id", filterProject);
     if (filterAssignee === "mine" && profile) {
       query = query.or(`assigned_to_user_id.eq.${profile.id},assigned_to_team.eq.true`);
