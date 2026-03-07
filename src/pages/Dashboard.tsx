@@ -319,7 +319,7 @@ function WorkQueueDashboard() {
                 <div className="flex items-center gap-2 shrink-0">
                   {post.content_type && <Badge variant="secondary" className="text-[10px]">{post.content_type}</Badge>}
                   <span className="text-xs text-muted-foreground">{format(new Date(post.created_at), "MMM d")}</span>
-                  <Badge className="text-[10px] bg-amber-100 text-amber-800 border-amber-200">Waiting</Badge>
+                  <Badge variant="secondary" className="text-[10px]">Waiting</Badge>
                 </div>
               </li>
             ))}
