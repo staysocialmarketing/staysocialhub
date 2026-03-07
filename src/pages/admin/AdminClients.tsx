@@ -279,7 +279,7 @@ export default function AdminClients() {
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : (
         <div className="space-y-3">
           {clients.map((c: any) => (
-            <Card key={c.id} className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => isSSAdmin && openEditClient(c)}>
+            <Card key={c.id} className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => { if (isSSAdmin) openEditClient(c); else if (isSSTeam) setViewClient(c); }}>
               <CardContent className="py-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Building2 className="h-5 w-5 text-muted-foreground" />
