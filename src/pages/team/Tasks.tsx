@@ -78,10 +78,18 @@ export default function Tasks() {
     setLoading(false);
   };
 
+  const [ssUsers, setSsUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
+
   useEffect(() => {
     fetchTasks();
     supabase.from("projects").select("id, name").then(({ data }) => setProjects(data || []));
-    supabase.from("users").select("id, name, email").then(({ data }) => setUsers(data || []));
+    supabase.from("users").select("id, name, email").then(({ data: allUsers }) => {
+      setUsers(allUsers || []);
+      supabase.from("user_roles").select("user_id, role").in("role", ["ss_admin", "ss_producer", "ss_ops"]).then(({ data: roles }) => {
+        const ssIds = new Set((roles || []).map((r: any) => r.user_id));
+        setSsUsers((allUsers || []).filter((u: any) => ssIds.has(u.id)));
+      });
+    });
     supabase.from("clients").select("id, name").eq("status", "active").then(({ data }) => setClients(data || []));
   }, [filterProject, filterAssignee]);
 
@@ -179,7 +187,7 @@ export default function Tasks() {
                 <SelectTrigger><SelectValue placeholder="Assign to (optional)" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Unassigned</SelectItem>
-                  {users.map((u) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
+                  {ssUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={priority} onValueChange={setPriority}>
@@ -300,7 +308,7 @@ export default function Tasks() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Unassigned</SelectItem>
-                  {users.map((u) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
+                  {ssUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
