@@ -39,6 +39,7 @@ const statusColors: Record<string, string> = {
 
 export default function RequestDetailDialog({ request, open, onOpenChange }: RequestDetailDialogProps) {
   const { profile, isSSRole, isSSAdmin } = useAuth();
+  const isSSUser = isSSRole;
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [commentBody, setCommentBody] = useState("");
