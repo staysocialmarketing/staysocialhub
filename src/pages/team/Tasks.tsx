@@ -9,12 +9,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Calendar, User, Send, Trash2 } from "lucide-react";
+import { Plus, Calendar, User, Send } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import MakeRequestDialog from "@/components/MakeRequestDialog";
 import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
-import DatePickerField from "@/components/DatePickerField";
 
 interface Task {
   id: string;
@@ -41,12 +40,12 @@ const statusColumns = ["todo", "in_progress", "done"] as const;
 const statusLabels: Record<string, string> = { todo: "To Do", in_progress: "In Progress", done: "Done" };
 
 export default function Tasks() {
-  const { profile, isSSAdmin } = useAuth();
+  const { profile } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [filterProject, setFilterProject] = useState("all");
-  const [filterAssignee, setFilterAssignee] = useState<string>("__pending__");
+  const [filterAssignee, setFilterAssignee] = useState("all");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [projectId, setProjectId] = useState("");
@@ -70,17 +69,7 @@ export default function Tasks() {
   const [editDueAt, setEditDueAt] = useState("");
   const [editStatus, setEditStatus] = useState("todo");
 
-  const [ssUsers, setSsUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
-
-  // Set default filter once profile loads
-  useEffect(() => {
-    if (profile && filterAssignee === "__pending__") {
-      setFilterAssignee(isSSAdmin ? "all" : profile.id);
-    }
-  }, [profile, isSSAdmin]);
-
   const fetchTasks = async () => {
-    if (filterAssignee === "__pending__") return;
     let query = supabase.from("tasks").select("*").order("created_at", { ascending: false });
     if (filterProject !== "all") query = query.eq("project_id", filterProject);
     if (filterAssignee !== "all") query = query.eq("assigned_to_user_id", filterAssignee);
@@ -88,6 +77,8 @@ export default function Tasks() {
     setTasks((data as Task[]) || []);
     setLoading(false);
   };
+
+  const [ssUsers, setSsUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
 
   useEffect(() => {
     fetchTasks();
@@ -102,8 +93,6 @@ export default function Tasks() {
     supabase.from("clients").select("id, name").eq("status", "active").then(({ data }) => setClients(data || []));
   }, [filterProject, filterAssignee]);
 
-  const canEditDelete = (task: Task) => isSSAdmin || task.created_by_user_id === profile?.id;
-
   const openEdit = (task: Task) => {
     setEditTask(task);
     setEditTitle(task.title);
@@ -112,7 +101,7 @@ export default function Tasks() {
     setEditClientId((task as any).client_id || "");
     setEditAssigneeId(task.assigned_to_user_id || "");
     setEditPriority(task.priority);
-    setEditDueAt(task.due_at || "");
+    setEditDueAt(task.due_at ? task.due_at.slice(0, 16) : "");
     setEditStatus(task.status);
   };
 
@@ -130,15 +119,6 @@ export default function Tasks() {
     } as any).eq("id", editTask.id);
     if (error) { toast.error(error.message); return; }
     toast.success("Task updated!");
-    setEditTask(null);
-    fetchTasks();
-  };
-
-  const handleDeleteTask = async () => {
-    if (!editTask) return;
-    const { error } = await supabase.from("tasks").delete().eq("id", editTask.id);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Task deleted");
     setEditTask(null);
     fetchTasks();
   };
@@ -219,10 +199,7 @@ export default function Tasks() {
                   <SelectItem value="urgent">Urgent</SelectItem>
                 </SelectContent>
               </Select>
-              <div>
-                <Label className="text-xs text-muted-foreground">Due Date</Label>
-                <DatePickerField value={dueAt} onChange={setDueAt} />
-              </div>
+              <Input type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
               <Button className="w-full" onClick={handleCreate} disabled={!title.trim()}>Create</Button>
             </div>
           </DialogContent>
@@ -237,11 +214,11 @@ export default function Tasks() {
             {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={filterAssignee === "__pending__" ? "all" : filterAssignee} onValueChange={setFilterAssignee}>
+        <Select value={filterAssignee} onValueChange={setFilterAssignee}>
           <SelectTrigger className="w-44"><SelectValue placeholder="All Assignees" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Assignees</SelectItem>
-            {ssUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
+            {users.map((u) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -360,19 +337,12 @@ export default function Tasks() {
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Due Date</Label>
-              <DatePickerField value={editDueAt} onChange={setEditDueAt} />
+              <Input type="datetime-local" value={editDueAt} onChange={(e) => setEditDueAt(e.target.value)} />
             </div>
           </div>
-          <DialogFooter className="flex justify-between sm:justify-between">
-            {editTask && canEditDelete(editTask) && (
-              <Button variant="destructive" size="sm" onClick={handleDeleteTask}>
-                <Trash2 className="h-4 w-4 mr-1" /> Delete
-              </Button>
-            )}
-            <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => setEditTask(null)}>Cancel</Button>
-              <Button onClick={handleSaveEdit} disabled={!editTitle.trim()}>Save</Button>
-            </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditTask(null)}>Cancel</Button>
+            <Button onClick={handleSaveEdit} disabled={!editTitle.trim()}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
