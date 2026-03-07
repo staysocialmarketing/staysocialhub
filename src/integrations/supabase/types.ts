@@ -336,6 +336,50 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_versions: {
+        Row: {
+          created_at: string
+          id: string
+          major_version: number
+          minor_version: number
+          notes: string | null
+          published_at: string | null
+          published_by_user_id: string | null
+          title: string | null
+          visible_to_clients: boolean
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          major_version?: number
+          minor_version?: number
+          notes?: string | null
+          published_at?: string | null
+          published_by_user_id?: string | null
+          title?: string | null
+          visible_to_clients?: boolean
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          major_version?: number
+          minor_version?: number
+          notes?: string | null
+          published_at?: string | null
+          published_by_user_id?: string | null
+          title?: string | null
+          visible_to_clients?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_versions_published_by_user_id_fkey"
+            columns: ["published_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       post_versions: {
         Row: {
           caption: string | null
@@ -1087,6 +1131,83 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      universal_inbox: {
+        Row: {
+          agent_confidence: number | null
+          attachment_url: string | null
+          converted_to_id: string | null
+          converted_to_type: string | null
+          created_at: string
+          created_by_user_id: string
+          id: string
+          raw_input_text: string | null
+          source_type: string | null
+          status: string
+          suggested_assignee: string | null
+          suggested_client: string | null
+          suggested_content_type: string | null
+          suggested_item_type: string | null
+          suggested_priority: string | null
+          suggested_project: string | null
+          suggested_subproject: string | null
+          title: string | null
+          updated_at: string
+          voice_transcript: string | null
+        }
+        Insert: {
+          agent_confidence?: number | null
+          attachment_url?: string | null
+          converted_to_id?: string | null
+          converted_to_type?: string | null
+          created_at?: string
+          created_by_user_id: string
+          id?: string
+          raw_input_text?: string | null
+          source_type?: string | null
+          status?: string
+          suggested_assignee?: string | null
+          suggested_client?: string | null
+          suggested_content_type?: string | null
+          suggested_item_type?: string | null
+          suggested_priority?: string | null
+          suggested_project?: string | null
+          suggested_subproject?: string | null
+          title?: string | null
+          updated_at?: string
+          voice_transcript?: string | null
+        }
+        Update: {
+          agent_confidence?: number | null
+          attachment_url?: string | null
+          converted_to_id?: string | null
+          converted_to_type?: string | null
+          created_at?: string
+          created_by_user_id?: string
+          id?: string
+          raw_input_text?: string | null
+          source_type?: string | null
+          status?: string
+          suggested_assignee?: string | null
+          suggested_client?: string | null
+          suggested_content_type?: string | null
+          suggested_item_type?: string | null
+          suggested_priority?: string | null
+          suggested_project?: string | null
+          suggested_subproject?: string | null
+          title?: string | null
+          updated_at?: string
+          voice_transcript?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "universal_inbox_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
