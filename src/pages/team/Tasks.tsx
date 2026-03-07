@@ -281,6 +281,10 @@ export default function Tasks() {
               <Textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
             </div>
             <div>
+              <Label className="text-xs text-muted-foreground">Client</Label>
+              <ClientSelectWithCreate value={editClientId} onValueChange={setEditClientId} />
+            </div>
+            <div>
               <Label className="text-xs text-muted-foreground">Project</Label>
               <Select value={editProjectId || "__none__"} onValueChange={(v) => setEditProjectId(v === "__none__" ? "" : v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
