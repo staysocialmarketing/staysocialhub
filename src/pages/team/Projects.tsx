@@ -386,7 +386,7 @@ export default function Projects() {
                                   <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform ${subExpanded ? "" : "-rotate-90"}`} />
                                   <FolderOpen className="h-3 w-3 text-muted-foreground" />
                                   <span className="text-sm font-medium">{sub.name}</span>
-                                  <Badge variant="outline" className={`text-xs ${statusColors[sub.status] || ""}`}>{sub.status}</Badge>
+                                  <Badge variant="outline" className={`text-[11px] ${statusColors[sub.status] || ""}`}>{sub.status}</Badge>
                                 </div>
                                 <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                   <span className="text-xs text-muted-foreground flex items-center gap-1">
