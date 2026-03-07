@@ -79,8 +79,8 @@ export default function WhatsNew() {
 
   // Determine recommended item: admin-chosen or most recent
   const recommendedItem = recommendedItemId
-    ? items.find((i) => i.id === recommendedItemId)
-    : items[0] || null;
+    ? filteredItems.find((i) => i.id === recommendedItemId)
+    : filteredItems[0] || null;
 
   const renderCard = (item: MarketplaceItem, isRecommended = false) => {
     const requested = requestedAddons.has(item.name);
