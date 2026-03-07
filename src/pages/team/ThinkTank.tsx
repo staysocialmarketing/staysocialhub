@@ -9,10 +9,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Lightbulb, FileText, Brain, Archive, Zap, Send, FolderOpen, ListTodo, ChevronDown } from "lucide-react";
+import { Plus, Lightbulb, FileText, Brain, Archive, Zap, Send, FolderOpen, ListTodo, ChevronDown, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import MakeRequestDialog from "@/components/MakeRequestDialog";
@@ -44,7 +45,7 @@ const typeBadgeVariant: Record<string, "default" | "secondary" | "outline"> = {
 };
 
 export default function ThinkTank() {
-  const { profile } = useAuth();
+  const { profile, isSSAdmin } = useAuth();
   const [items, setItems] = useState<ThinkTankItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<string>("all");
@@ -63,6 +64,15 @@ export default function ThinkTank() {
   const [createTaskItem, setCreateTaskItem] = useState<ThinkTankItem | null>(null);
   const [actionName, setActionName] = useState("");
   const [actionDesc, setActionDesc] = useState("");
+
+  // Edit state
+  const [editItem, setEditItem] = useState<ThinkTankItem | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editBody, setEditBody] = useState("");
+  const [editType, setEditType] = useState("idea");
+  const [editClientId, setEditClientId] = useState("");
+
+  const canEditDelete = (item: ThinkTankItem) => isSSAdmin || item.created_by_user_id === profile?.id;
 
   const fetchItems = async () => {
     let query = supabase.from("think_tank_items").select("*").order("created_at", { ascending: false });
@@ -96,6 +106,37 @@ export default function ThinkTank() {
 
   const updateStatus = async (id: string, status: string) => {
     await supabase.from("think_tank_items").update({ status } as any).eq("id", id);
+    fetchItems();
+  };
+
+  const openEdit = (item: ThinkTankItem) => {
+    setEditItem(item);
+    setEditTitle(item.title);
+    setEditBody(item.body || "");
+    setEditType(item.type);
+    setEditClientId(item.client_id || "");
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editItem || !editTitle.trim()) return;
+    const { error } = await supabase.from("think_tank_items").update({
+      title: editTitle.trim(),
+      body: editBody.trim() || null,
+      type: editType,
+      client_id: editClientId || null,
+    } as any).eq("id", editItem.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Item updated!");
+    setEditItem(null);
+    fetchItems();
+  };
+
+  const handleDeleteItem = async () => {
+    if (!editItem) return;
+    const { error } = await supabase.from("think_tank_items").delete().eq("id", editItem.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Item deleted");
+    setEditItem(null);
     fetchItems();
   };
 
@@ -209,9 +250,16 @@ export default function ThinkTank() {
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-2">
                   <CardTitle className="text-base leading-snug">{item.title}</CardTitle>
-                  <Badge variant={typeBadgeVariant[item.type] || "secondary"} className="shrink-0 flex items-center gap-1">
-                    {typeIcons[item.type]} {item.type.replace("_", " ")}
-                  </Badge>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Badge variant={typeBadgeVariant[item.type] || "secondary"} className="flex items-center gap-1">
+                      {typeIcons[item.type]} {item.type.replace("_", " ")}
+                    </Badge>
+                    {canEditDelete(item) && (
+                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openEdit(item)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="flex-1 space-y-3">
@@ -257,6 +305,61 @@ export default function ThinkTank() {
           ))}
         </div>
       )}
+
+      {/* Edit Think Tank Item Dialog */}
+      <Dialog open={!!editItem} onOpenChange={(o) => !o && setEditItem(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit Item</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs text-muted-foreground">Title</Label>
+              <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Details</Label>
+              <Textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Type</Label>
+              <Select value={editType} onValueChange={setEditType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="idea">💡 Idea</SelectItem>
+                  <SelectItem value="meeting_note">📝 Meeting Note</SelectItem>
+                  <SelectItem value="brainstorm">🧠 Brainstorm</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Client</Label>
+              <ClientSelectWithCreate value={editClientId} onValueChange={setEditClientId} />
+            </div>
+          </div>
+          <DialogFooter className="flex justify-between sm:justify-between">
+            {editItem && canEditDelete(editItem) && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-1" /> Delete</Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete this item?</AlertDialogTitle>
+                    <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteItem}>Delete</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={() => setEditItem(null)}>Cancel</Button>
+              <Button onClick={handleSaveEdit} disabled={!editTitle.trim()}>Save</Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Create Project from Think Tank */}
       <Dialog open={!!createProjectItem} onOpenChange={(o) => !o && setCreateProjectItem(null)}>

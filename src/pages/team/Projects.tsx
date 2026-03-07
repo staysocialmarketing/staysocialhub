@@ -9,11 +9,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, ChevronDown, FolderOpen, ListTodo, Send, Pencil, User, Calendar } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Plus, ChevronDown, FolderOpen, ListTodo, Send, Pencil, User, Calendar, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import MakeRequestDialog from "@/components/MakeRequestDialog";
 import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
+import DatePickerField from "@/components/DatePickerField";
+
 interface Project {
   id: string;
   name: string;
@@ -52,7 +55,7 @@ const priorityColors: Record<string, string> = {
 };
 
 export default function Projects() {
-  const { profile } = useAuth();
+  const { profile, isSSAdmin } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectTasks, setProjectTasks] = useState<Record<string, Task[]>>({});
   const [loading, setLoading] = useState(true);
@@ -94,6 +97,9 @@ export default function Projects() {
   const [editTaskDueAt, setEditTaskDueAt] = useState("");
   const [editTaskStatus, setEditTaskStatus] = useState("todo");
 
+  const canEditDeleteProject = (p: Project) => isSSAdmin || p.created_by_user_id === profile?.id;
+  const canEditDeleteTask = (t: Task) => isSSAdmin || t.created_by_user_id === profile?.id;
+
   const fetchData = async () => {
     let query = supabase.from("projects").select("*").order("created_at", { ascending: false });
     if (filterStatus !== "all") query = query.eq("status", filterStatus);
@@ -119,7 +125,6 @@ export default function Projects() {
     supabase.from("clients").select("id, name").then(({ data }) => setClients(data || []));
     supabase.from("users").select("id, name, email").then(({ data: allUsers }) => {
       setUsers(allUsers || []);
-      // Filter to SS roles only for assignee dropdowns
       supabase.from("user_roles").select("user_id, role").in("role", ["ss_admin", "ss_producer", "ss_ops"]).then(({ data: roles }) => {
         const ssIds = new Set((roles || []).map((r: any) => r.user_id));
         setSsUsers((allUsers || []).filter((u: any) => ssIds.has(u.id)));
@@ -159,6 +164,15 @@ export default function Projects() {
     fetchData();
   };
 
+  const handleDeleteProject = async () => {
+    if (!editProject) return;
+    const { error } = await supabase.from("projects").delete().eq("id", editProject.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Project deleted");
+    setEditProject(null);
+    fetchData();
+  };
+
   const openEditTask = (task: Task) => {
     setEditTask(task);
     setEditTaskTitle(task.title);
@@ -166,7 +180,7 @@ export default function Projects() {
     setEditTaskProjectId(task.project_id || "");
     setEditTaskAssigneeId(task.assigned_to_user_id || "");
     setEditTaskPriority(task.priority);
-    setEditTaskDueAt(task.due_at ? task.due_at.slice(0, 16) : "");
+    setEditTaskDueAt(task.due_at || "");
     setEditTaskStatus(task.status);
   };
 
@@ -183,6 +197,15 @@ export default function Projects() {
     } as any).eq("id", editTask.id);
     if (error) { toast.error(error.message); return; }
     toast.success("Task updated!");
+    setEditTask(null);
+    fetchData();
+  };
+
+  const handleDeleteTask = async () => {
+    if (!editTask) return;
+    const { error } = await supabase.from("tasks").delete().eq("id", editTask.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Task deleted");
     setEditTask(null);
     fetchData();
   };
@@ -317,15 +340,17 @@ export default function Projects() {
                     <div className="flex items-center gap-2 text-xs text-muted-foreground" onClick={(e) => e.stopPropagation()}>
                       {clientName(project.client_id) && <Badge variant="secondary">{clientName(project.client_id)}</Badge>}
                       <span className="flex items-center gap-1"><ListTodo className="h-3 w-3" /> {tasks.length} tasks</span>
-                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openEditProject(project)}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
+                      {canEditDeleteProject(project) && (
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openEditProject(project)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                       <Button size="sm" variant="secondary" onClick={() => setRequestProject(project)}>
                         <Send className="h-3 w-3 mr-1" /> Request
                       </Button>
                     </div>
                   </div>
-                  {project.description && <p className="text-sm text-muted-foreground mt-1 ml-8">{project.description}</p>}
+                  {project.description && <p className="text-sm text-muted-foreground mt-1 ml-8 line-clamp-2">{project.description}</p>}
                 </CardHeader>
                 {isExpanded && (
                   <CardContent className="pt-0 space-y-3">
@@ -351,14 +376,27 @@ export default function Projects() {
                                   <span className="text-xs text-muted-foreground flex items-center gap-1">
                                     <ListTodo className="h-3 w-3" /> {subTasks.length}
                                   </span>
-                                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => openEditProject(sub)}>
-                                    <Pencil className="h-3 w-3" />
-                                  </Button>
+                                  {canEditDeleteProject(sub) && (
+                                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => openEditProject(sub)}>
+                                      <Pencil className="h-3 w-3" />
+                                    </Button>
+                                  )}
                                 </div>
                               </div>
-                              {subExpanded && subTasks.length > 0 && (
+                              {sub.description && subExpanded && (
+                                <p className="text-xs text-muted-foreground ml-8 mt-1 line-clamp-2">{sub.description}</p>
+                              )}
+                              {subExpanded && (
                                 <div className="pl-8 pt-1 space-y-1">
                                   {subTasks.map(renderTaskRow)}
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs mt-1"
+                                    onClick={(e) => { e.stopPropagation(); setAddTaskProjectId(sub.id); }}
+                                  >
+                                    <Plus className="h-3 w-3 mr-1" /> Add Task
+                                  </Button>
                                 </div>
                               )}
                             </div>
@@ -430,9 +468,30 @@ export default function Projects() {
               </Select>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setEditProject(null)}>Cancel</Button>
-            <Button onClick={handleSaveProject} disabled={!editName.trim()}>Save</Button>
+          <DialogFooter className="flex justify-between sm:justify-between">
+            {editProject && canEditDeleteProject(editProject) && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-1" /> Delete</Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete project?</AlertDialogTitle>
+                    <AlertDialogDescription>This will permanently delete this project. Tasks linked to it will remain but become unlinked.</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteProject}>Delete</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={() => setEditProject(null)}>Cancel</Button>
+              {editProject && canEditDeleteProject(editProject) && (
+                <Button onClick={handleSaveProject} disabled={!editName.trim()}>Save</Button>
+              )}
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -495,12 +554,33 @@ export default function Projects() {
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Due Date</Label>
-              <Input type="datetime-local" value={editTaskDueAt} onChange={(e) => setEditTaskDueAt(e.target.value)} />
+              <DatePickerField value={editTaskDueAt} onChange={setEditTaskDueAt} placeholder="Pick due date" />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setEditTask(null)}>Cancel</Button>
-            <Button onClick={handleSaveTask} disabled={!editTaskTitle.trim()}>Save</Button>
+          <DialogFooter className="flex justify-between sm:justify-between">
+            {editTask && canEditDeleteTask(editTask) && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-1" /> Delete</Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete task?</AlertDialogTitle>
+                    <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteTask}>Delete</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={() => setEditTask(null)}>Cancel</Button>
+              {editTask && canEditDeleteTask(editTask) && (
+                <Button onClick={handleSaveTask} disabled={!editTaskTitle.trim()}>Save</Button>
+              )}
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -537,7 +617,7 @@ export default function Projects() {
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">Due Date</Label>
-                <Input type="datetime-local" value={addTaskDueAt} onChange={(e) => setAddTaskDueAt(e.target.value)} />
+                <DatePickerField value={addTaskDueAt} onChange={setAddTaskDueAt} placeholder="Pick date" />
               </div>
             </div>
             <Button className="w-full" disabled={!addTaskTitle.trim()} onClick={async () => {
