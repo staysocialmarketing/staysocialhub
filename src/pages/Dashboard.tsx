@@ -61,7 +61,7 @@ function WorkQueueDashboard() {
 
   // ── My Tasks ──
   const { data: myTasks = [] } = useQuery({
-    queryKey: ["wq-tasks", profile?.id, filter],
+    queryKey: ["wq-tasks", profile?.id, filter, globalClientId],
     queryFn: async () => {
       let q = supabase.from("tasks")
         .select("id, title, status, priority, due_at, assigned_to_user_id, assigned_to_team, client_id, project_id, clients(name), projects(name)")
@@ -71,7 +71,7 @@ function WorkQueueDashboard() {
       if (filter === "my") {
         q = q.or(`assigned_to_user_id.eq.${profile!.id},assigned_to_team.eq.true`);
       }
-      // "team" and "all" show everything (SS roles can see all tasks via RLS)
+      if (globalClientId) q = q.eq("client_id", globalClientId);
       const { data } = await q;
       return data || [];
     },
