@@ -12,17 +12,11 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarWidget } from "@/components/ui/calendar";
-import { Clock, ExternalLink, FileText, Pencil } from "lucide-react";
+import { Clock, ExternalLink, FileText, Pencil, Send, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import ApprovalActions from "@/components/ApprovalActions";
-
-const CONTENT_TYPES = [
-  { value: "image", label: "Image" },
-  { value: "video", label: "Video" },
-  { value: "reel", label: "Reel" },
-  { value: "carousel", label: "Carousel" },
-];
+import { CONTENT_TYPE_OPTIONS, AUDIENCE_OPTIONS, getContentCategory } from "@/lib/workflowUtils";
 
 interface WorkflowCardDialogProps {
   post: any;
@@ -43,6 +37,14 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
   const [assignedTo, setAssignedTo] = useState(post.assigned_to_user_id || "");
   const [reviewer, setReviewer] = useState(post.reviewer_user_id || "");
   const [dueAt, setDueAt] = useState<Date | null>(post.due_at ? new Date(post.due_at) : null);
+  // Email fields
+  const [subjectLine, setSubjectLine] = useState(post.subject_line || "");
+  const [previewText, setPreviewText] = useState(post.preview_text || "");
+  const [emailBody, setEmailBody] = useState(post.email_body || "");
+  const [audience, setAudience] = useState(post.audience || "");
+  const [campaignLink, setCampaignLink] = useState(post.campaign_link || "");
+
+  const isEmail = contentType === "email_campaign";
 
   const { data: linkedRequest } = useQuery({
     queryKey: ["linked-request", post.request_id],
@@ -66,6 +68,11 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
     setAssignedTo(post.assigned_to_user_id || "");
     setReviewer(post.reviewer_user_id || "");
     setDueAt(post.due_at ? new Date(post.due_at) : null);
+    setSubjectLine(post.subject_line || "");
+    setPreviewText(post.preview_text || "");
+    setEmailBody(post.email_body || "");
+    setAudience(post.audience || "");
+    setCampaignLink(post.campaign_link || "");
   };
 
   const updatePost = useMutation({
@@ -74,11 +81,16 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
         .from("posts")
         .update({
           title,
-          caption: caption || null,
+          caption: isEmail ? null : (caption || null),
           content_type: contentType || null,
           assigned_to_user_id: assignedTo || null,
           reviewer_user_id: reviewer || null,
           due_at: dueAt?.toISOString() || null,
+          subject_line: isEmail ? (subjectLine || null) : null,
+          preview_text: isEmail ? (previewText || null) : null,
+          email_body: isEmail ? (emailBody || null) : null,
+          audience: isEmail ? (audience || null) : null,
+          campaign_link: campaignLink || null,
         } as any)
         .eq("id", post.id);
       if (error) throw error;
@@ -91,15 +103,47 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
     onError: (err: any) => toast.error(err.message || "Failed to update"),
   });
 
+  const sendNow = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("posts").update({
+        status_column: "sent" as any,
+        send_date: new Date().toISOString(),
+      } as any).eq("id", post.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workflow-posts"] });
+      toast.success("Campaign sent!");
+      onOpenChange(false);
+    },
+    onError: () => toast.error("Failed to send"),
+  });
+
+  const scheduleEmail = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("posts").update({
+        status_column: "scheduled" as any,
+      } as any).eq("id", post.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workflow-posts"] });
+      toast.success("Campaign scheduled!");
+      onOpenChange(false);
+    },
+    onError: () => toast.error("Failed to schedule"),
+  });
+
   const showAdminApproval = isSSAdmin && post.status_column === "internal_review";
   const showClientApproval = (isClientAdmin || isClientAssistant) && post.status_column === "client_approval";
+  const showSendActions = isSSAdmin && post.status_column === "ready_to_send";
 
   const getUserName = (userId: string) => {
     const u = ssUsers.find((u: any) => u.id === userId);
     return u?.name || u?.email || "—";
   };
 
-  const contentTypeLabel = CONTENT_TYPES.find(t => t.value === contentType)?.label || contentType || "—";
+  const contentTypeLabel = CONTENT_TYPE_OPTIONS.find(t => t.value === contentType)?.label || contentType || "—";
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) { setEditing(false); resetFields(); } onOpenChange(o); }}>
@@ -120,13 +164,28 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
           {showAdminApproval && (
             <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
               <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Internal Review</p>
-              <ApprovalActions postId={post.id} postTitle={post.title} currentStatus={post.status_column} approveTarget="client_approval" />
+              <ApprovalActions postId={post.id} postTitle={post.title} currentStatus={post.status_column} contentType={post.content_type} />
             </div>
           )}
           {showClientApproval && (
             <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
               <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Your Approval</p>
-              <ApprovalActions postId={post.id} postTitle={post.title} currentStatus={post.status_column} approveTarget="scheduled" />
+              <ApprovalActions postId={post.id} postTitle={post.title} currentStatus={post.status_column} contentType={post.content_type} />
+            </div>
+          )}
+
+          {/* Send Actions for Ready to Send */}
+          {showSendActions && (
+            <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
+              <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Send Options</p>
+              <div className="flex gap-2">
+                <Button size="sm" className="flex-1 gap-1" onClick={() => sendNow.mutate()} disabled={sendNow.isPending}>
+                  <Send className="h-3.5 w-3.5" />Send Now
+                </Button>
+                <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={() => scheduleEmail.mutate()} disabled={scheduleEmail.isPending}>
+                  <Calendar className="h-3.5 w-3.5" />Schedule
+                </Button>
+              </div>
             </div>
           )}
 
@@ -134,15 +193,32 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
             /* ---- EDIT MODE ---- */
             <>
               <div><Label>Title</Label><Input value={title} onChange={e => setTitle(e.target.value)} /></div>
-              <div><Label>Caption / Description</Label><Textarea value={caption} onChange={e => setCaption(e.target.value)} rows={3} /></div>
 
               <div>
                 <Label>Content Type</Label>
                 <Select value={contentType} onValueChange={setContentType}>
                   <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                  <SelectContent>{CONTENT_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
+                  <SelectContent>{CONTENT_TYPE_OPTIONS.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
+
+              {isEmail ? (
+                <>
+                  <div><Label>Subject Line</Label><Input value={subjectLine} onChange={e => setSubjectLine(e.target.value)} placeholder="Email subject" /></div>
+                  <div><Label>Preview Text</Label><Input value={previewText} onChange={e => setPreviewText(e.target.value)} placeholder="Inbox preview text" /></div>
+                  <div><Label>Email Body</Label><Textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={4} placeholder="Email content..." /></div>
+                  <div>
+                    <Label>Audience</Label>
+                    <Select value={audience} onValueChange={setAudience}>
+                      <SelectTrigger><SelectValue placeholder="Select audience" /></SelectTrigger>
+                      <SelectContent>{AUDIENCE_OPTIONS.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div><Label>Campaign Link</Label><Input value={campaignLink} onChange={e => setCampaignLink(e.target.value)} placeholder="https://..." /></div>
+                </>
+              ) : (
+                <div><Label>Caption / Description</Label><Textarea value={caption} onChange={e => setCaption(e.target.value)} rows={3} /></div>
+              )}
 
               <div>
                 <Label>Due Date</Label>
@@ -192,13 +268,6 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
                 </div>
               )}
 
-              {(post.caption || caption) && (
-                <div>
-                  <Label className="text-muted-foreground text-xs">Caption / Description</Label>
-                  <p className="text-sm whitespace-pre-wrap">{post.caption || "—"}</p>
-                </div>
-              )}
-
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div>
                   <Label className="text-muted-foreground text-xs">Content Type</Label>
@@ -217,6 +286,56 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
                   <p className="text-sm font-medium">{post.reviewer_user_id ? getUserName(post.reviewer_user_id) : "—"}</p>
                 </div>
               </div>
+
+              {/* Email-specific read-only fields */}
+              {post.content_type === "email_campaign" && (
+                <div className="space-y-3">
+                  {post.subject_line && (
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Subject Line</Label>
+                      <p className="text-sm font-medium">{post.subject_line}</p>
+                    </div>
+                  )}
+                  {post.preview_text && (
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Preview Text</Label>
+                      <p className="text-sm">{post.preview_text}</p>
+                    </div>
+                  )}
+                  {post.email_body && (
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Email Body</Label>
+                      <p className="text-sm whitespace-pre-wrap">{post.email_body}</p>
+                    </div>
+                  )}
+                  {post.audience && (
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Audience</Label>
+                      <p className="text-sm font-medium">{post.audience}</p>
+                    </div>
+                  )}
+                  {post.send_date && (
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Send Date</Label>
+                      <p className="text-sm font-medium">{format(new Date(post.send_date), "PPP")}</p>
+                    </div>
+                  )}
+                  {post.campaign_link && (
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Campaign Link</Label>
+                      <a href={post.campaign_link} target="_blank" rel="noopener noreferrer" className="text-sm text-primary underline">{post.campaign_link}</a>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Social caption */}
+              {post.content_type !== "email_campaign" && (post.caption) && (
+                <div>
+                  <Label className="text-muted-foreground text-xs">Caption / Description</Label>
+                  <p className="text-sm whitespace-pre-wrap">{post.caption}</p>
+                </div>
+              )}
 
               {post.platform && (
                 <div>

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import RequestChangesModal from "@/components/RequestChangesModal";
+import { getApproveTarget } from "@/lib/workflowUtils";
 import type { Database } from "@/integrations/supabase/types";
 
 type PostStatus = Database["public"]["Enums"]["post_status"];
@@ -14,31 +15,33 @@ interface ApprovalActionsProps {
   postId: string;
   postTitle: string;
   currentStatus: PostStatus;
-  /** Where to move on approve */
-  approveTarget: PostStatus;
+  contentType?: string | null;
+  /** Legacy prop — ignored if contentType is provided */
+  approveTarget?: PostStatus;
   className?: string;
 }
 
-export default function ApprovalActions({ postId, postTitle, currentStatus, approveTarget, className }: ApprovalActionsProps) {
+export default function ApprovalActions({ postId, postTitle, currentStatus, contentType, approveTarget: legacyTarget, className }: ApprovalActionsProps) {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const [changesOpen, setChangesOpen] = useState(false);
+
+  const computedTarget = getApproveTarget(contentType ?? null, currentStatus);
+  const target = computedTarget;
 
   const approve = useMutation({
     mutationFn: async () => {
       if (!profile) throw new Error("Not logged in");
 
-      // Record approval
       await supabase.from("approvals").insert({
         post_id: postId,
         user_id: profile.id,
         type: "approve" as any,
       });
 
-      // Move post forward
       const { error } = await supabase
         .from("posts")
-        .update({ status_column: approveTarget } as any)
+        .update({ status_column: target } as any)
         .eq("id", postId);
       if (error) throw error;
     },
