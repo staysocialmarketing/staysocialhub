@@ -366,14 +366,20 @@ export default function Projects() {
                         })}
                       </div>
                     )}
-                    {tasks.length > 0 ? (
-                      <div className="pl-6 space-y-2">
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tasks</p>
-                        {tasks.map(renderTaskRow)}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-muted-foreground pl-6">No tasks linked to this project.</p>
-                    )}
+                    <div className="pl-6 space-y-2">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tasks</p>
+                      {tasks.length > 0 ? tasks.map(renderTaskRow) : (
+                        <p className="text-xs text-muted-foreground">No tasks linked to this project.</p>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs mt-1"
+                        onClick={(e) => { e.stopPropagation(); setAddTaskProjectId(project.id); }}
+                      >
+                        <Plus className="h-3 w-3 mr-1" /> Add Task
+                      </Button>
+                    </div>
                   </CardContent>
                 )}
               </Card>
