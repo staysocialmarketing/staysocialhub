@@ -14,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ImageIcon, Film, Video, FolderOpen, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { compressImage } from "@/lib/imageUtils";
 
 function isVideo(url: string | null) {
   if (!url) return false;
