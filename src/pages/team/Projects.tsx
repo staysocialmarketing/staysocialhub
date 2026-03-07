@@ -234,7 +234,8 @@ export default function Projects() {
   const topLevel = projects.filter((p) => !p.parent_project_id);
   const subProjectsOf = (parentId: string) => projects.filter((p) => p.parent_project_id === parentId);
   const clientName = (clientId: string | null) => clients.find((c) => c.id === clientId)?.name;
-  const userName = (id: string | null) => {
+  const userName = (id: string | null, isTeam?: boolean) => {
+    if (isTeam) return "Team";
     if (!id) return null;
     const u = users.find((u) => u.id === id);
     return u?.name || u?.email;
