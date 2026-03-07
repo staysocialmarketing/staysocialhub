@@ -159,6 +159,66 @@ export default function AdminClients() {
     setEditAssistants(client.assistants_can_approve);
   };
 
+  function LinkedActivitySection({ linkedData }: { linkedData: { projects: any[]; tasks: any[]; thinkTank: any[]; requests: any[] } }) {
+    return (
+      <div className="space-y-3 border-t pt-3">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Linked Activity</p>
+
+        {linkedData.requests.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-xs font-medium flex items-center gap-1"><MessageSquarePlus className="h-3 w-3" /> Requests ({linkedData.requests.length})</p>
+            {linkedData.requests.map((r: any) => (
+              <div key={r.id} className="flex items-center justify-between text-xs pl-4">
+                <span>{r.topic}</span>
+                <Badge variant="outline" className="text-[10px]">{r.status}</Badge>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {linkedData.projects.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-xs font-medium flex items-center gap-1"><FolderOpen className="h-3 w-3" /> Projects ({linkedData.projects.length})</p>
+            {linkedData.projects.map((p: any) => (
+              <div key={p.id} className="flex items-center justify-between text-xs pl-4">
+                <span>{p.name}</span>
+                <Badge variant="outline" className="text-[10px]">{p.status}</Badge>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {linkedData.tasks.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-xs font-medium flex items-center gap-1"><ListTodo className="h-3 w-3" /> Tasks ({linkedData.tasks.length})</p>
+            {linkedData.tasks.map((t: any) => (
+              <div key={t.id} className="flex items-center justify-between text-xs pl-4">
+                <span>{t.title}</span>
+                <Badge variant="outline" className="text-[10px]">{t.status}</Badge>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {linkedData.thinkTank.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-xs font-medium flex items-center gap-1"><Lightbulb className="h-3 w-3" /> Think Tank ({linkedData.thinkTank.length})</p>
+            {linkedData.thinkTank.map((i: any) => (
+              <div key={i.id} className="flex items-center justify-between text-xs pl-4">
+                <span>{i.title}</span>
+                <Badge variant="outline" className="text-[10px]">{i.status}</Badge>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {linkedData.projects.length === 0 && linkedData.tasks.length === 0 && linkedData.thinkTank.length === 0 && linkedData.requests.length === 0 && (
+          <p className="text-xs text-muted-foreground">No linked activity yet.</p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
