@@ -100,7 +100,9 @@ export function GlobalCaptureButton() {
       description: taskDesc || null,
       created_by_user_id: profile.id,
       status: "todo",
-    });
+      source_type: "capture",
+      raw_input_text: [taskTitle.trim(), taskDesc].filter(Boolean).join("\n"),
+    } as any);
     setSaving(false);
     if (error) { toast.error("Failed to create task"); return; }
     toast.success("Task created");
