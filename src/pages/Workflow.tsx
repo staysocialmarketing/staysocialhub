@@ -99,10 +99,11 @@ export default function Workflow() {
   const { data: posts = [], isLoading } = useQuery({
     queryKey: ["workflow-posts"],
     queryFn: async () => {
+      const statuses: PostStatus[] = [...KANBAN_COLUMNS, ...BOTTOM_SECTIONS].map(c => c.key);
       const { data, error } = await supabase
         .from("posts")
         .select("*, comments(id), assigned_user:assigned_to_user_id(name), reviewer:reviewer_user_id(name), clients(name)")
-        .in("status_column", ALL_STATUSES as string[])
+        .in("status_column", statuses)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
