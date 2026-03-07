@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { FileText, Mail, Download, Send, Pencil, Save, X, Upload, Loader2 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
+import { compressImage } from "@/lib/imageUtils";
 
 type RequestStatus = Database["public"]["Enums"]["request_status"];
 type RequestType = Database["public"]["Enums"]["request_type"];
