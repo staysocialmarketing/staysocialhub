@@ -22,6 +22,7 @@ export default function WhatsNew() {
   const { toast } = useToast();
   const [items, setItems] = useState<MarketplaceItem[]>([]);
   const [recommendedItemId, setRecommendedItemId] = useState<string | null>(null);
+  const [visibleAddonIds, setVisibleAddonIds] = useState<string[]>([]);
   const [requestedAddons, setRequestedAddons] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState<string | null>(null);
 
