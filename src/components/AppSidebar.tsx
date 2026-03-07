@@ -26,6 +26,7 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -47,33 +48,25 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 
-// ─── Admin nav (flat, ordered) ───────────────────────────────────────────────
-const adminMenuItems = [
+// ─── Sections for admin/team views ───────────────────────────────────────────
+const menuSection = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Workflow", url: "/workflow", icon: ClipboardList },
   { title: "Approvals", url: "/approvals", icon: CheckSquare },
-  { title: "Clients", url: "/admin/clients", icon: Building2 },
   { title: "Requests", url: "/requests", icon: MessageSquarePlus },
+];
+
+const teamSection = [
   { title: "Projects", url: "/team/projects", icon: FolderKanban },
   { title: "Tasks", url: "/team/tasks", icon: ListTodo },
   { title: "Think Tank", url: "/team/think-tank", icon: Lightbulb },
+];
+
+const adminSection = [
+  { title: "Clients", url: "/admin/clients", icon: Building2 },
   { title: "Media Library", url: "/admin/media", icon: Image },
   { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
   { title: "Users", url: "/admin/users", icon: Users },
-];
-
-// ─── Team nav (same minus Users) ─────────────────────────────────────────────
-const teamMenuItems = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Workflow", url: "/workflow", icon: ClipboardList },
-  { title: "Approvals", url: "/approvals", icon: CheckSquare },
-  { title: "Clients", url: "/admin/clients", icon: Building2 },
-  { title: "Requests", url: "/requests", icon: MessageSquarePlus },
-  { title: "Projects", url: "/team/projects", icon: FolderKanban },
-  { title: "Tasks", url: "/team/tasks", icon: ListTodo },
-  { title: "Think Tank", url: "/team/think-tank", icon: Lightbulb },
-  { title: "Media Library", url: "/admin/media", icon: Image },
-  { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
 ];
 
 // ─── Client nav ──────────────────────────────────────────────────────────────
@@ -118,10 +111,30 @@ export function AppSidebar() {
     fetchUsers();
   }, [actualIsSSAdmin]);
 
-  const menuItems = isSSAdmin ? adminMenuItems : isSSTeam ? teamMenuItems : clientItems;
+  const isInternalUser = isSSAdmin || isSSTeam;
+  const visibleAdminItems = isSSAdmin ? adminSection : adminSection.filter((i) => i.title !== "Users");
 
   const ssUsers = allUsers.filter((u) => u.roles.some((r) => ["ss_admin", "ss_producer", "ss_ops", "ss_team"].includes(r)));
   const clientUsers = allUsers.filter((u) => u.roles.some((r) => ["client_admin", "client_assistant"].includes(r)));
+
+  const renderMenuItems = (items: typeof menuSection) => (
+    <SidebarMenu>
+      {items.map((item) => (
+        <SidebarMenuItem key={item.title}>
+          <SidebarMenuButton asChild>
+            <NavLink
+              to={item.url}
+              className="hover:bg-sidebar-accent/50"
+              activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+            >
+              <item.icon className="h-4 w-4 shrink-0" />
+              {!collapsed && <span>{item.title}</span>}
+            </NavLink>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      ))}
+    </SidebarMenu>
+  );
 
   return (
     <Sidebar collapsible="icon">
@@ -185,26 +198,32 @@ export function AppSidebar() {
       <SidebarSeparator />
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink
-                      to={item.url}
-                      className="hover:bg-sidebar-accent/50"
-                      activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                    >
-                      <item.icon className="h-4 w-4 shrink-0" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {isInternalUser ? (
+          <>
+            <SidebarGroup>
+              {!collapsed && <SidebarGroupLabel>Menu</SidebarGroupLabel>}
+              <SidebarGroupContent>{renderMenuItems(menuSection)}</SidebarGroupContent>
+            </SidebarGroup>
+
+            <SidebarSeparator />
+
+            <SidebarGroup>
+              {!collapsed && <SidebarGroupLabel>Team</SidebarGroupLabel>}
+              <SidebarGroupContent>{renderMenuItems(teamSection)}</SidebarGroupContent>
+            </SidebarGroup>
+
+            <SidebarSeparator />
+
+            <SidebarGroup>
+              {!collapsed && <SidebarGroupLabel>Admin</SidebarGroupLabel>}
+              <SidebarGroupContent>{renderMenuItems(visibleAdminItems)}</SidebarGroupContent>
+            </SidebarGroup>
+          </>
+        ) : (
+          <SidebarGroup>
+            <SidebarGroupContent>{renderMenuItems(clientItems)}</SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="p-3">
