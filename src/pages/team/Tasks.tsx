@@ -178,7 +178,14 @@ export default function Tasks() {
     fetchTasks();
   };
 
-  const userName = (id: string | null) => {
+  const userName = (task: Task) => {
+    if (task.assigned_to_team) return "Team";
+    if (!task.assigned_to_user_id) return null;
+    const u = users.find((u) => u.id === task.assigned_to_user_id);
+    return u?.name || u?.email;
+  };
+
+  const userNameById = (id: string | null) => {
     if (!id) return null;
     const u = users.find((u) => u.id === id);
     return u?.name || u?.email;
