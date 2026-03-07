@@ -57,6 +57,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <ClientFilterProvider>
           <Routes>
             <Route path="/auth" element={<AuthRoute />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
