@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { ImageIcon, Film, Video, FolderOpen, Upload, Download, Link2 } from "lucide-react";
+import { ImageIcon, Film, Video, FolderOpen, Upload, Download, Link2, Mic } from "lucide-react";
 import { toast } from "sonner";
 import { compressImage } from "@/lib/imageUtils";
 
@@ -25,6 +25,12 @@ function isReel(platform: string | null) {
   if (!platform) return false;
   const p = platform.toLowerCase();
   return p.includes("reel") || p.includes("tiktok") || p.includes("short");
+}
+
+interface VoiceNoteFile {
+  name: string;
+  created_at: string;
+  url: string;
 }
 
 export default function ContentLibrary() {
@@ -46,6 +52,25 @@ export default function ContentLibrary() {
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
+    },
+  });
+
+  const { data: voiceNotes = [], isLoading: voiceLoading } = useQuery({
+    queryKey: ["client-voice-notes", profile?.client_id],
+    enabled: !!profile?.client_id,
+    queryFn: async () => {
+      const clientId = profile!.client_id!;
+      const { data, error } = await supabase.storage
+        .from("creative-assets")
+        .list(`${clientId}/voice-notes`, { sortBy: { column: "created_at", order: "desc" } });
+      if (error) throw error;
+      return (data || [])
+        .filter((f) => f.name.endsWith(".webm"))
+        .map((f) => ({
+          name: f.name,
+          created_at: f.created_at || "",
+          url: supabase.storage.from("creative-assets").getPublicUrl(`${clientId}/voice-notes/${f.name}`).data.publicUrl,
+        })) as VoiceNoteFile[];
     },
   });
 
@@ -94,8 +119,8 @@ export default function ContentLibrary() {
     return posts.filter((p) => p.creative_url && !isVideo(p.creative_url) && !isReel(p.platform)).length;
   };
 
-  const handleDownload = (url: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDownload = (url: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     const a = document.createElement("a");
     a.href = url;
     a.download = "";
@@ -105,8 +130,8 @@ export default function ContentLibrary() {
     document.body.removeChild(a);
   };
 
-  const handleCopyLink = (url: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleCopyLink = (url: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     navigator.clipboard.writeText(url);
     toast.success("Link copied to clipboard");
   };
@@ -161,6 +186,47 @@ export default function ContentLibrary() {
     );
   };
 
+  const VoiceNotesGrid = () => {
+    if (voiceLoading) {
+      return <p className="text-muted-foreground text-sm py-10 text-center">Loading voice notes…</p>;
+    }
+    if (voiceNotes.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+          <Mic className="h-12 w-12 mb-3 opacity-40" />
+          <p className="text-sm">No voice notes yet</p>
+          <p className="text-xs mt-1">Use the + button to record a voice note</p>
+        </div>
+      );
+    }
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        {voiceNotes.map((vn) => (
+          <Card key={vn.name} className="overflow-hidden">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Mic className="h-4 w-4 text-primary" />
+                <p className="text-sm font-medium truncate">{vn.name.replace("voice-", "").replace(".webm", "")}</p>
+              </div>
+              <audio src={vn.url} controls className="w-full" />
+              {vn.created_at && (
+                <span className="text-[10px] text-muted-foreground">{format(new Date(vn.created_at), "MMM d, yyyy h:mm a")}</span>
+              )}
+              <div className="flex gap-1">
+                <Button variant="ghost" size="sm" className="h-6 text-[10px] px-1.5" onClick={() => handleDownload(vn.url)}>
+                  <Download className="h-3 w-3 mr-0.5" /> Download
+                </Button>
+                <Button variant="ghost" size="sm" className="h-6 text-[10px] px-1.5" onClick={() => handleCopyLink(vn.url)}>
+                  <Link2 className="h-3 w-3 mr-0.5" /> Copy Link
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -202,6 +268,7 @@ export default function ContentLibrary() {
             <TabsTrigger value="images"><ImageIcon className="h-3.5 w-3.5 mr-1" /> Images</TabsTrigger>
             <TabsTrigger value="videos"><Video className="h-3.5 w-3.5 mr-1" /> Videos</TabsTrigger>
             <TabsTrigger value="reels"><Film className="h-3.5 w-3.5 mr-1" /> Reels</TabsTrigger>
+            <TabsTrigger value="voice-notes"><Mic className="h-3.5 w-3.5 mr-1" /> Voice Notes</TabsTrigger>
           </TabsList>
           {["all", "images", "videos", "reels"].map((tab) => (
             <TabsContent key={tab} value={tab}>
@@ -215,6 +282,9 @@ export default function ContentLibrary() {
               )}
             </TabsContent>
           ))}
+          <TabsContent value="voice-notes">
+            <VoiceNotesGrid />
+          </TabsContent>
         </Tabs>
       )}
     </div>

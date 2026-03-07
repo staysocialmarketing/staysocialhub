@@ -196,7 +196,12 @@ export default function AdminMedia() {
                 <Card key={post.id} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden group" onClick={() => openEdit(post)}>
                   <AspectRatio ratio={1}>
                     {post.creative_url ? (
-                      isVideo(post.creative_url) ? (
+                      isVoiceNote(post.creative_url) ? (
+                        <div className="w-full h-full bg-muted flex flex-col items-center justify-center gap-2 p-4">
+                          <Mic className="h-10 w-10 text-primary/50" />
+                          <audio src={post.creative_url} controls className="w-full max-w-[90%]" onClick={(e) => e.stopPropagation()} />
+                        </div>
+                      ) : isVideo(post.creative_url) ? (
                         <div className="w-full h-full bg-muted flex items-center justify-center"><Film className="h-10 w-10 text-muted-foreground/50" /></div>
                       ) : (
                         <img src={post.creative_url} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
