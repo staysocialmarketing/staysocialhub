@@ -187,11 +187,13 @@ export default function Projects() {
 
   const handleSaveTask = async () => {
     if (!editTask || !editTaskTitle.trim()) return;
+    const isTeam = editTaskAssigneeId === "__team__";
     const { error } = await supabase.from("tasks").update({
       title: editTaskTitle.trim(),
       description: editTaskDescription.trim() || null,
       project_id: editTaskProjectId || null,
-      assigned_to_user_id: editTaskAssigneeId || null,
+      assigned_to_user_id: isTeam ? null : (editTaskAssigneeId || null),
+      assigned_to_team: isTeam,
       priority: editTaskPriority,
       due_at: editTaskDueAt || null,
       status: editTaskStatus,
