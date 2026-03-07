@@ -80,7 +80,6 @@ const teamTeamItems = [
 ];
 const teamAdminItems = [
   { title: "Clients", url: "/admin/clients", icon: Building2 },
-  { title: "Users", url: "/admin/users", icon: Users },
   { title: "Media", url: "/admin/media", icon: Image },
 ];
 

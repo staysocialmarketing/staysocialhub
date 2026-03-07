@@ -505,6 +505,63 @@ export default function Projects() {
         </DialogContent>
       </Dialog>
 
+      {/* Add Task from Project Dialog */}
+      <Dialog open={!!addTaskProjectId} onOpenChange={(o) => { if (!o) { setAddTaskProjectId(null); setAddTaskTitle(""); setAddTaskDescription(""); setAddTaskAssigneeId(""); setAddTaskPriority("normal"); setAddTaskDueAt(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Add Task to Project</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <Input placeholder="Task title" value={addTaskTitle} onChange={(e) => setAddTaskTitle(e.target.value)} autoFocus />
+            <Textarea placeholder="Description..." value={addTaskDescription} onChange={(e) => setAddTaskDescription(e.target.value)} />
+            <div>
+              <Label className="text-xs text-muted-foreground">Assignee</Label>
+              <Select value={addTaskAssigneeId || "__none__"} onValueChange={(v) => setAddTaskAssigneeId(v === "__none__" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="Assign to" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Unassigned</SelectItem>
+                  {ssUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">Priority</Label>
+                <Select value={addTaskPriority} onValueChange={setAddTaskPriority}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="urgent">Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Due Date</Label>
+                <Input type="datetime-local" value={addTaskDueAt} onChange={(e) => setAddTaskDueAt(e.target.value)} />
+              </div>
+            </div>
+            <Button className="w-full" disabled={!addTaskTitle.trim()} onClick={async () => {
+              if (!profile || !addTaskProjectId) return;
+              const proj = projects.find((p) => p.id === addTaskProjectId);
+              const { error } = await supabase.from("tasks").insert({
+                title: addTaskTitle.trim(),
+                description: addTaskDescription.trim() || null,
+                project_id: addTaskProjectId,
+                client_id: proj?.client_id || null,
+                assigned_to_user_id: addTaskAssigneeId || null,
+                priority: addTaskPriority,
+                due_at: addTaskDueAt || null,
+                created_by_user_id: profile.id,
+              } as any);
+              if (error) { toast.error(error.message); return; }
+              toast.success("Task added!");
+              setAddTaskProjectId(null); setAddTaskTitle(""); setAddTaskDescription(""); setAddTaskAssigneeId(""); setAddTaskPriority("normal"); setAddTaskDueAt("");
+              fetchData();
+            }}>Create Task</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <MakeRequestDialog
         open={!!requestProject}
         onOpenChange={(o) => !o && setRequestProject(null)}
