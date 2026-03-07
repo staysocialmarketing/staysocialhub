@@ -373,6 +373,8 @@ export default function TaskDetailDialog({ task, onClose, onUpdated, projects, s
             <TabsTrigger value="attachments" className="text-xs gap-1"><Paperclip className="h-3 w-3" /> Files {attachments.length > 0 && `(${attachments.length})`}</TabsTrigger>
             <TabsTrigger value="comments" className="text-xs gap-1"><MessageSquare className="h-3 w-3" /> Comments {comments.length > 0 && `(${comments.length})`}</TabsTrigger>
             <TabsTrigger value="activity" className="text-xs gap-1"><Activity className="h-3 w-3" /> Activity</TabsTrigger>
+            {isSSRole && <TabsTrigger value="ai" className="text-xs gap-1"><Bot className="h-3 w-3" /> AI</TabsTrigger>}
+            {isSSRole && <TabsTrigger value="strategy" className="text-xs gap-1"><Target className="h-3 w-3" /> Strategy</TabsTrigger>}
           </TabsList>
 
           {/* Description */}
