@@ -335,46 +335,39 @@ export default function Projects() {
             const tasks = projectTasks[project.id] || [];
             const isExpanded = expandedIds.has(project.id);
             return (
-              <Card key={project.id}>
-                <CardHeader
-                  className="pb-2 cursor-pointer hover:bg-accent/30 transition-colors"
+              <Card key={project.id} className="border-border/40 shadow-sm hover:shadow-md transition-all">
+                <div
+                  className="p-5 cursor-pointer hover:bg-accent/30 transition-colors"
                   onClick={() => toggleExpand(project.id)}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2.5">
                       <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? "" : "-rotate-90"}`} />
                       <FolderOpen className="h-4 w-4 text-muted-foreground" />
-                      <CardTitle className="text-base">{project.name}</CardTitle>
-                      <Badge variant="outline" className={statusColors[project.status] || ""}>{project.status.replace("_", " ")}</Badge>
+                      <h3 className="text-base font-semibold text-foreground">{project.name}</h3>
+                      <Badge variant="outline" className={`text-[11px] ${statusColors[project.status] || ""}`}>{project.status.replace("_", " ")}</Badge>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground" onClick={(e) => e.stopPropagation()}>
-                      {clientName(project.client_id) && <Badge variant="secondary">{clientName(project.client_id)}</Badge>}
+                      {clientName(project.client_id) && <Badge variant="outline" className="text-[11px]">{clientName(project.client_id)}</Badge>}
                       {(() => {
                         const directTasks = tasks.filter(t => t.status !== "done");
                         const subIds = subs.map(s => s.id);
                         const subTaskCount = Object.entries(projectTasks).filter(([pid]) => subIds.includes(pid)).reduce((sum, [, ts]) => sum + ts.filter(t => t.status !== "done").length, 0);
                         const total = directTasks.filter(t => t.status !== "done").length + subTaskCount;
-                        return (
-                          <span className="flex items-center gap-1">
-                            <ListTodo className="h-3 w-3" /> {total} active task{total !== 1 ? "s" : ""}
-                            {subs.length > 0 && subTaskCount > 0 && (
-                              <span className="text-muted-foreground/60">({directTasks.filter(t => t.status !== "done").length} direct, {subTaskCount} in sub-projects)</span>
-                            )}
-                          </span>
-                        );
+                        return <span className="text-xs text-muted-foreground">{total} task{total !== 1 ? "s" : ""}</span>;
                       })()}
                       {canEditDeleteProject(project) && (
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openEditProject(project)}>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => openEditProject(project)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
                       )}
-                      <Button size="sm" variant="secondary" onClick={() => setRequestProject(project)}>
+                      <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setRequestProject(project)}>
                         <Send className="h-3 w-3 mr-1" /> Request
                       </Button>
                     </div>
                   </div>
-                  {project.description && <p className="text-sm text-muted-foreground mt-1 ml-8 line-clamp-2">{project.description}</p>}
-                </CardHeader>
+                  {project.description && <p className="text-sm text-muted-foreground/70 mt-2 ml-8 line-clamp-1">{project.description}</p>}
+                </div>
                 {isExpanded && (
                   <CardContent className="pt-0 space-y-3">
                     {subs.length > 0 && (
