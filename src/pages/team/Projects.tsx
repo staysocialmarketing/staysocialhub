@@ -107,7 +107,7 @@ export default function Projects() {
     const { data } = await query;
     setProjects((data as Project[]) || []);
 
-    const { data: tasks } = await supabase.from("tasks").select("id, title, description, status, priority, assigned_to_user_id, due_at, project_id, created_by_user_id");
+    const { data: tasks } = await supabase.from("tasks").select("id, title, description, status, priority, assigned_to_user_id, assigned_to_team, due_at, project_id, created_by_user_id");
     if (tasks) {
       const grouped: Record<string, Task[]> = {};
       (tasks as Task[]).forEach((t) => {
