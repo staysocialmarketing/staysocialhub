@@ -288,65 +288,68 @@ export default function Workflow() {
 
     return (
       <div key={post.id} className="space-y-1.5">
-        <Card
-          className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
+        <div
+          className="card-elevated p-4 space-y-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-all"
           draggable
           onDragStart={(e) => handleDragStart(e, post.id, post.status_column)}
           onClick={() => setSelectedPost(post)}
         >
-          <CardContent className="p-3 space-y-2">
-            {post.creative_url ? (
-              <div className="aspect-video bg-muted rounded overflow-hidden">
-                <img src={post.creative_url} alt="" className="w-full h-full object-cover" />
-              </div>
-            ) : (
-              <div className="aspect-video bg-muted rounded flex items-center justify-center">
-                {post.content_type === "email_campaign" ? <Mail className="h-6 w-6 text-muted-foreground/40" /> : <ImageIcon className="h-6 w-6 text-muted-foreground/40" />}
-              </div>
+          {post.creative_url && (
+            <div className="aspect-video bg-muted rounded-lg overflow-hidden">
+              <img src={post.creative_url} alt="" className="w-full h-full object-cover" />
+            </div>
+          )}
+          {!post.creative_url && ct && (
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              {ct.icon}
+              <span className="text-[11px]">{ct.label}</span>
+            </div>
+          )}
+          <h4 className="text-sm font-semibold text-foreground line-clamp-2">{post.title}</h4>
+          {post.content_type === "email_campaign" && post.subject_line && (
+            <p className="text-xs text-muted-foreground/70 line-clamp-1">Subject: {post.subject_line}</p>
+          )}
+          <div className="flex flex-wrap gap-1">
+            {post.clients?.name && <Badge variant="outline" className="text-[11px]">{post.clients.name}</Badge>}
+            {post.request_id && (
+              <Badge variant="secondary" className="text-[11px] gap-1">
+                <FileText className="h-2.5 w-2.5" />Request
+              </Badge>
             )}
-            <h4 className="text-sm font-medium text-foreground line-clamp-2">{post.title}</h4>
-            {post.content_type === "email_campaign" && post.subject_line && (
-              <p className="text-xs text-muted-foreground line-clamp-1">Subject: {post.subject_line}</p>
-            )}
+          </div>
+          {post.platform && (
             <div className="flex flex-wrap gap-1">
-              {post.clients?.name && <Badge variant="outline" className="text-[10px]">{post.clients.name}</Badge>}
-              {ct && <Badge variant="secondary" className={cn("text-[10px] gap-1", ct.className)}>{ct.icon}{ct.label}</Badge>}
-              {post.request_id && (
-                <Badge variant="secondary" className="text-[10px] bg-accent text-accent-foreground gap-1">
-                  <FileText className="h-2.5 w-2.5" />Request
-                </Badge>
+              {post.platform.split(",").map((p: string) => (
+                <Badge key={p} variant="secondary" className={`text-[11px] ${platformColors[p.trim().toLowerCase()] || ""}`}>{p.trim()}</Badge>
+              ))}
+            </div>
+          )}
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <div className="flex items-center gap-2">
+              {post.due_at && (
+                <span className={cn("flex items-center gap-1", dueDateColor)}>
+                  <Clock className="h-3 w-3" />{format(new Date(post.due_at), "MMM d")}
+                </span>
+              )}
+              {post.scheduled_at && (
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />{new Date(post.scheduled_at).toLocaleDateString()}
+                </span>
               )}
             </div>
-            {post.platform && (
-              <div className="flex flex-wrap gap-1">
-                {post.platform.split(",").map((p: string) => (
-                  <Badge key={p} variant="secondary" className={`text-[10px] ${platformColors[p.trim().toLowerCase()] || ""}`}>{p.trim()}</Badge>
-                ))}
-              </div>
-            )}
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <div className="flex items-center gap-2">
-                {post.due_at && (
-                  <span className={cn("flex items-center gap-1", dueDateColor)}>
-                    <Clock className="h-3 w-3" />{format(new Date(post.due_at), "MMM d")}
-                  </span>
-                )}
-                <span className="flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />{post.scheduled_at ? new Date(post.scheduled_at).toLocaleDateString() : "TBD"}
-                </span>
-              </div>
+            {(post.comments?.length || 0) > 0 && (
               <span className="flex items-center gap-1">
-                <MessageSquare className="h-3 w-3" />{post.comments?.length || 0}
+                <MessageSquare className="h-3 w-3" />{post.comments.length}
               </span>
-            </div>
-            {post.assigned_user?.name && (
-              <div className="flex items-center gap-1 pt-1 border-t border-border/50">
-                <UserInitials name={post.assigned_user.name} />
-                <span className="text-[10px] text-muted-foreground truncate">{post.assigned_user.name}</span>
-              </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+          {post.assigned_user?.name && (
+            <div className="flex items-center gap-1.5 pt-2">
+              <UserInitials name={post.assigned_user.name} />
+              <span className="text-[11px] text-muted-foreground truncate">{post.assigned_user.name}</span>
+            </div>
+          )}
+        </div>
         {showApprovalActions && (
           <ApprovalActions
             postId={post.id}
@@ -370,15 +373,15 @@ export default function Workflow() {
   };
 
   return (
-    <div className="p-6 h-full flex flex-col">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="p-4 sm:p-6 h-full flex flex-col">
+      <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-foreground">Workflow</h2>
-          <p className="text-muted-foreground">Production pipeline — drag cards or use action buttons</p>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Workflow</h1>
+          <p className="text-sm text-muted-foreground">Production pipeline — drag cards or use action buttons</p>
         </div>
         <div className="flex items-center gap-3">
           <Select value={contentTypeFilter} onValueChange={setContentTypeFilter}>
-            <SelectTrigger className="w-40 h-9"><SelectValue placeholder="All Types" /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-40 h-9"><SelectValue placeholder="All Types" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
               {CONTENT_TYPE_OPTIONS.map(t => (
@@ -502,16 +505,16 @@ export default function Workflow() {
 
       {/* Kanban columns */}
       <ScrollArea className="flex-1">
-        <div className="flex gap-4 pb-4" style={{ minWidth: KANBAN_COLUMNS.length * 280 }}>
+        <div className="flex gap-5 pb-4" style={{ minWidth: KANBAN_COLUMNS.length * 290 }}>
           {KANBAN_COLUMNS.map(col => {
             const columnPosts = posts.filter((p: any) => p.status_column === col.key && (contentTypeFilter === "all" || p.content_type === contentTypeFilter));
             return (
-              <div key={col.key} className="w-[260px] shrink-0 flex flex-col bg-muted/50 rounded-lg" onDrop={e => handleDrop(e, col.key)} onDragOver={handleDragOver}>
-                <div className="px-3 py-2 flex items-center justify-between">
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{col.label}</h3>
-                  <Badge variant="secondary" className="text-xs">{columnPosts.length}</Badge>
+              <div key={col.key} className="w-[270px] shrink-0 flex flex-col bg-accent/30 rounded-xl" onDrop={e => handleDrop(e, col.key)} onDragOver={handleDragOver}>
+                <div className="px-4 py-3 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-foreground">{col.label}</h3>
+                  <span className="text-xs text-muted-foreground">{columnPosts.length}</span>
                 </div>
-                <div className="px-2 pb-2 space-y-2 flex-1 min-h-[100px]">
+                <div className="px-2 pb-3 space-y-2 flex-1 min-h-[100px]">
                   {columnPosts.map(renderCard)}
                 </div>
               </div>
@@ -530,12 +533,12 @@ export default function Workflow() {
         });
         if (sectionPosts.length === 0) return null;
         return (
-          <section key={section.key} className="mt-6">
-            <div className="flex items-center gap-2 mb-3">
-              <h3 className="text-lg font-semibold text-foreground">{section.label}</h3>
-              <Badge variant="secondary">{sectionPosts.length}</Badge>
+          <section key={section.key} className="mt-8">
+            <div className="flex items-center gap-2 mb-4">
+              <h3 className="text-base font-semibold text-foreground">{section.label}</h3>
+              <span className="text-xs text-muted-foreground">{sectionPosts.length}</span>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 bg-muted/50 rounded-lg p-4" onDrop={e => handleDrop(e, section.key)} onDragOver={handleDragOver}>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 bg-accent/30 rounded-xl p-4" onDrop={e => handleDrop(e, section.key)} onDragOver={handleDragOver}>
               {sectionPosts.map(renderCard)}
             </div>
           </section>

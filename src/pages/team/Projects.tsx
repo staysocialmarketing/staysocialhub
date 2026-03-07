@@ -249,26 +249,26 @@ export default function Projects() {
   const renderTaskRow = (task: Task) => (
     <div
       key={task.id}
-      className="flex items-center justify-between p-2 rounded-md border cursor-pointer hover:bg-accent/50 transition-colors"
+      className="flex items-center justify-between p-3 rounded-lg bg-accent/30 cursor-pointer hover:bg-accent/50 transition-colors group"
       onClick={(e) => { e.stopPropagation(); openEditTask(task); }}
     >
       <div className="flex items-center gap-2 min-w-0">
         <ListTodo className="h-3 w-3 text-muted-foreground shrink-0" />
         <span className="text-sm font-medium truncate">{task.title}</span>
-        <Badge variant="outline" className={`text-[10px] shrink-0 ${priorityColors[task.priority] || ""}`}>{task.priority}</Badge>
+        <Badge variant="outline" className={`text-[11px] shrink-0 ${priorityColors[task.priority] || ""}`}>{task.priority}</Badge>
       </div>
       <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
         {(userName(task.assigned_to_user_id, task.assigned_to_team)) && (
-          <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+          <span className="text-xs text-muted-foreground flex items-center gap-0.5 hidden sm:flex">
             <User className="h-3 w-3" />
-            {task.assigned_to_team ? <Badge variant="secondary" className="text-[10px]">🤝 Team</Badge> : userName(task.assigned_to_user_id)}
+            {task.assigned_to_team ? "Team" : userName(task.assigned_to_user_id)}
           </span>
         )}
         {task.due_at && (
-          <span className="text-xs text-muted-foreground flex items-center gap-0.5"><Calendar className="h-3 w-3" />{format(new Date(task.due_at), "MMM d")}</span>
+          <span className="text-xs text-muted-foreground flex items-center gap-0.5 hidden sm:flex"><Calendar className="h-3 w-3" />{format(new Date(task.due_at), "MMM d")}</span>
         )}
         <Select value={task.status} onValueChange={(s) => updateTaskStatus(task.id, s)}>
-          <SelectTrigger className="h-6 text-[10px] w-24"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-7 text-[11px] w-24 border-border/50 bg-transparent"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todo">To Do</SelectItem>
             <SelectItem value="in_progress">In Progress</SelectItem>
@@ -280,11 +280,11 @@ export default function Projects() {
   );
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Projects</h1>
-          <p className="text-sm text-muted-foreground">High-level project tracking with sub-projects</p>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Projects</h1>
+          <p className="text-sm text-muted-foreground">High-level project tracking</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
@@ -313,7 +313,7 @@ export default function Projects() {
 
       <div className="flex gap-3">
         <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All</SelectItem>
             <SelectItem value="active">Active</SelectItem>
@@ -335,48 +335,41 @@ export default function Projects() {
             const tasks = projectTasks[project.id] || [];
             const isExpanded = expandedIds.has(project.id);
             return (
-              <Card key={project.id}>
-                <CardHeader
-                  className="pb-2 cursor-pointer hover:bg-accent/30 transition-colors"
+              <Card key={project.id} className="border-border/40 shadow-sm hover:shadow-md transition-all">
+                <div
+                  className="p-5 cursor-pointer hover:bg-accent/30 transition-colors"
                   onClick={() => toggleExpand(project.id)}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2.5">
                       <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? "" : "-rotate-90"}`} />
                       <FolderOpen className="h-4 w-4 text-muted-foreground" />
-                      <CardTitle className="text-base">{project.name}</CardTitle>
-                      <Badge variant="outline" className={statusColors[project.status] || ""}>{project.status.replace("_", " ")}</Badge>
+                      <h3 className="text-base font-semibold text-foreground">{project.name}</h3>
+                      <Badge variant="outline" className={`text-[11px] ${statusColors[project.status] || ""}`}>{project.status.replace("_", " ")}</Badge>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground" onClick={(e) => e.stopPropagation()}>
-                      {clientName(project.client_id) && <Badge variant="secondary">{clientName(project.client_id)}</Badge>}
+                      {clientName(project.client_id) && <Badge variant="outline" className="text-[11px]">{clientName(project.client_id)}</Badge>}
                       {(() => {
                         const directTasks = tasks.filter(t => t.status !== "done");
                         const subIds = subs.map(s => s.id);
                         const subTaskCount = Object.entries(projectTasks).filter(([pid]) => subIds.includes(pid)).reduce((sum, [, ts]) => sum + ts.filter(t => t.status !== "done").length, 0);
                         const total = directTasks.filter(t => t.status !== "done").length + subTaskCount;
-                        return (
-                          <span className="flex items-center gap-1">
-                            <ListTodo className="h-3 w-3" /> {total} active task{total !== 1 ? "s" : ""}
-                            {subs.length > 0 && subTaskCount > 0 && (
-                              <span className="text-muted-foreground/60">({directTasks.filter(t => t.status !== "done").length} direct, {subTaskCount} in sub-projects)</span>
-                            )}
-                          </span>
-                        );
+                        return <span className="text-xs text-muted-foreground">{total} task{total !== 1 ? "s" : ""}</span>;
                       })()}
                       {canEditDeleteProject(project) && (
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openEditProject(project)}>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => openEditProject(project)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
                       )}
-                      <Button size="sm" variant="secondary" onClick={() => setRequestProject(project)}>
+                      <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setRequestProject(project)}>
                         <Send className="h-3 w-3 mr-1" /> Request
                       </Button>
                     </div>
                   </div>
-                  {project.description && <p className="text-sm text-muted-foreground mt-1 ml-8 line-clamp-2">{project.description}</p>}
-                </CardHeader>
+                  {project.description && <p className="text-sm text-muted-foreground/70 mt-2 ml-8 line-clamp-1">{project.description}</p>}
+                </div>
                 {isExpanded && (
-                  <CardContent className="pt-0 space-y-3">
+                  <div className="px-5 pb-5 pt-0 space-y-4">
                     {subs.length > 0 && (
                       <div className="pl-6 space-y-2">
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sub-projects</p>
@@ -386,14 +379,14 @@ export default function Projects() {
                           return (
                             <div key={sub.id}>
                               <div
-                                className="flex items-center justify-between p-2 rounded-md border cursor-pointer hover:bg-accent/50"
+                                className="flex items-center justify-between p-2.5 rounded-lg hover:bg-accent/50 transition-colors"
                                 onClick={() => toggleExpand(sub.id)}
                               >
                                 <div className="flex items-center gap-2">
                                   <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform ${subExpanded ? "" : "-rotate-90"}`} />
                                   <FolderOpen className="h-3 w-3 text-muted-foreground" />
                                   <span className="text-sm font-medium">{sub.name}</span>
-                                  <Badge variant="outline" className={`text-xs ${statusColors[sub.status] || ""}`}>{sub.status}</Badge>
+                                  <Badge variant="outline" className={`text-[11px] ${statusColors[sub.status] || ""}`}>{sub.status}</Badge>
                                 </div>
                                 <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                   <span className="text-xs text-muted-foreground flex items-center gap-1">
@@ -441,7 +434,7 @@ export default function Projects() {
                         <Plus className="h-3 w-3 mr-1" /> Add Task
                       </Button>
                     </div>
-                  </CardContent>
+                  </div>
                 )}
               </Card>
             );

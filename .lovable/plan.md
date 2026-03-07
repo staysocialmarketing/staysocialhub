@@ -1,131 +1,57 @@
 
 
-# Dashboard Propagation + UI Cleanup Pass
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-## Overview
+## Summary of Changes
 
-A visual refinement pass across all major views (Dashboards, Tasks, Projects, Workflow) to create a cleaner, more premium feel with consistent shared patterns. No architectural changes -- purely UI/UX polish.
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
----
+## 1. Database: Update Auto-Assignment Triggers
 
-## 1. Shared UI Pattern System
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-### New file: `src/components/ui/stat-card.tsx`
-Reusable stat card component with consistent styling:
-- Subtle shadow (`shadow-sm`), no heavy border (`border-0` or `border border-border/50`)
-- Generous padding, icon slot, value, label, optional subtitle
-- Hover lift effect (`hover:shadow-md transition-all`)
-- Used across all three dashboards
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
-### New file: `src/components/ui/section-header.tsx`
-Reusable section header with icon, title, optional "View all" action:
-- Consistent typography: `text-base font-semibold tracking-tight`
-- Subtle bottom border or no border, just spacing
-- Used in Dashboard sections, Projects, Tasks
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
 
-### New file: `src/components/ui/empty-state.tsx`
-Reusable empty state with icon, title, optional description and action button:
-- Centered layout, generous padding (`py-16`)
-- Muted icon, clean typography
-- Used across Tasks (no tasks in column), Projects (no projects), Dashboard (no items)
+## 2. Approvals Page — Separate Media from Published Content
 
-### Badge standardization
-Update badge usage across all views to follow consistent rules:
-- Priority badges: use `variant="outline"` with the existing priority color map
-- Status badges: use `variant="secondary"` with subtle background tints
-- Client badges: `variant="outline"` plain
-- All badges: consistent `text-[11px]` size (bump from 10px for readability)
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
 
----
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
 
-## 2. Dashboard UI Cleanup
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
 
-### `src/pages/Dashboard.tsx` -- WorkQueueDashboard
-- Replace inline stat `Card` blocks with new `StatCard` component
-- Replace `DashboardSection` wrapper: remove card wrapping around lists, use `SectionHeader` + flat list with subtle dividers
-- Task/request rows: increase vertical padding (`py-4`), simplify metadata layout -- title left-aligned prominently, metadata grouped right
-- Remove heavy `divide-y divide-border`, use `space-y-1` with subtle card-per-item or `border-b border-border/30`
-- Increase overall spacing: `space-y-8` instead of `space-y-6`
+## 3. Workflow Page — Move Internal Review to Bottom Section
 
-### `src/pages/Dashboard.tsx` -- ClientDashboard
-- Apply same `StatCard` for Awaiting Approval, Open Requests, Sent Campaigns
-- Quick Actions: softer borders, slightly larger touch targets
-- Marketplace recommendations: cleaner card with less badge clutter
-- Consistent `space-y-8` spacing
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
 
----
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
 
-## 3. Tasks UI Cleanup (`src/pages/team/Tasks.tsx`)
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
 
-- Kanban cards: increase padding to `p-4`, add `space-y-3`
-- Title: `text-sm font-semibold` (most prominent element)
-- Description: `text-xs text-muted-foreground/70 line-clamp-1` (lighter, shorter)
-- Metadata row (assignee + due date): grouped in a single flex row with subtle styling
-- Priority badge: consistent outline style from shared system
-- Status select: cleaner trigger with `bg-transparent border-border/50`
-- Column headers: slightly larger, `text-sm font-semibold`, remove badge count border
-- Empty column: use `EmptyState` component, shorter
-- Remove `Send` button from card face (keep in detail dialog only) to reduce clutter
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
----
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
-## 4. Projects UI Cleanup (`src/pages/team/Projects.tsx`)
+## Files Changed
 
-- Project cards: remove `CardHeader` heavy padding, use `p-5` unified
-- Clearer hierarchy: project name `text-base font-semibold`, sub-project names `text-sm font-medium` with left indent marker
-- Client badge: move to right side, clean outline style
-- Task count: simplified `text-xs text-muted-foreground` without icon
-- Task rows within project: reduce density -- `p-3` padding, remove border per-row, use `bg-accent/30 rounded-lg` grouping
-- Status filter: cleaner select trigger
-- Edit/delete buttons: ghost style, appear on hover only (CSS `group-hover`)
-
----
-
-## 5. Workflow UI Cleanup (`src/pages/Workflow.tsx`)
-
-- Kanban columns: increase gap between columns (`gap-5`), add `min-w-[280px]`
-- Column headers: `text-sm font-semibold`, badge count as plain text not a Badge component
-- Cards: increase padding to `p-4`, `space-y-3`
-- Remove aspect-video placeholder when no image (just show content type icon inline with title)
-- Title: `text-sm font-semibold line-clamp-2`
-- Badge row: max 2-3 badges visible, others collapsed
-- Assignee row: cleaner with just initials + name, no border-top
-- Date info: single line, smaller
-- Mobile: add status move buttons (forward/back arrows) below each card for non-drag interaction
-- Bottom sections (Scheduled, Published, etc.): cleaner horizontal scroll cards
-
----
-
-## 6. Global CSS Refinements (`src/index.css`)
-
-- Add utility classes for the premium feel:
-  - `.card-elevated` -- `shadow-sm border-border/50 bg-card`
-  - Reduce default card border opacity via CSS variable tweak: `--border` slightly lighter
-
----
-
-## 7. Mobile Refinements
-
-Applied across all views:
-- Stat cards: `grid-cols-2` on mobile with reduced padding
-- Task/workflow cards: full-width single column on mobile with clear tap targets (`min-h-[44px]` for interactive elements)
-- Filter selects: full-width on mobile (`w-full sm:w-44`)
-- Section headers: stack title and action vertically on mobile
-
----
-
-## Files Summary
-
-| Action | File |
-|--------|------|
-| New | `src/components/ui/stat-card.tsx` |
-| New | `src/components/ui/section-header.tsx` |
-| New | `src/components/ui/empty-state.tsx` |
-| Edit | `src/pages/Dashboard.tsx` (both dashboards) |
-| Edit | `src/pages/team/Tasks.tsx` (card cleanup) |
-| Edit | `src/pages/team/Projects.tsx` (hierarchy + density) |
-| Edit | `src/pages/Workflow.tsx` (card + column cleanup) |
-| Edit | `src/index.css` (subtle global refinements) |
-
-No database changes. No new routes. Pure UI/UX pass.
+| File | Change |
+|------|--------|
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 
