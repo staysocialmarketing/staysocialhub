@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
 import { format } from "date-fns";
-import { ImageIcon, Film, FolderOpen, Archive, Trash2, Download, Link2 } from "lucide-react";
+import { ImageIcon, Film, FolderOpen, Archive, Trash2, Download, Link2, Mic } from "lucide-react";
 import { toast } from "sonner";
 import { extractStoragePath } from "@/lib/imageUtils";
 
