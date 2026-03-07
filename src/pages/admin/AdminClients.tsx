@@ -18,8 +18,8 @@ import { Plus, Building2, Sparkles, FolderOpen, ListTodo, Lightbulb } from "luci
 export default function AdminClients() {
   const queryClient = useQueryClient();
   const { isSSAdmin } = useAuth();
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
+  const [whatsNewClient, setWhatsNewClient] = useState<string | null>(null);
+  const [marketplaceItems, setMarketplaceItems] = useState<any[]>([]);
   const [whatsNewClient, setWhatsNewClient] = useState<string | null>(null);
 
   // Edit client state
