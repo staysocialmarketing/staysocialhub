@@ -365,7 +365,7 @@ export function GlobalCaptureButton() {
                   {isRecording ? "Recording... tap to stop" : audioBlob ? "Voice note ready" : "Tap to start recording"}
                 </p>
               </div>
-              <div><Label>Client</Label><ClientSelectWithCreate value={voiceClient} onValueChange={setVoiceClient} /></div>
+              {isSSRole && <div><Label>Client</Label><ClientSelectWithCreate value={voiceClient} onValueChange={setVoiceClient} /></div>}
               <Button onClick={saveVoiceNote} disabled={!audioBlob || saving} className="w-full">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Voice Note"}
               </Button>
