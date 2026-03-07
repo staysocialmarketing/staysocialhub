@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Check, Loader2, Star } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Sparkles, Check, Loader2, Star, FileText } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
 
 interface MarketplaceItem {
   id: string;
@@ -17,6 +19,15 @@ interface MarketplaceItem {
   created_at: string;
 }
 
+interface ReleaseNote {
+  id: string;
+  major_version: number;
+  minor_version: number;
+  title: string | null;
+  notes: string | null;
+  published_at: string | null;
+}
+
 export default function WhatsNew() {
   const { profile, user } = useAuth();
   const { toast } = useToast();
@@ -25,11 +36,11 @@ export default function WhatsNew() {
   const [visibleAddonIds, setVisibleAddonIds] = useState<string[]>([]);
   const [requestedAddons, setRequestedAddons] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState<string | null>(null);
+  const [releaseNotes, setReleaseNotes] = useState<ReleaseNote[]>([]);
 
   useEffect(() => {
     if (!profile?.client_id) return;
 
-    // Fetch client data for recommended_item_id and visible addons
     supabase.from("clients").select("recommended_item_id, whats_new_visible_addons").eq("id", profile.client_id).single().then(({ data }) => {
       if (data) {
         setRecommendedItemId((data as any).recommended_item_id);
@@ -42,16 +53,27 @@ export default function WhatsNew() {
       }
     });
 
-    // Fetch marketplace items
     supabase.from("marketplace_items").select("*").eq("is_active", true).order("sort_order").order("created_at", { ascending: false }).then(({ data }) => {
       setItems((data as MarketplaceItem[]) || []);
     });
 
-    // Fetch existing requests
     supabase.from("addon_requests").select("addon_name").eq("client_id", profile.client_id).then(({ data }) => {
       if (data) setRequestedAddons(new Set(data.map((r) => r.addon_name)));
     });
   }, [profile?.client_id]);
+
+  // Fetch client-visible release notes
+  useEffect(() => {
+    supabase
+      .from("platform_versions")
+      .select("id, major_version, minor_version, title, notes, published_at")
+      .eq("visible_to_clients", true)
+      .order("published_at", { ascending: false })
+      .limit(10)
+      .then(({ data }) => {
+        setReleaseNotes((data as ReleaseNote[]) || []);
+      });
+  }, []);
 
   const handleRequest = async (itemName: string) => {
     if (!profile?.client_id || !user?.id) return;
@@ -77,7 +99,6 @@ export default function WhatsNew() {
   const solutions = filteredItems.filter((i) => i.category === "solution");
   const upgrades = filteredItems.filter((i) => i.category === "upgrade");
 
-  // Determine recommended item: admin-chosen or most recent
   const recommendedItem = recommendedItemId
     ? filteredItems.find((i) => i.id === recommendedItemId)
     : filteredItems[0] || null;
@@ -126,7 +147,6 @@ export default function WhatsNew() {
       </div>
       <p className="text-muted-foreground">Supercharge your social presence with these services.</p>
 
-      {/* Recommended Section */}
       {recommendedItem && (
         <div>
           <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
@@ -138,7 +158,6 @@ export default function WhatsNew() {
         </div>
       )}
 
-      {/* Solutions */}
       {solutions.length > 0 && (
         <div>
           <h3 className="text-lg font-semibold text-foreground mb-3">Solutions</h3>
@@ -149,7 +168,6 @@ export default function WhatsNew() {
         </div>
       )}
 
-      {/* Upgrades */}
       {upgrades.length > 0 && (
         <div>
           <h3 className="text-lg font-semibold text-foreground mb-3">Upgrades</h3>
@@ -162,6 +180,40 @@ export default function WhatsNew() {
 
       {filteredItems.length === 0 && (
         <p className="text-muted-foreground text-center py-12">No services available right now. Check back soon!</p>
+      )}
+
+      {/* Release Notes Section */}
+      {releaseNotes.length > 0 && (
+        <>
+          <Separator />
+          <div>
+            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" /> Release Notes
+            </h3>
+            <div className="space-y-3">
+              {releaseNotes.map((rn) => (
+                <Card key={rn.id}>
+                  <CardContent className="pt-4">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">V{rn.major_version}.{rn.minor_version}</Badge>
+                          {rn.title && <span className="font-medium text-foreground text-sm">{rn.title}</span>}
+                        </div>
+                        {rn.notes && <p className="text-sm text-muted-foreground">{rn.notes}</p>}
+                      </div>
+                      {rn.published_at && (
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          {format(new Date(rn.published_at), "MMM d, yyyy")}
+                        </span>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
