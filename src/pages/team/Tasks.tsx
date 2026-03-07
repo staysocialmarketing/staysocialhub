@@ -167,6 +167,7 @@ export default function Tasks() {
             <div className="space-y-4">
               <Input placeholder="Task title" value={title} onChange={(e) => setTitle(e.target.value)} />
               <Textarea placeholder="Description..." value={description} onChange={(e) => setDescription(e.target.value)} />
+              <ClientSelectWithCreate value={clientId} onValueChange={setClientId} placeholder="Client (optional)" />
               <Select value={projectId || "__none__"} onValueChange={(v) => setProjectId(v === "__none__" ? "" : v)}>
                 <SelectTrigger><SelectValue placeholder="Project (optional)" /></SelectTrigger>
                 <SelectContent>
