@@ -15,6 +15,7 @@ import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
 import { format } from "date-fns";
 import { ImageIcon, Film, FolderOpen, Archive, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { extractStoragePath } from "@/lib/imageUtils";
 
 function isVideo(url: string | null) {
   if (!url) return false;
