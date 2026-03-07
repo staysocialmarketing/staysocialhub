@@ -134,9 +134,10 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
     }
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop();
+      const compressed = await compressImage(file);
+      const ext = compressed.name.split(".").pop();
       const path = `${request.client_id}/${crypto.randomUUID()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("request-attachments").upload(path, file);
+      const { error: uploadError } = await supabase.storage.from("request-attachments").upload(path, compressed);
       if (uploadError) throw uploadError;
       const { error: updateError } = await supabase.from("requests").update({ attachments_url: path }).eq("id", request.id);
       if (updateError) throw updateError;

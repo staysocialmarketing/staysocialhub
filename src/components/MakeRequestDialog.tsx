@@ -78,9 +78,10 @@ export default function MakeRequestDialog({
       // Upload attachment (non-blocking)
       let attachments_url: string | null = null;
       if (attachmentFile) {
-        const ext = attachmentFile.name.split(".").pop();
+        const compressed = await compressImage(attachmentFile);
+        const ext = compressed.name.split(".").pop();
         const path = `${clientId}/${crypto.randomUUID()}.${ext}`;
-        const { error: uploadError } = await supabase.storage.from("request-attachments").upload(path, attachmentFile);
+        const { error: uploadError } = await supabase.storage.from("request-attachments").upload(path, compressed);
         if (uploadError) {
           toast.warning("Attachment upload failed — request will be created without it");
         } else {

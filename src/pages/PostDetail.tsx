@@ -170,11 +170,12 @@ export default function PostDetail() {
     if (!profile || !postId) return;
     setUploadingVersion(true);
     try {
-      const ext = file.name.split(".").pop();
+      const compressed = await compressImage(file);
+      const ext = compressed.name.split(".").pop();
       const path = `${postId}/v${versions.length + 1}.${ext}`;
       const { error: uploadError } = await supabase.storage
         .from("creative-assets")
-        .upload(path, file);
+        .upload(path, compressed);
       if (uploadError) throw uploadError;
 
       const { data: urlData } = supabase.storage

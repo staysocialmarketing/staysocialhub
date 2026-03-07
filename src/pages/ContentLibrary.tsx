@@ -51,9 +51,10 @@ export default function ContentLibrary() {
   const uploadMutation = useMutation({
     mutationFn: async () => {
       if (!uploadFile || !profile?.client_id) throw new Error("Missing file or client");
-      const ext = uploadFile.name.split(".").pop();
+      const compressed = await compressImage(uploadFile);
+      const ext = compressed.name.split(".").pop();
       const path = `${profile.client_id}/${crypto.randomUUID()}.${ext}`;
-      const { error: storageErr } = await supabase.storage.from("creative-assets").upload(path, uploadFile);
+      const { error: storageErr } = await supabase.storage.from("creative-assets").upload(path, compressed);
       if (storageErr) throw storageErr;
       const { data: { publicUrl } } = supabase.storage.from("creative-assets").getPublicUrl(path);
 
