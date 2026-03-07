@@ -1,11 +1,21 @@
+
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
+import { format, isPast } from "date-fns";
 import {
   CheckSquare,
   MessageSquarePlus,
@@ -17,496 +27,356 @@ import {
   ClipboardList,
   Users,
   Sparkles,
+  CheckCircle2,
+  UserPlus,
 } from "lucide-react";
 
+const TASK_STATUSES = ["backlog", "todo", "in_progress", "waiting", "review", "complete"] as const;
+const TASK_STATUS_LABELS: Record<string, string> = {
+  backlog: "Backlog", todo: "To Do", in_progress: "In Progress",
+  waiting: "Waiting", review: "Review", complete: "Complete",
+};
 
-// ─── Super Admin Dashboard ───────────────────────────────────────────────────
+// ─── Work Queue Dashboard (Admin + Team) ─────────────────────────────────────
 
-function SuperAdminDashboard() {
-  const { profile } = useAuth();
+function WorkQueueDashboard() {
+  const { profile, isSSAdmin } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [filter, setFilter] = useState<"my" | "team" | "all">("my");
 
-  const { data: pendingApprovals = 0 } = useQuery({
-    queryKey: ["sa-pending-approvals"],
+  // Fetch SS users for assign dropdown
+  const { data: ssUsers = [] } = useQuery({
+    queryKey: ["ss-users-list"],
     queryFn: async () => {
-      const { count } = await supabase.from("posts").select("id", { count: "exact", head: true }).eq("status_column", "client_approval");
-      return count || 0;
+      const { data: roles } = await supabase.from("user_roles").select("user_id").in("role", ["ss_admin", "ss_team", "ss_producer", "ss_ops"]);
+      if (!roles?.length) return [];
+      const ids = [...new Set(roles.map(r => r.user_id))];
+      const { data: users } = await supabase.from("users").select("id, name, email").in("id", ids);
+      return users || [];
     },
   });
 
-  const { data: openRequests = 0 } = useQuery({
-    queryKey: ["sa-open-requests"],
-    queryFn: async () => {
-      const { count } = await supabase.from("requests").select("id", { count: "exact", head: true }).eq("status", "open");
-      return count || 0;
-    },
-  });
-
-  const { data: overduePosts = 0 } = useQuery({
-    queryKey: ["sa-overdue"],
-    queryFn: async () => {
-      const { count } = await supabase.from("posts").select("id", { count: "exact", head: true }).lt("due_at", new Date().toISOString()).not("status_column", "eq", "published");
-      return count || 0;
-    },
-  });
-
-  const { data: dueTodayPosts = 0 } = useQuery({
-    queryKey: ["sa-due-today"],
-    queryFn: async () => {
-      const s = new Date(); s.setHours(0,0,0,0);
-      const e = new Date(); e.setHours(23,59,59,999);
-      const { count } = await supabase.from("posts").select("id", { count: "exact", head: true }).gte("due_at", s.toISOString()).lte("due_at", e.toISOString()).not("status_column", "eq", "published");
-      return count || 0;
-    },
-  });
-
-  const { data: teamActivity = [] } = useQuery({
-    queryKey: ["sa-team-activity"],
-    queryFn: async () => {
-      const { data: teamRoles } = await supabase.from("user_roles").select("user_id, role").in("role", ["ss_team", "ss_producer", "ss_ops"]);
-      if (!teamRoles?.length) return [];
-      const userIds = [...new Set(teamRoles.map((r) => r.user_id))];
-      const { data: users } = await supabase.from("users").select("id, name, email").in("id", userIds);
-      const { data: posts } = await supabase.from("posts").select("id, title, status_column, due_at, assigned_to_user_id, clients(name)").in("assigned_to_user_id", userIds).not("status_column", "eq", "published").order("due_at", { ascending: true, nullsFirst: false }).limit(20);
-      return (users || []).map((u) => ({
-        user: u,
-        posts: (posts || []).filter((p) => p.assigned_to_user_id === u.id),
-      }));
-    },
-  });
-
-  const { data: recentRequests = [] } = useQuery({
-    queryKey: ["sa-recent-requests"],
-    queryFn: async () => {
-      const { data } = await supabase.from("requests").select("id, topic, type, priority, status, created_at, clients(name)").order("created_at", { ascending: false }).limit(10);
-      return data || [];
-    },
-  });
-
-  const { data: myAssignments = [] } = useQuery({
-    queryKey: ["sa-my-assignments", profile?.id],
-    queryFn: async () => {
-      const { data } = await supabase.from("posts").select("id, title, status_column, due_at, clients(name)").eq("assigned_to_user_id", profile!.id).not("status_column", "eq", "published").order("due_at", { ascending: true, nullsFirst: false }).limit(10);
-      return data || [];
-    },
-    enabled: !!profile,
-  });
-
+  // ── My Tasks ──
   const { data: myTasks = [] } = useQuery({
-    queryKey: ["sa-my-tasks", profile?.id],
+    queryKey: ["wq-tasks", profile?.id, filter],
     queryFn: async () => {
-      const { data } = await supabase.from("tasks").select("id, title, status, priority, due_at, assigned_to_team, project_id, projects(name)").or(`assigned_to_user_id.eq.${profile!.id},assigned_to_team.eq.true`).not("status", "in", '("complete","done")').order("due_at", { ascending: true, nullsFirst: false }).limit(10);
+      let q = supabase.from("tasks")
+        .select("id, title, status, priority, due_at, assigned_to_user_id, assigned_to_team, client_id, project_id, clients(name), projects(name)")
+        .not("status", "eq", "complete")
+        .order("due_at", { ascending: true, nullsFirst: false })
+        .limit(10);
+      if (filter === "my") {
+        q = q.or(`assigned_to_user_id.eq.${profile!.id},assigned_to_team.eq.true`);
+      }
+      // "team" and "all" show everything (SS roles can see all tasks via RLS)
+      const { data } = await q;
       return data || [];
     },
     enabled: !!profile,
   });
+
+  // ── My Requests ──
+  const { data: myRequests = [] } = useQuery({
+    queryKey: ["wq-requests", profile?.id, filter],
+    queryFn: async () => {
+      let q = supabase.from("requests")
+        .select("id, topic, type, priority, status, created_at, assigned_to_user_id, client_id, created_by_user_id, clients(name), users!requests_created_by_user_id_fkey(name)")
+        .not("status", "eq", "completed")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (filter === "my") {
+        q = q.eq("assigned_to_user_id", profile!.id);
+      }
+      const { data } = await q;
+      return data || [];
+    },
+    enabled: !!profile,
+  });
+
+  // ── Approvals Waiting ──
+  const { data: approvalsWaiting = [] } = useQuery({
+    queryKey: ["wq-approvals"],
+    queryFn: async () => {
+      const { data } = await supabase.from("posts")
+        .select("id, title, content_type, created_at, status_column, client_id, clients(name)")
+        .eq("status_column", "client_approval")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      return data || [];
+    },
+  });
+
+  // ── Overdue Work ──
+  const { data: overdueItems = [] } = useQuery({
+    queryKey: ["wq-overdue", profile?.id, filter],
+    queryFn: async () => {
+      const now = new Date().toISOString();
+      let tq = supabase.from("tasks")
+        .select("id, title, due_at, status, priority, client_id, assigned_to_user_id, clients(name)")
+        .lt("due_at", now)
+        .not("status", "eq", "complete")
+        .order("due_at", { ascending: true })
+        .limit(10);
+      if (filter === "my") {
+        tq = tq.or(`assigned_to_user_id.eq.${profile!.id},assigned_to_team.eq.true`);
+      }
+      let pq = supabase.from("posts")
+        .select("id, title, due_at, status_column, client_id, assigned_to_user_id, clients(name)")
+        .lt("due_at", now)
+        .not("status_column", "eq", "published")
+        .order("due_at", { ascending: true })
+        .limit(10);
+      if (filter === "my") {
+        pq = pq.eq("assigned_to_user_id", profile!.id);
+      }
+      const [{ data: tasks }, { data: posts }] = await Promise.all([tq, pq]);
+      const items: any[] = [];
+      (tasks || []).forEach(t => items.push({ ...t, _type: "task", _status: t.status }));
+      (posts || []).forEach(p => items.push({ ...p, _type: "post", _status: p.status_column }));
+      items.sort((a, b) => new Date(a.due_at).getTime() - new Date(b.due_at).getTime());
+      return items;
+    },
+    enabled: !!profile,
+  });
+
+  // ── Stats counts ──
+  const taskCount = myTasks.length;
+  const requestCount = myRequests.length;
+  const approvalCount = approvalsWaiting.length;
+  const overdueCount = overdueItems.length;
+
+  // ── Quick actions ──
+  const updateTaskStatus = async (taskId: string, status: string) => {
+    await supabase.from("tasks").update({ status }).eq("id", taskId);
+    queryClient.invalidateQueries({ queryKey: ["wq-tasks"] });
+    queryClient.invalidateQueries({ queryKey: ["wq-overdue"] });
+  };
+
+  const updateTaskAssignee = async (taskId: string, userId: string) => {
+    await supabase.from("tasks").update({ assigned_to_user_id: userId }).eq("id", taskId);
+    queryClient.invalidateQueries({ queryKey: ["wq-tasks"] });
+  };
+
+  const updateRequestStatus = async (requestId: string, status: string) => {
+    await supabase.from("requests").update({ status: status as any }).eq("id", requestId);
+    queryClient.invalidateQueries({ queryKey: ["wq-requests"] });
+  };
+
+  const getUserName = (userId: string | null) => {
+    if (!userId) return "Unassigned";
+    const u = ssUsers.find(u => u.id === userId);
+    return u?.name || u?.email || "Unknown";
+  };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-foreground">Welcome back{profile?.name ? `, ${profile.name.split(" ")[0]}` : ""}</h2>
-        <p className="text-muted-foreground mt-1">Here's your overview across all clients.</p>
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
+      {/* Header + Filter Tabs */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-foreground">Work Queue</h2>
+          <p className="text-muted-foreground mt-1">
+            {profile?.name ? `Welcome back, ${profile.name.split(" ")[0]}` : "Your workspace"}
+          </p>
+        </div>
+        <Tabs value={filter} onValueChange={(v) => setFilter(v as any)}>
+          <TabsList>
+            <TabsTrigger value="my">My Work</TabsTrigger>
+            <TabsTrigger value="team">Team Work</TabsTrigger>
+            {isSSAdmin && <TabsTrigger value="all">All Work</TabsTrigger>}
+          </TabsList>
+        </Tabs>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/approvals")}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Pending Approvals</CardTitle>
-            <CheckSquare className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent><div className="text-3xl font-bold text-foreground">{pendingApprovals}</div></CardContent>
-        </Card>
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/requests")}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Open Requests</CardTitle>
-            <MessageSquarePlus className="h-4 w-4 text-warning" />
-          </CardHeader>
-          <CardContent><div className="text-3xl font-bold text-foreground">{openRequests}</div></CardContent>
-        </Card>
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/approvals")}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Overdue</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-destructive" />
-          </CardHeader>
-          <CardContent><div className="text-3xl font-bold text-destructive">{overduePosts}</div></CardContent>
-        </Card>
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/approvals")}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Due Today</CardTitle>
-            <Clock className="h-4 w-4 text-warning" />
-          </CardHeader>
-          <CardContent><div className="text-3xl font-bold text-warning">{dueTodayPosts}</div></CardContent>
-        </Card>
+      {/* Stats Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/team/tasks")}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">My Tasks</CardTitle>
             <ClipboardList className="h-4 w-4 text-primary" />
           </CardHeader>
-          <CardContent><div className="text-3xl font-bold text-foreground">{myTasks.length}</div></CardContent>
+          <CardContent><div className="text-3xl font-bold text-foreground">{taskCount}</div></CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/requests")}>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">My Requests</CardTitle>
+            <MessageSquarePlus className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent><div className="text-3xl font-bold text-foreground">{requestCount}</div></CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/approvals")}>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Approvals Waiting</CardTitle>
+            <CheckSquare className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent><div className="text-3xl font-bold text-foreground">{approvalCount}</div></CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Overdue</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+          </CardHeader>
+          <CardContent><div className="text-3xl font-bold text-destructive">{overdueCount}</div></CardContent>
         </Card>
       </div>
 
-      {/* Quick Actions */}
-      <div>
-        <h3 className="text-lg font-semibold text-foreground mb-3">Quick Actions</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Button variant="outline" className="h-auto py-4 flex flex-col items-start gap-1" onClick={() => navigate("/requests")}>
-            <FileEdit className="h-5 w-5 text-primary" />
-            <span className="font-medium">Create Request for Client</span>
-          </Button>
-          <Button variant="outline" className="h-auto py-4 flex flex-col items-start gap-1" onClick={() => navigate("/approvals")}>
-            <CheckSquare className="h-5 w-5 text-primary" />
-            <span className="font-medium">Review Content</span>
-          </Button>
-          <Button variant="outline" className="h-auto py-4 flex flex-col items-start gap-1" onClick={() => navigate("/admin/clients")}>
-            <Users className="h-5 w-5 text-primary" />
-            <span className="font-medium">Manage Clients</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Recent Client Requests */}
-      {recentRequests.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <MessageSquarePlus className="h-5 w-5 text-primary" />
-              <h3 className="text-lg font-semibold text-foreground">Recent Client Requests</h3>
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => navigate("/requests")}>View all <ArrowRight className="h-3 w-3 ml-1" /></Button>
-          </div>
-          <Card>
-            <CardContent className="p-0">
-              <ul className="divide-y divide-border">
-                {recentRequests.map((req: any) => (
-                  <li key={req.id} className="flex items-center justify-between px-4 py-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{req.topic}</p>
-                      <p className="text-xs text-muted-foreground">{req.clients?.name} · {format(new Date(req.created_at), "MMM d")}</p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Badge variant="secondary" className="text-[10px]">{req.status.replace("_", " ")}</Badge>
-                      <Badge variant="outline" className="text-[10px] capitalize">{req.priority}</Badge>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* My Tasks */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <ClipboardList className="h-5 w-5 text-primary" />
-            <h3 className="text-lg font-semibold text-foreground">My Tasks</h3>
-          </div>
-          <Button variant="ghost" size="sm" onClick={() => navigate("/team/tasks")}>View all <ArrowRight className="h-3 w-3 ml-1" /></Button>
-        </div>
-        <Card>
-          <CardContent className="p-0">
-            {myTasks.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">No outstanding tasks — you're all caught up! 🎉</p>
-            ) : (
-              <ul className="divide-y divide-border">
-                {myTasks.map((task: any) => (
-                  <li key={task.id} className="flex items-center justify-between px-4 py-3 hover:bg-accent/50 cursor-pointer transition-colors" onClick={() => navigate("/team/tasks")}>
-                    <div className="flex items-center gap-3">
-                      {task.due_at && <span className="text-sm font-medium text-muted-foreground min-w-[80px]">{format(new Date(task.due_at), "MMM d")}</span>}
-                      <span className="text-sm font-medium text-foreground">{task.title}</span>
-                      {task.assigned_to_team && <Badge variant="outline" className="text-[10px]">Team</Badge>}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="text-xs">{task.status}</Badge>
-                      <Badge variant="outline" className="text-[10px] capitalize">{task.priority}</Badge>
-                      {task.projects?.name && <span className="text-xs text-muted-foreground">{task.projects.name}</span>}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Team Activity */}
-      {teamActivity.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <Users className="h-5 w-5 text-primary" />
-            <h3 className="text-lg font-semibold text-foreground">Team Activity</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {teamActivity.map((member: any) => (
-              <Card key={member.user.id}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">{member.user.name || member.user.email}</CardTitle>
-                  <p className="text-xs text-muted-foreground">{member.posts.length} active post{member.posts.length !== 1 ? "s" : ""}</p>
-                </CardHeader>
-                <CardContent className="p-0">
-                  {member.posts.length === 0 ? (
-                    <p className="text-sm text-muted-foreground px-6 pb-4">No active assignments</p>
-                  ) : (
-                    <ul className="divide-y divide-border">
-                      {member.posts.slice(0, 5).map((post: any) => (
-                        <li key={post.id} className="flex items-center justify-between px-6 py-2 hover:bg-accent/50 cursor-pointer" onClick={() => navigate(`/approvals/${post.id}`)}>
-                          <div className="flex items-center gap-2 min-w-0">
-                            {post.due_at && <span className="text-xs text-muted-foreground">{format(new Date(post.due_at), "MMM d")}</span>}
-                            <span className="text-sm truncate">{post.title}</span>
-                          </div>
-                          <Badge variant="secondary" className="text-[10px] shrink-0">{post.status_column.replace(/_/g, " ")}</Badge>
-                        </li>
-                      ))}
-                    </ul>
+      {/* My Tasks Section */}
+      <DashboardSection title="My Tasks" icon={<ClipboardList className="h-5 w-5 text-primary" />} viewAllUrl="/team/tasks" onViewAll={() => navigate("/team/tasks")}>
+        {myTasks.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">No outstanding tasks 🎉</p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {myTasks.map((task: any) => (
+              <li key={task.id} className="flex items-center justify-between px-4 py-3 hover:bg-accent/50 transition-colors gap-2">
+                <div className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer" onClick={() => navigate("/team/tasks")}>
+                  <span className="text-sm font-medium text-foreground truncate">{task.title}</span>
+                  {task.clients?.name && <span className="text-xs text-muted-foreground shrink-0">{task.clients.name}</span>}
+                  {task.projects?.name && <span className="text-xs text-muted-foreground shrink-0">· {task.projects.name}</span>}
+                  {task.due_at && (
+                    <span className={`text-xs shrink-0 ${isPast(new Date(task.due_at)) ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                      {format(new Date(task.due_at), "MMM d")}
+                    </span>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Badge variant="outline" className="text-[10px] capitalize">{task.priority}</Badge>
+                  <Select value={task.status} onValueChange={(v) => updateTaskStatus(task.id, v)}>
+                    <SelectTrigger className="h-7 text-xs w-[100px] border-none bg-secondary/50">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TASK_STATUSES.map(s => (
+                        <SelectItem key={s} value={s} className="text-xs">{TASK_STATUS_LABELS[s]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" title="Mark Complete" onClick={() => updateTaskStatus(task.id, "complete")}>
+                    <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
+                  <Select value={task.assigned_to_user_id || ""} onValueChange={(v) => updateTaskAssignee(task.id, v)}>
+                    <SelectTrigger className="h-7 text-xs w-7 border-none bg-transparent p-0" title="Assign">
+                      <UserPlus className="h-3.5 w-3.5 text-muted-foreground" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ssUsers.map(u => (
+                        <SelectItem key={u.id} value={u.id} className="text-xs">{u.name || u.email}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </li>
             ))}
-          </div>
-        </div>
-      )}
+          </ul>
+        )}
+      </DashboardSection>
 
-      {/* My Assignments */}
-      {myAssignments.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <CheckSquare className="h-5 w-5 text-primary" />
-            <h3 className="text-lg font-semibold text-foreground">My Assignments</h3>
-          </div>
-          <Card>
-            <CardContent className="p-0">
-              <ul className="divide-y divide-border">
-                {myAssignments.map((post: any) => (
-                  <li key={post.id} className="flex items-center justify-between px-4 py-3 hover:bg-accent/50 cursor-pointer transition-colors" onClick={() => navigate(`/approvals/${post.id}`)}>
-                    <div className="flex items-center gap-3">
-                      {post.due_at && <span className="text-sm font-medium text-muted-foreground min-w-[80px]">{format(new Date(post.due_at), "MMM d")}</span>}
-                      <span className="text-sm font-medium text-foreground">{post.title}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="text-xs">{post.status_column.replace(/_/g, " ")}</Badge>
-                      {post.clients?.name && <span className="text-xs text-muted-foreground">{post.clients.name}</span>}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        </div>
+      {/* My Requests Section */}
+      <DashboardSection title="My Requests" icon={<MessageSquarePlus className="h-5 w-5 text-primary" />} viewAllUrl="/requests" onViewAll={() => navigate("/requests")}>
+        {myRequests.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">No assigned requests</p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {myRequests.map((req: any) => (
+              <li key={req.id} className="flex items-center justify-between px-4 py-3 hover:bg-accent/50 transition-colors gap-2">
+                <div className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer" onClick={() => navigate("/requests")}>
+                  <span className="text-sm font-medium text-foreground truncate">{req.topic}</span>
+                  {req.clients?.name && <span className="text-xs text-muted-foreground shrink-0">{req.clients.name}</span>}
+                  {req.users?.name && <span className="text-xs text-muted-foreground shrink-0">by {req.users.name}</span>}
+                  <span className="text-xs text-muted-foreground shrink-0">{format(new Date(req.created_at), "MMM d")}</span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Badge variant="outline" className="text-[10px] capitalize">{req.priority}</Badge>
+                  <Select value={req.status} onValueChange={(v) => updateRequestStatus(req.id, v)}>
+                    <SelectTrigger className="h-7 text-xs w-[100px] border-none bg-secondary/50">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="open" className="text-xs">Open</SelectItem>
+                      <SelectItem value="in_progress" className="text-xs">In Progress</SelectItem>
+                      <SelectItem value="completed" className="text-xs">Completed</SelectItem>
+                      <SelectItem value="cancelled" className="text-xs">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </DashboardSection>
+
+      {/* Approvals Waiting Section */}
+      <DashboardSection title="Approvals Waiting" icon={<CheckSquare className="h-5 w-5 text-primary" />} viewAllUrl="/approvals" onViewAll={() => navigate("/approvals")}>
+        {approvalsWaiting.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">No content awaiting approval</p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {approvalsWaiting.map((post: any) => (
+              <li key={post.id} className="flex items-center justify-between px-4 py-3 hover:bg-accent/50 cursor-pointer transition-colors" onClick={() => navigate(`/approvals/${post.id}`)}>
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-sm font-medium text-foreground truncate">{post.title}</span>
+                  {post.clients?.name && <span className="text-xs text-muted-foreground">{post.clients.name}</span>}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {post.content_type && <Badge variant="secondary" className="text-[10px]">{post.content_type}</Badge>}
+                  <span className="text-xs text-muted-foreground">{format(new Date(post.created_at), "MMM d")}</span>
+                  <Badge variant="secondary" className="text-[10px]">Waiting</Badge>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </DashboardSection>
+
+      {/* Overdue Work Section */}
+      {overdueItems.length > 0 && (
+        <DashboardSection title="Overdue Work" icon={<AlertTriangle className="h-5 w-5 text-destructive" />}>
+          <ul className="divide-y divide-border">
+            {overdueItems.map((item: any) => (
+              <li key={`${item._type}-${item.id}`} className="flex items-center justify-between px-4 py-3 bg-destructive/5 hover:bg-destructive/10 cursor-pointer transition-colors"
+                onClick={() => navigate(item._type === "task" ? "/team/tasks" : `/approvals/${item.id}`)}>
+                <div className="flex items-center gap-3 min-w-0">
+                  <Badge variant="outline" className="text-[10px] border-destructive/30 text-destructive">{item._type === "task" ? "Task" : "Post"}</Badge>
+                  <span className="text-sm font-medium text-foreground truncate">{item.title}</span>
+                  {item.clients?.name && <span className="text-xs text-muted-foreground">{item.clients.name}</span>}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs font-medium text-destructive">Due {format(new Date(item.due_at), "MMM d")}</span>
+                  <Badge variant="secondary" className="text-[10px]">{(item._status || "").replace(/_/g, " ")}</Badge>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </DashboardSection>
       )}
     </div>
   );
 }
 
-// ─── Team Dashboard ──────────────────────────────────────────────────────────
+// ─── Dashboard Section Wrapper ───────────────────────────────────────────────
 
-function TeamDashboard() {
-  const { profile } = useAuth();
-  const navigate = useNavigate();
-
-  const { data: myAssignments = [] } = useQuery({
-    queryKey: ["team-my-assignments", profile?.id],
-    queryFn: async () => {
-      const { data } = await supabase.from("posts").select("id, title, status_column, due_at, clients(name)").eq("assigned_to_user_id", profile!.id).not("status_column", "eq", "published").order("due_at", { ascending: true, nullsFirst: false }).limit(10);
-      return data || [];
-    },
-    enabled: !!profile,
-  });
-
-  const { data: overduePosts = 0 } = useQuery({
-    queryKey: ["team-overdue", profile?.id],
-    queryFn: async () => {
-      const { count } = await supabase.from("posts").select("id", { count: "exact", head: true }).eq("assigned_to_user_id", profile!.id).lt("due_at", new Date().toISOString()).not("status_column", "eq", "published");
-      return count || 0;
-    },
-    enabled: !!profile,
-  });
-
-  const { data: dueTodayPosts = 0 } = useQuery({
-    queryKey: ["team-due-today", profile?.id],
-    queryFn: async () => {
-      const s = new Date(); s.setHours(0,0,0,0);
-      const e = new Date(); e.setHours(23,59,59,999);
-      const { count } = await supabase.from("posts").select("id", { count: "exact", head: true }).eq("assigned_to_user_id", profile!.id).gte("due_at", s.toISOString()).lte("due_at", e.toISOString()).not("status_column", "eq", "published");
-      return count || 0;
-    },
-    enabled: !!profile,
-  });
-
-  const { data: pendingApprovals = 0 } = useQuery({
-    queryKey: ["team-pending-approvals"],
-    queryFn: async () => {
-      const { count } = await supabase.from("posts").select("id", { count: "exact", head: true }).eq("status_column", "client_approval");
-      return count || 0;
-    },
-  });
-
-  const { data: recentRequests = [] } = useQuery({
-    queryKey: ["team-recent-requests"],
-    queryFn: async () => {
-      const { data } = await supabase.from("requests").select("id, topic, type, priority, status, created_at, clients(name)").order("created_at", { ascending: false }).limit(10);
-      return data || [];
-    },
-  });
-
-  const { data: myTasks = [] } = useQuery({
-    queryKey: ["team-my-tasks", profile?.id],
-    queryFn: async () => {
-      const { data } = await supabase.from("tasks").select("id, title, status, priority, due_at, assigned_to_team, project_id, projects(name)").or(`assigned_to_user_id.eq.${profile!.id},assigned_to_team.eq.true`).not("status", "in", '("complete","done")').order("due_at", { ascending: true, nullsFirst: false }).limit(10);
-      return data || [];
-    },
-    enabled: !!profile,
-  });
-
+function DashboardSection({ title, icon, children, viewAllUrl, onViewAll }: {
+  title: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  viewAllUrl?: string;
+  onViewAll?: () => void;
+}) {
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-foreground">Welcome back{profile?.name ? `, ${profile.name.split(" ")[0]}` : ""}</h2>
-        <p className="text-muted-foreground mt-1">Your production workspace.</p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/approvals")}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">My Assignments</CardTitle>
-            <CheckSquare className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent><div className="text-3xl font-bold text-foreground">{myAssignments.length}</div></CardContent>
-        </Card>
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/approvals")}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Overdue</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-destructive" />
-          </CardHeader>
-          <CardContent><div className="text-3xl font-bold text-destructive">{overduePosts}</div></CardContent>
-        </Card>
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/approvals")}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Due Today</CardTitle>
-            <Clock className="h-4 w-4 text-warning" />
-          </CardHeader>
-          <CardContent><div className="text-3xl font-bold text-warning">{dueTodayPosts}</div></CardContent>
-        </Card>
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/approvals")}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Pending Client Approvals</CardTitle>
-            <ClipboardList className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent><div className="text-3xl font-bold text-foreground">{pendingApprovals}</div></CardContent>
-        </Card>
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/team/tasks")}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">My Tasks</CardTitle>
-            <ClipboardList className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent><div className="text-3xl font-bold text-foreground">{myTasks.length}</div></CardContent>
-        </Card>
-      </div>
-
-      {myAssignments.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <CheckSquare className="h-5 w-5 text-primary" />
-            <h3 className="text-lg font-semibold text-foreground">My Assignments</h3>
-          </div>
-          <Card>
-            <CardContent className="p-0">
-              <ul className="divide-y divide-border">
-                {myAssignments.map((post: any) => (
-                  <li key={post.id} className="flex items-center justify-between px-4 py-3 hover:bg-accent/50 cursor-pointer transition-colors" onClick={() => navigate(`/approvals/${post.id}`)}>
-                    <div className="flex items-center gap-3">
-                      {post.due_at && <span className="text-sm font-medium text-muted-foreground min-w-[80px]">{format(new Date(post.due_at), "MMM d")}</span>}
-                      <span className="text-sm font-medium text-foreground">{post.title}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="text-xs">{post.status_column.replace(/_/g, " ")}</Badge>
-                      {post.clients?.name && <span className="text-xs text-muted-foreground">{post.clients.name}</span>}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          {icon}
+          <h3 className="text-lg font-semibold text-foreground">{title}</h3>
         </div>
-      )}
-
-      {recentRequests.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <MessageSquarePlus className="h-5 w-5 text-primary" />
-              <h3 className="text-lg font-semibold text-foreground">Client Requests</h3>
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => navigate("/requests")}>View all <ArrowRight className="h-3 w-3 ml-1" /></Button>
-          </div>
-          <Card>
-            <CardContent className="p-0">
-              <ul className="divide-y divide-border">
-                {recentRequests.map((req: any) => (
-                  <li key={req.id} className="flex items-center justify-between px-4 py-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{req.topic}</p>
-                      <p className="text-xs text-muted-foreground">{req.clients?.name} · {format(new Date(req.created_at), "MMM d")}</p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Badge variant="secondary" className="text-[10px]">{req.status.replace("_", " ")}</Badge>
-                      <Badge variant="outline" className="text-[10px] capitalize">{req.priority}</Badge>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <ClipboardList className="h-5 w-5 text-primary" />
-            <h3 className="text-lg font-semibold text-foreground">My Tasks</h3>
-          </div>
-          <Button variant="ghost" size="sm" onClick={() => navigate("/team/tasks")}>View all <ArrowRight className="h-3 w-3 ml-1" /></Button>
-        </div>
-        <Card>
-          <CardContent className="p-0">
-            {myTasks.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">No outstanding tasks — you're all caught up! 🎉</p>
-            ) : (
-              <ul className="divide-y divide-border">
-                {myTasks.map((task: any) => (
-                  <li key={task.id} className="flex items-center justify-between px-4 py-3 hover:bg-accent/50 cursor-pointer transition-colors" onClick={() => navigate("/team/tasks")}>
-                    <div className="flex items-center gap-3">
-                      {task.due_at && <span className="text-sm font-medium text-muted-foreground min-w-[80px]">{format(new Date(task.due_at), "MMM d")}</span>}
-                      <span className="text-sm font-medium text-foreground">{task.title}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="text-xs">{task.status}</Badge>
-                      <Badge variant="outline" className="text-[10px] capitalize">{task.priority}</Badge>
-                      {task.projects?.name && <span className="text-xs text-muted-foreground">{task.projects.name}</span>}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div>
-        <h3 className="text-lg font-semibold text-foreground mb-3">Quick Actions</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Button variant="outline" className="h-auto py-4 flex flex-col items-start gap-1" onClick={() => navigate("/approvals")}>
-            <FileEdit className="h-5 w-5 text-primary" />
-            <span className="font-medium">New Post</span>
+        {onViewAll && (
+          <Button variant="ghost" size="sm" onClick={onViewAll}>
+            View all <ArrowRight className="h-3 w-3 ml-1" />
           </Button>
-          <Button variant="outline" className="h-auto py-4 flex flex-col items-start gap-1" onClick={() => navigate("/approvals")}>
-            <CheckSquare className="h-5 w-5 text-primary" />
-            <span className="font-medium">Review Content</span>
-          </Button>
-        </div>
+        )}
       </div>
+      <Card>
+        <CardContent className="p-0">{children}</CardContent>
+      </Card>
     </div>
   );
 }
@@ -565,11 +435,9 @@ function ClientDashboard() {
     enabled: !!profile?.client_id,
   });
 
-  // Recommended upsell: admin-chosen or most recent
   const recommendedItem = (clientData as any)?.recommended_item_id
     ? marketplaceItems.find((i: any) => i.id === (clientData as any).recommended_item_id)
     : marketplaceItems[0] || null;
-  // Most recently added (different from recommended)
   const newestItem = marketplaceItems.find((i: any) => i.id !== recommendedItem?.id) || null;
 
   return (
@@ -579,7 +447,6 @@ function ClientDashboard() {
         <p className="text-muted-foreground mt-1">Here's what's happening with your marketing.</p>
       </div>
 
-      {/* Quick Actions — top */}
       <div>
         <h3 className="text-lg font-semibold text-foreground mb-3">Quick Actions</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -598,7 +465,6 @@ function ClientDashboard() {
         </div>
       </div>
 
-      {/* Stats — 2 cards only */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/approvals")}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -622,7 +488,6 @@ function ClientDashboard() {
         </Card>
       </div>
 
-      {/* Scheduled Posts */}
       {scheduledPosts.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-3">
@@ -647,7 +512,6 @@ function ClientDashboard() {
         </div>
       )}
 
-      {/* Current Plan — bottom */}
       {clientData && (
         <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/plan")}>
           <CardContent className="flex items-center justify-between py-4">
@@ -663,7 +527,6 @@ function ClientDashboard() {
         </Card>
       )}
 
-      {/* Recommended Upsell CTA */}
       {(recommendedItem || newestItem) && (
         <div>
           <div className="flex items-center gap-2 mb-3">
@@ -690,12 +553,12 @@ function ClientDashboard() {
                 <CardContent className="pt-5 space-y-2">
                   <div className="flex items-center gap-2">
                     <span className="text-2xl">{(newestItem as any).icon || "🆕"}</span>
-                    <Badge variant="secondary" className="text-[10px]">New</Badge>
+                    <Badge variant="outline" className="text-[10px]">New</Badge>
                   </div>
                   <h4 className="font-semibold text-foreground text-sm">{(newestItem as any).name}</h4>
                   {(newestItem as any).description && <p className="text-xs text-muted-foreground">{(newestItem as any).description}</p>}
                   {(newestItem as any).price && <p className="text-xs font-medium text-primary">{(newestItem as any).price}</p>}
-                  <Button size="sm" variant="outline" className="mt-2">Explore</Button>
+                  <Button size="sm" variant="outline" className="mt-2">Learn More</Button>
                 </CardContent>
               </Card>
             )}
@@ -706,12 +569,10 @@ function ClientDashboard() {
   );
 }
 
-// ─── Main Dashboard (routes to variant) ──────────────────────────────────────
+// ─── Main Dashboard ──────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { isSSAdmin, isSSTeam } = useAuth();
-
-  if (isSSAdmin) return <SuperAdminDashboard />;
-  if (isSSTeam) return <TeamDashboard />;
-  return <ClientDashboard />;
+  const { isSSRole, loading } = useAuth();
+  if (loading) return <div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
+  return isSSRole ? <WorkQueueDashboard /> : <ClientDashboard />;
 }

@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import orangeLogo from "@/assets/orange_with_black.png";
 import {
@@ -25,7 +26,6 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -47,39 +47,31 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 
-// ─── Super Admin nav ─────────────────────────────────────────────────────────
-const superAdminMenuItems = [
+// ─── Admin nav (flat, ordered) ───────────────────────────────────────────────
+const adminMenuItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Workflow", url: "/workflow", icon: ClipboardList },
   { title: "Approvals", url: "/approvals", icon: CheckSquare },
   { title: "Clients", url: "/admin/clients", icon: Building2 },
   { title: "Requests", url: "/requests", icon: MessageSquarePlus },
-];
-const superAdminTeamItems = [
-  { title: "Think Tank", url: "/team/think-tank", icon: Lightbulb },
   { title: "Projects", url: "/team/projects", icon: FolderKanban },
   { title: "Tasks", url: "/team/tasks", icon: ListTodo },
-];
-const superAdminAdminItems = [
+  { title: "Think Tank", url: "/team/think-tank", icon: Lightbulb },
   { title: "Media Library", url: "/admin/media", icon: Image },
   { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
   { title: "Users", url: "/admin/users", icon: Users },
 ];
 
-// ─── Team nav ────────────────────────────────────────────────────────────────
+// ─── Team nav (same minus Users) ─────────────────────────────────────────────
 const teamMenuItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Workflow", url: "/workflow", icon: ClipboardList },
   { title: "Approvals", url: "/approvals", icon: CheckSquare },
   { title: "Clients", url: "/admin/clients", icon: Building2 },
   { title: "Requests", url: "/requests", icon: MessageSquarePlus },
-];
-const teamTeamItems = [
-  { title: "Think Tank", url: "/team/think-tank", icon: Lightbulb },
   { title: "Projects", url: "/team/projects", icon: FolderKanban },
   { title: "Tasks", url: "/team/tasks", icon: ListTodo },
-];
-const teamAdminItems = [
+  { title: "Think Tank", url: "/team/think-tank", icon: Lightbulb },
   { title: "Media Library", url: "/admin/media", icon: Image },
   { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
 ];
@@ -126,36 +118,10 @@ export function AppSidebar() {
     fetchUsers();
   }, [actualIsSSAdmin]);
 
-  const menuItems = isSSAdmin ? superAdminMenuItems : isSSTeam ? teamMenuItems : clientItems;
-  const teamSection = isSSAdmin ? superAdminTeamItems : isSSTeam ? teamTeamItems : null;
-  const adminSection = isSSAdmin ? superAdminAdminItems : isSSTeam ? teamAdminItems : null;
+  const menuItems = isSSAdmin ? adminMenuItems : isSSTeam ? teamMenuItems : clientItems;
 
   const ssUsers = allUsers.filter((u) => u.roles.some((r) => ["ss_admin", "ss_producer", "ss_ops", "ss_team"].includes(r)));
   const clientUsers = allUsers.filter((u) => u.roles.some((r) => ["client_admin", "client_assistant"].includes(r)));
-
-  const renderNavSection = (items: typeof menuItems, label: string) => (
-    <SidebarGroup>
-      <SidebarGroupLabel>{label}</SidebarGroupLabel>
-      <SidebarGroupContent>
-        <SidebarMenu>
-          {items.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild>
-                <NavLink
-                  to={item.url}
-                  className="hover:bg-sidebar-accent/50"
-                  activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                >
-                  <item.icon className="h-4 w-4 shrink-0" />
-                  {!collapsed && <span>{item.title}</span>}
-                </NavLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
-  );
 
   return (
     <Sidebar collapsible="icon">
@@ -219,21 +185,26 @@ export function AppSidebar() {
       <SidebarSeparator />
 
       <SidebarContent>
-        {renderNavSection(menuItems, "Menu")}
-
-        {teamSection && (
-          <>
-            <SidebarSeparator />
-            {renderNavSection(teamSection, "Team")}
-          </>
-        )}
-
-        {adminSection && (
-          <>
-            <SidebarSeparator />
-            {renderNavSection(adminSection, "Admin")}
-          </>
-        )}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {menuItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to={item.url}
+                      className="hover:bg-sidebar-accent/50"
+                      activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                    >
+                      <item.icon className="h-4 w-4 shrink-0" />
+                      {!collapsed && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter className="p-3">
