@@ -1034,6 +1034,7 @@ export type Database = {
       approval_type: "approve" | "approve_with_notes" | "request_changes"
       post_status:
         | "idea"
+        | "in_progress"
         | "writing"
         | "design"
         | "internal_review"
@@ -1187,6 +1188,7 @@ export const Constants = {
       approval_type: ["approve", "approve_with_notes", "request_changes"],
       post_status: [
         "idea",
+        "in_progress",
         "writing",
         "design",
         "internal_review",

@@ -13,10 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarWidget } from "@/components/ui/calendar";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  MessageSquare, Calendar, Image as ImageIcon, Plus, Hash, Clock, FileText, Film, LayoutGrid, Play,
+  MessageSquare, Calendar, Image as ImageIcon, Plus, Clock, FileText, Film, LayoutGrid, Play,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, isToday, startOfDay } from "date-fns";
@@ -24,13 +23,20 @@ import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/imageUtils";
 import type { Database } from "@/integrations/supabase/types";
 import WorkflowCardDialog from "@/components/WorkflowCardDialog";
+import ApprovalActions from "@/components/ApprovalActions";
 
 type PostStatus = Database["public"]["Enums"]["post_status"];
 
-const WORKFLOW_COLUMNS: { key: PostStatus; label: string }[] = [
-  { key: "idea", label: "Idea" },
-  { key: "writing", label: "Writing" },
-  { key: "design", label: "Design" },
+const KANBAN_COLUMNS: { key: PostStatus; label: string }[] = [
+  { key: "idea", label: "New" },
+  { key: "in_progress" as PostStatus, label: "In Progress" },
+  { key: "internal_review", label: "Internal Review" },
+  { key: "client_approval", label: "Client Approval" },
+];
+
+const BOTTOM_SECTIONS: { key: PostStatus; label: string }[] = [
+  { key: "scheduled", label: "Scheduled" },
+  { key: "published", label: "Published" },
 ];
 
 const platformColors: Record<string, string> = {
@@ -68,7 +74,7 @@ function UserInitials({ name, className }: { name: string | null; className?: st
 }
 
 export default function Workflow() {
-  const { profile } = useAuth();
+  const { profile, isSSAdmin } = useAuth();
   const queryClient = useQueryClient();
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -88,13 +94,16 @@ export default function Workflow() {
   });
   const [creativeFile, setCreativeFile] = useState<File | null>(null);
 
+  const ALL_STATUSES = [...KANBAN_COLUMNS, ...BOTTOM_SECTIONS].map(c => c.key);
+
   const { data: posts = [], isLoading } = useQuery({
     queryKey: ["workflow-posts"],
     queryFn: async () => {
+      const statuses: PostStatus[] = [...KANBAN_COLUMNS, ...BOTTOM_SECTIONS].map(c => c.key);
       const { data, error } = await supabase
         .from("posts")
         .select("*, comments(id), assigned_user:assigned_to_user_id(name), reviewer:reviewer_user_id(name), clients(name)")
-        .in("status_column", ["idea", "writing", "design", "internal_review"])
+        .in("status_column", statuses)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -117,7 +126,7 @@ export default function Workflow() {
       const { data, error } = await supabase
         .from("user_roles")
         .select("user_id, users:user_id(id, name, email)")
-        .in("role", ["ss_admin", "ss_producer", "ss_ops"]);
+        .in("role", ["ss_admin", "ss_producer", "ss_ops", "ss_team"]);
       if (error) throw error;
       const seen = new Set<string>();
       return (data || []).filter((r: any) => {
@@ -183,13 +192,7 @@ export default function Workflow() {
 
   const movePost = useMutation({
     mutationFn: async ({ postId, newStatus }: { postId: string; newStatus: PostStatus }) => {
-      // The DB trigger handles auto-reassignment for 'design', but we also set it client-side
-      const updatePayload: any = { status_column: newStatus };
-      if (newStatus === "design") {
-        const opsUser = ssUsers.find((u: any) => u.id); // fallback; trigger does the real work
-        // Trigger will handle reassignment via auto_reassign_on_design
-      }
-      const { error } = await supabase.from("posts").update(updatePayload).eq("id", postId);
+      const { error } = await supabase.from("posts").update({ status_column: newStatus } as any).eq("id", postId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -215,34 +218,99 @@ export default function Workflow() {
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
 
   const togglePlatform = (p: string) => {
-    setNewPost((prev) => ({
+    setNewPost(prev => ({
       ...prev,
-      platforms: prev.platforms.includes(p)
-        ? prev.platforms.filter((x) => x !== p)
-        : [...prev.platforms, p],
+      platforms: prev.platforms.includes(p) ? prev.platforms.filter(x => x !== p) : [...prev.platforms, p],
     }));
   };
 
   if (isLoading) {
+    return <div className="p-6 flex items-center justify-center"><p className="text-muted-foreground">Loading workflow board...</p></div>;
+  }
+
+  const renderCard = (post: any) => {
+    const dueDateColor = getDueDateColor(post.due_at);
+    const ct = post.content_type ? contentTypeConfig[post.content_type] : null;
+    const showApprovalActions = isSSAdmin && post.status_column === "internal_review";
+
     return (
-      <div className="p-6 flex items-center justify-center">
-        <p className="text-muted-foreground">Loading workflow board...</p>
+      <div key={post.id} className="space-y-1.5">
+        <Card
+          className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
+          draggable
+          onDragStart={(e) => handleDragStart(e, post.id, post.status_column)}
+          onClick={() => setSelectedPost(post)}
+        >
+          <CardContent className="p-3 space-y-2">
+            {post.creative_url ? (
+              <div className="aspect-video bg-muted rounded overflow-hidden">
+                <img src={post.creative_url} alt="" className="w-full h-full object-cover" />
+              </div>
+            ) : (
+              <div className="aspect-video bg-muted rounded flex items-center justify-center">
+                <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
+              </div>
+            )}
+            <h4 className="text-sm font-medium text-foreground line-clamp-2">{post.title}</h4>
+            <div className="flex flex-wrap gap-1">
+              {post.clients?.name && <Badge variant="outline" className="text-[10px]">{post.clients.name}</Badge>}
+              {ct && <Badge variant="secondary" className={cn("text-[10px] gap-1", ct.className)}>{ct.icon}{ct.label}</Badge>}
+              {post.request_id && (
+                <Badge variant="secondary" className="text-[10px] bg-accent text-accent-foreground gap-1">
+                  <FileText className="h-2.5 w-2.5" />Request
+                </Badge>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {post.platform?.split(",").map((p: string) => (
+                <Badge key={p} variant="secondary" className={`text-[10px] ${platformColors[p.trim().toLowerCase()] || ""}`}>{p.trim()}</Badge>
+              ))}
+            </div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <div className="flex items-center gap-2">
+                {post.due_at && (
+                  <span className={cn("flex items-center gap-1", dueDateColor)}>
+                    <Clock className="h-3 w-3" />{format(new Date(post.due_at), "MMM d")}
+                  </span>
+                )}
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />{post.scheduled_at ? new Date(post.scheduled_at).toLocaleDateString() : "TBD"}
+                </span>
+              </div>
+              <span className="flex items-center gap-1">
+                <MessageSquare className="h-3 w-3" />{post.comments?.length || 0}
+              </span>
+            </div>
+            {post.assigned_user?.name && (
+              <div className="flex items-center gap-1 pt-1 border-t border-border/50">
+                <UserInitials name={post.assigned_user.name} />
+                <span className="text-[10px] text-muted-foreground truncate">{post.assigned_user.name}</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        {showApprovalActions && (
+          <ApprovalActions
+            postId={post.id}
+            postTitle={post.title}
+            currentStatus={post.status_column}
+            approveTarget="client_approval"
+          />
+        )}
       </div>
     );
-  }
+  };
 
   return (
     <div className="p-6 h-full flex flex-col">
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-foreground">Workflow</h2>
-          <p className="text-muted-foreground">Team production pipeline — drag cards between stages</p>
+          <p className="text-muted-foreground">Production pipeline — drag cards or use action buttons</p>
         </div>
         <div className="flex items-center gap-3">
           <Select value={contentTypeFilter} onValueChange={setContentTypeFilter}>
-            <SelectTrigger className="w-36 h-9">
-              <SelectValue placeholder="All Types" />
-            </SelectTrigger>
+            <SelectTrigger className="w-36 h-9"><SelectValue placeholder="All Types" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
               <SelectItem value="image">Image</SelectItem>
@@ -254,194 +322,96 @@ export default function Workflow() {
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
               <Button><Plus className="h-4 w-4 mr-2" />New Post</Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Create New Post</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 mt-2">
-              <div>
-                <Label>Client</Label>
-                <Select value={newPost.client_id} onValueChange={(v) => setNewPost({ ...newPost, client_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select client" /></SelectTrigger>
-                  <SelectContent>
-                    {clients.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+              <DialogHeader><DialogTitle>Create New Post</DialogTitle></DialogHeader>
+              <div className="space-y-4 mt-2">
+                <div>
+                  <Label>Client</Label>
+                  <Select value={newPost.client_id} onValueChange={(v) => setNewPost({ ...newPost, client_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="Select client" /></SelectTrigger>
+                    <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Post Title</Label><Input value={newPost.title} onChange={e => setNewPost({ ...newPost, title: e.target.value })} placeholder="Post title" /></div>
+                <div>
+                  <Label>Platform(s)</Label>
+                  <div className="flex flex-wrap gap-3 mt-1">
+                    {PLATFORM_OPTIONS.map(p => (
+                      <label key={p} className="flex items-center gap-2 text-sm">
+                        <Checkbox checked={newPost.platforms.includes(p)} onCheckedChange={() => togglePlatform(p)} />{p}
+                      </label>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Post Title</Label>
-                <Input value={newPost.title} onChange={(e) => setNewPost({ ...newPost, title: e.target.value })} placeholder="Post title" />
-              </div>
-              <div>
-                <Label>Platform(s)</Label>
-                <div className="flex flex-wrap gap-3 mt-1">
-                  {PLATFORM_OPTIONS.map((p) => (
-                    <label key={p} className="flex items-center gap-2 text-sm">
-                      <Checkbox checked={newPost.platforms.includes(p)} onCheckedChange={() => togglePlatform(p)} />
-                      {p}
-                    </label>
-                  ))}
+                  </div>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Assign to</Label>
-                  <Select value={newPost.assigned_to_user_id} onValueChange={(v) => setNewPost({ ...newPost, assigned_to_user_id: v })}>
-                    <SelectTrigger><SelectValue placeholder="Select user" /></SelectTrigger>
-                    <SelectContent>
-                      {ssUsers.map((u: any) => (
-                        <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Assign to</Label>
+                    <Select value={newPost.assigned_to_user_id} onValueChange={v => setNewPost({ ...newPost, assigned_to_user_id: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select user" /></SelectTrigger>
+                      <SelectContent>{ssUsers.map((u: any) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Reviewer</Label>
+                    <Select value={newPost.reviewer_user_id} onValueChange={v => setNewPost({ ...newPost, reviewer_user_id: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select reviewer" /></SelectTrigger>
+                      <SelectContent>{ssUsers.map((u: any) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div>
-                  <Label>Reviewer</Label>
-                  <Select value={newPost.reviewer_user_id} onValueChange={(v) => setNewPost({ ...newPost, reviewer_user_id: v })}>
-                    <SelectTrigger><SelectValue placeholder="Select reviewer" /></SelectTrigger>
-                    <SelectContent>
-                      {ssUsers.map((u: any) => (
-                        <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label>Due Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left font-normal">
+                        <Clock className="h-4 w-4 mr-2" />{newPost.due_at ? format(newPost.due_at, "PPP") : "Pick a due date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <CalendarWidget mode="single" selected={newPost.due_at || undefined} onSelect={d => setNewPost({ ...newPost, due_at: d || null })} className="p-3 pointer-events-auto" />
+                    </PopoverContent>
+                  </Popover>
                 </div>
+                <div><Label>Caption</Label><Textarea value={newPost.caption} onChange={e => setNewPost({ ...newPost, caption: e.target.value })} placeholder="Post caption" /></div>
+                <div><Label>Hashtags</Label><Input value={newPost.hashtags} onChange={e => setNewPost({ ...newPost, hashtags: e.target.value })} placeholder="#hashtags" /></div>
+                <div><Label>Creative</Label><Input type="file" accept="image/*,video/*" onChange={e => setCreativeFile(e.target.files?.[0] || null)} /></div>
+                <div>
+                  <Label>Schedule Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left font-normal">
+                        <Calendar className="h-4 w-4 mr-2" />{newPost.scheduled_at ? format(newPost.scheduled_at, "PPP") : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <CalendarWidget mode="single" selected={newPost.scheduled_at || undefined} onSelect={d => setNewPost({ ...newPost, scheduled_at: d || null })} className="p-3 pointer-events-auto" />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div><Label>Internal Notes (team only)</Label><Textarea value={newPost.internal_notes} onChange={e => setNewPost({ ...newPost, internal_notes: e.target.value })} placeholder="Team notes..." /></div>
+                <Button className="w-full" onClick={() => createPost.mutate()} disabled={!newPost.client_id || !newPost.title || createPost.isPending}>
+                  {createPost.isPending ? "Creating..." : "Create Post"}
+                </Button>
               </div>
-              <div>
-                <Label>Due Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left font-normal">
-                      <Clock className="h-4 w-4 mr-2" />
-                      {newPost.due_at ? format(newPost.due_at, "PPP") : "Pick a due date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <CalendarWidget mode="single" selected={newPost.due_at || undefined} onSelect={(d) => setNewPost({ ...newPost, due_at: d || null })} className="p-3 pointer-events-auto" />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div><Label>Caption</Label><Textarea value={newPost.caption} onChange={(e) => setNewPost({ ...newPost, caption: e.target.value })} placeholder="Post caption" /></div>
-              <div><Label>Hashtags</Label><Input value={newPost.hashtags} onChange={(e) => setNewPost({ ...newPost, hashtags: e.target.value })} placeholder="#hashtags" /></div>
-              <div><Label>Creative</Label><Input type="file" accept="image/*,video/*" onChange={(e) => setCreativeFile(e.target.files?.[0] || null)} /></div>
-              <div>
-                <Label>Schedule Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left font-normal">
-                      <Calendar className="h-4 w-4 mr-2" />
-                      {newPost.scheduled_at ? format(newPost.scheduled_at, "PPP") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <CalendarWidget mode="single" selected={newPost.scheduled_at || undefined} onSelect={(d) => setNewPost({ ...newPost, scheduled_at: d || null })} className="p-3 pointer-events-auto" />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div><Label>Internal Notes (team only)</Label><Textarea value={newPost.internal_notes} onChange={(e) => setNewPost({ ...newPost, internal_notes: e.target.value })} placeholder="Team notes..." /></div>
-              <Button className="w-full" onClick={() => createPost.mutate()} disabled={!newPost.client_id || !newPost.title || createPost.isPending}>
-                {createPost.isPending ? "Creating..." : "Create Post"}
-              </Button>
-            </div>
-          </DialogContent>
+            </DialogContent>
           </Dialog>
         </div>
       </div>
 
+      {/* Kanban columns */}
       <ScrollArea className="flex-1">
-        <div className="flex gap-4 pb-4" style={{ minWidth: WORKFLOW_COLUMNS.length * 280 }}>
-          {WORKFLOW_COLUMNS.map((col) => {
+        <div className="flex gap-4 pb-4" style={{ minWidth: KANBAN_COLUMNS.length * 280 }}>
+          {KANBAN_COLUMNS.map(col => {
             const columnPosts = posts.filter((p: any) => p.status_column === col.key && (contentTypeFilter === "all" || p.content_type === contentTypeFilter));
             return (
-              <div
-                key={col.key}
-                className="w-[260px] shrink-0 flex flex-col bg-muted/50 rounded-lg"
-                onDrop={(e) => handleDrop(e, col.key)}
-                onDragOver={handleDragOver}
-              >
+              <div key={col.key} className="w-[260px] shrink-0 flex flex-col bg-muted/50 rounded-lg" onDrop={e => handleDrop(e, col.key)} onDragOver={handleDragOver}>
                 <div className="px-3 py-2 flex items-center justify-between">
                   <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{col.label}</h3>
                   <Badge variant="secondary" className="text-xs">{columnPosts.length}</Badge>
                 </div>
                 <div className="px-2 pb-2 space-y-2 flex-1 min-h-[100px]">
-                  {columnPosts.map((post: any) => {
-                    const dueDateColor = getDueDateColor(post.due_at);
-                    const ct = post.content_type ? contentTypeConfig[post.content_type] : null;
-                    return (
-                      <Card
-                        key={post.id}
-                        className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, post.id, post.status_column)}
-                        onClick={() => setSelectedPost(post)}
-                      >
-                        <CardContent className="p-3 space-y-2">
-                          {post.creative_url ? (
-                            <div className="aspect-video bg-muted rounded overflow-hidden">
-                              <img src={post.creative_url} alt="" className="w-full h-full object-cover" />
-                            </div>
-                          ) : (
-                            <div className="aspect-video bg-muted rounded flex items-center justify-center">
-                              <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
-                            </div>
-                          )}
-                          <h4 className="text-sm font-medium text-foreground line-clamp-2">{post.title}</h4>
-                          <div className="flex flex-wrap gap-1">
-                            {/* Client badge */}
-                            {post.clients?.name && (
-                              <Badge variant="outline" className="text-[10px]">{post.clients.name}</Badge>
-                            )}
-                            {/* Content type badge */}
-                            {ct && (
-                              <Badge variant="secondary" className={cn("text-[10px] gap-1", ct.className)}>
-                                {ct.icon}{ct.label}
-                              </Badge>
-                            )}
-                            {/* From Request badge */}
-                            {post.request_id && (
-                              <Badge variant="secondary" className="text-[10px] bg-accent text-accent-foreground gap-1">
-                                <FileText className="h-2.5 w-2.5" />Request
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="flex flex-wrap gap-1">
-                            {post.platform?.split(",").map((p: string) => (
-                              <Badge key={p} variant="secondary" className={`text-[10px] ${platformColors[p.trim().toLowerCase()] || ""}`}>
-                                {p.trim()}
-                              </Badge>
-                            ))}
-                          </div>
-                          <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <div className="flex items-center gap-2">
-                              {post.due_at && (
-                                <span className={cn("flex items-center gap-1", dueDateColor)}>
-                                  <Clock className="h-3 w-3" />
-                                  {format(new Date(post.due_at), "MMM d")}
-                                </span>
-                              )}
-                              <span className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                {post.scheduled_at ? new Date(post.scheduled_at).toLocaleDateString() : "TBD"}
-                              </span>
-                            </div>
-                            <span className="flex items-center gap-1">
-                              <MessageSquare className="h-3 w-3" />
-                              {post.comments?.length || 0}
-                            </span>
-                          </div>
-                          {post.assigned_user?.name && (
-                            <div className="flex items-center gap-1 pt-1 border-t border-border/50">
-                              <UserInitials name={post.assigned_user.name} />
-                              <span className="text-[10px] text-muted-foreground truncate">{post.assigned_user.name}</span>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+                  {columnPosts.map(renderCard)}
                 </div>
               </div>
             );
@@ -450,107 +420,28 @@ export default function Workflow() {
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
 
-      {/* Internal Review — bottom grid section */}
-      {(() => {
-        const internalReviewPosts = posts.filter((p: any) => p.status_column === "internal_review" && (contentTypeFilter === "all" || p.content_type === contentTypeFilter));
+      {/* Bottom sections: Scheduled + Published */}
+      {BOTTOM_SECTIONS.map(section => {
+        const sectionPosts = posts.filter((p: any) => p.status_column === section.key && (contentTypeFilter === "all" || p.content_type === contentTypeFilter));
+        if (sectionPosts.length === 0) return null;
         return (
-          <section className="mt-6">
+          <section key={section.key} className="mt-6">
             <div className="flex items-center gap-2 mb-3">
-              <h3 className="text-lg font-semibold text-foreground">Internal Review</h3>
-              <Badge variant="secondary">{internalReviewPosts.length}</Badge>
+              <h3 className="text-lg font-semibold text-foreground">{section.label}</h3>
+              <Badge variant="secondary">{sectionPosts.length}</Badge>
             </div>
-            {internalReviewPosts.length === 0 ? (
-              <Card><CardContent className="py-8 text-center text-muted-foreground">No posts in internal review</CardContent></Card>
-            ) : (
-              <div
-                className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 bg-muted/50 rounded-lg p-4 min-h-[100px]"
-                onDrop={(e) => handleDrop(e, "internal_review")}
-                onDragOver={handleDragOver}
-              >
-                {internalReviewPosts.map((post: any) => {
-                  const dueDateColor = getDueDateColor(post.due_at);
-                  const ct = post.content_type ? contentTypeConfig[post.content_type] : null;
-                  return (
-                    <Card
-                      key={post.id}
-                      className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, post.id, post.status_column)}
-                      onClick={() => setSelectedPost(post)}
-                    >
-                      <CardContent className="p-3 space-y-2">
-                        {post.creative_url ? (
-                          <div className="aspect-video bg-muted rounded overflow-hidden">
-                            <img src={post.creative_url} alt="" className="w-full h-full object-cover" />
-                          </div>
-                        ) : (
-                          <div className="aspect-video bg-muted rounded flex items-center justify-center">
-                            <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
-                          </div>
-                        )}
-                        <h4 className="text-sm font-medium text-foreground line-clamp-2">{post.title}</h4>
-                        <div className="flex flex-wrap gap-1">
-                          {post.clients?.name && (
-                            <Badge variant="outline" className="text-[10px]">{post.clients.name}</Badge>
-                          )}
-                          {ct && (
-                            <Badge variant="secondary" className={cn("text-[10px] gap-1", ct.className)}>
-                              {ct.icon}{ct.label}
-                            </Badge>
-                          )}
-                          {post.request_id && (
-                            <Badge variant="secondary" className="text-[10px] bg-accent text-accent-foreground gap-1">
-                              <FileText className="h-2.5 w-2.5" />Request
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                          {post.platform?.split(",").map((p: string) => (
-                            <Badge key={p} variant="secondary" className={`text-[10px] ${platformColors[p.trim().toLowerCase()] || ""}`}>
-                              {p.trim()}
-                            </Badge>
-                          ))}
-                        </div>
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <div className="flex items-center gap-2">
-                            {post.due_at && (
-                              <span className={cn("flex items-center gap-1", dueDateColor)}>
-                                <Clock className="h-3 w-3" />
-                                {format(new Date(post.due_at), "MMM d")}
-                              </span>
-                            )}
-                            <span className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {post.scheduled_at ? new Date(post.scheduled_at).toLocaleDateString() : "TBD"}
-                            </span>
-                          </div>
-                          <span className="flex items-center gap-1">
-                            <MessageSquare className="h-3 w-3" />
-                            {post.comments?.length || 0}
-                          </span>
-                        </div>
-                        {post.assigned_user?.name && (
-                          <div className="flex items-center gap-1 pt-1 border-t border-border/50">
-                            <UserInitials name={post.assigned_user.name} />
-                            <span className="text-[10px] text-muted-foreground truncate">{post.assigned_user.name}</span>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 bg-muted/50 rounded-lg p-4" onDrop={e => handleDrop(e, section.key)} onDragOver={handleDragOver}>
+              {sectionPosts.map(renderCard)}
+            </div>
           </section>
         );
-      })()}
+      })}
 
-      {/* Inline edit dialog */}
       {selectedPost && (
         <WorkflowCardDialog
           post={selectedPost}
           open={!!selectedPost}
-          onOpenChange={(open) => { if (!open) setSelectedPost(null); }}
+          onOpenChange={open => { if (!open) setSelectedPost(null); }}
           ssUsers={ssUsers}
         />
       )}

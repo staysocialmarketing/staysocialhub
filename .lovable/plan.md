@@ -1,102 +1,57 @@
 
 
-# Workflow and Approval Flow Overhaul
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-## Current State
+## Summary of Changes
 
-The `post_status` enum has: `idea`, `writing`, `design`, `internal_review`, `client_approval`, `request_changes`, `approved`, `scheduled`, `published`.
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
-The Workflow board shows 3 columns (Idea, Writing, Design) + Internal Review grid. The Approvals page uses drag-and-drop with limited action buttons.
+## 1. Database: Update Auto-Assignment Triggers
 
-## Strategy
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-Reuse existing enum values where possible. Map `idea` → "New" in UI. Add `in_progress` to the enum. Stop using `writing`, `design`, `request_changes`, `approved` as active workflow stages (they remain in the enum but are unused going forward).
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
-New flow: **New → In Progress → Internal Review → Client Approval → Scheduled → Published**
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
 
-When "Request Changes" is clicked, card goes back to "In Progress" (no separate `request_changes` status needed — feedback is stored as a comment).
+## 2. Approvals Page — Separate Media from Published Content
 
----
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
 
-## Database Migration
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
 
-1. **Add `in_progress` to `post_status` enum**
-2. **Migrate existing data**: Move `writing`/`design` posts to `in_progress`, `request_changes` to `in_progress`, `approved` to `scheduled`
-3. **Update `auto_create_post_from_request` trigger** to insert with `status_column = 'idea'` (already does this — "idea" = "New")
-4. **Update `auto_reassign_on_status_change` trigger** to handle `internal_review` → assign to admin via workflow_stage_assignments
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
 
----
+## 3. Workflow Page — Move Internal Review to Bottom Section
 
-## New Component: `RequestChangesModal`
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
 
-A dialog that opens when "Request Changes" is clicked (by Admin or Client). Contains:
-- Checkbox options: "Design change", "Content / caption change", "Other / leave note"
-- Text area (shown when "Other" is selected, or always available)
-- On submit: saves feedback as a comment on the post, moves post to `in_progress`
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
 
----
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
 
-## Workflow Page (`src/pages/Workflow.tsx`)
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
-Restructure columns to: **New, In Progress, Internal Review, Client Approval, Scheduled, Published**
-
-- Top kanban: New, In Progress, Internal Review, Client Approval (horizontal scroll)
-- Bottom sections: Scheduled + Published grids
-- Cards in "Internal Review" show **Approve** and **Request Changes** buttons (Admin only)
-- "Approve" moves to `client_approval`; "Request Changes" opens the modal and moves to `in_progress`
-- Keep drag-and-drop as secondary interaction
-- Cards remain clickable to open `WorkflowCardDialog`
-
----
-
-## Approvals Page (`src/pages/Approvals.tsx`)
-
-**Admin view**: Simplified to show:
-- "Awaiting Internal Review" section with Approve / Request Changes buttons per card
-- "Client Approval" read-only overview
-- Scheduled and Published sections
-
-**Client view**: 
-- "Content for Approval" column with **Approve** and **Request Changes** buttons per card
-- "Approved" moves to `scheduled`
-- "Request Changes" opens modal, moves to `in_progress`
-- Scheduled + Published sections below
-
-Both views use the same `RequestChangesModal` and same button pattern.
-
----
-
-## Dashboard Updates (`src/pages/Dashboard.tsx`)
-
-**Admin/Team `WorkQueueDashboard`**:
-- "Approvals Waiting" stat: count posts in `internal_review` (for admin) + `client_approval`
-- Add "Items returned for changes" — posts recently moved back to `in_progress` that are assigned to current user
-- "Ready to Schedule" — posts in `scheduled` status
-
-**Client `ClientDashboard`**:
-- "Awaiting Approval" count: posts in `client_approval`
-- Add "Scheduled" count
-- "Published" count
-
----
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| **Migration SQL** | Add `in_progress` to enum, migrate existing data, update triggers |
-| **`src/components/RequestChangesModal.tsx`** | New component — structured feedback modal |
-| **`src/pages/Workflow.tsx`** | New 6-stage columns, approval action buttons on cards |
-| **`src/pages/Approvals.tsx`** | Action-based approve/request changes buttons, remove drag-and-drop dependency |
-| **`src/pages/Dashboard.tsx`** | Update stats queries for new statuses, add scheduled/returned sections |
-| **`src/components/WorkflowCardDialog.tsx`** | Add approve/request changes actions in detail view for mobile |
-
----
-
-## Technical Notes
-
-- The `workflow_stage_assignments` table + `auto_reassign_on_status_change` trigger already handles auto-assignment when status changes — this continues to work with the new flow
-- Comments table already supports `post_id` — feedback from "Request Changes" will be stored as comments
-- The `approvals` table (with `approval_type` enum: approve, approve_with_notes, request_changes) will be used to record formal approval actions for audit trail
-- Mobile: action buttons render directly on cards (not just on hover), ensuring drag-and-drop is never required
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 
