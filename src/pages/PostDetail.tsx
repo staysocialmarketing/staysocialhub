@@ -32,6 +32,7 @@ export default function PostDetail() {
   const [internalNotes, setInternalNotes] = useState<string | null>(null);
   const [approvalDialog, setApprovalDialog] = useState<ApprovalType | null>(null);
   const [approvalNote, setApprovalNote] = useState("");
+  const [lightboxVersion, setLightboxVersion] = useState<any>(null);
 
   // Fetch post
   const { data: post, isLoading } = useQuery({
@@ -314,7 +315,7 @@ export default function PostDetail() {
               ) : (
                 <div className="space-y-3">
                   {versions.map((v: any) => (
-                    <div key={v.id} className="flex items-start gap-3 p-2 rounded-md hover:bg-muted/50">
+                    <div key={v.id} className="flex items-start gap-3 p-2 rounded-md hover:bg-muted/50 cursor-pointer" onClick={() => setLightboxVersion(v)}>
                       <div className="h-12 w-12 rounded bg-muted flex items-center justify-center shrink-0 overflow-hidden">
                         {v.creative_url ? (
                           <img src={v.creative_url} alt="" className="h-12 w-12 object-cover" />
@@ -516,6 +517,35 @@ export default function PostDetail() {
           )}
         </div>
       </div>
+
+      {/* Version Lightbox Dialog */}
+      <Dialog open={!!lightboxVersion} onOpenChange={() => setLightboxVersion(null)}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Version {lightboxVersion?.version_number}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {lightboxVersion?.creative_url ? (
+              /\.(mp4|webm|mov)$/i.test(lightboxVersion.creative_url) ? (
+                <video src={lightboxVersion.creative_url} controls className="w-full rounded-lg max-h-[70vh]" />
+              ) : (
+                <img src={lightboxVersion.creative_url} alt="" className="w-full rounded-lg object-contain max-h-[70vh]" />
+              )
+            ) : (
+              <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
+                <ImageIcon className="h-12 w-12 text-muted-foreground/30" />
+              </div>
+            )}
+            <div className="text-sm space-y-1">
+              <p className="text-muted-foreground">
+                Uploaded by {lightboxVersion?.users?.name || "Team"} · {lightboxVersion && new Date(lightboxVersion.created_at).toLocaleString()}
+              </p>
+              {lightboxVersion?.caption && <p className="text-foreground">{lightboxVersion.caption}</p>}
+              {lightboxVersion?.hashtags && <p className="text-muted-foreground">#{lightboxVersion.hashtags}</p>}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Approval Confirmation Dialog */}
       <Dialog open={!!approvalDialog} onOpenChange={() => setApprovalDialog(null)}>

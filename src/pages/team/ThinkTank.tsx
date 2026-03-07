@@ -6,9 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Lightbulb, FileText, Brain, Archive, Zap, Send } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Plus, Lightbulb, FileText, Brain, Archive, Zap, Send, FolderOpen, ListTodo, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import MakeRequestDialog from "@/components/MakeRequestDialog";
@@ -53,6 +57,12 @@ export default function ThinkTank() {
   const [users, setUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
   const [requestItem, setRequestItem] = useState<ThinkTankItem | null>(null);
 
+  // Action dialogs
+  const [createProjectItem, setCreateProjectItem] = useState<ThinkTankItem | null>(null);
+  const [createTaskItem, setCreateTaskItem] = useState<ThinkTankItem | null>(null);
+  const [actionName, setActionName] = useState("");
+  const [actionDesc, setActionDesc] = useState("");
+
   const fetchItems = async () => {
     let query = supabase.from("think_tank_items").select("*").order("created_at", { ascending: false });
     if (filterType !== "all") query = query.eq("type", filterType);
@@ -86,6 +96,46 @@ export default function ThinkTank() {
   const updateStatus = async (id: string, status: string) => {
     await supabase.from("think_tank_items").update({ status } as any).eq("id", id);
     fetchItems();
+  };
+
+  const handleCreateProject = async () => {
+    if (!actionName.trim() || !profile || !createProjectItem) return;
+    const { error } = await supabase.from("projects").insert({
+      name: actionName.trim(),
+      description: actionDesc.trim() || null,
+      created_by_user_id: profile.id,
+    } as any);
+    if (error) { toast.error(error.message); return; }
+    await updateStatus(createProjectItem.id, "actioned");
+    toast.success("Project created from idea!");
+    setCreateProjectItem(null);
+    setActionName(""); setActionDesc("");
+  };
+
+  const handleCreateTask = async () => {
+    if (!actionName.trim() || !profile || !createTaskItem) return;
+    const { error } = await supabase.from("tasks").insert({
+      title: actionName.trim(),
+      description: actionDesc.trim() || null,
+      created_by_user_id: profile.id,
+    } as any);
+    if (error) { toast.error(error.message); return; }
+    await updateStatus(createTaskItem.id, "actioned");
+    toast.success("Task created from idea!");
+    setCreateTaskItem(null);
+    setActionName(""); setActionDesc("");
+  };
+
+  const openCreateProject = (item: ThinkTankItem) => {
+    setActionName(item.title);
+    setActionDesc(item.body || "");
+    setCreateProjectItem(item);
+  };
+
+  const openCreateTask = (item: ThinkTankItem) => {
+    setActionName(item.title);
+    setActionDesc(item.body || "");
+    setCreateTaskItem(item);
   };
 
   const creatorName = (userId: string) => {
@@ -175,9 +225,24 @@ export default function ThinkTank() {
                 <div className="flex gap-2 pt-1 flex-wrap">
                   {item.status === "open" && (
                     <>
-                      <Button size="sm" variant="outline" onClick={() => updateStatus(item.id, "actioned")}>
-                        <Zap className="h-3 w-3 mr-1" /> Action
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" variant="outline">
+                            <Zap className="h-3 w-3 mr-1" /> Action <ChevronDown className="h-3 w-3 ml-1" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem onClick={() => openCreateProject(item)}>
+                            <FolderOpen className="h-4 w-4 mr-2" /> Create Project
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openCreateTask(item)}>
+                            <ListTodo className="h-4 w-4 mr-2" /> Create Task
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setRequestItem(item)}>
+                            <Send className="h-4 w-4 mr-2" /> Make Request
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                       <Button size="sm" variant="ghost" onClick={() => updateStatus(item.id, "archived")}>
                         <Archive className="h-3 w-3 mr-1" /> Archive
                       </Button>
@@ -186,15 +251,57 @@ export default function ThinkTank() {
                   {item.status === "archived" && (
                     <Button size="sm" variant="outline" onClick={() => updateStatus(item.id, "open")}>Reopen</Button>
                   )}
-                  <Button size="sm" variant="secondary" onClick={() => setRequestItem(item)}>
-                    <Send className="h-3 w-3 mr-1" /> Make Request
-                  </Button>
+                  {item.status === "actioned" && (
+                    <Badge variant="secondary">Actioned</Badge>
+                  )}
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+
+      {/* Create Project from Think Tank */}
+      <Dialog open={!!createProjectItem} onOpenChange={(o) => !o && setCreateProjectItem(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Create Project from Idea</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs text-muted-foreground">Project Name</Label>
+              <Input value={actionName} onChange={(e) => setActionName(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Description</Label>
+              <Textarea value={actionDesc} onChange={(e) => setActionDesc(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCreateProjectItem(null)}>Cancel</Button>
+            <Button onClick={handleCreateProject} disabled={!actionName.trim()}>Create Project</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Task from Think Tank */}
+      <Dialog open={!!createTaskItem} onOpenChange={(o) => !o && setCreateTaskItem(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Create Task from Idea</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs text-muted-foreground">Task Title</Label>
+              <Input value={actionName} onChange={(e) => setActionName(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Description</Label>
+              <Textarea value={actionDesc} onChange={(e) => setActionDesc(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCreateTaskItem(null)}>Cancel</Button>
+            <Button onClick={handleCreateTask} disabled={!actionName.trim()}>Create Task</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <MakeRequestDialog
         open={!!requestItem}
