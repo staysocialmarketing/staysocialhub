@@ -85,6 +85,11 @@ const App = () => (
               <Route path="/admin/marketplace" element={<AdminRoute><AdminMarketplace /></AdminRoute>} />
               <Route path="/admin/media" element={<AdminRoute><AdminMedia /></AdminRoute>} />
               <Route path="/admin/versions" element={<AdminRoute><AdminVersions /></AdminRoute>} />
+              <Route path="/admin/team" element={<AdminRoute><TeamDashboard /></AdminRoute>} />
+              <Route path="/admin/team/roles" element={<AdminRoute><TeamRoles /></AdminRoute>} />
+              <Route path="/admin/team/revenue" element={<AdminRoute><TeamRevenue /></AdminRoute>} />
+              <Route path="/admin/team/growth" element={<AdminRoute><TeamGrowth /></AdminRoute>} />
+              <Route path="/admin/team/wins" element={<AdminRoute><TeamWins /></AdminRoute>} />
               <Route path="/team/think-tank" element={<AdminRoute><ThinkTank /></AdminRoute>} />
               <Route path="/team/projects" element={<AdminRoute><Projects /></AdminRoute>} />
               <Route path="/team/tasks" element={<AdminRoute><Tasks /></AdminRoute>} />
