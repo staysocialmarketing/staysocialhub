@@ -1,57 +1,38 @@
 
 
-# Workflow, Approvals, and Auto-Assignment Overhaul
+# Version System Enhancements
 
-## Summary of Changes
+## Summary
+Connect the existing `platform_versions` table and Admin Versions page to the header, sidebar, and What's New page with role-based filtering, clickable version labels, and colored badges.
 
-This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
+## Changes
 
-## 1. Database: Update Auto-Assignment Triggers
+### 1. `src/components/AppLayout.tsx` — Dynamic header version + click behavior
+- Import `useNavigate`, `isSSRole` from auth, and `VersionHistoryDialog`
+- Replace the static version fetch with role-aware logic: if `!isSSRole`, add `.eq("visible_to_clients", true)` to the query
+- Make the version label a `<button>` that:
+  - **Internal users**: opens `VersionHistoryDialog`
+  - **Clients**: navigates to `/whats-new#release-notes`
+- Add `VersionHistoryDialog` state and render it
 
-**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
+### 2. `src/components/AppSidebar.tsx` — Role-aware sidebar version
+- Update the existing version fetch (lines 123-135) to use the same role-aware logic: if `!isInternalUser`, filter by `visible_to_clients = true`
+- No other sidebar changes needed — click behavior already works correctly
 
-**Changes (migration)**:
-- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
-- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
-- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
-- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
+### 3. `src/pages/WhatsNew.tsx` — Colored version badges
+- Line 200: Add conditional badge colors — if `minor_version === 0` (major release): orange border/text/bg. Otherwise (minor): blue border/text/bg.
 
-All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
+### 4. `src/components/VersionHistoryDialog.tsx` — Colored version badges
+- Lines 65-67: Same colored badge logic as What's New for non-latest entries (latest keeps default primary badge)
 
-## 2. Approvals Page — Separate Media from Published Content
-
-**Client Approvals (`ClientApprovals`)**: 
-- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
-- Alternatively, only show posts in Published that were moved there by admin approval flow
-
-**Admin Approvals (`AdminApprovals`)**:
-- Same fix for Published column — filter to only show posts linked to requests
-
-**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
-
-## 3. Workflow Page — Move Internal Review to Bottom Section
-
-**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
-
-**New layout**:
-- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
-- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
-
-## 4. Admin & Team Dashboards — Show Assignments + Tasks
-
-**SuperAdminDashboard**: Already shows team activity. Add:
-- "My Assignments" section showing posts assigned to the current admin user
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
-
-**TeamDashboard**: Already shows "My Assignments". Add:
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
-
-## Files Changed
+## Files
 
 | File | Change |
 |------|--------|
-| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
-| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
-| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
-| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
+| `src/components/AppLayout.tsx` | Role-aware version fetch, clickable label, version dialog |
+| `src/components/AppSidebar.tsx` | Role-aware version fetch filter |
+| `src/pages/WhatsNew.tsx` | Orange/blue badge colors |
+| `src/components/VersionHistoryDialog.tsx` | Orange/blue badge colors |
+
+No database changes needed. The existing `platform_versions` table and Admin Versions page already handle publishing, visibility toggle, and "Current" badge correctly.
 
