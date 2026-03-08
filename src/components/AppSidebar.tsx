@@ -120,6 +120,20 @@ export function AppSidebar() {
     fetchUsers();
   }, [actualIsSSAdmin]);
 
+  useEffect(() => {
+    supabase
+      .from("platform_versions")
+      .select("major_version, minor_version")
+      .order("published_at", { ascending: false })
+      .limit(1)
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          const v = data[0] as any;
+          setVersionLabel(`Stay Social HUB V${v.major_version}.${v.minor_version}`);
+        }
+      });
+  }, []);
+
   const isInternalUser = isSSAdmin || isSSTeam;
   const visibleAdminItems = isSSAdmin
     ? adminSection
