@@ -96,9 +96,9 @@ export default function AdminClients() {
     queryFn: async () => {
       const cid = activityClientId!;
       const [projects, tasks, thinkTank, requests] = await Promise.all([
-        supabase.from("projects").select("id, name, status").eq("client_id", cid).order("created_at", { ascending: false }).limit(20),
-        supabase.from("tasks").select("id, title, status").eq("client_id", cid).order("created_at", { ascending: false }).limit(20),
-        supabase.from("think_tank_items").select("id, title, status").eq("client_id", cid).order("created_at", { ascending: false }).limit(20),
+        supabase.from("projects").select("id, name, status, description").eq("client_id", cid).order("created_at", { ascending: false }).limit(20),
+        supabase.from("tasks").select("id, title, status, priority, assigned_to_user_id, project_id").eq("client_id", cid).order("created_at", { ascending: false }).limit(20),
+        supabase.from("think_tank_items").select("id, title, status, type").eq("client_id", cid).order("created_at", { ascending: false }).limit(20),
         supabase.from("requests").select("id, topic, status").eq("client_id", cid).order("created_at", { ascending: false }).limit(20),
       ]);
       return {
@@ -107,6 +107,18 @@ export default function AdminClients() {
         thinkTank: thinkTank.data || [],
         requests: requests.data || [],
       };
+    },
+  });
+
+  // Staff users for assignee selector
+  const { data: staffUsers = [] } = useQuery({
+    queryKey: ["staff-users"],
+    queryFn: async () => {
+      const { data: roles } = await supabase.from("user_roles").select("user_id, role").in("role", ["ss_admin", "ss_producer", "ss_ops", "ss_team"]);
+      if (!roles?.length) return [];
+      const staffIds = [...new Set(roles.map(r => r.user_id))];
+      const { data } = await supabase.from("users").select("id, name, email").in("id", staffIds);
+      return data || [];
     },
   });
 
