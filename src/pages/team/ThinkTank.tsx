@@ -164,13 +164,14 @@ export default function ThinkTank() {
       name: actionName.trim(),
       description: actionDesc.trim() || null,
       created_by_user_id: profile.id,
-      client_id: createProjectItem.client_id || null,
+      client_id: actionClientId || createProjectItem.client_id || null,
+      parent_project_id: actionParentProjectId || null,
     } as any);
     if (error) { toast.error(error.message); return; }
     await updateStatus(createProjectItem.id, "actioned");
     toast.success("Project created from idea!");
     setCreateProjectItem(null);
-    setActionName(""); setActionDesc("");
+    setActionName(""); setActionDesc(""); setActionClientId(""); setActionParentProjectId("");
   };
 
   const handleCreateTask = async () => {
@@ -179,13 +180,34 @@ export default function ThinkTank() {
       title: actionName.trim(),
       description: actionDesc.trim() || null,
       created_by_user_id: profile.id,
-      client_id: createTaskItem.client_id || null,
+      client_id: actionClientId || createTaskItem.client_id || null,
+      project_id: actionProjectId || null,
+      priority: actionPriority,
+      assigned_to_user_id: actionAssigneeId || null,
     } as any);
     if (error) { toast.error(error.message); return; }
     await updateStatus(createTaskItem.id, "actioned");
     toast.success("Task created from idea!");
     setCreateTaskItem(null);
-    setActionName(""); setActionDesc("");
+    setActionName(""); setActionDesc(""); setActionClientId(""); setActionProjectId(""); setActionPriority("normal"); setActionAssigneeId("");
+  };
+
+  const openCreateProject = (item: ThinkTankItem) => {
+    setActionName(item.title);
+    setActionDesc(item.body || "");
+    setActionClientId(item.client_id || "");
+    setActionParentProjectId("");
+    setCreateProjectItem(item);
+  };
+
+  const openCreateTask = (item: ThinkTankItem) => {
+    setActionName(item.title);
+    setActionDesc(item.body || "");
+    setActionClientId(item.client_id || "");
+    setActionProjectId("");
+    setActionPriority("normal");
+    setActionAssigneeId("");
+    setCreateTaskItem(item);
   };
 
   const openCreateProject = (item: ThinkTankItem) => {
