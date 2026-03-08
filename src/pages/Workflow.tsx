@@ -506,38 +506,6 @@ export default function Workflow() {
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
 
-      {/* Secondary sections — compact horizontal row */}
-      <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
-        {bottomSections.map(section => {
-          const sectionPosts = posts.filter((p: any) => {
-            if (p.status_column !== section.key) return false;
-            if (contentTypeFilter === "all") return true;
-            return p.content_type === contentTypeFilter;
-          });
-          return (
-            <div
-              key={section.key}
-              className="min-w-[220px] max-w-[280px] flex-1 bg-muted/40 rounded-lg border border-border/50"
-              onDrop={e => handleDrop(e, section.key)}
-              onDragOver={handleDragOver}
-            >
-              <div className="px-3 py-2 flex items-center justify-between border-b border-border/30">
-                <h4 className="text-xs font-medium text-muted-foreground">{section.label}</h4>
-                <span className="text-[10px] text-muted-foreground/60">{sectionPosts.length}</span>
-              </div>
-              <div className="p-2 space-y-1.5 min-h-[60px] max-h-[200px] overflow-y-auto">
-                {sectionPosts.length === 0 && (
-                  <div className="flex items-center justify-center h-10 text-[10px] text-muted-foreground/40 border border-dashed border-muted-foreground/15 rounded">
-                    Drop here
-                  </div>
-                )}
-                {sectionPosts.map(renderCard)}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
       {selectedPost && (
         <WorkflowCardDialog
           post={selectedPost}

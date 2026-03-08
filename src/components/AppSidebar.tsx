@@ -208,7 +208,11 @@ export function AppSidebar() {
           <>
             <SidebarGroup>
               {!collapsed && <SidebarGroupLabel>Menu</SidebarGroupLabel>}
-              <SidebarGroupContent>{renderMenuItems(menuSection)}</SidebarGroupContent>
+              <SidebarGroupContent>{renderMenuItems(
+                isSSTeam && !isSSAdmin
+                  ? menuSection.filter(i => i.title !== "Approvals")
+                  : menuSection
+              )}</SidebarGroupContent>
             </SidebarGroup>
 
             <SidebarSeparator />
