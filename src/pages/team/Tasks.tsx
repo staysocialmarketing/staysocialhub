@@ -54,6 +54,7 @@ const statusLabels: Record<string, string> = {
 export default function Tasks() {
   const { profile, isSSAdmin } = useAuth();
   const { selectedClientId: globalClientId } = useClientFilter();
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
