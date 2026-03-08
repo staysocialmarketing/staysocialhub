@@ -174,6 +174,41 @@ export type Database = {
           },
         ]
       }
+      client_success_extras: {
+        Row: {
+          client_id: string
+          coming_up_next: Json
+          focus_override: string | null
+          recent_wins: Json
+          recommended_next_step: string | null
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          coming_up_next?: Json
+          focus_override?: string | null
+          recent_wins?: Json
+          recommended_next_step?: string | null
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          coming_up_next?: Json
+          focus_override?: string | null
+          recent_wins?: Json
+          recommended_next_step?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_success_extras_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           assistants_can_approve: boolean
