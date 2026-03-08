@@ -1,57 +1,54 @@
 
 
-# Workflow, Approvals, and Auto-Assignment Overhaul
+# Client Hub Consolidation: Media, Activity & Think Tank Actions
 
-## Summary of Changes
+## Overview
 
-This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
+Three changes: (1) Remove standalone Media Library from admin/team nav and instead access client media via a "Media" button on each client card in AdminClients, (2) Replace inline linked activity with an "Activity" button that opens a dedicated dialog, (3) Fix Think Tank action dialogs to include project/sub-project selectors and client linking.
 
-## 1. Database: Update Auto-Assignment Triggers
+## 1. Remove Admin Media Library Nav Item, Add Client Media Dialog
 
-**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
+**Remove** "Media Library" (`/admin/media`) from `adminSection` in `AppSidebar.tsx`.
 
-**Changes (migration)**:
-- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
-- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
-- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
-- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
+**Add** a "Media" button on each client card in `AdminClients.tsx` (next to Strategy, What's New). Clicking it opens a dialog showing that client's published media (posts where `client_id` matches + voice notes from storage). Reuse the same grid/card pattern from `AdminMedia.tsx` but scoped to one client.
 
-All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
+- The `AdminMedia.tsx` page and route stay in the codebase for now but are just removed from nav.
+- The client media dialog queries `posts` filtered by `client_id` and `status_column IN (published, approved, scheduled)`.
+- Include the same edit/download/copy-link actions.
+- Client "My Media" (`ContentLibrary.tsx`) stays unchanged -- uploads from there are already linked via `client_id` and will appear in the admin client media dialog.
 
-## 2. Approvals Page — Separate Media from Published Content
+## 2. Replace Inline Linked Activity with Activity Dialog
 
-**Client Approvals (`ClientApprovals`)**: 
-- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
-- Alternatively, only show posts in Published that were moved there by admin approval flow
+Currently `AdminClients.tsx` shows `LinkedActivitySection` inline inside the edit/view dialogs. Replace this with:
 
-**Admin Approvals (`AdminApprovals`)**:
-- Same fix for Published column — filter to only show posts linked to requests
+- An **"Activity"** button on each client card (alongside Strategy and Media).
+- Clicking opens a dialog showing Projects, Tasks, Think Tank items, and Requests for that client.
+- Same data as current `LinkedActivitySection` but in its own standalone dialog, not nested inside edit.
+- Remove `LinkedActivitySection` from the edit and view client dialogs.
 
-**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
+## 3. Fix Think Tank Action Dialogs
 
-## 3. Workflow Page — Move Internal Review to Bottom Section
+### Create Project dialog
+Add fields:
+- **Client** selector (pre-filled from item's `client_id`)
+- **Parent Project** selector (optional, to create as sub-project)
 
-**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
+### Create Task dialog
+Add fields:
+- **Client** selector (pre-filled from item's `client_id`)
+- **Project** selector (optional, to link task to project)
+- **Priority** selector
+- **Assignee** selector (staff only)
 
-**New layout**:
-- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
-- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
+Both dialogs need to query `projects` for the selector and pass the selected values into the insert.
 
-## 4. Admin & Team Dashboards — Show Assignments + Tasks
+## Files Summary
 
-**SuperAdminDashboard**: Already shows team activity. Add:
-- "My Assignments" section showing posts assigned to the current admin user
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+| Action | File |
+|--------|------|
+| Edit | `src/components/AppSidebar.tsx` — remove Media Library from adminSection |
+| Edit | `src/pages/admin/AdminClients.tsx` — add Media + Activity buttons/dialogs, remove inline LinkedActivity |
+| Edit | `src/pages/team/ThinkTank.tsx` — enhance Create Project/Task dialogs with selectors |
 
-**TeamDashboard**: Already shows "My Assignments". Add:
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
-
-## Files Changed
-
-| File | Change |
-|------|--------|
-| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
-| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
-| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
-| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
+No database changes needed. All data relationships already exist.
 
