@@ -1,69 +1,57 @@
 
 
-# Client Profile + Strategy System
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-## Overview
+## Summary of Changes
 
-Expand the existing `client_profile` JSONB columns with richer fields and add a new `client_strategy` table for internal-only planning data. Create an admin/team Strategy page per client, and update the client-facing My Profile page with the expanded fields.
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
-## Database Changes
+## 1. Database: Update Auto-Assignment Triggers
 
-### New table: `client_strategy`
-Internal strategy data per client, one row per client.
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-| Column | Type | Default |
-|--------|------|---------|
-| `client_id` | uuid PK | — |
-| `goals_json` | jsonb | `'{}'` |
-| `focus_json` | jsonb | `'{}'` |
-| `pillars_json` | jsonb | `'[]'` |
-| `campaigns_json` | jsonb | `'[]'` |
-| `studio_notes_json` | jsonb | `'{}'` |
-| `updated_at` | timestamptz | `now()` |
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
-RLS: SS roles full CRUD. Clients cannot see this table.
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
 
-No changes to `client_profile` schema — the existing JSONB columns already accommodate the new fields (service_regions, industry, UVP, social_profiles, etc.) by just storing more keys in the JSON.
+## 2. Approvals Page — Separate Media from Published Content
 
-## UI Changes
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
 
-### 1. Expand `src/pages/Profile.tsx` (Client-facing "My Profile")
-Add new fields to existing JSONB sections:
-- **Business Info tab**: Add `service_regions`, `industry`, `contact_person` fields
-- **Brand Voice tab**: Add `tone`, `communication_style`, `messaging_guidance`, `cta_style` (rename existing fields for clarity)
-- **New "Links" section** within Business Info: `social_profiles`, `booking_link` (booking_link already exists, add social profiles)
-- **Offers tab**: Add `unique_value_proposition` field
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
 
-### 2. New page: `src/pages/admin/ClientStrategy.tsx`
-Admin/Team page for internal strategy planning per client. Accessed via `/admin/client-strategy/:clientId`.
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
 
-Sections (each a card with editable text areas for admin, read-only for team):
-- **Goals**: Client marketing objectives
-- **Current Focus**: Editable weekly focus box
-- **Content Pillars**: Key themes list (add/remove items)
-- **Campaign Notes**: Current marketing campaigns (rich text area)
-- **Studio / AI Notes**: Video content instructions, AI Persona tone, scripting guidance
+## 3. Workflow Page — Move Internal Review to Bottom Section
 
-Uses a client selector at the top (or receives clientId from URL param).
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
 
-### 3. Update `src/pages/admin/AdminClients.tsx`
-Add a "Strategy" button/link on each client card that navigates to `/admin/client-strategy/:clientId`.
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
 
-### 4. Update routing + nav
-- **`src/App.tsx`**: Add route `/admin/client-strategy/:clientId` → `ClientStrategy` (AdminRoute wrapped)
-- **`src/components/AppSidebar.tsx`**: No new top-level nav item needed — strategy is accessed per-client from the Clients page
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
 
-## Permissions
-- **Team (SS roles)**: Full access to Strategy page (read for ss_team, write for ss_admin)
-- **Clients**: Can edit their My Profile fields via the existing submit-for-review flow. Cannot see Strategy.
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
-## Files Summary
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
-| Action | File |
-|--------|------|
-| Migration | 1 SQL: `client_strategy` table + RLS |
-| New | `src/pages/admin/ClientStrategy.tsx` |
-| Edit | `src/pages/Profile.tsx` (expanded fields) |
-| Edit | `src/pages/admin/AdminClients.tsx` (strategy link) |
-| Edit | `src/App.tsx` (new route) |
+## Files Changed
+
+| File | Change |
+|------|--------|
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 

@@ -115,7 +115,7 @@ export default function Profile() {
   const editing = !!draft;
 
   const Field = ({ label, section, field, multiline }: { label: string; section: string; field: string; multiline?: boolean }) => {
-    const val = draft?.[section]?.[field] ?? "";
+    const val = draft?.[section]?.[field] ?? (editing ? "" : ((clientProfile as any)?.[section] as any)?.[field] ?? "");
     if (!editing) {
       return (
         <div>
@@ -178,8 +178,16 @@ export default function Profile() {
                   <Field label="Location" section="business_info_json" field="location" />
                   <Field label="Website" section="business_info_json" field="website" />
                   <Field label="Booking Link" section="business_info_json" field="booking_link" />
+                  <Field label="Industry" section="business_info_json" field="industry" />
+                  <Field label="Contact Person" section="business_info_json" field="contact_person" />
                   <div className="col-span-2">
                     <Field label="Contact Email" section="business_info_json" field="contact_email" />
+                  </div>
+                  <div className="col-span-2">
+                    <Field label="Service Regions" section="business_info_json" field="service_regions" />
+                  </div>
+                  <div className="col-span-2">
+                    <Field label="Social Profiles" section="business_info_json" field="social_profiles" multiline />
                   </div>
                 </div>
               </CardContent>
@@ -190,9 +198,13 @@ export default function Profile() {
             <Card>
               <CardHeader><CardTitle>Brand Voice</CardTitle></CardHeader>
               <CardContent className="space-y-4">
+                <Field label="Tone" section="brand_voice_json" field="tone" />
+                <Field label="Communication Style" section="brand_voice_json" field="communication_style" />
                 <Field label="Tone Description" section="brand_voice_json" field="description" multiline />
+                <Field label="Messaging Guidance" section="brand_voice_json" field="messaging_guidance" multiline />
                 <Field label="Topics to Focus On" section="brand_voice_json" field="focus_topics" multiline />
                 <Field label="Topics to Avoid" section="brand_voice_json" field="avoid_topics" multiline />
+                <Field label="CTA Style" section="brand_voice_json" field="cta_style" />
                 <Field label="Do's" section="brand_voice_json" field="dos" multiline />
                 <Field label="Don'ts" section="brand_voice_json" field="donts" multiline />
               </CardContent>
@@ -203,6 +215,7 @@ export default function Profile() {
             <Card>
               <CardHeader><CardTitle>Offers & Services</CardTitle></CardHeader>
               <CardContent className="space-y-4">
+                <Field label="Unique Value Proposition" section="offers_json" field="unique_value_proposition" multiline />
                 <Field label="Services" section="offers_json" field="services" multiline />
                 <Field label="Current Promotions" section="offers_json" field="promos" multiline />
                 <Field label="Target Audience" section="offers_json" field="target_audience" multiline />
@@ -254,6 +267,8 @@ export default function Profile() {
                         </SelectContent>
                       </Select>
                     </div>
+                    <Field label="Preferred Content Types" section="content_prefs_json" field="preferred_content_types" multiline />
+                    <Field label="Video Preferences" section="content_prefs_json" field="video_preferences" multiline />
                     <Field label="Content Mix" section="content_prefs_json" field="content_mix" multiline />
                     <Field label="Approval Lead Time" section="content_prefs_json" field="approval_lead_time" />
                   </>
@@ -261,6 +276,8 @@ export default function Profile() {
                   <>
                     <div><Label className="text-muted-foreground">Platforms</Label><p className="font-medium">{prefs.platforms || "—"}</p></div>
                     <div><Label className="text-muted-foreground">Posting Cadence</Label><p className="font-medium">{prefs.cadence || "—"}</p></div>
+                    <div><Label className="text-muted-foreground">Preferred Content Types</Label><p className="font-medium">{prefs.preferred_content_types || "—"}</p></div>
+                    <div><Label className="text-muted-foreground">Video Preferences</Label><p className="font-medium">{prefs.video_preferences || "—"}</p></div>
                     <div><Label className="text-muted-foreground">Content Mix</Label><p className="font-medium">{prefs.content_mix || "—"}</p></div>
                     <div><Label className="text-muted-foreground">Approval Lead Time</Label><p className="font-medium">{prefs.approval_lead_time || "—"}</p></div>
                   </>

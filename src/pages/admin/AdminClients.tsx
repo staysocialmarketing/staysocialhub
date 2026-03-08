@@ -12,11 +12,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Building2, Sparkles, FolderOpen, ListTodo, Lightbulb, MessageSquarePlus } from "lucide-react";
+import { Plus, Building2, Sparkles, FolderOpen, ListTodo, Lightbulb, MessageSquarePlus, Target } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export default function AdminClients() {
   const queryClient = useQueryClient();
   const { isSSAdmin, isSSTeam } = useAuth();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [whatsNewClient, setWhatsNewClient] = useState<string | null>(null);
@@ -349,6 +351,9 @@ export default function AdminClients() {
                   </div>
                 </div>
                 <div className="flex items-center gap-4" onClick={(e) => e.stopPropagation()}>
+                  <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => navigate(`/admin/client-strategy/${c.id}`)}>
+                    <Target className="h-3.5 w-3.5" />Strategy
+                  </Button>
                   {isSSAdmin && (
                     <>
                       <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => setWhatsNewClient(c.id)}>

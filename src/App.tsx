@@ -23,6 +23,7 @@ import AdminContent from "./pages/admin/AdminContent";
 import AdminMarketplace from "./pages/admin/AdminMarketplace";
 import AdminMedia from "./pages/admin/AdminMedia";
 import AdminVersions from "./pages/admin/AdminVersions";
+import ClientStrategy from "./pages/admin/ClientStrategy";
 import TeamDashboard from "./pages/admin/TeamDashboard";
 import TeamRoles from "./pages/admin/TeamRoles";
 import TeamRevenue from "./pages/admin/TeamRevenue";
@@ -85,6 +86,7 @@ const App = () => (
               <Route path="/admin/marketplace" element={<AdminRoute><AdminMarketplace /></AdminRoute>} />
               <Route path="/admin/media" element={<AdminRoute><AdminMedia /></AdminRoute>} />
               <Route path="/admin/versions" element={<AdminRoute><AdminVersions /></AdminRoute>} />
+              <Route path="/admin/client-strategy/:clientId" element={<AdminRoute><ClientStrategy /></AdminRoute>} />
               <Route path="/admin/team" element={<AdminRoute><TeamDashboard /></AdminRoute>} />
               <Route path="/admin/team/roles" element={<AdminRoute><TeamRoles /></AdminRoute>} />
               <Route path="/admin/team/revenue" element={<AdminRoute><TeamRevenue /></AdminRoute>} />
