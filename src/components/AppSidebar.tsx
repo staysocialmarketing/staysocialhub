@@ -10,7 +10,7 @@ import {
   Sparkles,
   Users,
   Building2,
-  Image,
+  Image as ImageIcon,
   ShoppingCart,
   LogOut,
   ClipboardList,
