@@ -186,7 +186,7 @@ export default function WhatsNew() {
       {releaseNotes.length > 0 && (
         <>
           <Separator />
-          <div>
+          <div id="release-notes">
             <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" /> Release Notes
             </h3>

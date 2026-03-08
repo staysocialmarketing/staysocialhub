@@ -1,33 +1,57 @@
 
 
-# Add Clickable Version Badge to Sidebar + Version History Dialog
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-## Changes
+## Summary of Changes
 
-### 1. Sidebar Footer — Version Badge (`src/components/AppSidebar.tsx`)
-- Fetch latest `platform_versions` row (same query as `AppLayout.tsx`)
-- Display `Stay Social HUB V{major}.{minor}` between the user email and Sign Out button
-- Make it clickable:
-  - **Client users**: Navigate to `/whats-new` (scroll to release notes section)
-  - **Internal users (team/admin)**: Open a `Dialog` showing full version history
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
-### 2. Version History Dialog (`src/components/VersionHistoryDialog.tsx`)
-- New component — a `Dialog` that fetches all `platform_versions` ordered by `published_at desc`
-- Shows each version as a card with badge, title, notes, and date
-- Used by internal users who don't have a What's New page
-- Triggered by clicking the version label in the sidebar
+## 1. Database: Update Auto-Assignment Triggers
 
-### 3. What's New Page — Anchor for Deep Link (`src/pages/WhatsNew.tsx`)
-- Add an `id="release-notes"` to the release notes section so clicking the sidebar version can scroll to it
-- No other changes needed — release notes section already exists
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-## Files
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
-| Action | File |
-|--------|------|
-| Create | `src/components/VersionHistoryDialog.tsx` — dialog showing all version history for team |
-| Edit | `src/components/AppSidebar.tsx` — add version badge in footer, clickable with role-based behavior |
-| Edit | `src/pages/WhatsNew.tsx` — add `id="release-notes"` anchor to the release notes heading |
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
 
-No database changes.
+## 2. Approvals Page — Separate Media from Published Content
+
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
+
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
+
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
+
+## 3. Workflow Page — Move Internal Review to Bottom Section
+
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
+
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
+
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
+
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 
