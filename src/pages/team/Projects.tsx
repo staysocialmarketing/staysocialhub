@@ -121,6 +121,38 @@ export default function Projects() {
         }
       });
       setProjectTasks(grouped);
+
+      // Fetch rollup stats for all task IDs
+      const allTaskIds = (tasks as Task[]).filter(t => t.project_id).map(t => t.id);
+      if (allTaskIds.length > 0) {
+        const [checklistRes, attachRes, commentRes] = await Promise.all([
+          supabase.from("task_checklist_items").select("task_id, completed").in("task_id", allTaskIds),
+          supabase.from("task_attachments").select("task_id").in("task_id", allTaskIds),
+          supabase.from("comments").select("task_id").in("task_id", allTaskIds).not("task_id", "is", null),
+        ]);
+
+        const stats: Record<string, { checklist: number; checklistDone: number; attachments: number; comments: number }> = {};
+        const taskToProject: Record<string, string> = {};
+        (tasks as Task[]).forEach(t => { if (t.project_id) taskToProject[t.id] = t.project_id; });
+
+        const initStats = (pid: string) => {
+          if (!stats[pid]) stats[pid] = { checklist: 0, checklistDone: 0, attachments: 0, comments: 0 };
+        };
+
+        (checklistRes.data || []).forEach((c: any) => {
+          const pid = taskToProject[c.task_id]; if (!pid) return;
+          initStats(pid); stats[pid].checklist++; if (c.completed) stats[pid].checklistDone++;
+        });
+        (attachRes.data || []).forEach((a: any) => {
+          const pid = taskToProject[a.task_id]; if (!pid) return;
+          initStats(pid); stats[pid].attachments++;
+        });
+        (commentRes.data || []).forEach((c: any) => {
+          const pid = taskToProject[c.task_id]; if (!pid) return;
+          initStats(pid); stats[pid].comments++;
+        });
+        setProjectStats(stats);
+      }
     }
     setLoading(false);
   };
