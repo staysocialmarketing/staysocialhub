@@ -54,6 +54,7 @@ import { supabase } from "@/integrations/supabase/client";
 const menuSection = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Workflow", url: "/workflow", icon: ClipboardList },
+  { title: "Approvals", url: "/approvals", icon: CheckSquare },
   { title: "Requests", url: "/requests", icon: MessageSquarePlus },
 ];
 
@@ -207,7 +208,11 @@ export function AppSidebar() {
           <>
             <SidebarGroup>
               {!collapsed && <SidebarGroupLabel>Menu</SidebarGroupLabel>}
-              <SidebarGroupContent>{renderMenuItems(menuSection)}</SidebarGroupContent>
+              <SidebarGroupContent>{renderMenuItems(
+                isSSTeam && !isSSAdmin
+                  ? menuSection.filter(i => i.title !== "Approvals")
+                  : menuSection
+              )}</SidebarGroupContent>
             </SidebarGroup>
 
             <SidebarSeparator />

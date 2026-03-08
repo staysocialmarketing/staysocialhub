@@ -24,7 +24,7 @@ import { compressImage } from "@/lib/imageUtils";
 import type { Database } from "@/integrations/supabase/types";
 import WorkflowCardDialog from "@/components/WorkflowCardDialog";
 import ApprovalActions from "@/components/ApprovalActions";
-import { getContentCategory, CONTENT_TYPE_OPTIONS, AUDIENCE_OPTIONS } from "@/lib/workflowUtils";
+import { CONTENT_TYPE_OPTIONS, AUDIENCE_OPTIONS } from "@/lib/workflowUtils";
 
 type PostStatus = Database["public"]["Enums"]["post_status"];
 
@@ -74,29 +74,6 @@ function UserInitials({ name, className }: { name: string | null; className?: st
   );
 }
 
-function getBottomSections(contentTypeFilter: string): { key: PostStatus; label: string }[] {
-  const sections: { key: PostStatus; label: string }[] = [
-    { key: "client_approval", label: "Client Approval" },
-  ];
-  if (contentTypeFilter === "email_campaign") {
-    sections.push(
-      { key: "ready_to_send" as PostStatus, label: "Ready to Send" },
-      { key: "scheduled", label: "Scheduled" },
-      { key: "sent" as PostStatus, label: "Sent" },
-    );
-  } else {
-    const category = contentTypeFilter === "all" ? "all" : getContentCategory(contentTypeFilter);
-    if (category === "other") {
-      sections.push({ key: "complete" as PostStatus, label: "Complete" });
-    } else {
-      sections.push(
-        { key: "scheduled", label: "Scheduled" },
-        { key: "published", label: "Published" },
-      );
-    }
-  }
-  return sections;
-}
 
 export default function Workflow() {
   const { profile, isSSAdmin } = useAuth();
@@ -125,11 +102,7 @@ export default function Workflow() {
   });
   const [creativeFile, setCreativeFile] = useState<File | null>(null);
 
-  const bottomSections = getBottomSections(contentTypeFilter);
-  const ALL_STATUSES: PostStatus[] = [
-    ...PRIMARY_COLUMNS.map(c => c.key),
-    "client_approval", "scheduled", "published", "ready_to_send" as PostStatus, "sent" as PostStatus, "complete" as PostStatus,
-  ];
+  const ALL_STATUSES: PostStatus[] = PRIMARY_COLUMNS.map(c => c.key);
 
   const { data: posts = [], isLoading } = useQuery({
     queryKey: ["workflow-posts"],
@@ -532,38 +505,6 @@ export default function Workflow() {
         </div>
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
-
-      {/* Secondary sections — compact horizontal row */}
-      <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
-        {bottomSections.map(section => {
-          const sectionPosts = posts.filter((p: any) => {
-            if (p.status_column !== section.key) return false;
-            if (contentTypeFilter === "all") return true;
-            return p.content_type === contentTypeFilter;
-          });
-          return (
-            <div
-              key={section.key}
-              className="min-w-[220px] max-w-[280px] flex-1 bg-muted/40 rounded-lg border border-border/50"
-              onDrop={e => handleDrop(e, section.key)}
-              onDragOver={handleDragOver}
-            >
-              <div className="px-3 py-2 flex items-center justify-between border-b border-border/30">
-                <h4 className="text-xs font-medium text-muted-foreground">{section.label}</h4>
-                <span className="text-[10px] text-muted-foreground/60">{sectionPosts.length}</span>
-              </div>
-              <div className="p-2 space-y-1.5 min-h-[60px] max-h-[200px] overflow-y-auto">
-                {sectionPosts.length === 0 && (
-                  <div className="flex items-center justify-center h-10 text-[10px] text-muted-foreground/40 border border-dashed border-muted-foreground/15 rounded">
-                    Drop here
-                  </div>
-                )}
-                {sectionPosts.map(renderCard)}
-              </div>
-            </div>
-          );
-        })}
-      </div>
 
       {selectedPost && (
         <WorkflowCardDialog
