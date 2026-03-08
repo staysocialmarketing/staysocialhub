@@ -1,54 +1,57 @@
 
 
-# Simplify Workflow for Team/Admin + Full Editability
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-## Summary
+## Summary of Changes
 
-Three changes: (1) Remove Approvals from team/admin sidebar nav — keep it only for clients, (2) Make all workflow cards clickable and fully editable for both admin AND team roles, (3) Make the linked request fields editable and allow content type evolution (e.g. post → campaign → email).
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
-## 1. Remove Approvals from Team/Admin Nav
+## 1. Database: Update Auto-Assignment Triggers
 
-In `AppSidebar.tsx`, remove `{ title: "Approvals", url: "/approvals", icon: CheckSquare }` from `menuSection` (line 57). Approvals page stays in the router for clients and direct links, but team/admin use Workflow as their primary view.
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-The approval actions (Approve / Request Changes) remain on workflow cards in `internal_review` status — no functionality lost.
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
-## 2. Make Workflow Cards Editable for All SS Roles
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
 
-Currently `WorkflowCardDialog` only shows the Edit button for `isSSAdmin`. Change line 365-367 to show Edit for all `isSSRole` users (admin, producer, ops, team).
+## 2. Approvals Page — Separate Media from Published Content
 
-**File**: `src/components/WorkflowCardDialog.tsx`
-- Import `isSSRole` from `useAuth()` (line 31)
-- Change `{isSSAdmin && (` to `{isSSRole && (` on the Edit button (line 365)
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
 
-## 3. Make Linked Request Editable + Allow Content Type Evolution
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
 
-Currently the linked request section in `WorkflowCardDialog` is read-only. Add edit capability:
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
 
-**In edit mode**, add these fields:
-- **Platform(s)** — checkbox group (currently only editable on create)
-- **Hashtags** — text input
-- **Internal Notes** — textarea
-- **Status override** — select dropdown showing all valid statuses so you can manually move a post to any stage
+## 3. Workflow Page — Move Internal Review to Bottom Section
 
-**For the linked request** (when `post.request_id` exists), show editable fields in edit mode:
-- Request type (social_post, email_campaign, ad, etc.) — select
-- Request priority — select  
-- Request status — select (open, in_progress, complete)
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
 
-This allows evolving a post: change content_type from `image` to `email_campaign` and the dialog dynamically switches to show email fields. The request type can be updated to match.
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
 
-**Mutation changes**: Update `updatePost` mutation to also save `platform`, `hashtags`, `internal_notes`. Add a separate mutation to update the linked request's `type`, `priority`, `status`.
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
 
-## 4. Add Platform, Hashtags, Internal Notes to Edit Mode
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
-Currently edit mode is missing platform checkboxes, hashtags input, and internal notes. Add them between the caption/email fields and the due date field, matching the create dialog's structure.
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
-## Files
+## Files Changed
 
-| Action | File |
-|--------|------|
-| Edit | `src/components/AppSidebar.tsx` — remove Approvals from menuSection |
-| Edit | `src/components/WorkflowCardDialog.tsx` — allow all SS roles to edit, add missing fields (platform, hashtags, internal notes, status), make linked request editable, support content type evolution |
-
-No database changes needed.
+| File | Change |
+|------|--------|
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 

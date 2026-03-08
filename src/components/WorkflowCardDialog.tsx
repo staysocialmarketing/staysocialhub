@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarWidget } from "@/components/ui/calendar";
@@ -17,6 +18,10 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import ApprovalActions from "@/components/ApprovalActions";
 import { CONTENT_TYPE_OPTIONS, AUDIENCE_OPTIONS, getContentCategory } from "@/lib/workflowUtils";
+import { Constants } from "@/integrations/supabase/types";
+
+const PLATFORM_OPTIONS = ["Instagram", "Facebook", "TikTok", "LinkedIn", "X / Twitter", "Pinterest", "YouTube", "Google"];
+const POST_STATUSES = Constants.public.Enums.post_status;
 
 interface WorkflowCardDialogProps {
   post: any;
@@ -28,7 +33,7 @@ interface WorkflowCardDialogProps {
 export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }: WorkflowCardDialogProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { isSSAdmin, isClientAdmin, isClientAssistant } = useAuth();
+  const { isSSAdmin, isSSRole, isClientAdmin, isClientAssistant } = useAuth();
 
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(post.title);
@@ -37,12 +42,20 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
   const [assignedTo, setAssignedTo] = useState(post.assigned_to_user_id || "");
   const [reviewer, setReviewer] = useState(post.reviewer_user_id || "");
   const [dueAt, setDueAt] = useState<Date | null>(post.due_at ? new Date(post.due_at) : null);
+  const [hashtags, setHashtags] = useState(post.hashtags || "");
+  const [internalNotes, setInternalNotes] = useState(post.internal_notes || "");
+  const [platforms, setPlatforms] = useState<string[]>(post.platform ? post.platform.split(",").map((p: string) => p.trim()) : []);
+  const [statusOverride, setStatusOverride] = useState(post.status_column || "idea");
   // Email fields
   const [subjectLine, setSubjectLine] = useState(post.subject_line || "");
   const [previewText, setPreviewText] = useState(post.preview_text || "");
   const [emailBody, setEmailBody] = useState(post.email_body || "");
   const [audience, setAudience] = useState(post.audience || "");
   const [campaignLink, setCampaignLink] = useState(post.campaign_link || "");
+  // Linked request fields
+  const [reqType, setReqType] = useState("");
+  const [reqPriority, setReqPriority] = useState("");
+  const [reqStatus, setReqStatus] = useState("");
 
   const isEmail = contentType === "email_campaign";
 
@@ -56,6 +69,12 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
         .eq("id", post.request_id)
         .single();
       if (error) return null;
+      // Init request edit fields
+      if (data) {
+        setReqType(data.type || "");
+        setReqPriority(data.priority || "normal");
+        setReqStatus(data.status || "open");
+      }
       return data;
     },
     enabled: !!post.request_id,
@@ -68,11 +87,24 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
     setAssignedTo(post.assigned_to_user_id || "");
     setReviewer(post.reviewer_user_id || "");
     setDueAt(post.due_at ? new Date(post.due_at) : null);
+    setHashtags(post.hashtags || "");
+    setInternalNotes(post.internal_notes || "");
+    setPlatforms(post.platform ? post.platform.split(",").map((p: string) => p.trim()) : []);
+    setStatusOverride(post.status_column || "idea");
     setSubjectLine(post.subject_line || "");
     setPreviewText(post.preview_text || "");
     setEmailBody(post.email_body || "");
     setAudience(post.audience || "");
     setCampaignLink(post.campaign_link || "");
+    if (linkedRequest) {
+      setReqType(linkedRequest.type || "");
+      setReqPriority(linkedRequest.priority || "normal");
+      setReqStatus(linkedRequest.status || "open");
+    }
+  };
+
+  const togglePlatform = (p: string) => {
+    setPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
   };
 
   const updatePost = useMutation({
@@ -86,6 +118,10 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
           assigned_to_user_id: assignedTo || null,
           reviewer_user_id: reviewer || null,
           due_at: dueAt?.toISOString() || null,
+          hashtags: hashtags || null,
+          internal_notes: internalNotes || null,
+          platform: platforms.length > 0 ? platforms.join(", ") : null,
+          status_column: statusOverride as any,
           subject_line: isEmail ? (subjectLine || null) : null,
           preview_text: isEmail ? (previewText || null) : null,
           email_body: isEmail ? (emailBody || null) : null,
@@ -94,9 +130,23 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
         } as any)
         .eq("id", post.id);
       if (error) throw error;
+
+      // Update linked request if exists
+      if (post.request_id && linkedRequest) {
+        const { error: reqError } = await supabase
+          .from("requests")
+          .update({
+            type: reqType as any,
+            priority: reqPriority || null,
+            status: reqStatus as any,
+          } as any)
+          .eq("id", post.request_id);
+        if (reqError) console.error("Failed to update linked request:", reqError);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workflow-posts"] });
+      queryClient.invalidateQueries({ queryKey: ["linked-request", post.request_id] });
       toast.success("Post updated");
       setEditing(false);
     },
@@ -202,6 +252,18 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
                 </Select>
               </div>
 
+              <div>
+                <Label>Status</Label>
+                <Select value={statusOverride} onValueChange={setStatusOverride}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {POST_STATUSES.map(s => (
+                      <SelectItem key={s} value={s}>{s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               {isEmail ? (
                 <>
                   <div><Label>Subject Line</Label><Input value={subjectLine} onChange={e => setSubjectLine(e.target.value)} placeholder="Email subject" /></div>
@@ -219,6 +281,25 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
               ) : (
                 <div><Label>Caption / Description</Label><Textarea value={caption} onChange={e => setCaption(e.target.value)} rows={3} /></div>
               )}
+
+              {/* Platform checkboxes */}
+              {!isEmail && (
+                <div>
+                  <Label>Platforms</Label>
+                  <div className="flex flex-wrap gap-3 mt-1.5">
+                    {PLATFORM_OPTIONS.map(p => (
+                      <label key={p} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                        <Checkbox checked={platforms.includes(p)} onCheckedChange={() => togglePlatform(p)} />
+                        {p}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div><Label>Hashtags</Label><Input value={hashtags} onChange={e => setHashtags(e.target.value)} placeholder="#socialmedia #marketing" /></div>
+
+              <div><Label>Internal Notes</Label><Textarea value={internalNotes} onChange={e => setInternalNotes(e.target.value)} rows={2} placeholder="Internal team notes..." /></div>
 
               <div>
                 <Label>Due Date</Label>
@@ -251,6 +332,50 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
                 </div>
               </div>
 
+              {/* Linked Request Edit */}
+              {linkedRequest && (
+                <div className="rounded-md border border-border p-3 space-y-3 bg-muted/30">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Original Request</p>
+                  <p className="text-sm font-medium">{linkedRequest.topic}</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <Label className="text-xs">Type</Label>
+                      <Select value={reqType} onValueChange={setReqType}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="social_post">Social Post</SelectItem>
+                          <SelectItem value="email_campaign">Email Campaign</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Priority</Label>
+                      <Select value={reqPriority} onValueChange={setReqPriority}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="normal">Normal</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                          <SelectItem value="urgent">Urgent</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Status</Label>
+                      <Select value={reqStatus} onValueChange={setReqStatus}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="open">Open</SelectItem>
+                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="flex gap-2 pt-2">
                 <Button className="flex-1" onClick={() => updatePost.mutate()} disabled={!title || updatePost.isPending}>
                   {updatePost.isPending ? "Saving..." : "Save Changes"}
@@ -272,6 +397,10 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
                 <div>
                   <Label className="text-muted-foreground text-xs">Content Type</Label>
                   <p className="text-sm font-medium">{contentTypeLabel}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Status</Label>
+                  <p className="text-sm font-medium">{post.status_column?.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground text-xs">Due Date</Label>
@@ -348,6 +477,20 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
                 </div>
               )}
 
+              {post.hashtags && (
+                <div>
+                  <Label className="text-muted-foreground text-xs">Hashtags</Label>
+                  <p className="text-sm">{post.hashtags}</p>
+                </div>
+              )}
+
+              {post.internal_notes && (
+                <div>
+                  <Label className="text-muted-foreground text-xs">Internal Notes</Label>
+                  <p className="text-sm whitespace-pre-wrap">{post.internal_notes}</p>
+                </div>
+              )}
+
               {linkedRequest && (
                 <div className="rounded-md border border-border p-3 space-y-1 bg-muted/30">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Original Request</p>
@@ -362,7 +505,7 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
               )}
 
               <div className="flex gap-2 pt-2">
-                {isSSAdmin && (
+                {isSSRole && (
                   <Button variant="outline" onClick={() => setEditing(true)}>
                     <Pencil className="h-4 w-4 mr-2" />Edit
                   </Button>
