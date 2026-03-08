@@ -24,7 +24,7 @@ import { compressImage } from "@/lib/imageUtils";
 import type { Database } from "@/integrations/supabase/types";
 import WorkflowCardDialog from "@/components/WorkflowCardDialog";
 import ApprovalActions from "@/components/ApprovalActions";
-import { getContentCategory, CONTENT_TYPE_OPTIONS, AUDIENCE_OPTIONS } from "@/lib/workflowUtils";
+import { CONTENT_TYPE_OPTIONS, AUDIENCE_OPTIONS } from "@/lib/workflowUtils";
 
 type PostStatus = Database["public"]["Enums"]["post_status"];
 
