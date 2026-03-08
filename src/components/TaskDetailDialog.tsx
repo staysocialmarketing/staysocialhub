@@ -259,7 +259,11 @@ export default function TaskDetailDialog({ task, onClose, onUpdated, projects, s
       case "status_changed": return "Status changed";
       case "reassigned": return "Reassigned";
       case "priority_changed": return "Priority changed";
-      default: return action;
+      case "project_changed": return "Project changed";
+      case "created": return "Created";
+      case "think_tank_origin": return "Origin";
+      case "request_generated": return "Request generated";
+      default: return action.replace(/_/g, " ");
     }
   };
 
