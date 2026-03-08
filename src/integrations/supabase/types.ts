@@ -136,6 +136,44 @@ export type Database = {
           },
         ]
       }
+      client_strategy: {
+        Row: {
+          campaigns_json: Json
+          client_id: string
+          focus_json: Json
+          goals_json: Json
+          pillars_json: Json
+          studio_notes_json: Json
+          updated_at: string
+        }
+        Insert: {
+          campaigns_json?: Json
+          client_id: string
+          focus_json?: Json
+          goals_json?: Json
+          pillars_json?: Json
+          studio_notes_json?: Json
+          updated_at?: string
+        }
+        Update: {
+          campaigns_json?: Json
+          client_id?: string
+          focus_json?: Json
+          goals_json?: Json
+          pillars_json?: Json
+          studio_notes_json?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_strategy_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           assistants_can_approve: boolean
