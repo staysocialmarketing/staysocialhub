@@ -424,6 +424,22 @@ export default function ThinkTank() {
               <Label className="text-xs text-muted-foreground">Description</Label>
               <Textarea value={actionDesc} onChange={(e) => setActionDesc(e.target.value)} />
             </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Client</Label>
+              <ClientSelectWithCreate value={actionClientId} onValueChange={setActionClientId} placeholder="Link to client (optional)" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Parent Project (optional)</Label>
+              <Select value={actionParentProjectId || "__none__"} onValueChange={(v) => setActionParentProjectId(v === "__none__" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="None (top-level)" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">None (top-level)</SelectItem>
+                  {projects
+                    .filter(p => !actionClientId || p.client_id === actionClientId)
+                    .map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setCreateProjectItem(null)}>Cancel</Button>
@@ -444,6 +460,44 @@ export default function ThinkTank() {
             <div>
               <Label className="text-xs text-muted-foreground">Description</Label>
               <Textarea value={actionDesc} onChange={(e) => setActionDesc(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Client</Label>
+              <ClientSelectWithCreate value={actionClientId} onValueChange={setActionClientId} placeholder="Link to client (optional)" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Project (optional)</Label>
+              <Select value={actionProjectId || "__none__"} onValueChange={(v) => setActionProjectId(v === "__none__" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">None</SelectItem>
+                  {projects
+                    .filter(p => !actionClientId || p.client_id === actionClientId)
+                    .map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Priority</Label>
+              <Select value={actionPriority} onValueChange={setActionPriority}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="normal">Normal</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="urgent">Urgent</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Assignee (optional)</Label>
+              <Select value={actionAssigneeId || "__none__"} onValueChange={(v) => setActionAssigneeId(v === "__none__" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Unassigned</SelectItem>
+                  {staffUsers.map(u => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
