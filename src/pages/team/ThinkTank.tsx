@@ -97,6 +97,14 @@ export default function ThinkTank() {
     fetchItems();
     supabase.from("clients").select("id, name").then(({ data }) => setClients(data || []));
     supabase.from("users").select("id, name, email").then(({ data }) => setUsers(data || []));
+    supabase.from("projects").select("id, name, client_id, parent_project_id").order("name").then(({ data }) => setProjects(data || []));
+    // Fetch staff users (ss roles) for assignee selector
+    supabase.from("user_roles").select("user_id, role").in("role", ["ss_admin", "ss_producer", "ss_ops", "ss_team"]).then(async ({ data: roles }) => {
+      if (!roles?.length) return;
+      const staffIds = [...new Set(roles.map(r => r.user_id))];
+      const { data: staffData } = await supabase.from("users").select("id, name, email").in("id", staffIds);
+      setStaffUsers(staffData || []);
+    });
   }, [filterType, filterStatus]);
 
   const handleCreate = async () => {
