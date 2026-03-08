@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, ChevronDown, FolderOpen, ListTodo, Send, Pencil, User, Calendar, Trash2 } from "lucide-react";
+import { Plus, ChevronDown, FolderOpen, ListTodo, Send, Pencil, User, Calendar, Trash2, CheckSquare, Paperclip, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import MakeRequestDialog from "@/components/MakeRequestDialog";
@@ -61,6 +61,7 @@ export default function Projects() {
   const { selectedClientId: globalClientId } = useClientFilter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectTasks, setProjectTasks] = useState<Record<string, Task[]>>({});
+  const [projectStats, setProjectStats] = useState<Record<string, { checklist: number; checklistDone: number; attachments: number; comments: number }>>({});
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("active");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -120,6 +121,38 @@ export default function Projects() {
         }
       });
       setProjectTasks(grouped);
+
+      // Fetch rollup stats for all task IDs
+      const allTaskIds = (tasks as Task[]).filter(t => t.project_id).map(t => t.id);
+      if (allTaskIds.length > 0) {
+        const [checklistRes, attachRes, commentRes] = await Promise.all([
+          supabase.from("task_checklist_items").select("task_id, completed").in("task_id", allTaskIds),
+          supabase.from("task_attachments").select("task_id").in("task_id", allTaskIds),
+          supabase.from("comments").select("task_id").in("task_id", allTaskIds).not("task_id", "is", null),
+        ]);
+
+        const stats: Record<string, { checklist: number; checklistDone: number; attachments: number; comments: number }> = {};
+        const taskToProject: Record<string, string> = {};
+        (tasks as Task[]).forEach(t => { if (t.project_id) taskToProject[t.id] = t.project_id; });
+
+        const initStats = (pid: string) => {
+          if (!stats[pid]) stats[pid] = { checklist: 0, checklistDone: 0, attachments: 0, comments: 0 };
+        };
+
+        (checklistRes.data || []).forEach((c: any) => {
+          const pid = taskToProject[c.task_id]; if (!pid) return;
+          initStats(pid); stats[pid].checklist++; if (c.completed) stats[pid].checklistDone++;
+        });
+        (attachRes.data || []).forEach((a: any) => {
+          const pid = taskToProject[a.task_id]; if (!pid) return;
+          initStats(pid); stats[pid].attachments++;
+        });
+        (commentRes.data || []).forEach((c: any) => {
+          const pid = taskToProject[c.task_id]; if (!pid) return;
+          initStats(pid); stats[pid].comments++;
+        });
+        setProjectStats(stats);
+      }
     }
     setLoading(false);
   };
@@ -370,6 +403,35 @@ export default function Projects() {
                 </div>
                 {isExpanded && (
                   <div className="px-5 pb-5 pt-0 space-y-4">
+                    {/* Project rollup stats */}
+                    {(() => {
+                      const allProjectIds = [project.id, ...subs.map(s => s.id)];
+                      const combined = { checklist: 0, checklistDone: 0, attachments: 0, comments: 0 };
+                      allProjectIds.forEach(pid => {
+                        const s = projectStats[pid];
+                        if (s) { combined.checklist += s.checklist; combined.checklistDone += s.checklistDone; combined.attachments += s.attachments; combined.comments += s.comments; }
+                      });
+                      if (combined.checklist === 0 && combined.attachments === 0 && combined.comments === 0) return null;
+                      return (
+                        <div className="flex gap-3 pl-6 flex-wrap">
+                          {combined.checklist > 0 && (
+                            <Badge variant="outline" className="text-[11px] gap-1">
+                              <CheckSquare className="h-3 w-3" /> {combined.checklistDone}/{combined.checklist} checklist
+                            </Badge>
+                          )}
+                          {combined.attachments > 0 && (
+                            <Badge variant="outline" className="text-[11px] gap-1">
+                              <Paperclip className="h-3 w-3" /> {combined.attachments} file{combined.attachments !== 1 ? "s" : ""}
+                            </Badge>
+                          )}
+                          {combined.comments > 0 && (
+                            <Badge variant="outline" className="text-[11px] gap-1">
+                              <MessageSquare className="h-3 w-3" /> {combined.comments} comment{combined.comments !== 1 ? "s" : ""}
+                            </Badge>
+                          )}
+                        </div>
+                      );
+                    })()}
                     {subs.length > 0 && (
                       <div className="pl-6 space-y-2">
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sub-projects</p>

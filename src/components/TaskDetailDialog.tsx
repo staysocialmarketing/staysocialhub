@@ -12,7 +12,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Trash2, Plus, Paperclip, Download, Link2, X, Send, FileText, ListChecks, MessageSquare, Activity, Pencil, Bot, Target } from "lucide-react";
+import { Trash2, Plus, Paperclip, Download, Link2, X, Send, FileText, ListChecks, MessageSquare, Activity, Pencil, Bot, Target, FolderOpen } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
@@ -90,6 +91,7 @@ interface TaskDetailDialogProps {
 
 export default function TaskDetailDialog({ task, onClose, onUpdated, projects, ssUsers, users }: TaskDetailDialogProps) {
   const { profile, isSSAdmin, isSSRole } = useAuth();
+  const navigate = useNavigate();
   const canEdit = task ? (isSSAdmin || task.created_by_user_id === profile?.id) : false;
 
   const [editing, setEditing] = useState(false);
@@ -257,7 +259,11 @@ export default function TaskDetailDialog({ task, onClose, onUpdated, projects, s
       case "status_changed": return "Status changed";
       case "reassigned": return "Reassigned";
       case "priority_changed": return "Priority changed";
-      default: return action;
+      case "project_changed": return "Project changed";
+      case "created": return "Created";
+      case "think_tank_origin": return "Origin";
+      case "request_generated": return "Request generated";
+      default: return action.replace(/_/g, " ");
     }
   };
 
@@ -356,7 +362,17 @@ export default function TaskDetailDialog({ task, onClose, onUpdated, projects, s
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Project</Label>
-              <p className="text-sm font-medium">{projectId ? getProjectName(projectId) : "—"}</p>
+              {projectId ? (
+                <button
+                  className="text-sm font-medium text-primary hover:underline flex items-center gap-1"
+                  onClick={() => { onClose(); navigate("/team/projects"); }}
+                >
+                  <FolderOpen className="h-3 w-3" />
+                  {getProjectName(projectId)}
+                </button>
+              ) : (
+                <p className="text-sm font-medium">—</p>
+              )}
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Assignee</Label>

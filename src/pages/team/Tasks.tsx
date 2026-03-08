@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientFilter } from "@/contexts/ClientFilterContext";
@@ -53,6 +54,7 @@ const statusLabels: Record<string, string> = {
 export default function Tasks() {
   const { profile, isSSAdmin } = useAuth();
   const { selectedClientId: globalClientId } = useClientFilter();
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -246,7 +248,15 @@ export default function Tasks() {
                     </div>
                     {task.description && <p className="text-xs text-muted-foreground/70 line-clamp-1">{task.description}</p>}
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      {projectName(task.project_id) && <Badge variant="secondary" className="text-[11px]">{projectName(task.project_id)}</Badge>}
+                      {projectName(task.project_id) && (
+                        <Badge
+                          variant="secondary"
+                          className="text-[11px] cursor-pointer hover:bg-secondary/80"
+                          onClick={(e) => { e.stopPropagation(); navigate("/team/projects"); }}
+                        >
+                          {projectName(task.project_id)}
+                        </Badge>
+                      )}
                       {userName(task) && (
                         <span className="flex items-center gap-0.5">
                           <User className="h-3 w-3" />
