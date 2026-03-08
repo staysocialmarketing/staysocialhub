@@ -57,7 +57,18 @@ export function AppLayout() {
                 Stay Social <span className="text-primary">HUB</span>
               </h1>
               {versionLabel && (
-                <span className="text-xs text-muted-foreground font-medium">{versionLabel}</span>
+                <button
+                  onClick={() => {
+                    if (isSSRole) {
+                      setVersionDialogOpen(true);
+                    } else {
+                      navigate("/whats-new#release-notes");
+                    }
+                  }}
+                  className="text-xs text-muted-foreground font-medium hover:text-primary transition-colors cursor-pointer"
+                >
+                  {versionLabel}
+                </button>
               )}
             </div>
             {profile && <NotificationBell />}
