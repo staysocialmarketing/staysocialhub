@@ -378,15 +378,21 @@ export default function AdminClients() {
 
       {/* Client Activity Dialog */}
       <Dialog open={!!activityClientId} onOpenChange={(o) => { if (!o) setActivityClientId(null); }}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Activity — {activityClientName}</DialogTitle></DialogHeader>
           {activityData ? (
-            <div className="space-y-4">
+            <div className="space-y-5">
+              {/* Requests */}
               {activityData.requests.length > 0 && (
-                <div className="space-y-1.5">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5"><MessageSquarePlus className="h-3.5 w-3.5" /> Requests ({activityData.requests.length})</p>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5"><MessageSquarePlus className="h-3.5 w-3.5" /> Requests ({activityData.requests.length})</p>
+                    <Button variant="link" size="sm" className="text-xs h-auto p-0" onClick={() => { setActivityClientId(null); navigate("/requests"); }}>
+                      View All <ExternalLink className="h-3 w-3 ml-1" />
+                    </Button>
+                  </div>
                   {activityData.requests.map((r: any) => (
-                    <div key={r.id} className="flex items-center justify-between text-sm pl-5">
+                    <div key={r.id} className="flex items-center justify-between text-sm pl-5 py-1.5 rounded-md hover:bg-muted/50 cursor-pointer" onClick={() => { setActivityClientId(null); navigate("/requests"); }}>
                       <span className="truncate">{r.topic}</span>
                       <Badge variant="outline" className="text-[10px] shrink-0 ml-2">{r.status}</Badge>
                     </div>
@@ -394,37 +400,117 @@ export default function AdminClients() {
                 </div>
               )}
 
+              {/* Projects */}
               {activityData.projects.length > 0 && (
-                <div className="space-y-1.5">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5"><FolderOpen className="h-3.5 w-3.5" /> Projects ({activityData.projects.length})</p>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5"><FolderOpen className="h-3.5 w-3.5" /> Projects ({activityData.projects.length})</p>
+                    <Button variant="link" size="sm" className="text-xs h-auto p-0" onClick={() => { setActivityClientId(null); navigate("/team/projects"); }}>
+                      View All <ExternalLink className="h-3 w-3 ml-1" />
+                    </Button>
+                  </div>
                   {activityData.projects.map((p: any) => (
-                    <div key={p.id} className="flex items-center justify-between text-sm pl-5">
-                      <span className="truncate">{p.name}</span>
-                      <Badge variant="outline" className="text-[10px] shrink-0 ml-2">{p.status}</Badge>
+                    <div key={p.id} className="flex items-center justify-between text-sm pl-5 py-1.5 rounded-md hover:bg-muted/50 group">
+                      <span className="truncate cursor-pointer" onClick={() => { setActivityClientId(null); navigate("/team/projects"); }}>{p.name}</span>
+                      <Select value={p.status} onValueChange={async (v) => {
+                        await supabase.from("projects").update({ status: v }).eq("id", p.id);
+                        queryClient.invalidateQueries({ queryKey: ["client-activity", activityClientId] });
+                        toast.success("Project status updated");
+                      }}>
+                        <SelectTrigger className="h-6 w-24 text-[10px] border-transparent group-hover:border-input">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="archived">Archived</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   ))}
                 </div>
               )}
 
+              {/* Tasks */}
               {activityData.tasks.length > 0 && (
-                <div className="space-y-1.5">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5"><ListTodo className="h-3.5 w-3.5" /> Tasks ({activityData.tasks.length})</p>
-                  {activityData.tasks.map((t: any) => (
-                    <div key={t.id} className="flex items-center justify-between text-sm pl-5">
-                      <span className="truncate">{t.title}</span>
-                      <Badge variant="outline" className="text-[10px] shrink-0 ml-2">{t.status}</Badge>
-                    </div>
-                  ))}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5"><ListTodo className="h-3.5 w-3.5" /> Tasks ({activityData.tasks.length})</p>
+                    <Button variant="link" size="sm" className="text-xs h-auto p-0" onClick={() => { setActivityClientId(null); navigate("/team/tasks"); }}>
+                      View All <ExternalLink className="h-3 w-3 ml-1" />
+                    </Button>
+                  </div>
+                  {activityData.tasks.map((t: any) => {
+                    const assignee = staffUsers.find((u: any) => u.id === t.assigned_to_user_id);
+                    return (
+                      <div key={t.id} className="flex items-center justify-between text-sm pl-5 py-1.5 rounded-md hover:bg-muted/50 group gap-2">
+                        <span className="truncate cursor-pointer" onClick={() => { setActivityClientId(null); navigate("/team/tasks"); }}>{t.title}</span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {assignee && (
+                            <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                              <User className="h-3 w-3" />{(assignee.name || assignee.email || "").slice(0, 8)}
+                            </span>
+                          )}
+                          <Select value={t.assigned_to_user_id || "__none__"} onValueChange={async (v) => {
+                            await supabase.from("tasks").update({ assigned_to_user_id: v === "__none__" ? null : v } as any).eq("id", t.id);
+                            queryClient.invalidateQueries({ queryKey: ["client-activity", activityClientId] });
+                            toast.success("Assignee updated");
+                          }}>
+                            <SelectTrigger className="h-6 w-20 text-[10px] border-transparent group-hover:border-input">
+                              <SelectValue placeholder="Assign" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__">Unassigned</SelectItem>
+                              {staffUsers.map((u: any) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                          <Select value={t.status} onValueChange={async (v) => {
+                            await supabase.from("tasks").update({ status: v } as any).eq("id", t.id);
+                            queryClient.invalidateQueries({ queryKey: ["client-activity", activityClientId] });
+                            toast.success("Task status updated");
+                          }}>
+                            <SelectTrigger className="h-6 w-24 text-[10px] border-transparent group-hover:border-input">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="todo">Todo</SelectItem>
+                              <SelectItem value="in_progress">In Progress</SelectItem>
+                              <SelectItem value="done">Done</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
+              {/* Think Tank */}
               {activityData.thinkTank.length > 0 && (
-                <div className="space-y-1.5">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5"><Lightbulb className="h-3.5 w-3.5" /> Think Tank ({activityData.thinkTank.length})</p>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5"><Lightbulb className="h-3.5 w-3.5" /> Think Tank ({activityData.thinkTank.length})</p>
+                    <Button variant="link" size="sm" className="text-xs h-auto p-0" onClick={() => { setActivityClientId(null); navigate("/team/think-tank"); }}>
+                      View All <ExternalLink className="h-3 w-3 ml-1" />
+                    </Button>
+                  </div>
                   {activityData.thinkTank.map((i: any) => (
-                    <div key={i.id} className="flex items-center justify-between text-sm pl-5">
-                      <span className="truncate">{i.title}</span>
-                      <Badge variant="outline" className="text-[10px] shrink-0 ml-2">{i.status}</Badge>
+                    <div key={i.id} className="flex items-center justify-between text-sm pl-5 py-1.5 rounded-md hover:bg-muted/50 group">
+                      <span className="truncate cursor-pointer" onClick={() => { setActivityClientId(null); navigate("/team/think-tank"); }}>{i.title}</span>
+                      <Select value={i.status} onValueChange={async (v) => {
+                        await supabase.from("think_tank_items").update({ status: v } as any).eq("id", i.id);
+                        queryClient.invalidateQueries({ queryKey: ["client-activity", activityClientId] });
+                        toast.success("Status updated");
+                      }}>
+                        <SelectTrigger className="h-6 w-24 text-[10px] border-transparent group-hover:border-input">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="open">Open</SelectItem>
+                          <SelectItem value="actioned">Actioned</SelectItem>
+                          <SelectItem value="archived">Archived</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   ))}
                 </div>
