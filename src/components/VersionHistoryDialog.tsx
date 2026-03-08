@@ -61,7 +61,10 @@ export function VersionHistoryDialog({ open, onOpenChange }: VersionHistoryDialo
                     <div className="flex items-start justify-between gap-3">
                       <div className="space-y-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <Badge variant={i === 0 ? "default" : "outline"} className="text-xs shrink-0">
+                          <Badge
+                            variant={i === 0 ? "default" : "outline"}
+                            className={`text-xs shrink-0 ${i !== 0 ? (v.minor_version === 0 ? "border-orange-400 text-orange-600 bg-orange-50" : "border-blue-400 text-blue-600 bg-blue-50") : ""}`}
+                          >
                             V{v.major_version}.{v.minor_version}
                           </Badge>
                           {i === 0 && (

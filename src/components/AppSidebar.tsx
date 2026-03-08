@@ -121,18 +121,23 @@ export function AppSidebar() {
   }, [actualIsSSAdmin]);
 
   useEffect(() => {
-    supabase
+    let query = supabase
       .from("platform_versions")
       .select("major_version, minor_version")
       .order("published_at", { ascending: false })
-      .limit(1)
-      .then(({ data }) => {
-        if (data && data.length > 0) {
-          const v = data[0] as any;
-          setVersionLabel(`Stay Social HUB V${v.major_version}.${v.minor_version}`);
-        }
-      });
-  }, []);
+      .limit(1);
+
+    if (!isInternalUser) {
+      query = query.eq("visible_to_clients", true);
+    }
+
+    query.then(({ data }) => {
+      if (data && data.length > 0) {
+        const v = data[0] as any;
+        setVersionLabel(`Stay Social HUB V${v.major_version}.${v.minor_version}`);
+      }
+    });
+  }, [isSSAdmin, isSSTeam]);
 
   const isInternalUser = isSSAdmin || isSSTeam;
   const visibleAdminItems = isSSAdmin

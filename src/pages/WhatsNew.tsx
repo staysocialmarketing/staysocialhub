@@ -197,7 +197,7 @@ export default function WhatsNew() {
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">V{rn.major_version}.{rn.minor_version}</Badge>
+                          <Badge variant="outline" className={`text-xs ${rn.minor_version === 0 ? "border-orange-400 text-orange-600 bg-orange-50" : "border-blue-400 text-blue-600 bg-blue-50"}`}>V{rn.major_version}.{rn.minor_version}</Badge>
                           {rn.title && <span className="font-medium text-foreground text-sm">{rn.title}</span>}
                         </div>
                         {rn.notes && <p className="text-sm text-muted-foreground">{rn.notes}</p>}

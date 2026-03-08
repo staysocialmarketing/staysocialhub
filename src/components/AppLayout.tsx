@@ -1,30 +1,38 @@
 import { useEffect, useState } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useAuth } from "@/contexts/AuthContext";
 import { X } from "lucide-react";
 import { GlobalCaptureButton } from "@/components/GlobalCaptureButton";
+import { VersionHistoryDialog } from "@/components/VersionHistoryDialog";
 import { supabase } from "@/integrations/supabase/client";
 
 export function AppLayout() {
-  const { profile, isViewingAs, setViewAs } = useAuth();
+  const { profile, isViewingAs, setViewAs, isSSRole } = useAuth();
+  const navigate = useNavigate();
   const [versionLabel, setVersionLabel] = useState("");
+  const [versionDialogOpen, setVersionDialogOpen] = useState(false);
 
   useEffect(() => {
-    supabase
+    let query = supabase
       .from("platform_versions")
       .select("major_version, minor_version")
       .order("published_at", { ascending: false })
-      .limit(1)
-      .then(({ data }) => {
-        if (data && data.length > 0) {
-          const v = data[0] as any;
-          setVersionLabel(`V${v.major_version}.${v.minor_version}`);
-        }
-      });
-  }, []);
+      .limit(1);
+
+    if (!isSSRole) {
+      query = query.eq("visible_to_clients", true);
+    }
+
+    query.then(({ data }) => {
+      if (data && data.length > 0) {
+        const v = data[0] as any;
+        setVersionLabel(`V${v.major_version}.${v.minor_version}`);
+      }
+    });
+  }, [isSSRole]);
 
   return (
     <SidebarProvider>
@@ -49,7 +57,18 @@ export function AppLayout() {
                 Stay Social <span className="text-primary">HUB</span>
               </h1>
               {versionLabel && (
-                <span className="text-xs text-muted-foreground font-medium">{versionLabel}</span>
+                <button
+                  onClick={() => {
+                    if (isSSRole) {
+                      setVersionDialogOpen(true);
+                    } else {
+                      navigate("/whats-new#release-notes");
+                    }
+                  }}
+                  className="text-xs text-muted-foreground font-medium hover:text-primary transition-colors cursor-pointer"
+                >
+                  {versionLabel}
+                </button>
               )}
             </div>
             {profile && <NotificationBell />}
@@ -60,6 +79,7 @@ export function AppLayout() {
           <GlobalCaptureButton />
         </div>
       </div>
+      <VersionHistoryDialog open={versionDialogOpen} onOpenChange={setVersionDialogOpen} />
     </SidebarProvider>
   );
 }
