@@ -1029,6 +1029,105 @@ export type Database = {
           },
         ]
       }
+      team_growth_tracks: {
+        Row: {
+          id: string
+          sort_order: number
+          track_name: string
+          updated_at: string
+          user_name: string
+        }
+        Insert: {
+          id?: string
+          sort_order?: number
+          track_name: string
+          updated_at?: string
+          user_name: string
+        }
+        Update: {
+          id?: string
+          sort_order?: number
+          track_name?: string
+          updated_at?: string
+          user_name?: string
+        }
+        Relationships: []
+      }
+      team_roles_config: {
+        Row: {
+          id: string
+          mission: string | null
+          responsibilities: Json | null
+          sort_order: number
+          title: string | null
+          updated_at: string
+          user_name: string
+        }
+        Insert: {
+          id?: string
+          mission?: string | null
+          responsibilities?: Json | null
+          sort_order?: number
+          title?: string | null
+          updated_at?: string
+          user_name: string
+        }
+        Update: {
+          id?: string
+          mission?: string | null
+          responsibilities?: Json | null
+          sort_order?: number
+          title?: string | null
+          updated_at?: string
+          user_name?: string
+        }
+        Relationships: []
+      }
+      team_settings: {
+        Row: {
+          bonus_pool: number
+          id: string
+          monthly_revenue: number
+          next_milestone: number
+          updated_at: string
+        }
+        Insert: {
+          bonus_pool?: number
+          id?: string
+          monthly_revenue?: number
+          next_milestone?: number
+          updated_at?: string
+        }
+        Update: {
+          bonus_pool?: number
+          id?: string
+          monthly_revenue?: number
+          next_milestone?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      team_wins: {
+        Row: {
+          created_at: string
+          created_by_user_id: string
+          id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          created_by_user_id: string
+          id?: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          created_by_user_id?: string
+          id?: string
+          title?: string
+        }
+        Relationships: []
+      }
       think_tank_items: {
         Row: {
           agent_confidence: number | null
