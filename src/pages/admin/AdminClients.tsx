@@ -18,6 +18,7 @@ import { useNavigate } from "react-router-dom";
 export default function AdminClients() {
   const queryClient = useQueryClient();
   const { isSSAdmin, isSSTeam } = useAuth();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [whatsNewClient, setWhatsNewClient] = useState<string | null>(null);
