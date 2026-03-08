@@ -77,6 +77,7 @@ const App = () => (
               <Route path="/approvals/:postId" element={<PostDetail />} />
               <Route path="/requests" element={<Requests />} />
               <Route path="/content-library" element={<ContentLibrary />} />
+              <Route path="/client/success" element={<SuccessCenter />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/plan" element={<Plan />} />
               <Route path="/whats-new" element={<WhatsNew />} />
