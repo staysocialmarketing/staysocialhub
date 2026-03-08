@@ -1,41 +1,57 @@
 
 
-# Workflow Layout Cleanup + Universal Drag-and-Drop
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-## Problem
-The bottom grid sections (Scheduled, Published) dominate the page when populated, overshadowing the active workflow columns (New, In Progress, Internal Review). Also, bottom section cards aren't consistently draggable between sections.
+## Summary of Changes
 
-## Layout Changes (`src/pages/Workflow.tsx`)
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
-### New structure — two tiers
+## 1. Database: Update Auto-Assignment Triggers
 
-**Primary kanban (top, full height, scrollable):**
-- New, In Progress, Internal Review — these are the daily working columns
-- Keep existing horizontal scroll kanban layout but give more vertical space
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-**Secondary row (below, collapsed/compact):**
-- Client Approval, Scheduled/Published/Ready to Send/Sent/Complete
-- Render as a horizontal row of smaller columns (not full-height kanban) or compact grid cards
-- Each section is a drop zone with drag support
-- Visually de-emphasized: smaller headers, condensed card style
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
-### Drag-and-drop
-- Already implemented on kanban columns and bottom grid sections via `handleDragStart`/`handleDrop`/`handleDragOver`
-- Ensure **all** bottom sections always render (even when empty) so they remain valid drop targets
-- Currently `if (sectionPosts.length === 0) return null` hides empty sections — remove this check, show empty state placeholder instead
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
 
-### Specific changes
-1. Split `KANBAN_COLUMNS` into primary (idea, in_progress, internal_review) and secondary (client_approval)
-2. Move client_approval into `bottomSections` alongside scheduled/published
-3. Remove the `if (sectionPosts.length === 0) return null` — always render sections as drop targets with a min-height placeholder
-4. Render secondary sections as a horizontal flex row of compact columns (not full kanban height)
-5. Give primary kanban `flex-1` to fill available vertical space
+## 2. Approvals Page — Separate Media from Published Content
 
-## Files
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
 
-| Action | File |
-|--------|------|
-| Edit | `src/pages/Workflow.tsx` — restructure layout, always show drop zones, two-tier hierarchy |
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
 
-No database changes.
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
+
+## 3. Workflow Page — Move Internal Review to Bottom Section
+
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
+
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
+
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
+
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 

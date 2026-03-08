@@ -28,11 +28,10 @@ import { getContentCategory, CONTENT_TYPE_OPTIONS, AUDIENCE_OPTIONS } from "@/li
 
 type PostStatus = Database["public"]["Enums"]["post_status"];
 
-const KANBAN_COLUMNS: { key: PostStatus; label: string }[] = [
+const PRIMARY_COLUMNS: { key: PostStatus; label: string }[] = [
   { key: "idea", label: "New" },
   { key: "in_progress" as PostStatus, label: "In Progress" },
   { key: "internal_review", label: "Internal Review" },
-  { key: "client_approval", label: "Client Approval" },
 ];
 
 const platformColors: Record<string, string> = {
@@ -76,22 +75,27 @@ function UserInitials({ name, className }: { name: string | null; className?: st
 }
 
 function getBottomSections(contentTypeFilter: string): { key: PostStatus; label: string }[] {
+  const sections: { key: PostStatus; label: string }[] = [
+    { key: "client_approval", label: "Client Approval" },
+  ];
   if (contentTypeFilter === "email_campaign") {
-    return [
+    sections.push(
       { key: "ready_to_send" as PostStatus, label: "Ready to Send" },
       { key: "scheduled", label: "Scheduled" },
       { key: "sent" as PostStatus, label: "Sent" },
-    ];
+    );
+  } else {
+    const category = contentTypeFilter === "all" ? "all" : getContentCategory(contentTypeFilter);
+    if (category === "other") {
+      sections.push({ key: "complete" as PostStatus, label: "Complete" });
+    } else {
+      sections.push(
+        { key: "scheduled", label: "Scheduled" },
+        { key: "published", label: "Published" },
+      );
+    }
   }
-  const category = contentTypeFilter === "all" ? "all" : getContentCategory(contentTypeFilter);
-  if (category === "other") {
-    return [{ key: "complete" as PostStatus, label: "Complete" }];
-  }
-  // social or all
-  return [
-    { key: "scheduled", label: "Scheduled" },
-    { key: "published", label: "Published" },
-  ];
+  return sections;
 }
 
 export default function Workflow() {
@@ -123,8 +127,8 @@ export default function Workflow() {
 
   const bottomSections = getBottomSections(contentTypeFilter);
   const ALL_STATUSES: PostStatus[] = [
-    ...KANBAN_COLUMNS.map(c => c.key),
-    "scheduled", "published", "ready_to_send" as PostStatus, "sent" as PostStatus, "complete" as PostStatus,
+    ...PRIMARY_COLUMNS.map(c => c.key),
+    "client_approval", "scheduled", "published", "ready_to_send" as PostStatus, "sent" as PostStatus, "complete" as PostStatus,
   ];
 
   const { data: posts = [], isLoading } = useQuery({
@@ -503,18 +507,23 @@ export default function Workflow() {
         </div>
       </div>
 
-      {/* Kanban columns */}
-      <ScrollArea className="flex-1">
-        <div className="flex gap-5 pb-4" style={{ minWidth: KANBAN_COLUMNS.length * 290 }}>
-          {KANBAN_COLUMNS.map(col => {
+      {/* Primary Kanban — daily working columns */}
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="flex gap-5 pb-4" style={{ minWidth: PRIMARY_COLUMNS.length * 310 }}>
+          {PRIMARY_COLUMNS.map(col => {
             const columnPosts = posts.filter((p: any) => p.status_column === col.key && (contentTypeFilter === "all" || p.content_type === contentTypeFilter));
             return (
-              <div key={col.key} className="w-[270px] shrink-0 flex flex-col bg-accent/30 rounded-xl" onDrop={e => handleDrop(e, col.key)} onDragOver={handleDragOver}>
+              <div key={col.key} className="w-[290px] shrink-0 flex flex-col bg-accent/30 rounded-xl" onDrop={e => handleDrop(e, col.key)} onDragOver={handleDragOver}>
                 <div className="px-4 py-3 flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-foreground">{col.label}</h3>
-                  <span className="text-xs text-muted-foreground">{columnPosts.length}</span>
+                  <Badge variant="secondary" className="text-[11px]">{columnPosts.length}</Badge>
                 </div>
-                <div className="px-2 pb-3 space-y-2 flex-1 min-h-[100px]">
+                <div className="px-2 pb-3 space-y-2 flex-1 min-h-[120px]">
+                  {columnPosts.length === 0 && (
+                    <div className="flex items-center justify-center h-20 text-xs text-muted-foreground/50 border border-dashed border-muted-foreground/20 rounded-lg">
+                      Drop here
+                    </div>
+                  )}
                   {columnPosts.map(renderCard)}
                 </div>
               </div>
@@ -524,26 +533,37 @@ export default function Workflow() {
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
 
-      {/* Dynamic bottom sections based on content type */}
-      {bottomSections.map(section => {
-        const sectionPosts = posts.filter((p: any) => {
-          if (p.status_column !== section.key) return false;
-          if (contentTypeFilter === "all") return true;
-          return p.content_type === contentTypeFilter;
-        });
-        if (sectionPosts.length === 0) return null;
-        return (
-          <section key={section.key} className="mt-8">
-            <div className="flex items-center gap-2 mb-4">
-              <h3 className="text-base font-semibold text-foreground">{section.label}</h3>
-              <span className="text-xs text-muted-foreground">{sectionPosts.length}</span>
+      {/* Secondary sections — compact horizontal row */}
+      <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
+        {bottomSections.map(section => {
+          const sectionPosts = posts.filter((p: any) => {
+            if (p.status_column !== section.key) return false;
+            if (contentTypeFilter === "all") return true;
+            return p.content_type === contentTypeFilter;
+          });
+          return (
+            <div
+              key={section.key}
+              className="min-w-[220px] max-w-[280px] flex-1 bg-muted/40 rounded-lg border border-border/50"
+              onDrop={e => handleDrop(e, section.key)}
+              onDragOver={handleDragOver}
+            >
+              <div className="px-3 py-2 flex items-center justify-between border-b border-border/30">
+                <h4 className="text-xs font-medium text-muted-foreground">{section.label}</h4>
+                <span className="text-[10px] text-muted-foreground/60">{sectionPosts.length}</span>
+              </div>
+              <div className="p-2 space-y-1.5 min-h-[60px] max-h-[200px] overflow-y-auto">
+                {sectionPosts.length === 0 && (
+                  <div className="flex items-center justify-center h-10 text-[10px] text-muted-foreground/40 border border-dashed border-muted-foreground/15 rounded">
+                    Drop here
+                  </div>
+                )}
+                {sectionPosts.map(renderCard)}
+              </div>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 bg-accent/30 rounded-xl p-4" onDrop={e => handleDrop(e, section.key)} onDragOver={handleDragOver}>
-              {sectionPosts.map(renderCard)}
-            </div>
-          </section>
-        );
-      })}
+          );
+        })}
+      </div>
 
       {selectedPost && (
         <WorkflowCardDialog
