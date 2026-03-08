@@ -472,7 +472,7 @@ export default function ThinkTank() {
                 <SelectContent>
                   <SelectItem value="__none__">None</SelectItem>
                   {projects
-                    .filter(p => !actionClientId || p.client_id === actionClientId)
+                    .filter(p => !actionClientId || p.client_id === actionClientId || !p.client_id)
                     .map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                 </SelectContent>
               </Select>
