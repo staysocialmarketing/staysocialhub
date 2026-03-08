@@ -28,11 +28,10 @@ import { getContentCategory, CONTENT_TYPE_OPTIONS, AUDIENCE_OPTIONS } from "@/li
 
 type PostStatus = Database["public"]["Enums"]["post_status"];
 
-const KANBAN_COLUMNS: { key: PostStatus; label: string }[] = [
+const PRIMARY_COLUMNS: { key: PostStatus; label: string }[] = [
   { key: "idea", label: "New" },
   { key: "in_progress" as PostStatus, label: "In Progress" },
   { key: "internal_review", label: "Internal Review" },
-  { key: "client_approval", label: "Client Approval" },
 ];
 
 const platformColors: Record<string, string> = {
