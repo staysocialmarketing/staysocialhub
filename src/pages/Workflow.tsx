@@ -102,11 +102,7 @@ export default function Workflow() {
   });
   const [creativeFile, setCreativeFile] = useState<File | null>(null);
 
-  const bottomSections = getBottomSections(contentTypeFilter);
-  const ALL_STATUSES: PostStatus[] = [
-    ...PRIMARY_COLUMNS.map(c => c.key),
-    "client_approval", "scheduled", "published", "ready_to_send" as PostStatus, "sent" as PostStatus, "complete" as PostStatus,
-  ];
+  const ALL_STATUSES: PostStatus[] = PRIMARY_COLUMNS.map(c => c.key);
 
   const { data: posts = [], isLoading } = useQuery({
     queryKey: ["workflow-posts"],
