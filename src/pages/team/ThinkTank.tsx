@@ -210,17 +210,6 @@ export default function ThinkTank() {
     setCreateTaskItem(item);
   };
 
-  const openCreateProject = (item: ThinkTankItem) => {
-    setActionName(item.title);
-    setActionDesc(item.body || "");
-    setCreateProjectItem(item);
-  };
-
-  const openCreateTask = (item: ThinkTankItem) => {
-    setActionName(item.title);
-    setActionDesc(item.body || "");
-    setCreateTaskItem(item);
-  };
 
   const creatorName = (userId: string) => {
     const u = users.find((u) => u.id === userId);
