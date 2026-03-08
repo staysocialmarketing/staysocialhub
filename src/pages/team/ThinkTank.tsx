@@ -67,6 +67,13 @@ export default function ThinkTank() {
   const [createTaskItem, setCreateTaskItem] = useState<ThinkTankItem | null>(null);
   const [actionName, setActionName] = useState("");
   const [actionDesc, setActionDesc] = useState("");
+  const [actionClientId, setActionClientId] = useState("");
+  const [actionParentProjectId, setActionParentProjectId] = useState("");
+  const [actionProjectId, setActionProjectId] = useState("");
+  const [actionPriority, setActionPriority] = useState("normal");
+  const [actionAssigneeId, setActionAssigneeId] = useState("");
+  const [projects, setProjects] = useState<{ id: string; name: string; client_id: string | null; parent_project_id: string | null }[]>([]);
+  const [staffUsers, setStaffUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
 
   // Edit state
   const [editItem, setEditItem] = useState<ThinkTankItem | null>(null);
@@ -90,6 +97,14 @@ export default function ThinkTank() {
     fetchItems();
     supabase.from("clients").select("id, name").then(({ data }) => setClients(data || []));
     supabase.from("users").select("id, name, email").then(({ data }) => setUsers(data || []));
+    supabase.from("projects").select("id, name, client_id, parent_project_id").order("name").then(({ data }) => setProjects(data || []));
+    // Fetch staff users (ss roles) for assignee selector
+    supabase.from("user_roles").select("user_id, role").in("role", ["ss_admin", "ss_producer", "ss_ops", "ss_team"]).then(async ({ data: roles }) => {
+      if (!roles?.length) return;
+      const staffIds = [...new Set(roles.map(r => r.user_id))];
+      const { data: staffData } = await supabase.from("users").select("id, name, email").in("id", staffIds);
+      setStaffUsers(staffData || []);
+    });
   }, [filterType, filterStatus]);
 
   const handleCreate = async () => {
@@ -149,13 +164,14 @@ export default function ThinkTank() {
       name: actionName.trim(),
       description: actionDesc.trim() || null,
       created_by_user_id: profile.id,
-      client_id: createProjectItem.client_id || null,
+      client_id: actionClientId || createProjectItem.client_id || null,
+      parent_project_id: actionParentProjectId || null,
     } as any);
     if (error) { toast.error(error.message); return; }
     await updateStatus(createProjectItem.id, "actioned");
     toast.success("Project created from idea!");
     setCreateProjectItem(null);
-    setActionName(""); setActionDesc("");
+    setActionName(""); setActionDesc(""); setActionClientId(""); setActionParentProjectId("");
   };
 
   const handleCreateTask = async () => {
@@ -164,26 +180,36 @@ export default function ThinkTank() {
       title: actionName.trim(),
       description: actionDesc.trim() || null,
       created_by_user_id: profile.id,
-      client_id: createTaskItem.client_id || null,
+      client_id: actionClientId || createTaskItem.client_id || null,
+      project_id: actionProjectId || null,
+      priority: actionPriority,
+      assigned_to_user_id: actionAssigneeId || null,
     } as any);
     if (error) { toast.error(error.message); return; }
     await updateStatus(createTaskItem.id, "actioned");
     toast.success("Task created from idea!");
     setCreateTaskItem(null);
-    setActionName(""); setActionDesc("");
+    setActionName(""); setActionDesc(""); setActionClientId(""); setActionProjectId(""); setActionPriority("normal"); setActionAssigneeId("");
   };
 
   const openCreateProject = (item: ThinkTankItem) => {
     setActionName(item.title);
     setActionDesc(item.body || "");
+    setActionClientId(item.client_id || "");
+    setActionParentProjectId("");
     setCreateProjectItem(item);
   };
 
   const openCreateTask = (item: ThinkTankItem) => {
     setActionName(item.title);
     setActionDesc(item.body || "");
+    setActionClientId(item.client_id || "");
+    setActionProjectId("");
+    setActionPriority("normal");
+    setActionAssigneeId("");
     setCreateTaskItem(item);
   };
+
 
   const creatorName = (userId: string) => {
     const u = users.find((u) => u.id === userId);
@@ -398,6 +424,22 @@ export default function ThinkTank() {
               <Label className="text-xs text-muted-foreground">Description</Label>
               <Textarea value={actionDesc} onChange={(e) => setActionDesc(e.target.value)} />
             </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Client</Label>
+              <ClientSelectWithCreate value={actionClientId} onValueChange={setActionClientId} placeholder="Link to client (optional)" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Parent Project (optional)</Label>
+              <Select value={actionParentProjectId || "__none__"} onValueChange={(v) => setActionParentProjectId(v === "__none__" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="None (top-level)" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">None (top-level)</SelectItem>
+                  {projects
+                    .filter(p => !actionClientId || p.client_id === actionClientId)
+                    .map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setCreateProjectItem(null)}>Cancel</Button>
@@ -418,6 +460,44 @@ export default function ThinkTank() {
             <div>
               <Label className="text-xs text-muted-foreground">Description</Label>
               <Textarea value={actionDesc} onChange={(e) => setActionDesc(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Client</Label>
+              <ClientSelectWithCreate value={actionClientId} onValueChange={setActionClientId} placeholder="Link to client (optional)" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Project (optional)</Label>
+              <Select value={actionProjectId || "__none__"} onValueChange={(v) => setActionProjectId(v === "__none__" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">None</SelectItem>
+                  {projects
+                    .filter(p => !actionClientId || p.client_id === actionClientId)
+                    .map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Priority</Label>
+              <Select value={actionPriority} onValueChange={setActionPriority}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="normal">Normal</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="urgent">Urgent</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Assignee (optional)</Label>
+              <Select value={actionAssigneeId || "__none__"} onValueChange={(v) => setActionAssigneeId(v === "__none__" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Unassigned</SelectItem>
+                  {staffUsers.map(u => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

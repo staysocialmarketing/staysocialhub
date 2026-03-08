@@ -9,11 +9,22 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Building2, Sparkles, FolderOpen, ListTodo, Lightbulb, MessageSquarePlus, Target } from "lucide-react";
+import { Plus, Building2, Sparkles, FolderOpen, ListTodo, Lightbulb, MessageSquarePlus, Target, Image, Activity, ImageIcon, Film, Mic, Download, Link2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
+
+function isVoiceNote(url: string | null) {
+  if (!url) return false;
+  return /voice-notes\/.*\.webm$/i.test(url) || /voice-\d+\.webm$/i.test(url);
+}
+function isVideo(url: string | null) {
+  if (!url) return false;
+  return /\.(mp4|mov|webm|avi)$/i.test(url) && !isVoiceNote(url);
+}
 
 export default function AdminClients() {
   const queryClient = useQueryClient();
@@ -26,12 +37,18 @@ export default function AdminClients() {
 
   // Edit client state
   const [editClient, setEditClient] = useState<any | null>(null);
-  // Read-only view for team
-  const [viewClient, setViewClient] = useState<any | null>(null);
   const [editName, setEditName] = useState("");
   const [editStatus, setEditStatus] = useState("active");
   const [editPlanId, setEditPlanId] = useState("");
   const [editAssistants, setEditAssistants] = useState(false);
+
+  // Media dialog
+  const [mediaClientId, setMediaClientId] = useState<string | null>(null);
+  const [mediaClientName, setMediaClientName] = useState("");
+
+  // Activity dialog
+  const [activityClientId, setActivityClientId] = useState<string | null>(null);
+  const [activityClientName, setActivityClientName] = useState("");
 
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ["admin-clients"],
@@ -50,25 +67,39 @@ export default function AdminClients() {
     },
   });
 
-  // Fetch marketplace items for the What's New toggle
   useEffect(() => {
     supabase.from("marketplace_items").select("id, name, category, is_active").eq("is_active", true).order("sort_order").then(({ data }) => {
       setMarketplaceItems(data || []);
     });
   }, []);
 
-  // Linked data for edit/view dialogs
-  const activeClientId = editClient?.id || viewClient?.id;
-  const { data: linkedData } = useQuery({
-    queryKey: ["client-linked-data", activeClientId],
-    enabled: !!activeClientId,
+  // Media query for selected client
+  const { data: mediaItems = [], isLoading: mediaLoading } = useQuery({
+    queryKey: ["client-media", mediaClientId],
+    enabled: !!mediaClientId,
     queryFn: async () => {
-      const cid = activeClientId;
+      const { data, error } = await supabase
+        .from("posts")
+        .select("id, title, platform, creative_url, created_at, scheduled_at, status_column")
+        .eq("client_id", mediaClientId!)
+        .in("status_column", ["published", "approved", "scheduled"])
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Activity query for selected client
+  const { data: activityData } = useQuery({
+    queryKey: ["client-activity", activityClientId],
+    enabled: !!activityClientId,
+    queryFn: async () => {
+      const cid = activityClientId!;
       const [projects, tasks, thinkTank, requests] = await Promise.all([
-        supabase.from("projects").select("id, name, status").eq("client_id", cid).order("created_at", { ascending: false }).limit(10),
-        supabase.from("tasks").select("id, title, status").eq("client_id", cid).order("created_at", { ascending: false }).limit(10),
-        supabase.from("think_tank_items").select("id, title, status").eq("client_id", cid).order("created_at", { ascending: false }).limit(10),
-        supabase.from("requests").select("id, topic, status").eq("client_id", cid).order("created_at", { ascending: false }).limit(10),
+        supabase.from("projects").select("id, name, status").eq("client_id", cid).order("created_at", { ascending: false }).limit(20),
+        supabase.from("tasks").select("id, title, status").eq("client_id", cid).order("created_at", { ascending: false }).limit(20),
+        supabase.from("think_tank_items").select("id, title, status").eq("client_id", cid).order("created_at", { ascending: false }).limit(20),
+        supabase.from("requests").select("id, topic, status").eq("client_id", cid).order("created_at", { ascending: false }).limit(20),
       ]);
       return {
         projects: projects.data || [],
@@ -161,65 +192,20 @@ export default function AdminClients() {
     setEditAssistants(client.assistants_can_approve);
   };
 
-  function LinkedActivitySection({ linkedData }: { linkedData: { projects: any[]; tasks: any[]; thinkTank: any[]; requests: any[] } }) {
-    return (
-      <div className="space-y-3 border-t pt-3">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Linked Activity</p>
+  const handleDownload = (url: string) => {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "";
+    a.target = "_blank";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
 
-        {linkedData.requests.length > 0 && (
-          <div className="space-y-1">
-            <p className="text-xs font-medium flex items-center gap-1"><MessageSquarePlus className="h-3 w-3" /> Requests ({linkedData.requests.length})</p>
-            {linkedData.requests.map((r: any) => (
-              <div key={r.id} className="flex items-center justify-between text-xs pl-4">
-                <span>{r.topic}</span>
-                <Badge variant="outline" className="text-[10px]">{r.status}</Badge>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {linkedData.projects.length > 0 && (
-          <div className="space-y-1">
-            <p className="text-xs font-medium flex items-center gap-1"><FolderOpen className="h-3 w-3" /> Projects ({linkedData.projects.length})</p>
-            {linkedData.projects.map((p: any) => (
-              <div key={p.id} className="flex items-center justify-between text-xs pl-4">
-                <span>{p.name}</span>
-                <Badge variant="outline" className="text-[10px]">{p.status}</Badge>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {linkedData.tasks.length > 0 && (
-          <div className="space-y-1">
-            <p className="text-xs font-medium flex items-center gap-1"><ListTodo className="h-3 w-3" /> Tasks ({linkedData.tasks.length})</p>
-            {linkedData.tasks.map((t: any) => (
-              <div key={t.id} className="flex items-center justify-between text-xs pl-4">
-                <span>{t.title}</span>
-                <Badge variant="outline" className="text-[10px]">{t.status}</Badge>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {linkedData.thinkTank.length > 0 && (
-          <div className="space-y-1">
-            <p className="text-xs font-medium flex items-center gap-1"><Lightbulb className="h-3 w-3" /> Think Tank ({linkedData.thinkTank.length})</p>
-            {linkedData.thinkTank.map((i: any) => (
-              <div key={i.id} className="flex items-center justify-between text-xs pl-4">
-                <span>{i.title}</span>
-                <Badge variant="outline" className="text-[10px]">{i.status}</Badge>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {linkedData.projects.length === 0 && linkedData.tasks.length === 0 && linkedData.thinkTank.length === 0 && linkedData.requests.length === 0 && (
-          <p className="text-xs text-muted-foreground">No linked activity yet.</p>
-        )}
-      </div>
-    );
-  }
+  const handleCopyLink = (url: string) => {
+    navigator.clipboard.writeText(url);
+    toast.success("Link copied to clipboard");
+  };
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
@@ -283,7 +269,7 @@ export default function AdminClients() {
 
       {/* Edit Client Dialog */}
       <Dialog open={!!editClient} onOpenChange={(o) => !o && setEditClient(null)}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Edit Client — {editClient?.name}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
@@ -315,9 +301,6 @@ export default function AdminClients() {
               <Label className="text-xs text-muted-foreground">Assistants can approve</Label>
               <Switch checked={editAssistants} onCheckedChange={setEditAssistants} />
             </div>
-
-            {/* Linked data */}
-            {linkedData && <LinkedActivitySection linkedData={linkedData} />}
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setEditClient(null)}>Cancel</Button>
@@ -326,22 +309,129 @@ export default function AdminClients() {
         </DialogContent>
       </Dialog>
 
-      {/* Read-only Client View Dialog (Team) */}
-      <Dialog open={!!viewClient} onOpenChange={(o) => !o && setViewClient(null)}>
+      {/* Client Media Dialog */}
+      <Dialog open={!!mediaClientId} onOpenChange={(o) => { if (!o) setMediaClientId(null); }}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Media — {mediaClientName}</DialogTitle></DialogHeader>
+          {mediaLoading ? (
+            <p className="text-sm text-muted-foreground py-4">Loading…</p>
+          ) : mediaItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <FolderOpen className="h-10 w-10 mb-2 opacity-40" />
+              <p className="text-sm">No published media yet</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {mediaItems.map((post: any) => (
+                <Card key={post.id} className="overflow-hidden">
+                  <AspectRatio ratio={1}>
+                    {post.creative_url ? (
+                      isVoiceNote(post.creative_url) ? (
+                        <div className="w-full h-full bg-muted flex flex-col items-center justify-center gap-2 p-4">
+                          <Mic className="h-8 w-8 text-primary/50" />
+                          <audio src={post.creative_url} controls className="w-full max-w-[90%]" onClick={(e) => e.stopPropagation()} />
+                        </div>
+                      ) : isVideo(post.creative_url) ? (
+                        <div className="w-full h-full bg-muted flex items-center justify-center"><Film className="h-8 w-8 text-muted-foreground/50" /></div>
+                      ) : (
+                        <img src={post.creative_url} alt={post.title} className="w-full h-full object-cover" />
+                      )
+                    ) : (
+                      <div className="w-full h-full bg-muted flex items-center justify-center"><ImageIcon className="h-8 w-8 text-muted-foreground/50" /></div>
+                    )}
+                  </AspectRatio>
+                  <CardContent className="p-2.5">
+                    <p className="text-xs font-medium truncate">{post.title}</p>
+                    <div className="flex items-center justify-between mt-1">
+                      {post.platform && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{post.platform}</Badge>}
+                      <span className="text-[10px] text-muted-foreground ml-auto">{format(new Date(post.scheduled_at || post.created_at), "MMM d")}</span>
+                    </div>
+                    {post.creative_url && (
+                      <div className="flex gap-1.5 mt-1.5">
+                        <Button variant="ghost" size="sm" className="h-6 px-1.5 text-[10px]" onClick={() => handleDownload(post.creative_url)}>
+                          <Download className="h-3 w-3 mr-0.5" />Download
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-6 px-1.5 text-[10px]" onClick={() => handleCopyLink(post.creative_url)}>
+                          <Link2 className="h-3 w-3 mr-0.5" />Link
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Client Activity Dialog */}
+      <Dialog open={!!activityClientId} onOpenChange={(o) => { if (!o) setActivityClientId(null); }}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{viewClient?.name}</DialogTitle></DialogHeader>
-          <div className="flex items-center gap-2 mb-2">
-            <Badge variant={viewClient?.status === "active" ? "default" : "secondary"}>{viewClient?.status}</Badge>
-            <span className="text-xs text-muted-foreground">Plan: {viewClient?.plans?.name || "None"}</span>
-          </div>
-          {linkedData && <LinkedActivitySection linkedData={linkedData} />}
+          <DialogHeader><DialogTitle>Activity — {activityClientName}</DialogTitle></DialogHeader>
+          {activityData ? (
+            <div className="space-y-4">
+              {activityData.requests.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5"><MessageSquarePlus className="h-3.5 w-3.5" /> Requests ({activityData.requests.length})</p>
+                  {activityData.requests.map((r: any) => (
+                    <div key={r.id} className="flex items-center justify-between text-sm pl-5">
+                      <span className="truncate">{r.topic}</span>
+                      <Badge variant="outline" className="text-[10px] shrink-0 ml-2">{r.status}</Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activityData.projects.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5"><FolderOpen className="h-3.5 w-3.5" /> Projects ({activityData.projects.length})</p>
+                  {activityData.projects.map((p: any) => (
+                    <div key={p.id} className="flex items-center justify-between text-sm pl-5">
+                      <span className="truncate">{p.name}</span>
+                      <Badge variant="outline" className="text-[10px] shrink-0 ml-2">{p.status}</Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activityData.tasks.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5"><ListTodo className="h-3.5 w-3.5" /> Tasks ({activityData.tasks.length})</p>
+                  {activityData.tasks.map((t: any) => (
+                    <div key={t.id} className="flex items-center justify-between text-sm pl-5">
+                      <span className="truncate">{t.title}</span>
+                      <Badge variant="outline" className="text-[10px] shrink-0 ml-2">{t.status}</Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activityData.thinkTank.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5"><Lightbulb className="h-3.5 w-3.5" /> Think Tank ({activityData.thinkTank.length})</p>
+                  {activityData.thinkTank.map((i: any) => (
+                    <div key={i.id} className="flex items-center justify-between text-sm pl-5">
+                      <span className="truncate">{i.title}</span>
+                      <Badge variant="outline" className="text-[10px] shrink-0 ml-2">{i.status}</Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activityData.projects.length === 0 && activityData.tasks.length === 0 && activityData.thinkTank.length === 0 && activityData.requests.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-8">No linked activity yet.</p>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground py-4">Loading…</p>
+          )}
         </DialogContent>
       </Dialog>
 
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : (
         <div className="space-y-3">
           {clients.map((c: any) => (
-            <Card key={c.id} className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => { if (isSSAdmin) openEditClient(c); else if (isSSTeam) setViewClient(c); }}>
+            <Card key={c.id} className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => { if (isSSAdmin) openEditClient(c); }}>
               <CardContent className="py-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Building2 className="h-5 w-5 text-muted-foreground" />
@@ -350,9 +440,15 @@ export default function AdminClients() {
                     <p className="text-xs text-muted-foreground">Plan: {c.plans?.name || "None"}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
                   <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => navigate(`/admin/client-strategy/${c.id}`)}>
                     <Target className="h-3.5 w-3.5" />Strategy
+                  </Button>
+                  <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => { setMediaClientId(c.id); setMediaClientName(c.name); }}>
+                    <Image className="h-3.5 w-3.5" />Media
+                  </Button>
+                  <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => { setActivityClientId(c.id); setActivityClientName(c.name); }}>
+                    <Activity className="h-3.5 w-3.5" />Activity
                   </Button>
                   {isSSAdmin && (
                     <>
