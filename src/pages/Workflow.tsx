@@ -74,29 +74,6 @@ function UserInitials({ name, className }: { name: string | null; className?: st
   );
 }
 
-function getBottomSections(contentTypeFilter: string): { key: PostStatus; label: string }[] {
-  const sections: { key: PostStatus; label: string }[] = [
-    { key: "client_approval", label: "Client Approval" },
-  ];
-  if (contentTypeFilter === "email_campaign") {
-    sections.push(
-      { key: "ready_to_send" as PostStatus, label: "Ready to Send" },
-      { key: "scheduled", label: "Scheduled" },
-      { key: "sent" as PostStatus, label: "Sent" },
-    );
-  } else {
-    const category = contentTypeFilter === "all" ? "all" : getContentCategory(contentTypeFilter);
-    if (category === "other") {
-      sections.push({ key: "complete" as PostStatus, label: "Complete" });
-    } else {
-      sections.push(
-        { key: "scheduled", label: "Scheduled" },
-        { key: "published", label: "Published" },
-      );
-    }
-  }
-  return sections;
-}
 
 export default function Workflow() {
   const { profile, isSSAdmin } = useAuth();
