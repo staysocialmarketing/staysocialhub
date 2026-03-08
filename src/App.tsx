@@ -23,6 +23,11 @@ import AdminContent from "./pages/admin/AdminContent";
 import AdminMarketplace from "./pages/admin/AdminMarketplace";
 import AdminMedia from "./pages/admin/AdminMedia";
 import AdminVersions from "./pages/admin/AdminVersions";
+import TeamDashboard from "./pages/admin/TeamDashboard";
+import TeamRoles from "./pages/admin/TeamRoles";
+import TeamRevenue from "./pages/admin/TeamRevenue";
+import TeamGrowth from "./pages/admin/TeamGrowth";
+import TeamWins from "./pages/admin/TeamWins";
 import ThinkTank from "./pages/team/ThinkTank";
 import Projects from "./pages/team/Projects";
 import Tasks from "./pages/team/Tasks";
@@ -80,6 +85,11 @@ const App = () => (
               <Route path="/admin/marketplace" element={<AdminRoute><AdminMarketplace /></AdminRoute>} />
               <Route path="/admin/media" element={<AdminRoute><AdminMedia /></AdminRoute>} />
               <Route path="/admin/versions" element={<AdminRoute><AdminVersions /></AdminRoute>} />
+              <Route path="/admin/team" element={<AdminRoute><TeamDashboard /></AdminRoute>} />
+              <Route path="/admin/team/roles" element={<AdminRoute><TeamRoles /></AdminRoute>} />
+              <Route path="/admin/team/revenue" element={<AdminRoute><TeamRevenue /></AdminRoute>} />
+              <Route path="/admin/team/growth" element={<AdminRoute><TeamGrowth /></AdminRoute>} />
+              <Route path="/admin/team/wins" element={<AdminRoute><TeamWins /></AdminRoute>} />
               <Route path="/team/think-tank" element={<AdminRoute><ThinkTank /></AdminRoute>} />
               <Route path="/team/projects" element={<AdminRoute><Projects /></AdminRoute>} />
               <Route path="/team/tasks" element={<AdminRoute><Tasks /></AdminRoute>} />

@@ -1,117 +1,57 @@
 
 
-# Team Dashboard (Admin Section)
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-## Overview
-Add an internal Team management area under Admin with 5 subpages for team structure, revenue tracking, growth paths, and wins. Admin gets full CRUD; team gets view-only; clients get no access.
+## Summary of Changes
 
-## Database
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
-### New table: `team_settings`
-Single-row config table for revenue/bonus data:
-- `id` uuid PK default gen_random_uuid()
-- `monthly_revenue` numeric default 0
-- `next_milestone` numeric default 0
-- `bonus_pool` numeric default 0
-- `updated_at` timestamptz default now()
+## 1. Database: Update Auto-Assignment Triggers
 
-RLS: SS roles SELECT, ss_admin UPDATE/INSERT.
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-### New table: `team_roles_config`
-Stores role descriptions for each team member:
-- `id` uuid PK
-- `user_name` text NOT NULL
-- `title` text
-- `responsibilities` jsonb (array of strings)
-- `mission` text
-- `sort_order` int default 0
-- `updated_at` timestamptz default now()
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
-RLS: SS roles SELECT, ss_admin full manage.
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
 
-### New table: `team_growth_tracks`
-Learning path items:
-- `id` uuid PK
-- `user_name` text NOT NULL (e.g. "Tristan", "Gavin")
-- `track_name` text NOT NULL
-- `sort_order` int default 0
-- `updated_at` timestamptz default now()
+## 2. Approvals Page — Separate Media from Published Content
 
-RLS: SS roles SELECT, ss_admin full manage.
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
 
-### New table: `team_wins`
-Monthly wins log:
-- `id` uuid PK
-- `title` text NOT NULL
-- `created_at` timestamptz default now()
-- `created_by_user_id` uuid NOT NULL
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
 
-RLS: SS roles SELECT, ss_admin INSERT/DELETE.
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
 
-Seed initial data: 3 role entries (Corey, Tristan, Gavin), team_settings row, sample growth tracks.
+## 3. Workflow Page — Move Internal Review to Bottom Section
 
-## New Pages
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
 
-### `src/pages/admin/TeamDashboard.tsx`
-- StatCard for Monthly Revenue, Next Milestone, Bonus Pool
-- Progress bar (revenue / milestone)
-- "Remaining to milestone" text
-- Bonus breakdown (static display from team_settings)
-- Links to subpages
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
 
-### `src/pages/admin/TeamRoles.tsx`
-- Card per team member showing name, title, responsibilities list, mission
-- Admin: inline edit with save button
-- Team: read-only
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
 
-### `src/pages/admin/TeamRevenue.tsx`
-- Editable form (admin only): current revenue, next milestone, bonus pool
-- Progress bar + remaining calculation
-- Team: read-only display
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
-### `src/pages/admin/TeamGrowth.tsx`
-- Grouped by team member name
-- List of growth track items
-- Admin: add/edit/delete tracks
-- Team: read-only
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
-### `src/pages/admin/TeamWins.tsx`
-- Chronological list of wins
-- Admin: add new win, delete
-- Team: read-only
+## Files Changed
 
-## Navigation Changes
-
-### `src/components/AppSidebar.tsx`
-Add "Team Dashboard" to admin section (visible to both ss_admin and ss_team):
-```
-{ title: "Team", url: "/admin/team", icon: Users }
-```
-Position it after "Users" in the admin section. Note: this is distinct from the existing "Team" workspace section (Projects/Tasks/Think Tank).
-
-### `src/App.tsx`
-Add 5 new AdminRoute routes:
-- `/admin/team` → TeamDashboard
-- `/admin/team/roles` → TeamRoles
-- `/admin/team/revenue` → TeamRevenue
-- `/admin/team/growth` → TeamGrowth
-- `/admin/team/wins` → TeamWins
-
-## Permissions
-- All 5 pages wrapped in `AdminRoute` (requires `isSSRole`)
-- Edit controls conditionally rendered based on `isSSAdmin` from AuthContext
-- Team members see all data but no edit/add/delete buttons
-
-## Files Summary
-
-| Action | File |
-|--------|------|
-| Migration | 1 SQL: 4 tables + seed data |
-| New | `src/pages/admin/TeamDashboard.tsx` |
-| New | `src/pages/admin/TeamRoles.tsx` |
-| New | `src/pages/admin/TeamRevenue.tsx` |
-| New | `src/pages/admin/TeamGrowth.tsx` |
-| New | `src/pages/admin/TeamWins.tsx` |
-| Edit | `src/components/AppSidebar.tsx` (add nav item) |
-| Edit | `src/App.tsx` (add routes + imports) |
+| File | Change |
+|------|--------|
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 

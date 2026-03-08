@@ -70,6 +70,7 @@ const adminSection = [
   { title: "Media Library", url: "/admin/media", icon: Image },
   { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
   { title: "Users", url: "/admin/users", icon: Users },
+  { title: "Team", url: "/admin/team", icon: Users },
   { title: "Versions", url: "/admin/versions", icon: Tag },
 ];
 
