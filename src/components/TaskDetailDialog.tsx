@@ -91,6 +91,7 @@ interface TaskDetailDialogProps {
 
 export default function TaskDetailDialog({ task, onClose, onUpdated, projects, ssUsers, users }: TaskDetailDialogProps) {
   const { profile, isSSAdmin, isSSRole } = useAuth();
+  const navigate = useNavigate();
   const canEdit = task ? (isSSAdmin || task.created_by_user_id === profile?.id) : false;
 
   const [editing, setEditing] = useState(false);
