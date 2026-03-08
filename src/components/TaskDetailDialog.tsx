@@ -362,7 +362,17 @@ export default function TaskDetailDialog({ task, onClose, onUpdated, projects, s
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Project</Label>
-              <p className="text-sm font-medium">{projectId ? getProjectName(projectId) : "—"}</p>
+              {projectId ? (
+                <button
+                  className="text-sm font-medium text-primary hover:underline flex items-center gap-1"
+                  onClick={() => { onClose(); navigate("/team/projects"); }}
+                >
+                  <FolderOpen className="h-3 w-3" />
+                  {getProjectName(projectId)}
+                </button>
+              ) : (
+                <p className="text-sm font-medium">—</p>
+              )}
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Assignee</Label>

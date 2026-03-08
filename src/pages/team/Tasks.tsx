@@ -248,7 +248,15 @@ export default function Tasks() {
                     </div>
                     {task.description && <p className="text-xs text-muted-foreground/70 line-clamp-1">{task.description}</p>}
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      {projectName(task.project_id) && <Badge variant="secondary" className="text-[11px]">{projectName(task.project_id)}</Badge>}
+                      {projectName(task.project_id) && (
+                        <Badge
+                          variant="secondary"
+                          className="text-[11px] cursor-pointer hover:bg-secondary/80"
+                          onClick={(e) => { e.stopPropagation(); navigate("/team/projects"); }}
+                        >
+                          {projectName(task.project_id)}
+                        </Badge>
+                      )}
                       {userName(task) && (
                         <span className="flex items-center gap-0.5">
                           <User className="h-3 w-3" />

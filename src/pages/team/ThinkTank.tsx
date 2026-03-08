@@ -176,7 +176,7 @@ export default function ThinkTank() {
 
   const handleCreateTask = async () => {
     if (!actionName.trim() || !profile || !createTaskItem) return;
-    const { error } = await supabase.from("tasks").insert({
+    const { data: newTask, error } = await supabase.from("tasks").insert({
       title: actionName.trim(),
       description: actionDesc.trim() || null,
       created_by_user_id: profile.id,
@@ -184,8 +184,17 @@ export default function ThinkTank() {
       project_id: actionProjectId || null,
       priority: actionPriority,
       assigned_to_user_id: actionAssigneeId || null,
-    } as any);
+    } as any).select("id").single();
     if (error) { toast.error(error.message); return; }
+    // Log origin activity
+    if (newTask) {
+      await supabase.from("task_activity_log").insert({
+        task_id: newTask.id,
+        user_id: profile.id,
+        action: "think_tank_origin",
+        details: `Created from Think Tank idea: ${createTaskItem.title}`,
+      } as any);
+    }
     await updateStatus(createTaskItem.id, "actioned");
     toast.success("Task created from idea!");
     setCreateTaskItem(null);
