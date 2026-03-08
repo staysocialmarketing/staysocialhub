@@ -1,72 +1,57 @@
 
 
-# Client Success Center + Navigation Update
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-## Summary
-Create a new Success Center page that provides clients a read-only summary of their marketing progress by pulling data from the existing `client_strategy` table. Add a new `client_success_extras` table for team-editable fields (recent wins, coming up next, current focus override). Update client sidebar navigation order.
+## Summary of Changes
 
-## Database Migration
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
-Create a new table `client_success_extras` to store the team-editable fields that don't belong in `client_strategy`:
+## 1. Database: Update Auto-Assignment Triggers
 
-```sql
-CREATE TABLE public.client_success_extras (
-  client_id uuid PRIMARY KEY REFERENCES public.clients(id) ON DELETE CASCADE,
-  recent_wins jsonb NOT NULL DEFAULT '[]',
-  coming_up_next jsonb NOT NULL DEFAULT '[]',
-  focus_override text,
-  recommended_next_step text,
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-ALTER TABLE public.client_success_extras ENABLE ROW LEVEL SECURITY;
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
--- SS can manage
-CREATE POLICY "SS can manage client success extras" ON public.client_success_extras
-  FOR ALL TO authenticated USING (is_ss_role()) WITH CHECK (is_ss_role());
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
 
--- Clients can view their own
-CREATE POLICY "Clients can view own success extras" ON public.client_success_extras
-  FOR SELECT TO authenticated USING (can_access_client(client_id));
-```
+## 2. Approvals Page — Separate Media from Published Content
 
-This keeps strategy data in `client_strategy` and adds only the Success Center-specific fields (wins, upcoming, recommended step) in a new table. No data duplication.
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
 
-## Data Mapping
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
 
-| Success Center Section | Source |
-|---|---|
-| Current Focus | `client_strategy.focus_json.weekly_focus` (or `client_success_extras.focus_override` if set) |
-| Goals | `client_strategy.goals_json.objectives` (split by newlines) |
-| Active Priorities | `client_strategy.campaigns_json.notes` (split by newlines) |
-| Recent Wins | `client_success_extras.recent_wins` (JSON array of strings) |
-| Coming Up Next | `client_success_extras.coming_up_next` (JSON array of strings) |
-| Your Plan | `clients.plan_id` → `plans.name` + `clients.recommended_item_id` → `marketplace_items` |
-| Recommended Next Step | `client_success_extras.recommended_next_step` |
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
 
-## Files
+## 3. Workflow Page — Move Internal Review to Bottom Section
 
-| Action | File | Change |
-|---|---|---|
-| Create | `src/pages/client/SuccessCenter.tsx` | Full page with 9 sections as specified. Clients see read-only; team/admin see inline edit controls for editable fields. Uses `useQuery` to fetch strategy + extras + plan data. |
-| Edit | `src/components/AppSidebar.tsx` | Update `clientItems` array order: Dashboard, Success Center, Approvals, Requests, My Media, My Profile, My Plan, What's New |
-| Edit | `src/App.tsx` | Add route `/client/success` pointing to `SuccessCenter`, accessible to all authenticated users |
-| Migration | New table | `client_success_extras` as described above |
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
 
-## Success Center Page Sections
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
 
-1. **Hero** — Welcome card with client name, active plan badge, last updated date
-2. **Current Focus** — Pulls from strategy `focus_json.weekly_focus`. Team can edit inline.
-3. **Goals** — Pulls from strategy `goals_json.objectives`, displayed as a list. Read-only for all (managed in Strategy).
-4. **Active Priorities** — Pulls from strategy `campaigns_json.notes`, displayed as cards/list. Read-only (managed in Strategy).
-5. **Recent Wins** — From `client_success_extras.recent_wins`. Team can add/remove items.
-6. **Coming Up Next** — From `client_success_extras.coming_up_next`. Team can add/remove items.
-7. **Your Plan** — Shows plan name from `plans` table + recommended marketplace item as a soft suggestion card.
-8. **Quick Actions** — Buttons linking to Submit Request, Approvals, My Media, and a "Book a Strategy Call" placeholder.
-9. **Platform Updates** — Small footer card linking to `/whats-new`.
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
 
-## Edit Permissions
-- **Clients**: Entire page is read-only
-- **Team/Admin (`isSSRole`)**: Can edit Current Focus (override), Recent Wins, Coming Up Next, Recommended Next Step via inline controls that save to `client_success_extras`
-- **Goals & Active Priorities**: Always read-only on this page — managed via Admin → Client Strategy
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 

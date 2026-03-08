@@ -16,6 +16,7 @@ import Profile from "./pages/Profile";
 import WhatsNew from "./pages/WhatsNew";
 import Plan from "./pages/Plan";
 import ContentLibrary from "./pages/ContentLibrary";
+import SuccessCenter from "./pages/client/SuccessCenter";
 import AdminClients from "./pages/admin/AdminClients";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminProfileUpdates from "./pages/admin/AdminProfileUpdates";
@@ -76,6 +77,7 @@ const App = () => (
               <Route path="/approvals/:postId" element={<PostDetail />} />
               <Route path="/requests" element={<Requests />} />
               <Route path="/content-library" element={<ContentLibrary />} />
+              <Route path="/client/success" element={<SuccessCenter />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/plan" element={<Plan />} />
               <Route path="/whats-new" element={<WhatsNew />} />

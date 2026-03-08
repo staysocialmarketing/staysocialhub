@@ -78,12 +78,13 @@ const adminSection = [
 // ─── Client nav ──────────────────────────────────────────────────────────────
 const clientItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Success Center", url: "/client/success", icon: Sparkles },
   { title: "Approvals", url: "/approvals", icon: CheckSquare },
   { title: "Requests", url: "/requests", icon: MessageSquarePlus },
   { title: "My Media", url: "/content-library", icon: FolderOpen },
   { title: "My Profile", url: "/profile", icon: UserCircle },
   { title: "My Plan", url: "/plan", icon: ClipboardList },
-  { title: "What's New", url: "/whats-new", icon: Sparkles },
+  { title: "What's New", url: "/whats-new", icon: Eye },
 ];
 
 interface UserWithRole {
