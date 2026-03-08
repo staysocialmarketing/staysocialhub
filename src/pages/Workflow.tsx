@@ -122,8 +122,8 @@ export default function Workflow() {
 
   const bottomSections = getBottomSections(contentTypeFilter);
   const ALL_STATUSES: PostStatus[] = [
-    ...KANBAN_COLUMNS.map(c => c.key),
-    "scheduled", "published", "ready_to_send" as PostStatus, "sent" as PostStatus, "complete" as PostStatus,
+    ...PRIMARY_COLUMNS.map(c => c.key),
+    "client_approval", "scheduled", "published", "ready_to_send" as PostStatus, "sent" as PostStatus, "complete" as PostStatus,
   ];
 
   const { data: posts = [], isLoading } = useQuery({
