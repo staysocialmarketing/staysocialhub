@@ -67,7 +67,6 @@ const teamSection = [
 
 const adminSection = [
   { title: "Clients", url: "/admin/clients", icon: Building2 },
-  { title: "Media Library", url: "/admin/media", icon: Image },
   { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
   { title: "Users", url: "/admin/users", icon: Users },
   { title: "Team", url: "/admin/team", icon: Users },

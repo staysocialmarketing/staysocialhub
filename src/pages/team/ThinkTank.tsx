@@ -67,6 +67,13 @@ export default function ThinkTank() {
   const [createTaskItem, setCreateTaskItem] = useState<ThinkTankItem | null>(null);
   const [actionName, setActionName] = useState("");
   const [actionDesc, setActionDesc] = useState("");
+  const [actionClientId, setActionClientId] = useState("");
+  const [actionParentProjectId, setActionParentProjectId] = useState("");
+  const [actionProjectId, setActionProjectId] = useState("");
+  const [actionPriority, setActionPriority] = useState("normal");
+  const [actionAssigneeId, setActionAssigneeId] = useState("");
+  const [projects, setProjects] = useState<{ id: string; name: string; client_id: string | null; parent_project_id: string | null }[]>([]);
+  const [staffUsers, setStaffUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
 
   // Edit state
   const [editItem, setEditItem] = useState<ThinkTankItem | null>(null);
