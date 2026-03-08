@@ -1,5 +1,6 @@
 
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import orangeLogo from "@/assets/orange_with_black.png";
 import {
   LayoutDashboard,
