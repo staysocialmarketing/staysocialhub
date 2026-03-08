@@ -351,6 +351,9 @@ export default function AdminClients() {
                   </div>
                 </div>
                 <div className="flex items-center gap-4" onClick={(e) => e.stopPropagation()}>
+                  <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => navigate(`/admin/client-strategy/${c.id}`)}>
+                    <Target className="h-3.5 w-3.5" />Strategy
+                  </Button>
                   {isSSAdmin && (
                     <>
                       <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => setWhatsNewClient(c.id)}>
