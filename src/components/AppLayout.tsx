@@ -79,6 +79,7 @@ export function AppLayout() {
           <GlobalCaptureButton />
         </div>
       </div>
+      <VersionHistoryDialog open={versionDialogOpen} onOpenChange={setVersionDialogOpen} />
     </SidebarProvider>
   );
 }
