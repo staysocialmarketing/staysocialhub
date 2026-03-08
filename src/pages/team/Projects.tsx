@@ -61,6 +61,7 @@ export default function Projects() {
   const { selectedClientId: globalClientId } = useClientFilter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectTasks, setProjectTasks] = useState<Record<string, Task[]>>({});
+  const [projectStats, setProjectStats] = useState<Record<string, { checklist: number; checklistDone: number; attachments: number; comments: number }>>({});
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("active");
   const [dialogOpen, setDialogOpen] = useState(false);
