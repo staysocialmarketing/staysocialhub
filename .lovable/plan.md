@@ -1,57 +1,55 @@
 
 
-# Workflow, Approvals, and Auto-Assignment Overhaul
+# Clickable Project Links + Enhanced Activity Tracking in Tasks
 
-## Summary of Changes
+## Changes
 
-This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
+### 1. Clickable Project in TaskDetailDialog (`src/components/TaskDetailDialog.tsx`)
 
-## 1. Database: Update Auto-Assignment Triggers
+In the read-only meta fields section (lines 357-359), replace the static project name text with a clickable link that navigates to `/team/projects` with the project expanded. Use `useNavigate` from react-router-dom:
 
-**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
+```tsx
+// Read-only Project field becomes a clickable link
+<button onClick={() => { onClose(); navigate("/team/projects"); }}>
+  {getProjectName(projectId)}
+</button>
+```
 
-**Changes (migration)**:
-- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
-- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
-- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
-- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
+Style it as a blue underlined link. Apply the same treatment to the project name shown on kanban cards in `Tasks.tsx` (line ~178).
 
-All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
+### 2. Enhanced Activity Log — Track Full Task Lifecycle
 
-## 2. Approvals Page — Separate Media from Published Content
+The current `task_activity_log` only tracks status/assignee/priority changes via the `log_task_changes` trigger. Enhance it to capture origin and lifecycle events:
 
-**Client Approvals (`ClientApprovals`)**: 
-- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
-- Alternatively, only show posts in Published that were moved there by admin approval flow
+**a) Log task creation origin** — Update the `auto_create_task_from_request` trigger function to also insert an activity log entry like `"Created from request: {topic}"`. Similarly, when a Think Tank item is converted to a task (this happens in client-side code in ThinkTank.tsx), insert an activity log entry after task creation.
 
-**Admin Approvals (`AdminApprovals`)**:
-- Same fix for Published column — filter to only show posts linked to requests
+**b) Log project assignment** — In the `log_task_changes` trigger, add tracking for `project_id` changes: `"Linked to project: {name}"`.
 
-**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
+**c) Log request generation** — When "Generate Request" is used from a task, insert an activity entry.
 
-## 3. Workflow Page — Move Internal Review to Bottom Section
+**Database migration**: Update the `log_task_changes` function to also track `project_id` changes, and update `auto_create_task_from_request` to log the origin.
 
-**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
+**Client-side**: In ThinkTank.tsx where tasks are created from ideas, add an activity log insert. In TaskDetailDialog/Tasks where requests are generated, add an activity log insert.
 
-**New layout**:
-- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
-- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
+### 3. Project Detail View — Show Task Sections (Projects.tsx)
 
-## 4. Admin & Team Dashboards — Show Assignments + Tasks
+Currently the Projects page shows tasks as simple rows. Enhance the expanded project view to show aggregate info from task sub-sections:
 
-**SuperAdminDashboard**: Already shows team activity. Add:
-- "My Assignments" section showing posts assigned to the current admin user
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+- Show total checklist progress across all project tasks (query `task_checklist_items` for all tasks in the project)
+- Show total attachments count
+- Show recent comments count
+- Display these as small stat badges in the project header when expanded
 
-**TeamDashboard**: Already shows "My Assignments". Add:
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+This gives a "full overview" without duplicating the task detail tabs.
 
-## Files Changed
+## Files
 
-| File | Change |
-|------|--------|
-| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
-| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
-| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
-| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
+| Action | File | Change |
+|--------|------|--------|
+| Edit | `src/components/TaskDetailDialog.tsx` | Make project name a clickable nav link; log activity on request generation |
+| Edit | `src/pages/team/Tasks.tsx` | Make project badge on kanban cards clickable |
+| Edit | `src/pages/team/Projects.tsx` | Add task section rollup stats (checklist, files, comments counts) |
+| Edit | `src/pages/team/ThinkTank.tsx` | Log activity when converting idea to task |
+| Migration | `log_task_changes` function | Track project_id changes |
+| Migration | `auto_create_task_from_request` function | Log "created from request" activity entry |
 
