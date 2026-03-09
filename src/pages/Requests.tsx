@@ -17,6 +17,8 @@ import type { Database } from "@/integrations/supabase/types";
 import RequestDetailDialog from "@/components/RequestDetailDialog";
 import { compressImage } from "@/lib/imageUtils";
 import { REQUEST_TYPE_OPTIONS } from "@/lib/workflowUtils";
+import FilterBar, { useFilterBar, PRIORITY_FILTER_OPTIONS } from "@/components/FilterBar";
+import type { FilterConfig } from "@/components/FilterBar";
 
 type RequestType = Database["public"]["Enums"]["request_type"];
 type RequestStatus = Database["public"]["Enums"]["request_status"];
@@ -39,7 +41,6 @@ export default function Requests() {
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
   const [form, setForm] = useState({
     type: "social_post" as RequestType,
     topic: "",
@@ -69,6 +70,22 @@ export default function Requests() {
     enabled: isSSRole,
   });
 
+  const statusFilterOptions = [
+    { value: "open", label: "Open" },
+    { value: "in_progress", label: "In Progress" },
+    { value: "completed", label: "Completed" },
+    { value: "cancelled", label: "Cancelled" },
+  ];
+
+  const filterConfigs: FilterConfig[] = [
+    ...(isSSAdmin ? [{ key: "client", label: "Client", options: clients.map((c: any) => ({ value: c.id, label: c.name })) }] : []),
+    { key: "requestType", label: "Type", options: REQUEST_TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label })) },
+    ...(isSSRole ? [{ key: "assignee", label: "Assigned To", options: ssUsers.map((u: any) => ({ value: u.id, label: (u as any).name || (u as any).email })) }] : []),
+    { key: "priority", label: "Priority", options: PRIORITY_FILTER_OPTIONS },
+    { key: "status", label: "Status", options: statusFilterOptions },
+  ];
+  const { values: filterValues, setValues: setFilterValues } = useFilterBar(filterConfigs, "requests");
+
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ["requests", profile?.client_id, globalClientId],
     queryFn: async () => {
@@ -82,7 +99,14 @@ export default function Requests() {
     enabled: !!profile,
   });
 
-  const filteredRequests = typeFilter === "all" ? requests : requests.filter((r: any) => r.type === typeFilter);
+  const filteredRequests = requests.filter((r: any) => {
+    if (filterValues.requestType !== "all" && r.type !== filterValues.requestType) return false;
+    if (filterValues.client !== "all" && r.client_id !== filterValues.client) return false;
+    if (filterValues.assignee !== "all" && r.assigned_to_user_id !== filterValues.assignee) return false;
+    if (filterValues.priority !== "all" && (r.priority || "normal") !== filterValues.priority) return false;
+    if (filterValues.status !== "all" && r.status !== filterValues.status) return false;
+    return true;
+  });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
@@ -242,19 +266,7 @@ export default function Requests() {
         )}
       </div>
 
-      {/* Type Filter */}
-      <div className="flex items-center gap-2">
-        <Label className="text-sm text-muted-foreground">Filter:</Label>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-[180px] h-8 text-xs"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            {REQUEST_TYPE_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <FilterBar filters={filterConfigs} values={filterValues} onChange={setFilterValues} />
 
       {isLoading ? (
         <p className="text-muted-foreground">Loading requests...</p>

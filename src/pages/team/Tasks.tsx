@@ -18,6 +18,8 @@ import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
 import DatePickerField from "@/components/DatePickerField";
 import TaskDetailDialog from "@/components/TaskDetailDialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import FilterBar, { useFilterBar, applyDueDateFilter, PRIORITY_FILTER_OPTIONS, DUE_DATE_FILTER_OPTIONS } from "@/components/FilterBar";
+import type { FilterConfig } from "@/components/FilterBar";
 
 interface Task {
   id: string;
@@ -58,8 +60,6 @@ export default function Tasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [filterProject, setFilterProject] = useState("all");
-  const [filterAssignee, setFilterAssignee] = useState("__pending__");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [projectId, setProjectId] = useState("");
@@ -75,25 +75,45 @@ export default function Tasks() {
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [ssUsers, setSsUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
 
+  const assigneeOptions = [
+    { value: "mine", label: "My Tasks" },
+    { value: "unassigned", label: "Unassigned" },
+    { value: "team", label: "🤝 Team Only" },
+    ...ssUsers.map((u) => ({ value: u.id, label: u.name || u.email })),
+  ];
+
+  const filterConfigs: FilterConfig[] = [
+    { key: "client", label: "Client", options: clients.map((c) => ({ value: c.id, label: c.name })) },
+    { key: "project", label: "Project", options: projects.map((p) => ({ value: p.id, label: p.name })) },
+    { key: "assignee", label: "Assigned To", options: assigneeOptions },
+    { key: "priority", label: "Priority", options: PRIORITY_FILTER_OPTIONS },
+    { key: "dueDate", label: "Due Date", options: DUE_DATE_FILTER_OPTIONS },
+  ];
+  const { values: filterValues, setValues: setFilterValues } = useFilterBar(filterConfigs, "tasks");
+
+  // Initialize assignee filter based on role
   useEffect(() => {
-    if (profile && filterAssignee === "__pending__") {
-      setFilterAssignee(isSSAdmin ? "all" : "mine");
+    if (profile && filterValues.assignee === "all") {
+      if (!isSSAdmin) {
+        setFilterValues({ ...filterValues, assignee: "mine" });
+      }
     }
   }, [profile, isSSAdmin]);
 
   const fetchTasks = async () => {
-    if (filterAssignee === "__pending__") return;
     let query = supabase.from("tasks").select("*").order("created_at", { ascending: false });
     if (globalClientId) query = query.eq("client_id", globalClientId);
-    if (filterProject !== "all") query = query.eq("project_id", filterProject);
-    if (filterAssignee === "mine" && profile) {
+    if (filterValues.client !== "all") query = query.eq("client_id", filterValues.client);
+    if (filterValues.project !== "all") query = query.eq("project_id", filterValues.project);
+    const assignee = filterValues.assignee || "all";
+    if (assignee === "mine" && profile) {
       query = query.or(`assigned_to_user_id.eq.${profile.id},assigned_to_team.eq.true`);
-    } else if (filterAssignee === "team") {
+    } else if (assignee === "team") {
       query = query.eq("assigned_to_team", true);
-    } else if (filterAssignee === "unassigned") {
+    } else if (assignee === "unassigned") {
       query = query.is("assigned_to_user_id", null).eq("assigned_to_team", false);
-    } else if (filterAssignee !== "all") {
-      query = query.eq("assigned_to_user_id", filterAssignee);
+    } else if (assignee !== "all") {
+      query = query.eq("assigned_to_user_id", assignee);
     }
     const { data } = await query;
     setTasks((data as Task[]) || []);
@@ -111,7 +131,7 @@ export default function Tasks() {
       });
     });
     supabase.from("clients").select("id, name").eq("status", "active").then(({ data }) => setClients(data || []));
-  }, [filterProject, filterAssignee, globalClientId]);
+  }, [filterValues.project, filterValues.assignee, filterValues.client, globalClientId]);
 
   const handleCreate = async () => {
     if (!title.trim() || !profile) return;
@@ -150,7 +170,12 @@ export default function Tasks() {
     return projects.find((p) => p.id === id)?.name;
   };
 
-  const tasksByStatus = (status: string) => tasks.filter((t) => t.status === status);
+  const tasksByStatus = (status: string) => tasks.filter((t) => {
+    if (t.status !== status) return false;
+    if (filterValues.priority !== "all" && t.priority !== filterValues.priority) return false;
+    if (!applyDueDateFilter(t.due_at, filterValues.dueDate || "all")) return false;
+    return true;
+  });
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
@@ -203,25 +228,7 @@ export default function Tasks() {
         </Dialog>
       </div>
 
-      <div className="flex gap-3 flex-wrap">
-        <Select value={filterProject} onValueChange={setFilterProject}>
-          <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="All Projects" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Projects</SelectItem>
-            {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={filterAssignee === "__pending__" ? "mine" : filterAssignee} onValueChange={setFilterAssignee}>
-          <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="All Assignees" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="mine">My Tasks</SelectItem>
-            <SelectItem value="all">All Tasks</SelectItem>
-            <SelectItem value="unassigned">Unassigned</SelectItem>
-            <SelectItem value="team">🤝 Team Only</SelectItem>
-            {ssUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
+      <FilterBar filters={filterConfigs} values={filterValues} onChange={setFilterValues} />
 
       {loading ? (
         <p className="text-muted-foreground">Loading...</p>

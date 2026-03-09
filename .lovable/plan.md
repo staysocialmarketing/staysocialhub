@@ -1,66 +1,57 @@
 
 
-# Workflow Filters System
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-## Summary
-Add a unified filter bar with Client, Type, Assigned To, Priority, and Due Date filters across Workflow, Requests, and Tasks pages. All filtering is client-side. Active filters display as removable chips. Session-level persistence via `sessionStorage`.
+## Summary of Changes
 
-## Approach
-Create a shared `FilterBar` component used by all three pages. Each page passes its relevant filter options. Filters are applied client-side to already-fetched data.
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
-## New Component: `src/components/FilterBar.tsx`
+## 1. Database: Update Auto-Assignment Triggers
 
-Reusable filter bar with:
-- Configurable filter dropdowns (each page picks which filters to show)
-- Active filter chips with × remove buttons
-- Session storage persistence keyed by page name
-- Filter types: `client`, `contentType`, `requestType`, `assignee`, `priority`, `dueDate`
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-Due date options: All, Due Today, Due This Week, Overdue
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
-Priority options: All, Low, Normal, High, Urgent
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
 
-## Page Changes
+## 2. Approvals Page — Separate Media from Published Content
 
-### `src/pages/Workflow.tsx`
-- Replace single `contentTypeFilter` select with `FilterBar`
-- Add filters: Client, Content Type, Assigned To, Priority, Due Date
-- Apply all filters to `posts` array client-side (already fetched)
-- Use `useClientFilter` global client filter as base, local filters layer on top
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
 
-### `src/pages/Requests.tsx`
-- Replace single `typeFilter` select with `FilterBar`
-- Add filters: Client (admin only), Request Type, Assigned To, Priority, Status
-- Apply filters client-side to `requests` array
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
 
-### `src/pages/team/Tasks.tsx`
-- Replace current project/assignee selects with `FilterBar`
-- Add filters: Client, Project, Assigned To, Priority, Due Date
-- Keep server-side assignee filtering (already works), add client-side for priority/due date
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
 
-## FilterBar Component Design
+## 3. Workflow Page — Move Internal Review to Bottom Section
 
-```
-┌─────────────────────────────────────────────────────┐
-│ [Client ▾] [Type ▾] [Assigned ▾] [Priority ▾] [Due ▾] │
-│                                                       │
-│ Client: Premiere ×   Type: Social Post ×              │
-└─────────────────────────────────────────────────────┘
-```
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
 
-- Each dropdown defaults to "All"
-- Active (non-"all") filters render as small outline badges with × button
-- `sessionStorage` key: `hub-filters-{pageName}`
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
 
-## Files
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
 
-| Action | File | Change |
-|--------|------|--------|
-| Create | `src/components/FilterBar.tsx` | Shared filter bar with chips + session persistence |
-| Edit | `src/pages/Workflow.tsx` | Replace content type filter with full FilterBar |
-| Edit | `src/pages/Requests.tsx` | Replace type filter with FilterBar |
-| Edit | `src/pages/team/Tasks.tsx` | Replace project/assignee filters with FilterBar |
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
-## No Database Changes
-All filtering is client-side on already-fetched data. No schema changes needed.
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 

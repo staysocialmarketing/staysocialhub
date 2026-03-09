@@ -25,6 +25,9 @@ import type { Database } from "@/integrations/supabase/types";
 import WorkflowCardDialog from "@/components/WorkflowCardDialog";
 import ApprovalActions from "@/components/ApprovalActions";
 import { CONTENT_TYPE_OPTIONS, AUDIENCE_OPTIONS } from "@/lib/workflowUtils";
+import FilterBar, { useFilterBar, applyDueDateFilter, PRIORITY_FILTER_OPTIONS, DUE_DATE_FILTER_OPTIONS } from "@/components/FilterBar";
+import type { FilterConfig } from "@/components/FilterBar";
+import { useClientFilter } from "@/contexts/ClientFilterContext";
 
 type PostStatus = Database["public"]["Enums"]["post_status"];
 
@@ -81,7 +84,20 @@ export default function Workflow() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<any>(null);
-  const [contentTypeFilter, setContentTypeFilter] = useState<string>("all");
+  // FilterBar setup
+  const { data: allClients = [] } = useQuery({
+    queryKey: ["all-clients"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("clients").select("id, name").order("name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { selectedClientId: globalClientId } = useClientFilter();
+
+  
+
   const [newPost, setNewPost] = useState({
     client_id: "",
     title: "",
@@ -118,14 +134,8 @@ export default function Workflow() {
     enabled: !!profile,
   });
 
-  const { data: clients = [] } = useQuery({
-    queryKey: ["all-clients"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("clients").select("id, name").order("name");
-      if (error) throw error;
-      return data || [];
-    },
-  });
+  // clients query is already above in filterConfigs
+  const clients = allClients;
 
   const { data: ssUsers = [] } = useQuery({
     queryKey: ["ss-users"],
@@ -143,6 +153,15 @@ export default function Workflow() {
       }).map((r: any) => r.users);
     },
   });
+
+  const filterConfigs: FilterConfig[] = [
+    { key: "client", label: "Client", options: allClients.map((c: any) => ({ value: c.id, label: c.name })) },
+    { key: "contentType", label: "Type", options: CONTENT_TYPE_OPTIONS.map((t) => ({ value: t.value, label: t.label })) },
+    { key: "assignee", label: "Assigned To", options: ssUsers.map((u: any) => ({ value: u.id, label: u.name || u.email })) },
+    { key: "priority", label: "Priority", options: PRIORITY_FILTER_OPTIONS },
+    { key: "dueDate", label: "Due Date", options: DUE_DATE_FILTER_OPTIONS },
+  ];
+  const { values: filterValues, setValues: setFilterValues } = useFilterBar(filterConfigs, "workflow");
 
   const isEmailType = newPost.content_type === "email_campaign";
 
@@ -357,15 +376,7 @@ export default function Workflow() {
           <p className="text-sm text-muted-foreground">Production pipeline — drag cards or use action buttons</p>
         </div>
         <div className="flex items-center gap-3">
-          <Select value={contentTypeFilter} onValueChange={setContentTypeFilter}>
-            <SelectTrigger className="w-full sm:w-40 h-9"><SelectValue placeholder="All Types" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              {CONTENT_TYPE_OPTIONS.map(t => (
-                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <FilterBar filters={filterConfigs} values={filterValues} onChange={setFilterValues} />
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
               <Button><Plus className="h-4 w-4 mr-2" />New Post</Button>
@@ -484,7 +495,19 @@ export default function Workflow() {
       <ScrollArea className="flex-1 min-h-0">
         <div className="flex gap-5 pb-4" style={{ minWidth: PRIMARY_COLUMNS.length * 310 }}>
           {PRIMARY_COLUMNS.map(col => {
-            const columnPosts = posts.filter((p: any) => p.status_column === col.key && (contentTypeFilter === "all" || p.content_type === contentTypeFilter));
+            const columnPosts = posts.filter((p: any) => {
+              if (p.status_column !== col.key) return false;
+              if (filterValues.contentType !== "all" && p.content_type !== filterValues.contentType) return false;
+              if (filterValues.client !== "all" && p.client_id !== filterValues.client) return false;
+              if (globalClientId && p.client_id !== globalClientId) return false;
+              if (filterValues.assignee !== "all" && p.assigned_to_user_id !== filterValues.assignee) return false;
+              if (filterValues.priority !== "all") {
+                const postPriority = (p as any).priority || "normal";
+                if (postPriority !== filterValues.priority) return false;
+              }
+              if (!applyDueDateFilter(p.due_at, filterValues.dueDate || "all")) return false;
+              return true;
+            });
             return (
               <div key={col.key} className="w-[290px] shrink-0 flex flex-col bg-accent/30 rounded-xl" onDrop={e => handleDrop(e, col.key)} onDragOver={handleDragOver}>
                 <div className="px-4 py-3 flex items-center justify-between">
