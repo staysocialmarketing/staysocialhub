@@ -569,6 +569,7 @@ export type Database = {
           send_date: string | null
           status_column: Database["public"]["Enums"]["post_status"]
           subject_line: string | null
+          tags: Json
           title: string
         }
         Insert: {
@@ -594,6 +595,7 @@ export type Database = {
           send_date?: string | null
           status_column?: Database["public"]["Enums"]["post_status"]
           subject_line?: string | null
+          tags?: Json
           title: string
         }
         Update: {
@@ -619,6 +621,7 @@ export type Database = {
           send_date?: string | null
           status_column?: Database["public"]["Enums"]["post_status"]
           subject_line?: string | null
+          tags?: Json
           title?: string
         }
         Relationships: [
