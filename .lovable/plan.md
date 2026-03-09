@@ -1,57 +1,66 @@
 
 
-# Workflow, Approvals, and Auto-Assignment Overhaul
+# Fix Foreign Key Violations on Task & Project Deletion
 
-## Summary of Changes
+## Problem
+Deleting a task fails because child records in `task_activity_log`, `task_attachments`, `task_checklist_items`, and `comments` reference the task. Similarly, deleting a project fails because `tasks` reference it via `project_id`. The `requests` table also has a `task_id` column that references tasks.
 
-This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
+## Changes
 
-## 1. Database: Update Auto-Assignment Triggers
+### File: `src/components/TaskDetailDialog.tsx` (line ~184-189)
 
-**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
+Replace the simple delete with a cascading delete that removes child records first:
 
-**Changes (migration)**:
-- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
-- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
-- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
-- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
+```typescript
+const handleDelete = async () => {
+  if (!task) return;
+  // Delete child records first
+  await supabase.from("task_checklist_items").delete().eq("task_id", task.id);
+  await supabase.from("task_attachments").delete().eq("task_id", task.id);
+  await supabase.from("task_activity_log").delete().eq("task_id", task.id);
+  await supabase.from("comments").delete().eq("task_id", task.id);
+  // Unlink from requests
+  await supabase.from("requests").update({ task_id: null }).eq("task_id", task.id);
+  // Delete the task
+  const { error } = await supabase.from("tasks").delete().eq("id", task.id);
+  if (error) { toast.error(error.message); return; }
+  toast.success("Task deleted");
+  onUpdated();
+  onClose();
+};
+```
 
-All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
+### File: `src/pages/team/Projects.tsx` (line ~201-207)
 
-## 2. Approvals Page — Separate Media from Published Content
+Replace the simple project delete with cascading logic -- unlink tasks from the project before deleting:
 
-**Client Approvals (`ClientApprovals`)**: 
-- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
-- Alternatively, only show posts in Published that were moved there by admin approval flow
+```typescript
+const handleDeleteProject = async () => {
+  if (!editProject) return;
+  // Unlink tasks from this project
+  await supabase.from("tasks").update({ project_id: null }).eq("project_id", editProject.id);
+  // Unlink think tank items
+  await supabase.from("think_tank_items").update({ project_id: null }).eq("project_id", editProject.id);
+  // Delete the project
+  const { error } = await supabase.from("projects").delete().eq("id", editProject.id);
+  if (error) { toast.error(error.message); return; }
+  toast.success("Project deleted");
+  setEditProject(null);
+  fetchProjects();
+};
+```
 
-**Admin Approvals (`AdminApprovals`)**:
-- Same fix for Published column — filter to only show posts linked to requests
+Note: `task_activity_log` has no DELETE RLS policy, so we need a migration to add one for SS roles.
 
-**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
+### Database Migration
 
-## 3. Workflow Page — Move Internal Review to Bottom Section
+Add DELETE policy on `task_activity_log` for SS roles:
 
-**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
-
-**New layout**:
-- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
-- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
-
-## 4. Admin & Team Dashboards — Show Assignments + Tasks
-
-**SuperAdminDashboard**: Already shows team activity. Add:
-- "My Assignments" section showing posts assigned to the current admin user
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
-
-**TeamDashboard**: Already shows "My Assignments". Add:
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
-
-## Files Changed
-
-| File | Change |
-|------|--------|
-| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
-| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
-| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
-| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
+```sql
+CREATE POLICY "SS can delete task activity"
+ON public.task_activity_log
+FOR DELETE
+TO authenticated
+USING (is_ss_role());
+```
 
