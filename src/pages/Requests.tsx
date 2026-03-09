@@ -17,6 +17,8 @@ import type { Database } from "@/integrations/supabase/types";
 import RequestDetailDialog from "@/components/RequestDetailDialog";
 import { compressImage } from "@/lib/imageUtils";
 import { REQUEST_TYPE_OPTIONS } from "@/lib/workflowUtils";
+import FilterBar, { useFilterBar, PRIORITY_FILTER_OPTIONS } from "@/components/FilterBar";
+import type { FilterConfig } from "@/components/FilterBar";
 
 type RequestType = Database["public"]["Enums"]["request_type"];
 type RequestStatus = Database["public"]["Enums"]["request_status"];

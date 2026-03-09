@@ -25,6 +25,9 @@ import type { Database } from "@/integrations/supabase/types";
 import WorkflowCardDialog from "@/components/WorkflowCardDialog";
 import ApprovalActions from "@/components/ApprovalActions";
 import { CONTENT_TYPE_OPTIONS, AUDIENCE_OPTIONS } from "@/lib/workflowUtils";
+import FilterBar, { useFilterBar, applyDueDateFilter, PRIORITY_FILTER_OPTIONS, DUE_DATE_FILTER_OPTIONS } from "@/components/FilterBar";
+import type { FilterConfig } from "@/components/FilterBar";
+import { useClientFilter } from "@/contexts/ClientFilterContext";
 
 type PostStatus = Database["public"]["Enums"]["post_status"];
 
