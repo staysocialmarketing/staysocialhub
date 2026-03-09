@@ -21,7 +21,7 @@ export function getApproveTarget(contentType: string | null, currentStatus: Post
 
   if (currentStatus === "client_approval") {
     switch (category) {
-      case "social": return "scheduled";
+      case "social": return "ready_to_schedule" as PostStatus;
       case "email": return "ready_to_send";
       case "other": return "complete";
     }

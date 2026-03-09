@@ -52,6 +52,13 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function SSAdminRoute({ children }: { children: React.ReactNode }) {
+  const { isSSAdmin, loading } = useAuth();
+  if (loading) return null;
+  if (!isSSAdmin) return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+}
+
 function AuthRoute() {
   const { session, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center"><p className="text-muted-foreground">Loading...</p></div>;
@@ -82,12 +89,12 @@ const App = () => (
               <Route path="/plan" element={<Plan />} />
               <Route path="/whats-new" element={<WhatsNew />} />
               <Route path="/admin/clients" element={<AdminRoute><AdminClients /></AdminRoute>} />
-              <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+              <Route path="/admin/users" element={<SSAdminRoute><AdminUsers /></SSAdminRoute>} />
               <Route path="/admin/profile-updates" element={<AdminRoute><AdminProfileUpdates /></AdminRoute>} />
               <Route path="/admin/content" element={<AdminRoute><AdminContent /></AdminRoute>} />
               <Route path="/admin/marketplace" element={<AdminRoute><AdminMarketplace /></AdminRoute>} />
               <Route path="/admin/media" element={<AdminRoute><AdminMedia /></AdminRoute>} />
-              <Route path="/admin/versions" element={<AdminRoute><AdminVersions /></AdminRoute>} />
+              <Route path="/admin/versions" element={<SSAdminRoute><AdminVersions /></SSAdminRoute>} />
               <Route path="/admin/client-strategy/:clientId" element={<AdminRoute><ClientStrategy /></AdminRoute>} />
               <Route path="/admin/team" element={<AdminRoute><TeamDashboard /></AdminRoute>} />
               <Route path="/admin/team/roles" element={<AdminRoute><TeamRoles /></AdminRoute>} />

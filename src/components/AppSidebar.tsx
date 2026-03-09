@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { VersionHistoryDialog } from "@/components/VersionHistoryDialog";
+
 import {
   Select,
   SelectContent,
@@ -101,8 +101,6 @@ export function AppSidebar() {
   const navigate = useNavigate();
 
   const [allUsers, setAllUsers] = useState<UserWithRole[]>([]);
-  const [versionLabel, setVersionLabel] = useState("");
-  const [versionDialogOpen, setVersionDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!actualIsSSAdmin) return;
@@ -121,24 +119,6 @@ export function AppSidebar() {
     fetchUsers();
   }, [actualIsSSAdmin]);
 
-  useEffect(() => {
-    let query = supabase
-      .from("platform_versions")
-      .select("major_version, minor_version")
-      .order("published_at", { ascending: false })
-      .limit(1);
-
-    if (!isInternalUser) {
-      query = query.eq("visible_to_clients", true);
-    }
-
-    query.then(({ data }) => {
-      if (data && data.length > 0) {
-        const v = data[0] as any;
-        setVersionLabel(`Stay Social HUB V${v.major_version}.${v.minor_version}`);
-      }
-    });
-  }, [isSSAdmin, isSSTeam]);
 
   const isInternalUser = isSSAdmin || isSSTeam;
   const visibleAdminItems = isSSAdmin
@@ -268,20 +248,6 @@ export function AppSidebar() {
             <p className="text-xs text-sidebar-foreground/50 truncate">{profile.email}</p>
           </div>
         )}
-        {!collapsed && versionLabel && (
-          <button
-            onClick={() => {
-              if (isInternalUser) {
-                setVersionDialogOpen(true);
-              } else {
-                navigate("/whats-new#release-notes");
-              }
-            }}
-            className="px-2 py-1.5 mb-1 text-xs font-medium text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-md transition-colors text-left truncate"
-          >
-            {versionLabel}
-          </button>
-        )}
         <Button
           variant="ghost"
           size={collapsed ? "icon" : "sm"}
@@ -292,7 +258,7 @@ export function AppSidebar() {
           {!collapsed && <span className="ml-2">Sign Out</span>}
         </Button>
       </SidebarFooter>
-      <VersionHistoryDialog open={versionDialogOpen} onOpenChange={setVersionDialogOpen} />
+      
     </Sidebar>
   );
 }
