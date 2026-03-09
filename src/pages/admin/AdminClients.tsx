@@ -629,6 +629,9 @@ export default function AdminClients() {
                   <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => { setActivityClientId(c.id); setActivityClientName(c.name); }}>
                     <Activity className="h-3.5 w-3.5" />Activity
                   </Button>
+                  <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => { setOnboardingClientId(c.id); setOnboardingClientName(c.name); }}>
+                    <ClipboardList className="h-3.5 w-3.5" />Onboarding
+                  </Button>
                   {isSSAdmin && (
                     <>
                       <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => setWhatsNewClient(c.id)}>

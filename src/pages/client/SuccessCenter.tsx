@@ -228,6 +228,20 @@ export default function SuccessCenter() {
         </CardContent>
       </Card>
 
+      {/* ONBOARDING PROGRESS (client read-only) */}
+      {clientId && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <CheckSquare className="h-4 w-4 text-primary" /> Onboarding Progress
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <OnboardingTracker clientId={clientId} isAdmin={false} compact />
+          </CardContent>
+        </Card>
+      )}
+
       {/* STRATEGY HIGHLIGHTS (from visible_sections) */}
       {(() => {
         const vs = (strategyData?.visible_sections as any) || {};
