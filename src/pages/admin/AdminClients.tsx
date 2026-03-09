@@ -19,6 +19,7 @@ import { format } from "date-fns";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { AddActivityDialog } from "@/components/activity/AddActivityDialog";
 import { ClientHealthIndicator } from "@/components/ClientHealthIndicator";
+import { OnboardingTracker } from "@/components/OnboardingTracker";
 
 function isVoiceNote(url: string | null) {
   if (!url) return false;
