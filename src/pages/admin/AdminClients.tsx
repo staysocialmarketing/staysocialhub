@@ -171,7 +171,9 @@ export default function AdminClients() {
         status: editStatus,
         plan_id: editPlanId || null,
         assistants_can_approve: editAssistants,
-      }).eq("id", editClient.id);
+        health_override: editHealthOverride === "__auto__" ? null : editHealthOverride,
+        health_override_at: editHealthOverride === "__auto__" ? null : new Date().toISOString(),
+      } as any).eq("id", editClient.id);
       if (error) throw error;
     },
     onSuccess: () => {
