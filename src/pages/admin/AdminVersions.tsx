@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Plus, Tag, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Plus, Tag, Eye, EyeOff, Loader2, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
 interface PlatformVersion {
@@ -31,6 +31,7 @@ export default function AdminVersions() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // Form state
   const [majorVersion, setMajorVersion] = useState(1);
@@ -59,24 +60,59 @@ export default function AdminVersions() {
     setTitle("");
     setNotes("");
     setVisibleToClients(false);
+    setEditingId(null);
     setShowForm(true);
+  };
+
+  const handleEdit = (v: PlatformVersion) => {
+    setMajorVersion(v.major_version);
+    setMinorVersion(v.minor_version);
+    setTitle(v.title || "");
+    setNotes(v.notes || "");
+    setVisibleToClients(v.visible_to_clients);
+    setEditingId(v.id);
+    setShowForm(true);
+  };
+
+  const handleDelete = async (v: PlatformVersion) => {
+    if (!confirm(`Delete V${v.major_version}.${v.minor_version}?`)) return;
+    const { error } = await supabase.from("platform_versions").delete().eq("id", v.id);
+    if (error) { toast.error("Failed to delete version"); return; }
+    toast.success("Version deleted");
+    fetchVersions();
   };
 
   const handleSave = async () => {
     if (!title.trim()) { toast.error("Title is required"); return; }
     setSaving(true);
-    const { error } = await supabase.from("platform_versions").insert({
-      major_version: majorVersion,
-      minor_version: minorVersion,
-      title: title.trim(),
-      notes: notes.trim() || null,
-      published_by_user_id: user?.id || null,
-      visible_to_clients: visibleToClients,
-    } as any);
-    setSaving(false);
-    if (error) { toast.error("Failed to publish version"); return; }
-    toast.success(`V${majorVersion}.${minorVersion} published`);
+
+    if (editingId) {
+      const { error } = await supabase.from("platform_versions").update({
+        major_version: majorVersion,
+        minor_version: minorVersion,
+        title: title.trim(),
+        notes: notes.trim() || null,
+        visible_to_clients: visibleToClients,
+      }).eq("id", editingId);
+      setSaving(false);
+      if (error) { toast.error("Failed to update version"); return; }
+      toast.success(`V${majorVersion}.${minorVersion} updated`);
+    } else {
+      const { error } = await supabase.from("platform_versions").insert({
+        major_version: majorVersion,
+        minor_version: minorVersion,
+        title: title.trim(),
+        notes: notes.trim() || null,
+        published_by_user_id: user?.id || null,
+        visible_to_clients: visibleToClients,
+      } as any);
+      setSaving(false);
+      if (error) { toast.error("Failed to publish version"); return; }
+      toast.success(`V${majorVersion}.${minorVersion} published`);
+    }
+
     setShowForm(false);
+    setEditingId(null);
     fetchVersions();
   };
 
@@ -96,7 +132,7 @@ export default function AdminVersions() {
 
       {showForm && (
         <Card className="border-primary/30">
-          <CardHeader><CardTitle className="text-lg">Publish New Version</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-lg">{editingId ? "Edit Version" : "Publish New Version"}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -134,9 +170,9 @@ export default function AdminVersions() {
             </div>
             <div className="flex gap-2">
               <Button onClick={handleSave} disabled={saving}>
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : `Publish V${majorVersion}.${minorVersion}`}
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : editingId ? `Update V${majorVersion}.${minorVersion}` : `Publish V${majorVersion}.${minorVersion}`}
               </Button>
-              <Button variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>
+              <Button variant="ghost" onClick={() => { setShowForm(false); setEditingId(null); }}>Cancel</Button>
             </div>
           </CardContent>
         </Card>
@@ -167,9 +203,17 @@ export default function AdminVersions() {
                     {v.title && <h3 className="font-medium text-foreground">{v.title}</h3>}
                     {v.notes && <p className="text-sm text-muted-foreground whitespace-pre-wrap">{v.notes}</p>}
                   </div>
-                  <span className="text-xs text-muted-foreground shrink-0">
-                    {v.published_at ? format(new Date(v.published_at), "MMM d, yyyy") : "—"}
-                  </span>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span className="text-xs text-muted-foreground mr-2">
+                      {v.published_at ? format(new Date(v.published_at), "MMM d, yyyy") : "—"}
+                    </span>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(v)}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(v)}>
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
