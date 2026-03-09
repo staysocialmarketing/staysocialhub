@@ -55,6 +55,10 @@ export default function AdminClients() {
   const [activityClientId, setActivityClientId] = useState<string | null>(null);
   const [activityClientName, setActivityClientName] = useState("");
 
+  // Onboarding dialog
+  const [onboardingClientId, setOnboardingClientId] = useState<string | null>(null);
+  const [onboardingClientName, setOnboardingClientName] = useState("");
+
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ["admin-clients"],
     queryFn: async () => {
