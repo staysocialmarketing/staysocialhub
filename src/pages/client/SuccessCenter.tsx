@@ -29,6 +29,7 @@ import {
   Phone,
   Pencil,
   Activity,
+  Columns3,
 } from "lucide-react";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { AddActivityDialog } from "@/components/activity/AddActivityDialog";
@@ -225,6 +226,68 @@ export default function SuccessCenter() {
           </div>
         </CardContent>
       </Card>
+
+      {/* STRATEGY HIGHLIGHTS (from visible_sections) */}
+      {(() => {
+        const vs = (strategyData?.visible_sections as any) || {};
+        const hasGoals = vs.goals && goalsText.trim();
+        const hasFocus = vs.focus && focusText.trim();
+        const hasPillars = vs.pillars && Array.isArray(strategyData?.pillars_json) && (strategyData.pillars_json as any[]).length > 0;
+        const hasCampaigns = vs.campaigns && campaignsText.trim();
+        const hasAny = hasGoals || hasFocus || hasPillars || hasCampaigns;
+        if (!hasAny) return null;
+        return (
+          <Card className="border-primary/10">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Sparkles className="h-4 w-4 text-primary" /> Strategy Highlights
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {hasFocus && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1"><Focus className="h-3 w-3" /> Current Focus</p>
+                  <p className="text-sm whitespace-pre-wrap">{focusText}</p>
+                </div>
+              )}
+              {hasGoals && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1"><Target className="h-3 w-3" /> Goals</p>
+                  <ul className="space-y-1">
+                    {goalsList.map((g, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm">
+                        <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />{g}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {hasPillars && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1"><Columns3 className="h-3 w-3" /> Content Pillars</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(strategyData.pillars_json as string[]).map((p, i) => (
+                      <Badge key={i} variant="secondary" className="text-xs">{p}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {hasCampaigns && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1"><Megaphone className="h-3 w-3" /> Campaigns</p>
+                  <ul className="space-y-1">
+                    {prioritiesList.map((c, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm">
+                        <span className="mt-1 h-1.5 w-1.5 rounded-full bg-accent-foreground/30 shrink-0" />{c}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* 2. CURRENT FOCUS */}
       <Card>

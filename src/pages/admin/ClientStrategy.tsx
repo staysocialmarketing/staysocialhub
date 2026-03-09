@@ -9,14 +9,42 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Plus, X, Target, Focus, Columns3, Megaphone, Video } from "lucide-react";
+import { ArrowLeft, Save, Plus, X, Target, Focus, Columns3, Megaphone, Video, Eye } from "lucide-react";
+
+interface VisibleSections {
+  goals: boolean;
+  focus: boolean;
+  pillars: boolean;
+  campaigns: boolean;
+}
+
+const DEFAULT_VISIBLE: VisibleSections = { goals: false, focus: false, pillars: false, campaigns: false };
+
+function VisibilityToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div className="flex items-center gap-2">
+      <Switch checked={checked} onCheckedChange={onChange} />
+      <span className="text-xs text-muted-foreground">Visible to Client</span>
+    </div>
+  );
+}
+
+function VisibleBadge() {
+  return (
+    <Badge variant="outline" className="text-[10px] gap-1 px-1.5 py-0 text-primary border-primary/30">
+      <Eye className="h-2.5 w-2.5" /> Client Visible
+    </Badge>
+  );
+}
 
 export default function ClientStrategy() {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
-  const { isSSAdmin } = useAuth();
+  const { isSSAdmin, isSSRole } = useAuth();
   const queryClient = useQueryClient();
+  const canEdit = isSSAdmin || isSSRole;
 
   const { data: client } = useQuery({
     queryKey: ["client", clientId],
@@ -46,6 +74,7 @@ export default function ClientStrategy() {
   const [newPillar, setNewPillar] = useState("");
   const [campaigns, setCampaigns] = useState("");
   const [studioNotes, setStudioNotes] = useState({ persona_tone: "", video_instructions: "", scripting: "" });
+  const [visible, setVisible] = useState<VisibleSections>(DEFAULT_VISIBLE);
 
   useEffect(() => {
     if (strategy) {
@@ -54,6 +83,7 @@ export default function ClientStrategy() {
       const p = (strategy.pillars_json as any) || [];
       const c = strategy.campaigns_json as any || {};
       const s = strategy.studio_notes_json as any || {};
+      const v = (strategy as any).visible_sections as any || {};
       setGoals(g.objectives || "");
       setFocus(f.weekly_focus || "");
       setPillars(Array.isArray(p) ? p : []);
@@ -63,6 +93,7 @@ export default function ClientStrategy() {
         video_instructions: s.video_instructions || "",
         scripting: s.scripting || "",
       });
+      setVisible({ ...DEFAULT_VISIBLE, ...v });
     }
   }, [strategy]);
 
@@ -75,6 +106,7 @@ export default function ClientStrategy() {
         pillars_json: pillars as any,
         campaigns_json: { notes: campaigns },
         studio_notes_json: studioNotes,
+        visible_sections: visible as any,
       };
       if (strategy) {
         const { error } = await supabase.from("client_strategy").update(payload).eq("client_id", clientId!);
@@ -119,12 +151,16 @@ export default function ClientStrategy() {
       {/* Goals */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Target className="h-4 w-4 text-primary" />Goals
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Target className="h-4 w-4 text-primary" />Goals
+              {visible.goals && <VisibleBadge />}
+            </CardTitle>
+            {canEdit && <VisibilityToggle label="Goals" checked={visible.goals} onChange={(v) => setVisible({ ...visible, goals: v })} />}
+          </div>
         </CardHeader>
         <CardContent>
-          {isSSAdmin ? (
+          {canEdit ? (
             <Textarea value={goals} onChange={(e) => setGoals(e.target.value)} placeholder="Client marketing objectives..." rows={4} />
           ) : (
             <p className="text-sm whitespace-pre-wrap">{goals || "—"}</p>
@@ -135,12 +171,16 @@ export default function ClientStrategy() {
       {/* Current Focus */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Focus className="h-4 w-4 text-primary" />Current Focus
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Focus className="h-4 w-4 text-primary" />Current Focus
+              {visible.focus && <VisibleBadge />}
+            </CardTitle>
+            {canEdit && <VisibilityToggle label="Focus" checked={visible.focus} onChange={(v) => setVisible({ ...visible, focus: v })} />}
+          </div>
         </CardHeader>
         <CardContent>
-          {isSSAdmin ? (
+          {canEdit ? (
             <Textarea value={focus} onChange={(e) => setFocus(e.target.value)} placeholder="This week's focus and direction..." rows={3} />
           ) : (
             <p className="text-sm whitespace-pre-wrap">{focus || "—"}</p>
@@ -151,16 +191,20 @@ export default function ClientStrategy() {
       {/* Content Pillars */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Columns3 className="h-4 w-4 text-primary" />Content Pillars
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Columns3 className="h-4 w-4 text-primary" />Content Pillars
+              {visible.pillars && <VisibleBadge />}
+            </CardTitle>
+            {canEdit && <VisibilityToggle label="Pillars" checked={visible.pillars} onChange={(v) => setVisible({ ...visible, pillars: v })} />}
+          </div>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap gap-2">
             {pillars.map((p, i) => (
               <Badge key={i} variant="secondary" className="gap-1 text-sm">
                 {p}
-                {isSSAdmin && (
+                {canEdit && (
                   <button onClick={() => removePillar(i)} className="ml-1 hover:text-destructive">
                     <X className="h-3 w-3" />
                   </button>
@@ -169,7 +213,7 @@ export default function ClientStrategy() {
             ))}
             {pillars.length === 0 && <p className="text-sm text-muted-foreground">No pillars defined yet.</p>}
           </div>
-          {isSSAdmin && (
+          {canEdit && (
             <div className="flex gap-2">
               <Input value={newPillar} onChange={(e) => setNewPillar(e.target.value)} placeholder="Add a pillar..." onKeyDown={(e) => e.key === "Enter" && addPillar()} />
               <Button variant="outline" size="icon" onClick={addPillar}><Plus className="h-4 w-4" /></Button>
@@ -181,12 +225,16 @@ export default function ClientStrategy() {
       {/* Campaign Notes */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Megaphone className="h-4 w-4 text-primary" />Campaign Notes
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Megaphone className="h-4 w-4 text-primary" />Campaign Notes
+              {visible.campaigns && <VisibleBadge />}
+            </CardTitle>
+            {canEdit && <VisibilityToggle label="Campaigns" checked={visible.campaigns} onChange={(v) => setVisible({ ...visible, campaigns: v })} />}
+          </div>
         </CardHeader>
         <CardContent>
-          {isSSAdmin ? (
+          {canEdit ? (
             <Textarea value={campaigns} onChange={(e) => setCampaigns(e.target.value)} placeholder="Current marketing campaigns..." rows={4} />
           ) : (
             <p className="text-sm whitespace-pre-wrap">{campaigns || "—"}</p>
@@ -204,7 +252,7 @@ export default function ClientStrategy() {
         <CardContent className="space-y-4">
           <div>
             <Label className="text-muted-foreground text-xs">AI Persona Tone</Label>
-            {isSSAdmin ? (
+            {canEdit ? (
               <Textarea value={studioNotes.persona_tone} onChange={(e) => setStudioNotes({ ...studioNotes, persona_tone: e.target.value })} placeholder="Tone guidance for AI persona..." rows={2} />
             ) : (
               <p className="text-sm whitespace-pre-wrap">{studioNotes.persona_tone || "—"}</p>
@@ -212,7 +260,7 @@ export default function ClientStrategy() {
           </div>
           <div>
             <Label className="text-muted-foreground text-xs">Video Instructions</Label>
-            {isSSAdmin ? (
+            {canEdit ? (
               <Textarea value={studioNotes.video_instructions} onChange={(e) => setStudioNotes({ ...studioNotes, video_instructions: e.target.value })} placeholder="Video content instructions..." rows={2} />
             ) : (
               <p className="text-sm whitespace-pre-wrap">{studioNotes.video_instructions || "—"}</p>
@@ -220,7 +268,7 @@ export default function ClientStrategy() {
           </div>
           <div>
             <Label className="text-muted-foreground text-xs">Scripting Guidance</Label>
-            {isSSAdmin ? (
+            {canEdit ? (
               <Textarea value={studioNotes.scripting} onChange={(e) => setStudioNotes({ ...studioNotes, scripting: e.target.value })} placeholder="Scripting guidance..." rows={2} />
             ) : (
               <p className="text-sm whitespace-pre-wrap">{studioNotes.scripting || "—"}</p>
@@ -229,7 +277,7 @@ export default function ClientStrategy() {
         </CardContent>
       </Card>
 
-      {isSSAdmin && (
+      {canEdit && (
         <div className="flex justify-end">
           <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
             <Save className="h-4 w-4 mr-2" />Save Strategy

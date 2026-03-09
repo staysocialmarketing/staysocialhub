@@ -186,6 +186,7 @@ export type Database = {
           pillars_json: Json
           studio_notes_json: Json
           updated_at: string
+          visible_sections: Json
         }
         Insert: {
           campaigns_json?: Json
@@ -195,6 +196,7 @@ export type Database = {
           pillars_json?: Json
           studio_notes_json?: Json
           updated_at?: string
+          visible_sections?: Json
         }
         Update: {
           campaigns_json?: Json
@@ -204,6 +206,7 @@ export type Database = {
           pillars_json?: Json
           studio_notes_json?: Json
           updated_at?: string
+          visible_sections?: Json
         }
         Relationships: [
           {
