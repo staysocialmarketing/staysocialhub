@@ -257,6 +257,8 @@ export type Database = {
         Row: {
           assistants_can_approve: boolean
           created_at: string
+          health_override: string | null
+          health_override_at: string | null
           id: string
           name: string
           plan_id: string | null
@@ -267,6 +269,8 @@ export type Database = {
         Insert: {
           assistants_can_approve?: boolean
           created_at?: string
+          health_override?: string | null
+          health_override_at?: string | null
           id?: string
           name: string
           plan_id?: string | null
@@ -277,6 +281,8 @@ export type Database = {
         Update: {
           assistants_can_approve?: boolean
           created_at?: string
+          health_override?: string | null
+          health_override_at?: string | null
           id?: string
           name?: string
           plan_id?: string | null

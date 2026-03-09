@@ -18,6 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { AddActivityDialog } from "@/components/activity/AddActivityDialog";
+import { ClientHealthIndicator } from "@/components/ClientHealthIndicator";
 
 function isVoiceNote(url: string | null) {
   if (!url) return false;
@@ -43,6 +44,7 @@ export default function AdminClients() {
   const [editStatus, setEditStatus] = useState("active");
   const [editPlanId, setEditPlanId] = useState("");
   const [editAssistants, setEditAssistants] = useState(false);
+  const [editHealthOverride, setEditHealthOverride] = useState<string>("__auto__");
 
   // Media dialog
   const [mediaClientId, setMediaClientId] = useState<string | null>(null);
@@ -169,7 +171,9 @@ export default function AdminClients() {
         status: editStatus,
         plan_id: editPlanId || null,
         assistants_can_approve: editAssistants,
-      }).eq("id", editClient.id);
+        health_override: editHealthOverride === "__auto__" ? null : editHealthOverride,
+        health_override_at: editHealthOverride === "__auto__" ? null : new Date().toISOString(),
+      } as any).eq("id", editClient.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -227,6 +231,7 @@ export default function AdminClients() {
     setEditStatus(client.status);
     setEditPlanId(client.plan_id || "");
     setEditAssistants(client.assistants_can_approve);
+    setEditHealthOverride(client.health_override || "__auto__");
   };
 
   const handleDownload = (url: string) => {
@@ -338,6 +343,20 @@ export default function AdminClients() {
               <Label className="text-xs text-muted-foreground">Assistants can approve</Label>
               <Switch checked={editAssistants} onCheckedChange={setEditAssistants} />
             </div>
+            {isSSAdmin && (
+              <div>
+                <Label className="text-xs text-muted-foreground">Health Override</Label>
+                <Select value={editHealthOverride} onValueChange={setEditHealthOverride}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__auto__">Auto (calculated)</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="needs_attention">Needs Attention</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setEditClient(null)}>Cancel</Button>
@@ -577,6 +596,7 @@ export default function AdminClients() {
               <CardContent className="py-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Building2 className="h-5 w-5 text-muted-foreground" />
+                  <ClientHealthIndicator clientId={c.id} override={c.health_override} />
                   <div>
                     <h4 className="font-medium text-foreground">{c.name}</h4>
                     <p className="text-xs text-muted-foreground">Plan: {c.plans?.name || "None"}</p>
