@@ -139,6 +139,44 @@ export type Database = {
           },
         ]
       }
+      client_onboarding: {
+        Row: {
+          client_id: string
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          id: string
+          sort_order: number
+          title: string
+        }
+        Insert: {
+          client_id: string
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          sort_order?: number
+          title: string
+        }
+        Update: {
+          client_id?: string
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          sort_order?: number
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_onboarding_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_profile: {
         Row: {
           assets_json: Json | null
