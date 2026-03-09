@@ -4,6 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useClientFilter } from "@/contexts/ClientFilterContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
+import { Activity } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -434,6 +436,9 @@ function ClientDashboard() {
         />
       </div>
 
+      {/* Recent Activity */}
+      <RecentActivitySection clientId={profile?.client_id} />
+
       {/* Scheduled Posts */}
       {scheduledPosts.length > 0 && (
         <div>
@@ -498,6 +503,47 @@ function ClientDashboard() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Recent Activity Section ─────────────────────────────────────────────────
+
+function RecentActivitySection({ clientId }: { clientId: string | null | undefined }) {
+  const [limit, setLimit] = useState(10);
+
+  const { data: activities = [] } = useQuery({
+    queryKey: ["client-activity-dashboard", clientId, limit],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("client_activity")
+        .select("*")
+        .eq("client_id", clientId!)
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      return (data || []) as Array<{
+        id: string;
+        activity_type: string;
+        title: string;
+        description: string | null;
+        created_at: string;
+        visible_to_client: boolean;
+      }>;
+    },
+    enabled: !!clientId,
+  });
+
+  if (!clientId || activities.length === 0) return null;
+
+  return (
+    <div>
+      <SectionHeader title="Recent Activity" icon={<Activity className="h-5 w-5" />} />
+      <ActivityTimeline
+        activities={activities}
+        isSSRole={false}
+        hasMore={activities.length === limit}
+        onLoadMore={() => setLimit((l) => l + 10)}
+      />
     </div>
   );
 }

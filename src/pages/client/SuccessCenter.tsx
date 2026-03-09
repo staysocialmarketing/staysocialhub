@@ -89,16 +89,17 @@ export default function SuccessCenter() {
     enabled: !!clientId,
   });
 
-  // Fetch activities
+  // Fetch activities with pagination
+  const [activityLimit, setActivityLimit] = useState(10);
   const { data: activities = [] } = useQuery({
-    queryKey: ["client-activity", clientId],
+    queryKey: ["client-activity", clientId, activityLimit],
     queryFn: async () => {
       const { data } = await supabase
         .from("client_activity")
         .select("*")
         .eq("client_id", clientId!)
         .order("created_at", { ascending: false })
-        .limit(10);
+        .limit(activityLimit);
       return (data || []) as Array<{
         id: string;
         activity_type: string;
@@ -347,7 +348,12 @@ export default function SuccessCenter() {
           </div>
         </CardHeader>
         <CardContent>
-          <ActivityTimeline activities={activities} isSSRole={!!isSSRole} />
+          <ActivityTimeline
+            activities={activities}
+            isSSRole={!!isSSRole}
+            hasMore={activities.length === activityLimit}
+            onLoadMore={() => setActivityLimit((l) => l + 10)}
+          />
         </CardContent>
       </Card>
 

@@ -16,6 +16,8 @@ import { toast } from "sonner";
 import { Plus, Building2, Sparkles, FolderOpen, ListTodo, Lightbulb, MessageSquarePlus, Target, Image, Activity, ImageIcon, Film, Mic, Download, Link2, ExternalLink, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
+import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
+import { AddActivityDialog } from "@/components/activity/AddActivityDialog";
 
 function isVoiceNote(url: string | null) {
   if (!url) return false;
@@ -91,7 +93,7 @@ export default function AdminClients() {
 
   // Activity query for selected client
   const { data: activityData } = useQuery({
-    queryKey: ["client-activity", activityClientId],
+    queryKey: ["client-activity-admin", activityClientId],
     enabled: !!activityClientId,
     queryFn: async () => {
       const cid = activityClientId!;
@@ -107,6 +109,29 @@ export default function AdminClients() {
         thinkTank: thinkTank.data || [],
         requests: requests.data || [],
       };
+    },
+  });
+
+  // Timeline activities for selected client
+  const [timelineLimit, setTimelineLimit] = useState(10);
+  const { data: timelineActivities = [] } = useQuery({
+    queryKey: ["client-activity", activityClientId, timelineLimit],
+    enabled: !!activityClientId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("client_activity")
+        .select("*")
+        .eq("client_id", activityClientId!)
+        .order("created_at", { ascending: false })
+        .limit(timelineLimit);
+      return (data || []) as Array<{
+        id: string;
+        activity_type: string;
+        title: string;
+        description: string | null;
+        created_at: string;
+        visible_to_client: boolean;
+      }>;
     },
   });
 
@@ -379,7 +404,26 @@ export default function AdminClients() {
       {/* Client Activity Dialog */}
       <Dialog open={!!activityClientId} onOpenChange={(o) => { if (!o) setActivityClientId(null); }}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Activity — {activityClientName}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle>Activity — {activityClientName}</DialogTitle>
+              {activityClientId && <AddActivityDialog clientId={activityClientId} />}
+            </div>
+          </DialogHeader>
+
+          {/* Timeline Section */}
+          <div className="space-y-2 border-b pb-4 mb-4">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <Activity className="h-3.5 w-3.5" /> Timeline
+            </p>
+            <ActivityTimeline
+              activities={timelineActivities}
+              isSSRole={true}
+              hasMore={timelineActivities.length === timelineLimit}
+              onLoadMore={() => setTimelineLimit((l) => l + 10)}
+            />
+          </div>
+
           {activityData ? (
             <div className="space-y-5">
               {/* Requests */}
