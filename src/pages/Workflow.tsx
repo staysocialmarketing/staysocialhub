@@ -84,7 +84,27 @@ export default function Workflow() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<any>(null);
-  const [contentTypeFilter, setContentTypeFilter] = useState<string>("all");
+  // FilterBar setup
+  const { data: allClients = [] } = useQuery({
+    queryKey: ["all-clients"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("clients").select("id, name").order("name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { selectedClientId: globalClientId } = useClientFilter();
+
+  const filterConfigs: FilterConfig[] = [
+    { key: "client", label: "Client", options: allClients.map((c: any) => ({ value: c.id, label: c.name })) },
+    { key: "contentType", label: "Type", options: CONTENT_TYPE_OPTIONS.map((t) => ({ value: t.value, label: t.label })) },
+    { key: "assignee", label: "Assigned To", options: ssUsers.map((u: any) => ({ value: u.id, label: u.name || u.email })) },
+    { key: "priority", label: "Priority", options: PRIORITY_FILTER_OPTIONS },
+    { key: "dueDate", label: "Due Date", options: DUE_DATE_FILTER_OPTIONS },
+  ];
+  const { values: filterValues, setValues: setFilterValues } = useFilterBar(filterConfigs, "workflow");
+
   const [newPost, setNewPost] = useState({
     client_id: "",
     title: "",
