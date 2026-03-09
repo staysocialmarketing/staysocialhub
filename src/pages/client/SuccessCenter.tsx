@@ -89,6 +89,27 @@ export default function SuccessCenter() {
     enabled: !!clientId,
   });
 
+  // Fetch activities
+  const { data: activities = [] } = useQuery({
+    queryKey: ["client-activity", clientId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("client_activity")
+        .select("*")
+        .eq("client_id", clientId!)
+        .order("created_at", { ascending: false })
+        .limit(10);
+      return (data || []) as Array<{
+        id: string;
+        activity_type: string;
+        title: string;
+        description: string | null;
+        created_at: string;
+        visible_to_client: boolean;
+      }>;
+    },
+    enabled: !!clientId,
+  });
   // --- Derived data ---
   const strategyData = strategy as any;
   const focusText = extras?.focus_override || (strategyData?.focus_json as any)?.weekly_focus || "";
