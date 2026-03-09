@@ -1,57 +1,90 @@
 
 
-# Workflow, Approvals, and Auto-Assignment Overhaul
+# Client Activity Timeline Enhancement
 
-## Summary of Changes
+## What Already Exists
+- `client_activity` table with columns: id, client_id, activity_type, title, description, visible_to_client, created_by_user_id, created_at
+- `ActivityTimeline` component rendering events chronologically
+- `AddActivityDialog` for manual SS entries
+- Timeline shown in SuccessCenter only
 
-This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
+## What Needs to Change
 
-## 1. Database: Update Auto-Assignment Triggers
+### 1. Expand Event Types & Icons
+**File:** `src/components/activity/ActivityTimeline.tsx`
+- Add new event types to icon/label maps: `request_status_changed`, `internal_review_completed`, `client_changes_requested`, `task_completed`, `content_scheduled`, `content_published`, `email_scheduled`, `email_sent`
+- Switch date display from "MMM d" to relative time using `formatDistanceToNow` from date-fns ("2 hours ago")
 
-**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
+**File:** `src/components/activity/AddActivityDialog.tsx`
+- Add matching new types to the ACTIVITY_TYPES list
 
-**Changes (migration)**:
-- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
-- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
-- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
-- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
+### 2. Add "Load More" Pagination
+**File:** `src/components/activity/ActivityTimeline.tsx`
+- Accept `onLoadMore` and `hasMore` props
+- Render a "Load More" button at the bottom when `hasMore` is true
 
-All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
+**File:** `src/pages/client/SuccessCenter.tsx`
+- Track `limit` state (start at 10), increment by 10 on load more
+- Pass `hasMore` based on whether returned count equals limit
 
-## 2. Approvals Page — Separate Media from Published Content
+### 3. Add Timeline to Client Dashboard
+**File:** `src/pages/Dashboard.tsx` (ClientDashboard section)
+- Add a "Recent Activity" section after the stats cards
+- Query `client_activity` table (limit 10, ordered by created_at desc)
+- Render `ActivityTimeline` component with load more support
 
-**Client Approvals (`ClientApprovals`)**: 
-- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
-- Alternatively, only show posts in Published that were moved there by admin approval flow
+### 4. Auto-Log Events via Database Trigger
+**Migration:** Create a trigger on `posts` table for status changes to auto-insert into `client_activity`
 
-**Admin Approvals (`AdminApprovals`)**:
-- Same fix for Published column — filter to only show posts linked to requests
+```sql
+CREATE OR REPLACE FUNCTION public.log_client_activity_on_post_status()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public'
+AS $$
+DECLARE
+  _type text;
+  _title text;
+  _visible boolean := true;
+BEGIN
+  IF OLD.status_column IS NOT DISTINCT FROM NEW.status_column THEN
+    RETURN NEW;
+  END IF;
 
-**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
+  CASE NEW.status_column::text
+    WHEN 'internal_review' THEN _type := 'internal_review_completed'; _title := NEW.title || ' moved to internal review'; _visible := false;
+    WHEN 'client_approval' THEN _type := 'approval_completed'; _title := NEW.title || ' is ready for your approval'; _visible := true;
+    WHEN 'scheduled' THEN _type := 'content_scheduled'; _title := NEW.title || ' has been scheduled'; _visible := true;
+    WHEN 'ready_to_schedule' THEN _type := 'content_scheduled'; _title := NEW.title || ' is ready to schedule'; _visible := false;
+    WHEN 'published' THEN _type := 'content_published'; _title := NEW.title || ' has been published'; _visible := true;
+    WHEN 'sent' THEN _type := 'email_sent'; _title := NEW.title || ' has been sent'; _visible := true;
+    WHEN 'in_progress' THEN _type := 'request_status_changed'; _title := NEW.title || ' moved to in progress'; _visible := false;
+    ELSE RETURN NEW;
+  END CASE;
 
-## 3. Workflow Page — Move Internal Review to Bottom Section
+  INSERT INTO public.client_activity (client_id, activity_type, title, visible_to_client, created_by_user_id)
+  VALUES (NEW.client_id, _type, _title, _visible, auth.uid());
 
-**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
+  RETURN NEW;
+END;
+$$;
 
-**New layout**:
-- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
-- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
+CREATE TRIGGER trg_log_client_activity_on_post_status
+  AFTER UPDATE OF status_column ON public.posts
+  FOR EACH ROW EXECUTE FUNCTION public.log_client_activity_on_post_status();
+```
 
-## 4. Admin & Team Dashboards — Show Assignments + Tasks
+### 5. Add Timeline to Admin Client Activity Dialog
+**File:** `src/pages/admin/AdminClients.tsx`
+- In the existing "Client Activity" dialog, add a new "Timeline" tab or section at the top showing `ActivityTimeline` entries from `client_activity` table for that client
+- Include `AddActivityDialog` button
 
-**SuperAdminDashboard**: Already shows team activity. Add:
-- "My Assignments" section showing posts assigned to the current admin user
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+## Files Summary
 
-**TeamDashboard**: Already shows "My Assignments". Add:
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
-
-## Files Changed
-
-| File | Change |
-|------|--------|
-| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
-| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
-| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
-| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
+| Action | File | Change |
+|--------|------|--------|
+| Migration | trigger on posts | Auto-log status changes to client_activity |
+| Edit | `src/components/activity/ActivityTimeline.tsx` | New event types, relative time, Load More support |
+| Edit | `src/components/activity/AddActivityDialog.tsx` | Expanded type list |
+| Edit | `src/pages/Dashboard.tsx` | Add timeline section to ClientDashboard |
+| Edit | `src/pages/client/SuccessCenter.tsx` | Add Load More pagination |
+| Edit | `src/pages/admin/AdminClients.tsx` | Add timeline to client activity dialog |
 
