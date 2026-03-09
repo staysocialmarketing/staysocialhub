@@ -507,6 +507,47 @@ function ClientDashboard() {
   );
 }
 
+// ─── Recent Activity Section ─────────────────────────────────────────────────
+
+function RecentActivitySection({ clientId }: { clientId: string | null | undefined }) {
+  const [limit, setLimit] = useState(10);
+
+  const { data: activities = [] } = useQuery({
+    queryKey: ["client-activity-dashboard", clientId, limit],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("client_activity")
+        .select("*")
+        .eq("client_id", clientId!)
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      return (data || []) as Array<{
+        id: string;
+        activity_type: string;
+        title: string;
+        description: string | null;
+        created_at: string;
+        visible_to_client: boolean;
+      }>;
+    },
+    enabled: !!clientId,
+  });
+
+  if (!clientId || activities.length === 0) return null;
+
+  return (
+    <div>
+      <SectionHeader title="Recent Activity" icon={<Activity className="h-5 w-5" />} />
+      <ActivityTimeline
+        activities={activities}
+        isSSRole={false}
+        hasMore={activities.length === limit}
+        onLoadMore={() => setLimit((l) => l + 10)}
+      />
+    </div>
+  );
+}
+
 // ─── Main Dashboard ──────────────────────────────────────────────────────────
 
 export default function Dashboard() {

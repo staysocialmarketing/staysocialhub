@@ -348,7 +348,12 @@ export default function SuccessCenter() {
           </div>
         </CardHeader>
         <CardContent>
-          <ActivityTimeline activities={activities} isSSRole={!!isSSRole} />
+          <ActivityTimeline
+            activities={activities}
+            isSSRole={!!isSSRole}
+            hasMore={activities.length === activityLimit}
+            onLoadMore={() => setActivityLimit((l) => l + 10)}
+          />
         </CardContent>
       </Card>
 
