@@ -207,10 +207,36 @@ export default function Projects() {
     fetchData();
   };
 
+  const [completingTaskIds, setCompletingTaskIds] = useState<Set<string>>(new Set());
+  const [completingProjectIds, setCompletingProjectIds] = useState<Set<string>>(new Set());
 
-  const updateTaskStatus = async (id: string, status: string) => {
-    await supabase.from("tasks").update({ status } as any).eq("id", id);
-    fetchData();
+  const updateTaskStatus = async (id: string, status: string, projectId?: string | null) => {
+    if (status === "complete") {
+      setCompletingTaskIds((prev) => new Set(prev).add(id));
+      toast.success("🎉 Task complete!");
+      setTimeout(async () => {
+        await supabase.from("tasks").update({ status } as any).eq("id", id);
+        setCompletingTaskIds((prev) => { const n = new Set(prev); n.delete(id); return n; });
+        
+        // Check if all tasks in this project are now complete
+        if (projectId) {
+          const otherTasks = (projectTasks[projectId] || []).filter(t => t.id !== id);
+          const allDone = otherTasks.every(t => t.status === "complete");
+          if (allDone && otherTasks.length > 0) {
+            setCompletingProjectIds((prev) => new Set(prev).add(projectId));
+            await supabase.from("projects").update({ status: "completed" } as any).eq("id", projectId);
+            toast.success("🎊 Project complete! All tasks finished!", { duration: 4000 });
+            setTimeout(() => {
+              setCompletingProjectIds((prev) => { const n = new Set(prev); n.delete(projectId); return n; });
+            }, 800);
+          }
+        }
+        fetchData();
+      }, 500);
+    } else {
+      await supabase.from("tasks").update({ status } as any).eq("id", id);
+      fetchData();
+    }
   };
 
   const handleCreate = async () => {
