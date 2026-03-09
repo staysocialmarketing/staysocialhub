@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,9 +14,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
 import { format } from "date-fns";
-import { ImageIcon, Film, FolderOpen, Archive, Trash2, Download, Link2, Mic } from "lucide-react";
+import { ImageIcon, Film, FolderOpen, Archive, Trash2, Download, Link2, Mic, Search, X, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { extractStoragePath } from "@/lib/imageUtils";
+
+interface PostTag {
+  category: string;
+  value: string;
+}
 
 function isVideo(url: string | null) {
   if (!url) return false;
@@ -41,17 +46,28 @@ function getMediaType(url: string | null): string {
   return "image";
 }
 
+function parseTags(tags: unknown): PostTag[] {
+  if (!Array.isArray(tags)) return [];
+  return tags.filter((t: any) => t && typeof t.category === "string" && typeof t.value === "string");
+}
+
+const TAG_CATEGORIES = ["campaign", "content_type", "custom"];
+
 export default function AdminMedia() {
   const { isSSAdmin } = useAuth();
   const { selectedClientId: globalClientId } = useClientFilter();
   const queryClient = useQueryClient();
   const [clientFilter, setClientFilter] = useState<string>("all");
   const [mediaTypeFilter, setMediaTypeFilter] = useState<string>("all");
+  const [campaignFilter, setCampaignFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [editPost, setEditPost] = useState<any>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editClientId, setEditClientId] = useState("");
+  const [editTags, setEditTags] = useState<PostTag[]>([]);
+  const [newTagCategory, setNewTagCategory] = useState("campaign");
+  const [newTagValue, setNewTagValue] = useState("");
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
-  const [pageSize] = useState(50);
   const [visibleCount, setVisibleCount] = useState(50);
 
   const { data: clients = [] } = useQuery({
@@ -68,7 +84,7 @@ export default function AdminMedia() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("posts")
-        .select("id, title, platform, creative_url, created_at, scheduled_at, client_id, status_column, clients(name)")
+        .select("id, title, platform, creative_url, created_at, scheduled_at, client_id, status_column, tags, clients(name)")
         .in("status_column", ["published", "approved", "scheduled"])
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -76,11 +92,51 @@ export default function AdminMedia() {
     },
   });
 
+  // Extract unique campaign tag values for filter dropdown
+  const campaignOptions = useMemo(() => {
+    const campaigns = new Set<string>();
+    posts.forEach((p: any) => {
+      parseTags(p.tags).forEach((t) => {
+        if (t.category === "campaign") campaigns.add(t.value);
+      });
+    });
+    return Array.from(campaigns).sort();
+  }, [posts]);
+
+  // Extract all existing tag values for autocomplete
+  const existingTagValues = useMemo(() => {
+    const byCategory: Record<string, Set<string>> = {};
+    posts.forEach((p: any) => {
+      parseTags(p.tags).forEach((t) => {
+        if (!byCategory[t.category]) byCategory[t.category] = new Set();
+        byCategory[t.category].add(t.value);
+      });
+    });
+    return byCategory;
+  }, [posts]);
+
   const effectiveClientFilter = globalClientId || (clientFilter !== "all" ? clientFilter : null);
-  let filteredPosts = effectiveClientFilter ? posts.filter((p: any) => p.client_id === effectiveClientFilter) : posts;
-  if (mediaTypeFilter !== "all") {
-    filteredPosts = filteredPosts.filter((p: any) => getMediaType(p.creative_url) === mediaTypeFilter);
-  }
+  
+  const filteredPosts = useMemo(() => {
+    let result = posts as any[];
+    if (effectiveClientFilter) result = result.filter((p) => p.client_id === effectiveClientFilter);
+    if (mediaTypeFilter !== "all") result = result.filter((p) => getMediaType(p.creative_url) === mediaTypeFilter);
+    if (campaignFilter !== "all") {
+      result = result.filter((p) => parseTags(p.tags).some((t) => t.category === "campaign" && t.value === campaignFilter));
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((p) => {
+        const clientName = (p.clients?.name || "").toLowerCase();
+        const title = (p.title || "").toLowerCase();
+        const platform = (p.platform || "").toLowerCase();
+        const tagValues = parseTags(p.tags).map((t) => t.value.toLowerCase());
+        return title.includes(q) || clientName.includes(q) || platform.includes(q) || tagValues.some((v) => v.includes(q));
+      });
+    }
+    return result;
+  }, [posts, effectiveClientFilter, mediaTypeFilter, campaignFilter, searchQuery]);
+
   const paginatedPosts = filteredPosts.slice(0, visibleCount);
   const hasMore = filteredPosts.length > visibleCount;
 
@@ -95,6 +151,7 @@ export default function AdminMedia() {
     setEditPost(post);
     setEditTitle(post.title);
     setEditClientId(post.client_id || "");
+    setEditTags(parseTags(post.tags));
   };
 
   const handleSave = async () => {
@@ -102,6 +159,7 @@ export default function AdminMedia() {
     const { error } = await supabase.from("posts").update({
       title: editTitle.trim(),
       client_id: editClientId || editPost.client_id,
+      tags: editTags as any,
     }).eq("id", editPost.id);
     if (error) { toast.error(error.message); return; }
     toast.success("Media updated!");
@@ -149,6 +207,25 @@ export default function AdminMedia() {
     toast.success("Link copied to clipboard");
   };
 
+  const addTag = () => {
+    const val = newTagValue.trim();
+    if (!val) return;
+    if (editTags.some((t) => t.category === newTagCategory && t.value === val)) {
+      toast.error("Tag already exists");
+      return;
+    }
+    setEditTags([...editTags, { category: newTagCategory, value: val }]);
+    setNewTagValue("");
+  };
+
+  const removeTag = (idx: number) => {
+    setEditTags(editTags.filter((_, i) => i !== idx));
+  };
+
+  const suggestions = existingTagValues[newTagCategory] ? Array.from(existingTagValues[newTagCategory]).filter(
+    (v) => v.toLowerCase().includes(newTagValue.toLowerCase()) && !editTags.some((t) => t.category === newTagCategory && t.value === v)
+  ).slice(0, 5) : [];
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -156,31 +233,60 @@ export default function AdminMedia() {
           <h1 className="text-2xl font-bold text-foreground">Media Library</h1>
           <p className="text-sm text-muted-foreground">All published client media, organized by client</p>
         </div>
-        <div className="flex gap-2">
-          <Select value={mediaTypeFilter} onValueChange={setMediaTypeFilter}>
-            <SelectTrigger className="w-36">
-              <SelectValue placeholder="All Types" />
+      </div>
+
+      {/* Search + Filters */}
+      <div className="flex gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by title, client, platform, tag…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 h-9"
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery("")} className="absolute right-2.5 top-2.5">
+              <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+            </button>
+          )}
+        </div>
+        <Select value={mediaTypeFilter} onValueChange={setMediaTypeFilter}>
+          <SelectTrigger className="w-36 h-9">
+            <SelectValue placeholder="All Types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            <SelectItem value="image">Images</SelectItem>
+            <SelectItem value="video">Videos</SelectItem>
+            <SelectItem value="voice">Voice Notes</SelectItem>
+            <SelectItem value="document">Documents</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={clientFilter} onValueChange={setClientFilter}>
+          <SelectTrigger className="w-48 h-9">
+            <SelectValue placeholder="All Clients" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Clients</SelectItem>
+            {clients.map((c) => (
+              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {campaignOptions.length > 0 && (
+          <Select value={campaignFilter} onValueChange={setCampaignFilter}>
+            <SelectTrigger className="w-44 h-9">
+              <SelectValue placeholder="All Campaigns" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="image">Images</SelectItem>
-              <SelectItem value="video">Videos</SelectItem>
-              <SelectItem value="voice">Voice Notes</SelectItem>
-              <SelectItem value="document">Documents</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={clientFilter} onValueChange={setClientFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="All Clients" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Clients</SelectItem>
-              {clients.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              <SelectItem value="all">All Campaigns</SelectItem>
+              {campaignOptions.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </div>
+        )}
       </div>
 
       {isLoading ? (
@@ -195,33 +301,44 @@ export default function AdminMedia() {
           <div key={clientName}>
             <h3 className="text-lg font-semibold text-foreground mb-3">{clientName}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
-              {(clientPosts as any[]).map((post) => (
-                <Card key={post.id} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden group" onClick={() => openEdit(post)}>
-                  <AspectRatio ratio={1}>
-                    {post.creative_url ? (
-                      isVoiceNote(post.creative_url) ? (
-                        <div className="w-full h-full bg-muted flex flex-col items-center justify-center gap-2 p-4">
-                          <Mic className="h-10 w-10 text-primary/50" />
-                          <audio src={post.creative_url} controls className="w-full max-w-[90%]" onClick={(e) => e.stopPropagation()} />
-                        </div>
-                      ) : isVideo(post.creative_url) ? (
-                        <div className="w-full h-full bg-muted flex items-center justify-center"><Film className="h-10 w-10 text-muted-foreground/50" /></div>
+              {(clientPosts as any[]).map((post) => {
+                const tags = parseTags(post.tags);
+                return (
+                  <Card key={post.id} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden group" onClick={() => openEdit(post)}>
+                    <AspectRatio ratio={1}>
+                      {post.creative_url ? (
+                        isVoiceNote(post.creative_url) ? (
+                          <div className="w-full h-full bg-muted flex flex-col items-center justify-center gap-2 p-4">
+                            <Mic className="h-10 w-10 text-primary/50" />
+                            <audio src={post.creative_url} controls className="w-full max-w-[90%]" onClick={(e) => e.stopPropagation()} />
+                          </div>
+                        ) : isVideo(post.creative_url) ? (
+                          <div className="w-full h-full bg-muted flex items-center justify-center"><Film className="h-10 w-10 text-muted-foreground/50" /></div>
+                        ) : (
+                          <img src={post.creative_url} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        )
                       ) : (
-                        <img src={post.creative_url} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                      )
-                    ) : (
-                      <div className="w-full h-full bg-muted flex items-center justify-center"><ImageIcon className="h-10 w-10 text-muted-foreground/50" /></div>
-                    )}
-                  </AspectRatio>
-                  <CardContent className="p-3">
-                    <p className="text-sm font-medium truncate">{post.title}</p>
-                    <div className="flex items-center justify-between mt-1.5">
-                      {post.platform && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{post.platform}</Badge>}
-                      <span className="text-[10px] text-muted-foreground ml-auto">{format(new Date(post.scheduled_at || post.created_at), "MMM d, yyyy")}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                        <div className="w-full h-full bg-muted flex items-center justify-center"><ImageIcon className="h-10 w-10 text-muted-foreground/50" /></div>
+                      )}
+                    </AspectRatio>
+                    <CardContent className="p-3">
+                      <p className="text-sm font-medium truncate">{post.title}</p>
+                      <div className="flex items-center justify-between mt-1.5">
+                        {post.platform && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{post.platform}</Badge>}
+                        <span className="text-[10px] text-muted-foreground ml-auto">{format(new Date(post.scheduled_at || post.created_at), "MMM d, yyyy")}</span>
+                      </div>
+                      {tags.length > 0 && (
+                        <div className="flex gap-1 mt-1.5 flex-wrap">
+                          {tags.slice(0, 3).map((t, i) => (
+                            <Badge key={i} variant="outline" className="text-[10px] px-1.5 py-0">{t.value}</Badge>
+                          ))}
+                          {tags.length > 3 && <span className="text-[10px] text-muted-foreground">+{tags.length - 3}</span>}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </div>
         ))
@@ -229,7 +346,7 @@ export default function AdminMedia() {
 
       {hasMore && (
         <div className="flex justify-center pt-4">
-          <Button variant="outline" onClick={() => setVisibleCount((c) => c + pageSize)}>
+          <Button variant="outline" onClick={() => setVisibleCount((c) => c + 50)}>
             Load More ({filteredPosts.length - visibleCount} remaining)
           </Button>
         </div>
@@ -248,6 +365,53 @@ export default function AdminMedia() {
               <Label className="text-xs text-muted-foreground">Client</Label>
               <ClientSelectWithCreate value={editClientId} onValueChange={setEditClientId} allowNone={false} />
             </div>
+
+            {/* Tags Section */}
+            <div>
+              <Label className="text-xs text-muted-foreground">Tags</Label>
+              {editTags.length > 0 && (
+                <div className="flex gap-1.5 flex-wrap mt-1.5 mb-2">
+                  {editTags.map((t, i) => (
+                    <Badge key={i} variant="outline" className="text-xs gap-1 cursor-pointer hover:bg-destructive/10" onClick={() => removeTag(i)}>
+                      <span className="text-muted-foreground">{t.category}:</span> {t.value}
+                      <X className="h-3 w-3" />
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-1.5 items-end">
+                <Select value={newTagCategory} onValueChange={setNewTagCategory}>
+                  <SelectTrigger className="w-32 h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TAG_CATEGORIES.map((c) => (
+                      <SelectItem key={c} value={c}>{c.replace("_", " ")}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="relative flex-1">
+                  <Input
+                    value={newTagValue}
+                    onChange={(e) => setNewTagValue(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTag())}
+                    placeholder="Tag value"
+                    className="h-8 text-xs"
+                  />
+                  {newTagValue && suggestions.length > 0 && (
+                    <div className="absolute z-10 top-full left-0 right-0 bg-popover border rounded-md shadow-md mt-1 max-h-32 overflow-auto">
+                      {suggestions.map((s) => (
+                        <button key={s} className="w-full text-left px-2 py-1 text-xs hover:bg-accent" onClick={() => { setNewTagValue(s); }}>
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <Button variant="outline" size="sm" className="h-8 px-2" onClick={addTag}><Plus className="h-3.5 w-3.5" /></Button>
+              </div>
+            </div>
+
             {editPost?.creative_url && (
               <>
                 <div className="rounded-md overflow-hidden border">
