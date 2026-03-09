@@ -96,7 +96,7 @@ export default function Workflow() {
 
   const { selectedClientId: globalClientId } = useClientFilter();
 
-  // filterConfigs defined after ssUsers query below
+  
 
   const [newPost, setNewPost] = useState({
     client_id: "",

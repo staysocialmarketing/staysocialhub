@@ -58,7 +58,22 @@ export default function Requests() {
     enabled: isSSAdmin,
   });
 
-  const { data: ssUsers = [] } = useQuery({
+  const statusFilterOptions = [
+    { value: "open", label: "Open" },
+    { value: "in_progress", label: "In Progress" },
+    { value: "completed", label: "Completed" },
+    { value: "cancelled", label: "Cancelled" },
+  ];
+
+  const filterConfigs: FilterConfig[] = [
+    ...(isSSAdmin ? [{ key: "client", label: "Client", options: clients.map((c: any) => ({ value: c.id, label: c.name })) }] : []),
+    { key: "requestType", label: "Type", options: REQUEST_TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label })) },
+    ...(isSSRole ? [{ key: "assignee", label: "Assigned To", options: ssUsers.map((u: any) => ({ value: u.id, label: (u as any).name || (u as any).email })) }] : []),
+    { key: "priority", label: "Priority", options: PRIORITY_FILTER_OPTIONS },
+    { key: "status", label: "Status", options: statusFilterOptions },
+  ];
+  const { values: filterValues, setValues: setFilterValues } = useFilterBar(filterConfigs, "requests");
+
     queryKey: ["ss-users-list"],
     queryFn: async () => {
       const { data: roles } = await supabase.from("user_roles").select("user_id").in("role", ["ss_admin", "ss_producer", "ss_ops", "ss_team"]);
