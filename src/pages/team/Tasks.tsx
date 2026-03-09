@@ -252,7 +252,7 @@ export default function Tasks() {
                 tasksByStatus(col).map((task) => (
                   <div
                     key={task.id}
-                    className="card-elevated p-4 space-y-3 cursor-pointer hover:shadow-md transition-all group"
+                    className={`card-elevated p-4 space-y-3 cursor-pointer hover:shadow-md transition-all group ${completingTaskIds.has(task.id) ? "animate-task-complete" : ""}`}
                     onClick={() => setEditTask(task)}
                   >
                     <div className="flex items-start justify-between gap-2">
