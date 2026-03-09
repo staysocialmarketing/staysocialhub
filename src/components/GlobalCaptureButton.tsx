@@ -205,9 +205,10 @@ export function GlobalCaptureButton() {
 
     if (isSSRole && voiceDest === "inbox") {
       const path = `inbox/voice-${Date.now()}.webm`;
-      const { error: upErr } = await supabase.storage.from("creative-assets").upload(path, audioBlob, { contentType: "audio/webm" });
+      const { error: upErr } = await supabase.storage.from("voice-notes").upload(path, audioBlob, { contentType: "audio/webm" });
       if (upErr) { setSaving(false); toast.error("Upload failed"); return; }
-      const url = supabase.storage.from("creative-assets").getPublicUrl(path).data.publicUrl;
+      const { data: signedData } = await supabase.storage.from("voice-notes").createSignedUrl(path, 3600);
+      const url = signedData?.signedUrl || path;
       const { error } = await supabase.from("universal_inbox").insert({
         title: `Voice note ${new Date().toLocaleString()}`,
         source_type: "voice_note",
@@ -220,7 +221,7 @@ export function GlobalCaptureButton() {
     } else {
       const folder = isClient ? (profile.client_id || "general") : (voiceClient || "general");
       const path = `${folder}/voice-notes/voice-${Date.now()}.webm`;
-      const { error } = await supabase.storage.from("creative-assets").upload(path, audioBlob, { contentType: "audio/webm" });
+      const { error } = await supabase.storage.from("voice-notes").upload(path, audioBlob, { contentType: "audio/webm" });
       setSaving(false);
       if (error) { toast.error("Upload failed"); return; }
       toast.success("Voice note saved");

@@ -72,16 +72,23 @@ export default function ContentLibrary() {
     queryFn: async () => {
       const clientId = profile!.client_id!;
       const { data, error } = await supabase.storage
-        .from("creative-assets")
+        .from("voice-notes")
         .list(`${clientId}/voice-notes`, { sortBy: { column: "created_at", order: "desc" } });
       if (error) throw error;
-      return (data || [])
-        .filter((f) => f.name.endsWith(".webm"))
-        .map((f) => ({
+      const files = (data || []).filter((f) => f.name.endsWith(".webm"));
+      // Generate signed URLs for private bucket
+      const results: VoiceNoteFile[] = [];
+      for (const f of files) {
+        const { data: signedData } = await supabase.storage
+          .from("voice-notes")
+          .createSignedUrl(`${clientId}/voice-notes/${f.name}`, 3600);
+        results.push({
           name: f.name,
           created_at: f.created_at || "",
-          url: supabase.storage.from("creative-assets").getPublicUrl(`${clientId}/voice-notes/${f.name}`).data.publicUrl,
-        })) as VoiceNoteFile[];
+          url: signedData?.signedUrl || "",
+        });
+      }
+      return results;
     },
   });
 
