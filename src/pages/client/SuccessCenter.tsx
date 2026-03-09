@@ -28,7 +28,10 @@ import {
   FolderOpen,
   Phone,
   Pencil,
+  Activity,
 } from "lucide-react";
+import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
+import { AddActivityDialog } from "@/components/activity/AddActivityDialog";
 
 export default function SuccessCenter() {
   const navigate = useNavigate();
