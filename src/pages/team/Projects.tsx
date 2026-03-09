@@ -530,95 +530,15 @@ export default function Projects() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Task Dialog */}
-      <Dialog open={!!editTask} onOpenChange={(o) => !o && setEditTask(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Edit Task</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label className="text-xs text-muted-foreground">Title</Label>
-              <Input value={editTaskTitle} onChange={(e) => setEditTaskTitle(e.target.value)} />
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Description</Label>
-              <Textarea value={editTaskDescription} onChange={(e) => setEditTaskDescription(e.target.value)} />
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Project</Label>
-              <Select value={editTaskProjectId || "__none__"} onValueChange={(v) => setEditTaskProjectId(v === "__none__" ? "" : v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">No project</SelectItem>
-                  {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Assignee</Label>
-              <Select value={editTaskAssigneeId || "__none__"} onValueChange={(v) => setEditTaskAssigneeId(v === "__none__" ? "" : v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Unassigned</SelectItem>
-                  <SelectItem value="__team__">🤝 Team (All Hands)</SelectItem>
-                  {ssUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Priority</Label>
-              <Select value={editTaskPriority} onValueChange={setEditTaskPriority}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="normal">Normal</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="urgent">Urgent</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Status</Label>
-              <Select value={editTaskStatus} onValueChange={setEditTaskStatus}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todo">To Do</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="done">Done</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Due Date</Label>
-              <DatePickerField value={editTaskDueAt} onChange={setEditTaskDueAt} placeholder="Pick due date" />
-            </div>
-          </div>
-          <DialogFooter className="flex justify-between sm:justify-between">
-            {editTask && canEditDeleteTask(editTask) && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-1" /> Delete</Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete task?</AlertDialogTitle>
-                    <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteTask}>Delete</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
-            <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => setEditTask(null)}>Cancel</Button>
-              {editTask && canEditDeleteTask(editTask) && (
-                <Button onClick={handleSaveTask} disabled={!editTaskTitle.trim()}>Save</Button>
-              )}
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Task Detail Dialog */}
+      <TaskDetailDialog
+        task={selectedTask}
+        onClose={() => setSelectedTask(null)}
+        onUpdated={fetchData}
+        projects={projects}
+        ssUsers={ssUsers}
+        users={users}
+      />
 
       {/* Add Task from Project Dialog */}
       <Dialog open={!!addTaskProjectId} onOpenChange={(o) => { if (!o) { setAddTaskProjectId(null); setAddTaskTitle(""); setAddTaskDescription(""); setAddTaskAssigneeId(""); setAddTaskPriority("normal"); setAddTaskDueAt(""); } }}>
