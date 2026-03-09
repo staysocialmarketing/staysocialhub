@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { taskStatusColors, taskStatusLabels, taskStatusColumns } from "@/lib/taskStatusUtils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientFilter } from "@/contexts/ClientFilterContext";
 import { Button } from "@/components/ui/button";
