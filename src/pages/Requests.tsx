@@ -12,10 +12,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus, FileText, Mail, User } from "lucide-react";
+import { Plus, User } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import RequestDetailDialog from "@/components/RequestDetailDialog";
 import { compressImage } from "@/lib/imageUtils";
+import { REQUEST_TYPE_OPTIONS } from "@/lib/workflowUtils";
 
 type RequestType = Database["public"]["Enums"]["request_type"];
 type RequestStatus = Database["public"]["Enums"]["request_status"];
@@ -38,16 +39,13 @@ export default function Requests() {
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   const [form, setForm] = useState({
     type: "social_post" as RequestType,
     topic: "",
     notes: "",
     preferred_publish_window: "",
     priority: "normal",
-    link: "",
-    campaign_type: "newsletter",
-    audience: "",
-    deadline: "",
   });
 
   const { data: clients = [] } = useQuery({
@@ -59,7 +57,6 @@ export default function Requests() {
     enabled: isSSAdmin,
   });
 
-  // Fetch SS users for showing assigned_to names
   const { data: ssUsers = [] } = useQuery({
     queryKey: ["ss-users-list"],
     queryFn: async () => {
@@ -84,6 +81,8 @@ export default function Requests() {
     },
     enabled: !!profile,
   });
+
+  const filteredRequests = typeFilter === "all" ? requests : requests.filter((r: any) => r.type === typeFilter);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
@@ -113,15 +112,11 @@ export default function Requests() {
         }
       }
 
-      const notes = form.type === "email_campaign"
-        ? `Campaign: ${form.campaign_type}\nAudience: ${form.audience}\nDeadline: ${form.deadline}\n\n${form.notes}`
-        : form.notes;
-
       const { error } = await supabase.from("requests").insert({
         client_id: clientId,
         type: form.type,
         topic: form.topic,
-        notes: notes || null,
+        notes: form.notes || null,
         preferred_publish_window: form.preferred_publish_window || null,
         priority: form.priority,
         created_by_user_id: profile!.id,
@@ -134,7 +129,7 @@ export default function Requests() {
       queryClient.invalidateQueries({ queryKey: ["workflow-posts"] });
       toast.success("Request submitted!");
       setOpen(false);
-      setForm({ type: "social_post", topic: "", notes: "", preferred_publish_window: "", priority: "normal", link: "", campaign_type: "newsletter", audience: "", deadline: "" });
+      setForm({ type: "social_post", topic: "", notes: "", preferred_publish_window: "", priority: "normal" });
       setAttachmentFile(null);
       setSelectedClientId("");
     },
@@ -159,6 +154,10 @@ export default function Requests() {
     if (!userId) return null;
     const u = ssUsers.find((u: any) => u.id === userId);
     return u ? ((u as any).name || (u as any).email) : null;
+  };
+
+  const getTypeLabel = (type: string) => {
+    return REQUEST_TYPE_OPTIONS.find((o) => o.value === type)?.label || type.replace("_", " ");
   };
 
   return (
@@ -197,42 +196,22 @@ export default function Requests() {
                   <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v as RequestType })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="social_post"><span className="flex items-center gap-2"><FileText className="h-3 w-3" /> Social Post</span></SelectItem>
-                      <SelectItem value="email_campaign"><span className="flex items-center gap-2"><Mail className="h-3 w-3" /> Email Campaign</span></SelectItem>
+                      {REQUEST_TYPE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div>
-                  <Label>{form.type === "social_post" ? "Topic / Key Message" : "Campaign Name"}</Label>
-                  <Input value={form.topic} onChange={(e) => setForm({ ...form, topic: e.target.value })} placeholder={form.type === "social_post" ? "What's this about?" : "Campaign name"} />
+                  <Label>Topic / Title</Label>
+                  <Input value={form.topic} onChange={(e) => setForm({ ...form, topic: e.target.value })} placeholder="What's this about?" />
                 </div>
 
-                {form.type === "social_post" && (
-                  <>
-                    <div><Label>Link (optional)</Label><Input value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} placeholder="https://..." type="url" /></div>
-                    <div><Label>Preferred Publish Window</Label><Input value={form.preferred_publish_window} onChange={(e) => setForm({ ...form, preferred_publish_window: e.target.value })} placeholder="e.g. Next week, March 15" /></div>
-                  </>
-                )}
-
-                {form.type === "email_campaign" && (
-                  <>
-                    <div>
-                      <Label>Campaign Type</Label>
-                      <Select value={form.campaign_type} onValueChange={(v) => setForm({ ...form, campaign_type: v })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="newsletter">Newsletter</SelectItem>
-                          <SelectItem value="promo">Promotion</SelectItem>
-                          <SelectItem value="announcement">Announcement</SelectItem>
-                          <SelectItem value="drip">Drip Campaign</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div><Label>Audience</Label><Input value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value })} placeholder="Who is this for?" /></div>
-                    <div><Label>Deadline</Label><Input type="date" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} /></div>
-                  </>
-                )}
+                <div>
+                  <Label>Preferred Publish Window</Label>
+                  <Input value={form.preferred_publish_window} onChange={(e) => setForm({ ...form, preferred_publish_window: e.target.value })} placeholder="e.g. Next week, March 15" />
+                </div>
 
                 <div><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Additional details..." /></div>
                 <div>
@@ -263,9 +242,23 @@ export default function Requests() {
         )}
       </div>
 
+      {/* Type Filter */}
+      <div className="flex items-center gap-2">
+        <Label className="text-sm text-muted-foreground">Filter:</Label>
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <SelectTrigger className="w-[180px] h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            {REQUEST_TYPE_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {isLoading ? (
         <p className="text-muted-foreground">Loading requests...</p>
-      ) : requests.length === 0 ? (
+      ) : filteredRequests.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <Plus className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
@@ -274,14 +267,13 @@ export default function Requests() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {requests.map((req: any) => {
+          {filteredRequests.map((req: any) => {
             const assignedName = isSSRole ? getAssignedName(req.assigned_to_user_id) : null;
             return (
               <Card key={req.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSelectedRequest(req)}>
                 <CardContent className="py-4 flex items-center justify-between">
                   <div className="space-y-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      {req.type === "social_post" ? <FileText className="h-4 w-4 text-primary shrink-0" /> : <Mail className="h-4 w-4 text-primary shrink-0" />}
                       <h4 className="font-medium text-foreground truncate">{req.topic}</h4>
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -291,6 +283,7 @@ export default function Requests() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <Badge variant="outline" className="text-[11px]">{getTypeLabel(req.type)}</Badge>
                     {assignedName && (
                       <Badge variant="secondary" className="text-[10px] gap-1">
                         <User className="h-3 w-3" /> {assignedName}

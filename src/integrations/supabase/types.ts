@@ -1566,7 +1566,14 @@ export type Database = {
         | "changes_requested"
         | "rejected"
       request_status: "open" | "in_progress" | "completed" | "cancelled"
-      request_type: "social_post" | "email_campaign"
+      request_type:
+        | "social_post"
+        | "email_campaign"
+        | "design"
+        | "video"
+        | "automation"
+        | "strategy"
+        | "general"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1726,7 +1733,15 @@ export const Constants = {
         "rejected",
       ],
       request_status: ["open", "in_progress", "completed", "cancelled"],
-      request_type: ["social_post", "email_campaign"],
+      request_type: [
+        "social_post",
+        "email_campaign",
+        "design",
+        "video",
+        "automation",
+        "strategy",
+        "general",
+      ],
     },
   },
 } as const

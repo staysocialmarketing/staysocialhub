@@ -11,12 +11,13 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { FileText, Mail, Download, Send, Pencil, Save, X, Loader2 } from "lucide-react";
+import { Download, Send, Pencil, Save, X, Loader2 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { compressImage } from "@/lib/imageUtils";
 import AIFieldsPanel from "@/components/AIFieldsPanel";
 import StrategyBriefPanel from "@/components/StrategyBriefPanel";
 import RunStrategyButton from "@/components/RunStrategyButton";
+import { REQUEST_TYPE_OPTIONS } from "@/lib/workflowUtils";
 
 type RequestStatus = Database["public"]["Enums"]["request_status"];
 type RequestType = Database["public"]["Enums"]["request_type"];
@@ -184,10 +185,10 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-2">
-            {request.type === "social_post" ? <FileText className="h-5 w-5 text-primary" /> : <Mail className="h-5 w-5 text-primary" />}
             <DialogTitle className="text-xl">{request.topic}</DialogTitle>
           </div>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
+            <Badge variant="outline" className="text-[11px]">{REQUEST_TYPE_OPTIONS.find((o) => o.value === request.type)?.label || request.type.replace("_", " ")}</Badge>
             {request.clients?.name && <Badge variant="outline">{request.clients.name}</Badge>}
             <Badge className={statusColors[request.status] || ""}>{request.status.replace("_", " ")}</Badge>
             <Badge variant="outline" className="capitalize">{request.priority}</Badge>
@@ -218,8 +219,9 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
                     <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v as RequestType })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="social_post">Social Post</SelectItem>
-                        <SelectItem value="email_campaign">Email Campaign</SelectItem>
+                        {REQUEST_TYPE_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>

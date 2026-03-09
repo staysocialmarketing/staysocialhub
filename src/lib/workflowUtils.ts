@@ -44,6 +44,16 @@ export const CONTENT_TYPE_OPTIONS = [
   { value: "general_task", label: "General Task", category: "other" },
 ];
 
+export const REQUEST_TYPE_OPTIONS = [
+  { value: "social_post", label: "Social Post" },
+  { value: "email_campaign", label: "Email Campaign" },
+  { value: "design", label: "Design" },
+  { value: "video", label: "Video" },
+  { value: "automation", label: "Automation" },
+  { value: "strategy", label: "Strategy" },
+  { value: "general", label: "General" },
+];
+
 export const AUDIENCE_OPTIONS = [
   "Client Database",
   "Realtor Partners",
