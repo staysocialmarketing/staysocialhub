@@ -16,7 +16,7 @@ export function AppLayout() {
   const [versionLabel, setVersionLabel] = useState("");
   const [versionDialogOpen, setVersionDialogOpen] = useState(false);
 
-  useEffect(() => {
+  const fetchLatestVersion = () => {
     let query = supabase
       .from("platform_versions")
       .select("major_version, minor_version")
@@ -33,6 +33,23 @@ export function AppLayout() {
         setVersionLabel(`V${v.major_version}.${v.minor_version}`);
       }
     });
+  };
+
+  useEffect(() => {
+    fetchLatestVersion();
+
+    const channel = supabase
+      .channel("version-updates")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "platform_versions" },
+        () => fetchLatestVersion()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [isSSRole]);
 
   return (
