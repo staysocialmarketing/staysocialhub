@@ -1,57 +1,65 @@
 
 
-# Workflow, Approvals, and Auto-Assignment Overhaul
+# Hub Operations Cleanup + Version Display + Workflow Permissions
 
-## Summary of Changes
+## 1. Remove Duplicate Version Display from Sidebar
 
-This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
+**File:** `src/components/AppSidebar.tsx`
+- Remove `versionLabel` state, the `useEffect` that fetches it (lines 124-141), and the version button in the footer (lines 271-284)
+- Remove `VersionHistoryDialog` import and usage (line 43, 295)
+- Keep the header version in `AppLayout.tsx` as the single source of truth (already works correctly with click behavior)
 
-## 1. Database: Update Auto-Assignment Triggers
+## 2. Workflow Structure Lock — Add `ready_to_schedule` Status
 
-**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
+**Database Migration:** Add new enum value to `post_status`
+```sql
+ALTER TYPE public.post_status ADD VALUE IF NOT EXISTS 'ready_to_schedule';
+```
 
-**Changes (migration)**:
-- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
-- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
-- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
-- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
+**File:** `src/lib/workflowUtils.ts`
+- Update `getApproveTarget` so client_approval for social → `ready_to_schedule` instead of `scheduled`
 
-All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
+**File:** `src/pages/Workflow.tsx`
+- No column changes needed — workflow board shows idea/in_progress/internal_review. The downstream statuses (ready_to_schedule, scheduled, etc.) are managed via the Approvals page.
 
-## 2. Approvals Page — Separate Media from Published Content
+**File:** `src/pages/Approvals.tsx`
+- Add a "Ready to Schedule" section in AdminApprovals (between Client Approval and Scheduled sections)
+- Include `ready_to_schedule` in the query's status filter
 
-**Client Approvals (`ClientApprovals`)**: 
-- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
-- Alternatively, only show posts in Published that were moved there by admin approval flow
+## 3. Approval Actions for Client Approval Cards
 
-**Admin Approvals (`AdminApprovals`)**:
-- Same fix for Published column — filter to only show posts linked to requests
+**File:** `src/pages/Approvals.tsx`
+- Add `ApprovalActions` to client_approval cards in AdminApprovals (currently only internal_review has them)
+- In ClientApprovals, approval actions already show for `client_approval` when `canApprove` is true — no change needed
 
-**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
+**File:** `src/pages/Workflow.tsx`  
+- Workflow board only shows up to internal_review, so no changes needed for client_approval hover actions there
 
-## 3. Workflow Page — Move Internal Review to Bottom Section
+## 4. Permissions Enforcement — Route Guards
 
-**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
+**File:** `src/App.tsx`
+- Add `SSAdminRoute` guard for admin-only pages: `/admin/users`, `/admin/versions`
+- Keep `AdminRoute` (isSSRole check) for team-accessible admin pages: `/admin/clients`, `/admin/marketplace`, `/admin/media`, `/admin/team/*`
 
-**New layout**:
-- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
-- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
+**File:** `src/components/AppSidebar.tsx`
+- Already filters "Users" and "Versions" from sidebar for non-admin SS team (line 144-146) — confirmed correct
 
-## 4. Admin & Team Dashboards — Show Assignments + Tasks
+## 5. Header Version Click Behavior
 
-**SuperAdminDashboard**: Already shows team activity. Add:
-- "My Assignments" section showing posts assigned to the current admin user
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+Already implemented correctly in `AppLayout.tsx`:
+- SS roles → opens VersionHistoryDialog
+- Clients → navigates to `/whats-new#release-notes`
+- Visibility filtering by `visible_to_clients` already in place
 
-**TeamDashboard**: Already shows "My Assignments". Add:
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+No changes needed.
 
-## Files Changed
+## Summary of Files
 
-| File | Change |
-|------|--------|
-| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
-| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
-| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
-| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
+| Action | File | Change |
+|--------|------|--------|
+| Migration | post_status enum | Add `ready_to_schedule` value |
+| Edit | `src/components/AppSidebar.tsx` | Remove duplicate version display |
+| Edit | `src/lib/workflowUtils.ts` | Social approve target: `ready_to_schedule` |
+| Edit | `src/pages/Approvals.tsx` | Add Ready to Schedule section + approval actions on client_approval cards |
+| Edit | `src/App.tsx` | Add SSAdminRoute for Users + Versions pages |
 
