@@ -58,6 +58,18 @@ export default function Requests() {
     enabled: isSSAdmin,
   });
 
+  const { data: ssUsers = [] } = useQuery({
+    queryKey: ["ss-users-list"],
+    queryFn: async () => {
+      const { data: roles } = await supabase.from("user_roles").select("user_id").in("role", ["ss_admin", "ss_producer", "ss_ops", "ss_team"]);
+      if (!roles?.length) return [];
+      const userIds = [...new Set(roles.map((r) => r.user_id))];
+      const { data } = await supabase.from("users").select("id, name, email").in("id", userIds);
+      return data || [];
+    },
+    enabled: isSSRole,
+  });
+
   const statusFilterOptions = [
     { value: "open", label: "Open" },
     { value: "in_progress", label: "In Progress" },
@@ -73,17 +85,6 @@ export default function Requests() {
     { key: "status", label: "Status", options: statusFilterOptions },
   ];
   const { values: filterValues, setValues: setFilterValues } = useFilterBar(filterConfigs, "requests");
-
-    queryKey: ["ss-users-list"],
-    queryFn: async () => {
-      const { data: roles } = await supabase.from("user_roles").select("user_id").in("role", ["ss_admin", "ss_producer", "ss_ops", "ss_team"]);
-      if (!roles?.length) return [];
-      const userIds = [...new Set(roles.map((r) => r.user_id))];
-      const { data } = await supabase.from("users").select("id, name, email").in("id", userIds);
-      return data || [];
-    },
-    enabled: isSSRole,
-  });
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ["requests", profile?.client_id, globalClientId],
