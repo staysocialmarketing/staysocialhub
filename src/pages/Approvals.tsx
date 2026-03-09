@@ -1,17 +1,21 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  MessageSquare, Calendar, Image as ImageIcon, Hash, Clock, CheckCircle, Mail,
+  MessageSquare, Calendar, Image as ImageIcon, Hash, Clock, CheckCircle, Mail, Eye,
 } from "lucide-react";
 import { format, isToday, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 import ApprovalActions from "@/components/ApprovalActions";
+import { toast } from "sonner";
 
 type PostStatus = Database["public"]["Enums"]["post_status"];
 
@@ -36,12 +40,18 @@ function PostCard({ post, onClick, showClient = false, children }: {
 }) {
   const dueDateColor = getDueDateColor(post.due_at);
   const isEmail = post.content_type === "email_campaign";
+  const isCoreyReview = post.status_column === "corey_review";
   return (
     <div className="space-y-1.5">
       <Tooltip>
         <TooltipTrigger asChild>
           <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={onClick}>
             <CardContent className="p-3 space-y-2">
+              {isCoreyReview && (
+                <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px]">
+                  <Eye className="h-3 w-3 mr-1" />Corey Review
+                </Badge>
+              )}
               {post.creative_url ? (
                 <div className="aspect-video bg-muted rounded overflow-hidden">
                   <img src={post.creative_url} alt="" className="w-full h-full object-cover" />
@@ -92,9 +102,55 @@ function PostCard({ post, onClick, showClient = false, children }: {
   );
 }
 
+// ─── STRATEGIC COMMENT ─────────────────────────────────────────────
+function StrategicCommentButton({ postId, postTitle }: { postId: string; postTitle: string }) {
+  const { profile } = useAuth();
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [comment, setComment] = useState("");
+
+  const submit = useMutation({
+    mutationFn: async () => {
+      if (!profile || !comment.trim()) return;
+      const { error } = await supabase.from("comments").insert({
+        post_id: postId,
+        user_id: profile.id,
+        body: `[Strategic Comment] ${comment.trim()}`,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["approval-posts"] });
+      toast.success("Strategic comment added");
+      setComment("");
+      setOpen(false);
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  if (!open) {
+    return (
+      <Button size="sm" variant="ghost" className="w-full text-xs gap-1 mt-1" onClick={(e) => { e.stopPropagation(); setOpen(true); }}>
+        <MessageSquare className="h-3 w-3" /> Strategic Comment
+      </Button>
+    );
+  }
+
+  return (
+    <div className="space-y-2 mt-1" onClick={(e) => e.stopPropagation()}>
+      <Textarea placeholder="Leave strategic direction…" value={comment} onChange={(e) => setComment(e.target.value)} rows={2} className="text-xs" />
+      <div className="flex gap-1">
+        <Button size="sm" className="flex-1 text-xs" onClick={() => submit.mutate()} disabled={!comment.trim() || submit.isPending}>Send</Button>
+        <Button size="sm" variant="ghost" className="text-xs" onClick={() => { setOpen(false); setComment(""); }}>Cancel</Button>
+      </div>
+    </div>
+  );
+}
+
 // ─── ADMIN APPROVALS VIEW ──────────────────────────────────────────
 function AdminApprovals() {
   const navigate = useNavigate();
+  const { isSSAdmin } = useAuth();
 
   const { data: posts = [], isLoading } = useQuery({
     queryKey: ["approval-posts"],
@@ -102,7 +158,7 @@ function AdminApprovals() {
       const { data, error } = await supabase
         .from("posts")
         .select("*, comments(id), assigned_user:assigned_to_user_id(name), clients(name)")
-        .in("status_column", ["internal_review", "client_approval", "ready_to_schedule", "ready_to_send", "scheduled", "published", "sent", "complete"])
+        .in("status_column", ["internal_review", "corey_review", "client_approval", "ready_to_schedule", "ready_to_send", "scheduled", "published", "sent", "complete"])
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -110,6 +166,7 @@ function AdminApprovals() {
   });
 
   const internalReview = posts.filter((p: any) => p.status_column === "internal_review");
+  const coreyReview = posts.filter((p: any) => p.status_column === "corey_review");
   const clientApproval = posts.filter((p: any) => p.status_column === "client_approval");
   const readyToSchedule = posts.filter((p: any) => p.status_column === "ready_to_schedule");
   const readyToSend = posts.filter((p: any) => p.status_column === "ready_to_send");
@@ -141,6 +198,31 @@ function AdminApprovals() {
             {internalReview.map((post: any) => (
               <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} showClient>
                 <ApprovalActions postId={post.id} postTitle={post.title} currentStatus={post.status_column} contentType={post.content_type} />
+              </PostCard>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Corey Review */}
+      <section>
+        <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+          <Eye className="h-5 w-5 text-amber-600" />
+          Awaiting Corey Review
+          <Badge variant="secondary">{coreyReview.length}</Badge>
+        </h3>
+        {coreyReview.length === 0 ? (
+          <Card><CardContent className="py-8 text-center text-muted-foreground">No posts awaiting Corey review</CardContent></Card>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {coreyReview.map((post: any) => (
+              <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} showClient>
+                {isSSAdmin && (
+                  <>
+                    <ApprovalActions postId={post.id} postTitle={post.title} currentStatus={post.status_column} contentType={post.content_type} />
+                    <StrategicCommentButton postId={post.id} postTitle={post.title} />
+                  </>
+                )}
               </PostCard>
             ))}
           </div>
@@ -249,7 +331,6 @@ function AdminApprovals() {
     </div>
   );
 }
-
 // ─── CLIENT APPROVALS VIEW ─────────────────────────────────────────
 function ClientApprovals() {
   const { profile, isClientAdmin, isClientAssistant } = useAuth();
