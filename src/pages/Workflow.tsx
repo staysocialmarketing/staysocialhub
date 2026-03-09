@@ -493,7 +493,19 @@ export default function Workflow() {
       <ScrollArea className="flex-1 min-h-0">
         <div className="flex gap-5 pb-4" style={{ minWidth: PRIMARY_COLUMNS.length * 310 }}>
           {PRIMARY_COLUMNS.map(col => {
-            const columnPosts = posts.filter((p: any) => p.status_column === col.key && (contentTypeFilter === "all" || p.content_type === contentTypeFilter));
+            const columnPosts = posts.filter((p: any) => {
+              if (p.status_column !== col.key) return false;
+              if (filterValues.contentType !== "all" && p.content_type !== filterValues.contentType) return false;
+              if (filterValues.client !== "all" && p.client_id !== filterValues.client) return false;
+              if (globalClientId && p.client_id !== globalClientId) return false;
+              if (filterValues.assignee !== "all" && p.assigned_to_user_id !== filterValues.assignee) return false;
+              if (filterValues.priority !== "all") {
+                const postPriority = (p as any).priority || "normal";
+                if (postPriority !== filterValues.priority) return false;
+              }
+              if (!applyDueDateFilter(p.due_at, filterValues.dueDate || "all")) return false;
+              return true;
+            });
             return (
               <div key={col.key} className="w-[290px] shrink-0 flex flex-col bg-accent/30 rounded-xl" onDrop={e => handleDrop(e, col.key)} onDragOver={handleDragOver}>
                 <div className="px-4 py-3 flex items-center justify-between">
