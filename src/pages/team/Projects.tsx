@@ -17,6 +17,7 @@ import { format } from "date-fns";
 import MakeRequestDialog from "@/components/MakeRequestDialog";
 import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
 import DatePickerField from "@/components/DatePickerField";
+import TaskDetailDialog from "@/components/TaskDetailDialog";
 
 interface Project {
   id: string;
