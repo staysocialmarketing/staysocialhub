@@ -240,13 +240,14 @@ export default function Projects() {
   const renderTaskRow = (task: Task) => (
     <div
       key={task.id}
-      className="flex items-center justify-between p-3 rounded-lg bg-accent/30 cursor-pointer hover:bg-accent/50 transition-colors group"
+      className="flex items-center justify-between p-3 rounded-lg bg-accent/30 cursor-pointer hover:bg-accent/50 transition-colors group/task"
       onClick={(e) => { e.stopPropagation(); setSelectedTask(task); }}
     >
       <div className="flex items-center gap-2 min-w-0">
         <ListTodo className="h-3 w-3 text-muted-foreground shrink-0" />
         <span className="text-sm font-medium truncate">{task.title}</span>
         <Badge variant="outline" className={`text-[11px] shrink-0 ${priorityColors[task.priority] || ""}`}>{task.priority}</Badge>
+        <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover/task:opacity-100 transition-opacity" onClick={(e) => { e.stopPropagation(); setSelectedTask(task); }}><Pencil className="h-3 w-3" /></Button>
       </div>
       <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
         {(userName(task.assigned_to_user_id, task.assigned_to_team)) && (
