@@ -200,6 +200,9 @@ export default function Projects() {
 
   const handleDeleteProject = async () => {
     if (!editProject) return;
+    // Unlink tasks and think tank items before deleting
+    await supabase.from("tasks").update({ project_id: null }).eq("project_id", editProject.id);
+    await supabase.from("think_tank_items").update({ project_id: null }).eq("project_id", editProject.id);
     const { error } = await supabase.from("projects").delete().eq("id", editProject.id);
     if (error) { toast.error(error.message); return; }
     toast.success("Project deleted");
