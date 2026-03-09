@@ -111,6 +111,7 @@ function AdminApprovals() {
 
   const internalReview = posts.filter((p: any) => p.status_column === "internal_review");
   const clientApproval = posts.filter((p: any) => p.status_column === "client_approval");
+  const readyToSchedule = posts.filter((p: any) => p.status_column === "ready_to_schedule");
   const readyToSend = posts.filter((p: any) => p.status_column === "ready_to_send");
   const scheduled = posts.filter((p: any) => p.status_column === "scheduled");
   const published = posts.filter((p: any) => p.status_column === "published" && p.request_id);
