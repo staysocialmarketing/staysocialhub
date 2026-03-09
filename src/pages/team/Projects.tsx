@@ -239,7 +239,7 @@ export default function Projects() {
     <div
       key={task.id}
       className="flex items-center justify-between p-3 rounded-lg bg-accent/30 cursor-pointer hover:bg-accent/50 transition-colors group"
-      onClick={(e) => { e.stopPropagation(); openEditTask(task); }}
+      onClick={(e) => { e.stopPropagation(); setSelectedTask(task); }}
     >
       <div className="flex items-center gap-2 min-w-0">
         <ListTodo className="h-3 w-3 text-muted-foreground shrink-0" />
