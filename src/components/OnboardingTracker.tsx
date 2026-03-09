@@ -187,7 +187,7 @@ export function OnboardingTracker({ clientId, isAdmin, compact = false }: Onboar
             ) : (
               <span className="shrink-0">
                 {item.completed ? (
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
                 ) : (
                   <Circle className="h-4 w-4 text-muted-foreground/50" />
                 )}
