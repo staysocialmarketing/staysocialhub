@@ -228,25 +228,7 @@ export default function Tasks() {
         </Dialog>
       </div>
 
-      <div className="flex gap-3 flex-wrap">
-        <Select value={filterProject} onValueChange={setFilterProject}>
-          <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="All Projects" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Projects</SelectItem>
-            {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={filterAssignee === "__pending__" ? "mine" : filterAssignee} onValueChange={setFilterAssignee}>
-          <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="All Assignees" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="mine">My Tasks</SelectItem>
-            <SelectItem value="all">All Tasks</SelectItem>
-            <SelectItem value="unassigned">Unassigned</SelectItem>
-            <SelectItem value="team">🤝 Team Only</SelectItem>
-            {ssUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
+      <FilterBar filters={filterConfigs} values={filterValues} onChange={setFilterValues} />
 
       {loading ? (
         <p className="text-muted-foreground">Loading...</p>
