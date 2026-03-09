@@ -493,7 +493,7 @@ export default function Workflow() {
 
       {/* Primary Kanban — daily working columns */}
       <ScrollArea className="flex-1 min-h-0">
-        <div className="flex gap-5 pb-4" style={{ minWidth: PRIMARY_COLUMNS.length * 310 }}>
+        <div className="flex gap-3 sm:gap-5 pb-4" style={{ minWidth: PRIMARY_COLUMNS.length * 280 }}>
           {PRIMARY_COLUMNS.map(col => {
             const columnPosts = posts.filter((p: any) => {
               if (p.status_column !== col.key) return false;
@@ -509,7 +509,7 @@ export default function Workflow() {
               return true;
             });
             return (
-              <div key={col.key} className="w-[290px] shrink-0 flex flex-col bg-accent/30 rounded-xl" onDrop={e => handleDrop(e, col.key)} onDragOver={handleDragOver}>
+              <div key={col.key} className="w-[260px] sm:w-[290px] shrink-0 flex flex-col bg-accent/30 rounded-xl" onDrop={e => handleDrop(e, col.key)} onDragOver={handleDragOver}>
                 <div className="px-4 py-3 flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-foreground">{col.label}</h3>
                   <Badge variant="secondary" className="text-[11px]">{columnPosts.length}</Badge>

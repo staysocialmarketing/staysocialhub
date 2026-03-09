@@ -170,7 +170,7 @@ export default function ContentLibrary() {
     }
 
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
         {items.map((post) => {
           const tags = parseTags(post.tags);
           return (

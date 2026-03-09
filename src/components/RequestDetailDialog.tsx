@@ -298,7 +298,7 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                 <div><span className="text-muted-foreground">Type:</span> <span className="capitalize">{request.type.replace("_", " ")}</span></div>
                 <div><span className="text-muted-foreground">Priority:</span> <span className="capitalize">{request.priority}</span></div>
                 <div><span className="text-muted-foreground">Created by:</span> {request.users?.name || request.users?.email || "Unknown"}</div>
