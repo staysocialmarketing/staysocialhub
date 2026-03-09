@@ -52,6 +52,13 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function SSAdminRoute({ children }: { children: React.ReactNode }) {
+  const { isSSAdmin, loading } = useAuth();
+  if (loading) return null;
+  if (!isSSAdmin) return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+}
+
 function AuthRoute() {
   const { session, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center"><p className="text-muted-foreground">Loading...</p></div>;
