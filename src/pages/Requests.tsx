@@ -99,7 +99,14 @@ export default function Requests() {
     enabled: !!profile,
   });
 
-  const filteredRequests = typeFilter === "all" ? requests : requests.filter((r: any) => r.type === typeFilter);
+  const filteredRequests = requests.filter((r: any) => {
+    if (filterValues.requestType !== "all" && r.type !== filterValues.requestType) return false;
+    if (filterValues.client !== "all" && r.client_id !== filterValues.client) return false;
+    if (filterValues.assignee !== "all" && r.assigned_to_user_id !== filterValues.assignee) return false;
+    if (filterValues.priority !== "all" && (r.priority || "normal") !== filterValues.priority) return false;
+    if (filterValues.status !== "all" && r.status !== filterValues.status) return false;
+    return true;
+  });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
