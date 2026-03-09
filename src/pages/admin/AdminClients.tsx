@@ -93,7 +93,7 @@ export default function AdminClients() {
 
   // Activity query for selected client
   const { data: activityData } = useQuery({
-    queryKey: ["client-activity", activityClientId],
+    queryKey: ["client-activity-admin", activityClientId],
     enabled: !!activityClientId,
     queryFn: async () => {
       const cid = activityClientId!;
@@ -109,6 +109,29 @@ export default function AdminClients() {
         thinkTank: thinkTank.data || [],
         requests: requests.data || [],
       };
+    },
+  });
+
+  // Timeline activities for selected client
+  const [timelineLimit, setTimelineLimit] = useState(10);
+  const { data: timelineActivities = [] } = useQuery({
+    queryKey: ["client-activity", activityClientId, timelineLimit],
+    enabled: !!activityClientId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("client_activity")
+        .select("*")
+        .eq("client_id", activityClientId!)
+        .order("created_at", { ascending: false })
+        .limit(timelineLimit);
+      return (data || []) as Array<{
+        id: string;
+        activity_type: string;
+        title: string;
+        description: string | null;
+        created_at: string;
+        visible_to_client: boolean;
+      }>;
     },
   });
 
