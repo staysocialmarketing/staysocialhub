@@ -208,6 +208,7 @@ function WorkQueueDashboard() {
           value={overdueCount}
           icon={<AlertTriangle className="h-4 w-4" />}
           accent="destructive"
+          onClick={() => navigate("/team/tasks?filter=overdue")}
         />
       </div>
 
