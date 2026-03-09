@@ -16,6 +16,10 @@ export function getApproveTarget(contentType: string | null, currentStatus: Post
   const category = getContentCategory(contentType);
 
   if (currentStatus === "internal_review") {
+    return "corey_review" as PostStatus;
+  }
+
+  if (currentStatus === "corey_review" as PostStatus) {
     return "client_approval";
   }
 

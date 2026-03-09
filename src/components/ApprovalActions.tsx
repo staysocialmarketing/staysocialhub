@@ -29,6 +29,9 @@ export default function ApprovalActions({ postId, postTitle, currentStatus, cont
   const computedTarget = getApproveTarget(contentType ?? null, currentStatus);
   const target = computedTarget;
 
+  // For corey_review request changes, go back to in_progress
+  const requestChangesTarget = (currentStatus === "corey_review" as PostStatus) ? "in_progress" as PostStatus : undefined;
+
   const approve = useMutation({
     mutationFn: async () => {
       if (!profile) throw new Error("Not logged in");
