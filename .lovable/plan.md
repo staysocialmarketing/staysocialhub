@@ -1,57 +1,73 @@
 
 
-# Workflow, Approvals, and Auto-Assignment Overhaul
+# Corey Review Layer
 
-## Summary of Changes
+## Summary
+Add `corey_review` to the `post_status` enum and wire it into the workflow as a stage between Internal Review and Client Approval. Admin (Corey) can approve, request changes, or leave strategic comments. Team can view but not act. Clients never see this stage.
 
-This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
+## Database Changes
 
-## 1. Database: Update Auto-Assignment Triggers
+### Migration
+```sql
+-- Add corey_review to post_status enum
+ALTER TYPE public.post_status ADD VALUE 'corey_review' AFTER 'internal_review';
+```
 
-**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
+### Update notification trigger
+Update `notify_on_status_change()` to handle the new `corey_review` status — notify all `ss_admin` users when a post enters this stage, and add a `log_client_activity_on_post_status()` entry (internal only, not visible to clients).
 
-**Changes (migration)**:
-- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
-- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
-- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
-- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
+```sql
+CREATE OR REPLACE FUNCTION public.notify_on_status_change() ...
+  -- Add block: when status = 'corey_review', notify all ss_admin users
+  IF NEW.status_column = 'corey_review' THEN
+    FOR _admin_user IN
+      SELECT ur.user_id FROM user_roles ur WHERE ur.role = 'ss_admin'
+    LOOP
+      INSERT INTO notifications (user_id, title, body, link)
+      VALUES (_admin_user.user_id, 'Ready for Corey Review',
+        NEW.title || ' is ready for your review', '/approvals');
+    END LOOP;
+  END IF;
+```
 
-All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
+Update `log_client_activity_on_post_status()` to add a case for `corey_review` with `_visible := false`.
 
-## 2. Approvals Page — Separate Media from Published Content
+## Frontend Changes
 
-**Client Approvals (`ClientApprovals`)**: 
-- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
-- Alternatively, only show posts in Published that were moved there by admin approval flow
+### `src/lib/workflowUtils.ts`
+Update `getApproveTarget`:
+- `internal_review` → `corey_review` (instead of `client_approval`)
+- Add new case: `corey_review` → `client_approval`
 
-**Admin Approvals (`AdminApprovals`)**:
-- Same fix for Published column — filter to only show posts linked to requests
+### `src/pages/Workflow.tsx`
+- No change to `PRIMARY_COLUMNS` — Corey Review is not a production column (it's an approval checkpoint)
+- The workflow board query already fetches only `idea`, `in_progress`, `internal_review` statuses, so no change needed
 
-**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
+### `src/pages/Approvals.tsx` — AdminApprovals
+- Add `corey_review` to the query's `in()` filter
+- Add a new "Awaiting Corey Review" section between Internal Review and Client Approval
+- Filter: `posts.filter(p => p.status_column === "corey_review")`
+- Show `ApprovalActions` only for `isSSAdmin` on `corey_review` cards
+- Add a "Strategic Comment" button (comment-only, no status change) for admin on corey_review cards
+- Add a `Badge` with "Corey Review" on cards in this status
 
-## 3. Workflow Page — Move Internal Review to Bottom Section
+### `src/pages/Approvals.tsx` — ClientApprovals
+- No changes — clients already only query `client_approval` and later statuses, so `corey_review` is invisible to them
 
-**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
+### `src/components/ApprovalActions.tsx`
+- Update to handle `corey_review` status: approve moves to `client_approval` (already handled by updated `getApproveTarget`), request changes moves to `in_progress`
+- Add a "Strategic Comment" button (visible only when `currentStatus === "corey_review"` and user is admin): inserts a comment without changing status
 
-**New layout**:
-- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
-- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
+### `src/components/WorkflowCardDialog.tsx`
+- Add "Corey Review" badge display when post status is `corey_review`
 
-## 4. Admin & Team Dashboards — Show Assignments + Tasks
+## Files
 
-**SuperAdminDashboard**: Already shows team activity. Add:
-- "My Assignments" section showing posts assigned to the current admin user
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
-
-**TeamDashboard**: Already shows "My Assignments". Add:
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
-
-## Files Changed
-
-| File | Change |
-|------|--------|
-| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
-| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
-| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
-| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
+| Action | File | Change |
+|--------|------|--------|
+| Migration | `post_status` enum | Add `corey_review` value |
+| Migration | Trigger functions | Update notification + activity log triggers |
+| Edit | `src/lib/workflowUtils.ts` | Route `internal_review` → `corey_review`, add `corey_review` → `client_approval` |
+| Edit | `src/pages/Approvals.tsx` | Add Corey Review section in admin view with approval actions |
+| Edit | `src/components/ApprovalActions.tsx` | Add strategic comment button for corey_review |
 
