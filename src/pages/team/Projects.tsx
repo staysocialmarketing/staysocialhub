@@ -92,15 +92,8 @@ export default function Projects() {
   const [editParentId, setEditParentId] = useState("");
   const [editStatus, setEditStatus] = useState("");
 
-  // Edit task state
-  const [editTask, setEditTask] = useState<Task | null>(null);
-  const [editTaskTitle, setEditTaskTitle] = useState("");
-  const [editTaskDescription, setEditTaskDescription] = useState("");
-  const [editTaskProjectId, setEditTaskProjectId] = useState("");
-  const [editTaskAssigneeId, setEditTaskAssigneeId] = useState("");
-  const [editTaskPriority, setEditTaskPriority] = useState("normal");
-  const [editTaskDueAt, setEditTaskDueAt] = useState("");
-  const [editTaskStatus, setEditTaskStatus] = useState("todo");
+  // Selected task for detail view
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   const canEditDeleteProject = (p: Project) => isSSAdmin || p.created_by_user_id === profile?.id;
   const canEditDeleteTask = (t: Task) => isSSAdmin || t.created_by_user_id === profile?.id;
