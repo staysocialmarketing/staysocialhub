@@ -288,10 +288,10 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
               </div>
 
               <div className="flex gap-2">
-                <Button size="sm" onClick={() => updateRequest.mutate()} disabled={!form.topic || updateRequest.isPending}>
+                <Button size="sm" className="min-h-[44px] sm:min-h-0" onClick={() => updateRequest.mutate()} disabled={!form.topic || updateRequest.isPending}>
                   <Save className="h-3 w-3 mr-1" /> Save
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
+                <Button size="sm" variant="ghost" className="min-h-[44px] sm:min-h-0" onClick={() => setEditing(false)}>
                   <X className="h-3 w-3 mr-1" /> Cancel
                 </Button>
               </div>
