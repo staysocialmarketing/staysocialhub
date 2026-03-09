@@ -343,6 +343,20 @@ export default function AdminClients() {
               <Label className="text-xs text-muted-foreground">Assistants can approve</Label>
               <Switch checked={editAssistants} onCheckedChange={setEditAssistants} />
             </div>
+            {isSSAdmin && (
+              <div>
+                <Label className="text-xs text-muted-foreground">Health Override</Label>
+                <Select value={editHealthOverride} onValueChange={setEditHealthOverride}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__auto__">Auto (calculated)</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="needs_attention">Needs Attention</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setEditClient(null)}>Cancel</Button>
