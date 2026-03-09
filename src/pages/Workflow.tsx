@@ -141,14 +141,8 @@ export default function Workflow() {
     enabled: !!profile,
   });
 
-  const { data: clients = [] } = useQuery({
-    queryKey: ["all-clients"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("clients").select("id, name").order("name");
-      if (error) throw error;
-      return data || [];
-    },
-  });
+  // clients query is already above in filterConfigs
+  const clients = allClients;
 
   const { data: ssUsers = [] } = useQuery({
     queryKey: ["ss-users"],
