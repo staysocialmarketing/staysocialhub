@@ -484,7 +484,7 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
                 </div>
               )}
 
-              {post.internal_notes && (
+              {isSSRole && post.internal_notes && (
                 <div>
                   <Label className="text-muted-foreground text-xs">Internal Notes</Label>
                   <p className="text-sm whitespace-pre-wrap">{post.internal_notes}</p>

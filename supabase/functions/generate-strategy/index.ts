@@ -28,6 +28,19 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
     }
 
+    const userId = claimsData.claims.sub;
+
+    // Verify caller has an SS role
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .in("role", ["ss_admin", "ss_producer", "ss_ops", "ss_team"]);
+
+    if (!roleData || roleData.length === 0) {
+      return new Response(JSON.stringify({ error: "Forbidden: SS role required" }), { status: 403, headers: corsHeaders });
+    }
+
     const { request_id } = await req.json();
     if (!request_id) {
       return new Response(JSON.stringify({ error: "request_id is required" }), { status: 400, headers: corsHeaders });
