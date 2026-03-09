@@ -1,57 +1,103 @@
 
 
-# Workflow, Approvals, and Auto-Assignment Overhaul
+# Request Intelligence System
 
-## Summary of Changes
+## Summary
+Expand the `request_type` enum from 2 values to 7, update all creation/display/filtering UIs, and set the correct `content_type` on auto-created workflow posts based on request type.
 
-This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
+## Database Changes
 
-## 1. Database: Update Auto-Assignment Triggers
+### 1. Expand `request_type` enum
+```sql
+ALTER TYPE public.request_type ADD VALUE IF NOT EXISTS 'design';
+ALTER TYPE public.request_type ADD VALUE IF NOT EXISTS 'video';
+ALTER TYPE public.request_type ADD VALUE IF NOT EXISTS 'automation';
+ALTER TYPE public.request_type ADD VALUE IF NOT EXISTS 'strategy';
+ALTER TYPE public.request_type ADD VALUE IF NOT EXISTS 'general';
+```
 
-**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
+### 2. Backfill legacy requests without type
+Not needed — the `type` column already has `NOT NULL` and all existing records have a value.
 
-**Changes (migration)**:
-- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
-- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
-- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
-- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
+### 3. Update `auto_create_post_from_request` trigger
+Set `content_type` on the auto-created post based on request type:
+- `social_post` → `image` (default social)
+- `email_campaign` → `email_campaign`
+- `video` → `video`
+- `design` → `graphic_design`
+- All others → `general_task`
 
-All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
+```sql
+CREATE OR REPLACE FUNCTION public.auto_create_post_from_request()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public'
+AS $$
+DECLARE
+  _ss_user record;
+  _content_type text;
+BEGIN
+  CASE NEW.type::text
+    WHEN 'social_post' THEN _content_type := 'image';
+    WHEN 'email_campaign' THEN _content_type := 'email_campaign';
+    WHEN 'video' THEN _content_type := 'video';
+    WHEN 'design' THEN _content_type := 'graphic_design';
+    ELSE _content_type := 'general_task';
+  END CASE;
 
-## 2. Approvals Page — Separate Media from Published Content
+  INSERT INTO public.posts (client_id, title, caption, status_column, created_by_user_id, content_type, request_id)
+  VALUES (NEW.client_id, NEW.topic, NEW.notes, 'idea', NEW.created_by_user_id, _content_type, NEW.id);
 
-**Client Approvals (`ClientApprovals`)**: 
-- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
-- Alternatively, only show posts in Published that were moved there by admin approval flow
+  -- notify SS users (unchanged)
+  FOR _ss_user IN
+    SELECT DISTINCT ur.user_id FROM public.user_roles ur
+    WHERE ur.role IN ('ss_admin','ss_producer','ss_ops','ss_team')
+      AND ur.user_id IS DISTINCT FROM NEW.created_by_user_id
+  LOOP
+    INSERT INTO public.notifications (user_id, title, body, link)
+    VALUES (_ss_user.user_id, 'New request', NEW.topic, '/requests');
+  END LOOP;
+  RETURN NEW;
+END;
+$$;
+```
 
-**Admin Approvals (`AdminApprovals`)**:
-- Same fix for Published column — filter to only show posts linked to requests
+## Frontend Changes
 
-**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
+### Shared: Request type config constant
+Create a shared `REQUEST_TYPE_OPTIONS` array in `src/lib/workflowUtils.ts`:
+```typescript
+export const REQUEST_TYPE_OPTIONS = [
+  { value: "social_post", label: "Social Post" },
+  { value: "email_campaign", label: "Email Campaign" },
+  { value: "design", label: "Design" },
+  { value: "video", label: "Video" },
+  { value: "automation", label: "Automation" },
+  { value: "strategy", label: "Strategy" },
+  { value: "general", label: "General" },
+];
+```
 
-## 3. Workflow Page — Move Internal Review to Bottom Section
+### File: `src/pages/Requests.tsx`
+- Replace hardcoded type select (Social Post / Email Campaign) with full `REQUEST_TYPE_OPTIONS` list
+- Add a **request type filter** dropdown above the request list (All / each type)
+- Display request type as an **outline badge** in the top-right of each request card
+- Remove email-specific conditional form fields (campaign_type, audience, deadline) — keep form simple: Title, Notes, Priority, Attachment, Type, Client
+- Filter the `requests` query client-side by selected type filter
 
-**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
+### File: `src/components/MakeRequestDialog.tsx`
+- Replace 2-option type select with full `REQUEST_TYPE_OPTIONS`
+- Remove email-specific conditional fields to keep form simple
 
-**New layout**:
-- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
-- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
+### File: `src/components/RequestDetailDialog.tsx`
+- Update type select to show all 7 options when editing
+- Display type as outline badge in header
 
-## 4. Admin & Team Dashboards — Show Assignments + Tasks
+## Files Summary
 
-**SuperAdminDashboard**: Already shows team activity. Add:
-- "My Assignments" section showing posts assigned to the current admin user
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
-
-**TeamDashboard**: Already shows "My Assignments". Add:
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
-
-## Files Changed
-
-| File | Change |
-|------|--------|
-| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
-| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
-| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
-| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
+| Action | File | Change |
+|--------|------|--------|
+| Migration | enum + trigger | Add 5 enum values, update trigger for content_type mapping |
+| Edit | `src/lib/workflowUtils.ts` | Add `REQUEST_TYPE_OPTIONS` |
+| Edit | `src/pages/Requests.tsx` | Full type list, type filter, type badge on cards |
+| Edit | `src/components/MakeRequestDialog.tsx` | Full type list, simplified form |
+| Edit | `src/components/RequestDetailDialog.tsx` | Full type list in edit mode, type badge |
 
