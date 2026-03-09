@@ -185,10 +185,10 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-2">
-            {request.type === "social_post" ? <FileText className="h-5 w-5 text-primary" /> : <Mail className="h-5 w-5 text-primary" />}
             <DialogTitle className="text-xl">{request.topic}</DialogTitle>
           </div>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
+            <Badge variant="outline" className="text-[11px]">{REQUEST_TYPE_OPTIONS.find((o) => o.value === request.type)?.label || request.type.replace("_", " ")}</Badge>
             {request.clients?.name && <Badge variant="outline">{request.clients.name}</Badge>}
             <Badge className={statusColors[request.status] || ""}>{request.status.replace("_", " ")}</Badge>
             <Badge variant="outline" className="capitalize">{request.priority}</Badge>
