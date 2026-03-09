@@ -96,14 +96,7 @@ export default function Workflow() {
 
   const { selectedClientId: globalClientId } = useClientFilter();
 
-  const filterConfigs: FilterConfig[] = [
-    { key: "client", label: "Client", options: allClients.map((c: any) => ({ value: c.id, label: c.name })) },
-    { key: "contentType", label: "Type", options: CONTENT_TYPE_OPTIONS.map((t) => ({ value: t.value, label: t.label })) },
-    { key: "assignee", label: "Assigned To", options: ssUsers.map((u: any) => ({ value: u.id, label: u.name || u.email })) },
-    { key: "priority", label: "Priority", options: PRIORITY_FILTER_OPTIONS },
-    { key: "dueDate", label: "Due Date", options: DUE_DATE_FILTER_OPTIONS },
-  ];
-  const { values: filterValues, setValues: setFilterValues } = useFilterBar(filterConfigs, "workflow");
+  // filterConfigs defined after ssUsers query below
 
   const [newPost, setNewPost] = useState({
     client_id: "",
