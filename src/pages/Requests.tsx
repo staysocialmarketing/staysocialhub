@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus, User } from "lucide-react";
+import { Plus, User, Target } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import RequestDetailDialog from "@/components/RequestDetailDialog";
 import { compressImage } from "@/lib/imageUtils";
