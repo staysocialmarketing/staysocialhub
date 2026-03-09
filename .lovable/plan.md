@@ -1,80 +1,57 @@
 
 
-# Task Completion Sync, Animations, and Status Colors
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-## Problems Found
+## Summary of Changes
 
-1. **Status mismatch**: The Tasks page uses `"complete"` as the final status, but the Projects page uses `"done"` in its task status dropdown and filters tasks by `t.status !== "done"`. This means completed tasks never disappear from project counts, and the status dropdown options are inconsistent.
-2. **No completion animations** on tasks or projects.
-3. **No color-coded status badges** on task rows within projects -- only priority badges are colored.
-4. **No auto-complete for projects** when all tasks finish.
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
-## Changes
+## 1. Database: Update Auto-Assignment Triggers
 
-### 1. Fix status sync (Projects page)
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-**File: `src/pages/team/Projects.tsx`**
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
-- Change the task status `<SelectItem>` values in `renderTaskRow` from `"todo"/"in_progress"/"done"` to match the full task lifecycle: `"backlog"/"todo"/"in_progress"/"waiting"/"review"/"complete"`.
-- Update the task count filter from `t.status !== "done"` to `t.status !== "complete"` (appears twice, lines ~345-348).
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
 
-### 2. Add color-coded status badges
+## 2. Approvals Page — Separate Media from Published Content
 
-**File: `src/pages/team/Tasks.tsx`** and **`src/pages/team/Projects.tsx`**
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
 
-Add a shared `statusColors` map for task statuses:
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
 
-```typescript
-const taskStatusColors: Record<string, string> = {
-  backlog: "bg-muted text-muted-foreground",
-  todo: "bg-blue-500/15 text-blue-700 border-blue-500/20",
-  in_progress: "bg-yellow-500/15 text-yellow-700 border-yellow-500/20",
-  waiting: "bg-purple-500/15 text-purple-700 border-purple-500/20",
-  review: "bg-orange-500/15 text-orange-700 border-orange-500/20",
-  complete: "bg-green-500/15 text-green-700 border-green-500/20",
-};
-```
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
 
-Apply these colors to the status `<SelectTrigger>` on task cards (Tasks page) and task rows (Projects page) so the current status is visually color-coded.
+## 3. Workflow Page — Move Internal Review to Bottom Section
 
-### 3. Completion animation for tasks
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
 
-**File: `src/index.css`** -- add a `@keyframes task-complete` animation (confetti-like scale-bounce or checkmark flash).
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
 
-**File: `src/pages/team/Tasks.tsx`** -- when a task moves to `"complete"`, briefly apply an `animate-task-complete` class to the card before it moves columns.
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
 
-**File: `src/pages/team/Projects.tsx`** -- same animation on the task row when status changes to `"complete"` via the dropdown. Show a celebratory toast with confetti emoji.
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
-### 4. Auto-complete project when all tasks are done
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
-**File: `src/pages/team/Projects.tsx`**
+## Files Changed
 
-After `updateTaskStatus` sets a task to `"complete"`, check if all remaining tasks in that project are also `"complete"`. If so:
-- Auto-update the project status to `"completed"`.
-- Show a bigger celebratory toast ("Project complete! All tasks finished.").
-- Apply a larger animation (scale + glow) on the project card.
-
-### 5. Sync task completion animation (CSS)
-
-**File: `src/index.css`**
-
-```css
-@keyframes task-complete {
-  0% { transform: scale(1); }
-  30% { transform: scale(1.05); background-color: hsl(var(--success) / 0.15); }
-  100% { transform: scale(1); }
-}
-
-@keyframes project-complete {
-  0% { transform: scale(1); box-shadow: 0 0 0 0 hsl(var(--success) / 0.4); }
-  50% { transform: scale(1.02); box-shadow: 0 0 0 8px hsl(var(--success) / 0); }
-  100% { transform: scale(1); box-shadow: 0 0 0 0 hsl(var(--success) / 0); }
-}
-```
-
-## Summary of sync behavior
-- Completing a task on Tasks page or Projects page uses the same `"complete"` status value.
-- Projects page task count excludes `"complete"` tasks.
-- When all project tasks reach `"complete"`, the project auto-marks as `"completed"`.
-- Both pages share the same color scheme for task statuses.
+| File | Change |
+|------|--------|
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,6 +20,7 @@ import TaskDetailDialog from "@/components/TaskDetailDialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import FilterBar, { useFilterBar, applyDueDateFilter, PRIORITY_FILTER_OPTIONS, DUE_DATE_FILTER_OPTIONS } from "@/components/FilterBar";
 import type { FilterConfig } from "@/components/FilterBar";
+import { taskStatusColors, taskStatusLabels, taskStatusColumns } from "@/lib/taskStatusUtils";
 
 interface Task {
   id: string;
@@ -43,15 +44,8 @@ const priorityColors: Record<string, string> = {
   urgent: "bg-red-500/15 text-red-700 border-red-500/20",
 };
 
-const statusColumns = ["backlog", "todo", "in_progress", "waiting", "review", "complete"] as const;
-const statusLabels: Record<string, string> = {
-  backlog: "Backlog",
-  todo: "To Do",
-  in_progress: "In Progress",
-  waiting: "Waiting",
-  review: "Review",
-  complete: "Complete",
-};
+const statusColumns = taskStatusColumns;
+const statusLabels = taskStatusLabels;
 
 export default function Tasks() {
   const { profile, isSSAdmin } = useAuth();
@@ -153,9 +147,21 @@ export default function Tasks() {
     fetchTasks();
   };
 
+  const [completingTaskIds, setCompletingTaskIds] = useState<Set<string>>(new Set());
+
   const updateStatus = async (id: string, status: string) => {
-    await supabase.from("tasks").update({ status } as any).eq("id", id);
-    fetchTasks();
+    if (status === "complete") {
+      setCompletingTaskIds((prev) => new Set(prev).add(id));
+      toast.success("🎉 Task complete!");
+      setTimeout(async () => {
+        await supabase.from("tasks").update({ status } as any).eq("id", id);
+        setCompletingTaskIds((prev) => { const n = new Set(prev); n.delete(id); return n; });
+        fetchTasks();
+      }, 500);
+    } else {
+      await supabase.from("tasks").update({ status } as any).eq("id", id);
+      fetchTasks();
+    }
   };
 
   const userName = (task: Task) => {
@@ -246,7 +252,7 @@ export default function Tasks() {
                 tasksByStatus(col).map((task) => (
                   <div
                     key={task.id}
-                    className="card-elevated p-4 space-y-3 cursor-pointer hover:shadow-md transition-all group"
+                    className={`card-elevated p-4 space-y-3 cursor-pointer hover:shadow-md transition-all group ${completingTaskIds.has(task.id) ? "animate-task-complete" : ""}`}
                     onClick={() => setEditTask(task)}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -276,7 +282,7 @@ export default function Tasks() {
                     </div>
                     <div onClick={(e) => e.stopPropagation()}>
                       <Select value={task.status} onValueChange={(s) => updateStatus(task.id, s)}>
-                        <SelectTrigger className="h-7 text-[11px] w-full border-border/50 bg-transparent">
+                        <SelectTrigger className={`h-7 text-[11px] w-full border-border/50 ${taskStatusColors[task.status] || "bg-transparent"}`}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>

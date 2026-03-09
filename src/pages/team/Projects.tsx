@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { taskStatusColors, taskStatusLabels, taskStatusColumns } from "@/lib/taskStatusUtils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientFilter } from "@/contexts/ClientFilterContext";
 import { Button } from "@/components/ui/button";
@@ -206,10 +207,36 @@ export default function Projects() {
     fetchData();
   };
 
+  const [completingTaskIds, setCompletingTaskIds] = useState<Set<string>>(new Set());
+  const [completingProjectIds, setCompletingProjectIds] = useState<Set<string>>(new Set());
 
-  const updateTaskStatus = async (id: string, status: string) => {
-    await supabase.from("tasks").update({ status } as any).eq("id", id);
-    fetchData();
+  const updateTaskStatus = async (id: string, status: string, projectId?: string | null) => {
+    if (status === "complete") {
+      setCompletingTaskIds((prev) => new Set(prev).add(id));
+      toast.success("🎉 Task complete!");
+      setTimeout(async () => {
+        await supabase.from("tasks").update({ status } as any).eq("id", id);
+        setCompletingTaskIds((prev) => { const n = new Set(prev); n.delete(id); return n; });
+        
+        // Check if all tasks in this project are now complete
+        if (projectId) {
+          const otherTasks = (projectTasks[projectId] || []).filter(t => t.id !== id);
+          const allDone = otherTasks.every(t => t.status === "complete");
+          if (allDone && otherTasks.length > 0) {
+            setCompletingProjectIds((prev) => new Set(prev).add(projectId));
+            await supabase.from("projects").update({ status: "completed" } as any).eq("id", projectId);
+            toast.success("🎊 Project complete! All tasks finished!", { duration: 4000 });
+            setTimeout(() => {
+              setCompletingProjectIds((prev) => { const n = new Set(prev); n.delete(projectId); return n; });
+            }, 800);
+          }
+        }
+        fetchData();
+      }, 500);
+    } else {
+      await supabase.from("tasks").update({ status } as any).eq("id", id);
+      fetchData();
+    }
   };
 
   const handleCreate = async () => {
@@ -240,7 +267,7 @@ export default function Projects() {
   const renderTaskRow = (task: Task) => (
     <div
       key={task.id}
-      className="flex items-center justify-between p-3 rounded-lg bg-accent/30 cursor-pointer hover:bg-accent/50 transition-colors group/task"
+      className={`flex items-center justify-between p-3 rounded-lg bg-accent/30 cursor-pointer hover:bg-accent/50 transition-colors group/task ${completingTaskIds.has(task.id) ? "animate-task-complete" : ""}`}
       onClick={(e) => { e.stopPropagation(); setSelectedTask(task); }}
     >
       <div className="flex items-center gap-2 min-w-0">
@@ -259,12 +286,12 @@ export default function Projects() {
         {task.due_at && (
           <span className="text-xs text-muted-foreground flex items-center gap-0.5 hidden sm:flex"><Calendar className="h-3 w-3" />{format(new Date(task.due_at), "MMM d")}</span>
         )}
-        <Select value={task.status} onValueChange={(s) => updateTaskStatus(task.id, s)}>
-          <SelectTrigger className="h-7 text-[11px] w-24 border-border/50 bg-transparent"><SelectValue /></SelectTrigger>
+        <Select value={task.status} onValueChange={(s) => updateTaskStatus(task.id, s, task.project_id)}>
+          <SelectTrigger className={`h-7 text-[11px] w-28 border-border/50 ${taskStatusColors[task.status] || "bg-transparent"}`}><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="todo">To Do</SelectItem>
-            <SelectItem value="in_progress">In Progress</SelectItem>
-            <SelectItem value="done">Done</SelectItem>
+            {taskStatusColumns.map((s) => (
+              <SelectItem key={s} value={s}>{taskStatusLabels[s]}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -327,7 +354,7 @@ export default function Projects() {
             const tasks = projectTasks[project.id] || [];
             const isExpanded = expandedIds.has(project.id);
             return (
-              <Card key={project.id} className="group border-border/40 shadow-sm hover:shadow-md transition-all">
+              <Card key={project.id} className={`group border-border/40 shadow-sm hover:shadow-md transition-all ${completingProjectIds.has(project.id) ? "animate-project-complete" : ""}`}>
                 <div
                   className="p-5 cursor-pointer hover:bg-accent/30 transition-colors"
                   onClick={() => toggleExpand(project.id)}
@@ -342,10 +369,10 @@ export default function Projects() {
                     <div className="flex items-center gap-2 text-xs text-muted-foreground" onClick={(e) => e.stopPropagation()}>
                       {clientName(project.client_id) && <Badge variant="outline" className="text-[11px]">{clientName(project.client_id)}</Badge>}
                       {(() => {
-                        const directTasks = tasks.filter(t => t.status !== "done");
+                        const directTasks = tasks.filter(t => t.status !== "complete");
                         const subIds = subs.map(s => s.id);
-                        const subTaskCount = Object.entries(projectTasks).filter(([pid]) => subIds.includes(pid)).reduce((sum, [, ts]) => sum + ts.filter(t => t.status !== "done").length, 0);
-                        const total = directTasks.filter(t => t.status !== "done").length + subTaskCount;
+                        const subTaskCount = Object.entries(projectTasks).filter(([pid]) => subIds.includes(pid)).reduce((sum, [, ts]) => sum + ts.filter(t => t.status !== "complete").length, 0);
+                        const total = directTasks.filter(t => t.status !== "complete").length + subTaskCount;
                         return <span className="text-xs text-muted-foreground">{total} task{total !== 1 ? "s" : ""}</span>;
                       })()}
                       {canEditDeleteProject(project) && (

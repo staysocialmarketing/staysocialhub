@@ -119,3 +119,24 @@
     @apply rounded-xl bg-card border border-border/40 shadow-sm;
   }
 }
+
+@keyframes task-complete {
+  0% { transform: scale(1); opacity: 1; }
+  25% { transform: scale(1.06); background-color: hsl(142 71% 45% / 0.12); }
+  50% { transform: scale(0.98); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes project-complete {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 hsl(142 71% 45% / 0.4); }
+  40% { transform: scale(1.015); box-shadow: 0 0 0 6px hsl(142 71% 45% / 0.15); }
+  100% { transform: scale(1); box-shadow: 0 0 0 12px hsl(142 71% 45% / 0); }
+}
+
+.animate-task-complete {
+  animation: task-complete 0.5s ease-out;
+}
+
+.animate-project-complete {
+  animation: project-complete 0.8s ease-out;
+}
