@@ -404,7 +404,26 @@ export default function AdminClients() {
       {/* Client Activity Dialog */}
       <Dialog open={!!activityClientId} onOpenChange={(o) => { if (!o) setActivityClientId(null); }}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Activity — {activityClientName}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle>Activity — {activityClientName}</DialogTitle>
+              {activityClientId && <AddActivityDialog clientId={activityClientId} />}
+            </div>
+          </DialogHeader>
+
+          {/* Timeline Section */}
+          <div className="space-y-2 border-b pb-4 mb-4">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <Activity className="h-3.5 w-3.5" /> Timeline
+            </p>
+            <ActivityTimeline
+              activities={timelineActivities}
+              isSSRole={true}
+              hasMore={timelineActivities.length === timelineLimit}
+              onLoadMore={() => setTimelineLimit((l) => l + 10)}
+            />
+          </div>
+
           {activityData ? (
             <div className="space-y-5">
               {/* Requests */}
