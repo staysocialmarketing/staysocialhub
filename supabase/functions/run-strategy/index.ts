@@ -38,6 +38,22 @@ Deno.serve(async (req) => {
       });
     }
 
+    const userId = claimsData.claims.sub;
+
+    // Verify caller has an SS role
+    const { data: roleData } = await userClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .in("role", ["ss_admin", "ss_producer", "ss_ops", "ss_team"]);
+
+    if (!roleData || roleData.length === 0) {
+      return new Response(JSON.stringify({ error: "Forbidden: SS role required" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { item_type, item_id } = await req.json();
     if (!item_type || !item_id) {
       return new Response(JSON.stringify({ error: "item_type and item_id required" }), {
