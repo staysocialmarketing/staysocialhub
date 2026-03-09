@@ -40,7 +40,9 @@ interface Task {
   assigned_to_team: boolean;
   due_at: string | null;
   project_id: string | null;
+  client_id: string | null;
   created_by_user_id: string;
+  created_at: string;
 }
 
 const statusColors: Record<string, string> = {
