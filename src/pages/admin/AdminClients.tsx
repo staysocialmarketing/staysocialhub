@@ -231,6 +231,7 @@ export default function AdminClients() {
     setEditStatus(client.status);
     setEditPlanId(client.plan_id || "");
     setEditAssistants(client.assistants_can_approve);
+    setEditHealthOverride(client.health_override || "__auto__");
   };
 
   const handleDownload = (url: string) => {
