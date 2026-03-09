@@ -14,10 +14,16 @@ import { toast } from "sonner";
 const ACTIVITY_TYPES = [
   { value: "manual_note", label: "Note" },
   { value: "request_created", label: "Request Created" },
+  { value: "request_status_changed", label: "Request Status Changed" },
   { value: "approval_completed", label: "Approval Completed" },
+  { value: "internal_review_completed", label: "Internal Review Completed" },
+  { value: "client_changes_requested", label: "Client Changes Requested" },
+  { value: "task_completed", label: "Task Completed" },
   { value: "media_uploaded", label: "Media Uploaded" },
   { value: "campaign_launched", label: "Campaign Launched" },
-  { value: "post_published", label: "Post Published" },
+  { value: "content_scheduled", label: "Content Scheduled" },
+  { value: "content_published", label: "Content Published" },
+  { value: "email_scheduled", label: "Email Scheduled" },
   { value: "email_sent", label: "Email Sent" },
 ];
 
