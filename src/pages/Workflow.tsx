@@ -374,15 +374,7 @@ export default function Workflow() {
           <p className="text-sm text-muted-foreground">Production pipeline — drag cards or use action buttons</p>
         </div>
         <div className="flex items-center gap-3">
-          <Select value={contentTypeFilter} onValueChange={setContentTypeFilter}>
-            <SelectTrigger className="w-full sm:w-40 h-9"><SelectValue placeholder="All Types" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              {CONTENT_TYPE_OPTIONS.map(t => (
-                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <FilterBar filters={filterConfigs} values={filterValues} onChange={setFilterValues} />
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
               <Button><Plus className="h-4 w-4 mr-2" />New Post</Button>
