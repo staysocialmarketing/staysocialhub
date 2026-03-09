@@ -41,7 +41,6 @@ export default function Requests() {
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
   const [form, setForm] = useState({
     type: "social_post" as RequestType,
     topic: "",
