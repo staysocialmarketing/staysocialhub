@@ -13,7 +13,7 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Building2, Sparkles, FolderOpen, ListTodo, Lightbulb, MessageSquarePlus, Target, Image, Activity, ImageIcon, Film, Mic, Download, Link2, ExternalLink, User } from "lucide-react";
+import { Plus, Building2, Sparkles, FolderOpen, ListTodo, Lightbulb, MessageSquarePlus, Target, Image, Activity, ImageIcon, Film, Mic, Download, Link2, ExternalLink, User, ClipboardList } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
