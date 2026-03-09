@@ -17,6 +17,7 @@ import { format } from "date-fns";
 import MakeRequestDialog from "@/components/MakeRequestDialog";
 import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
 import DatePickerField from "@/components/DatePickerField";
+import TaskDetailDialog from "@/components/TaskDetailDialog";
 
 interface Project {
   id: string;
@@ -39,7 +40,9 @@ interface Task {
   assigned_to_team: boolean;
   due_at: string | null;
   project_id: string | null;
+  client_id: string | null;
   created_by_user_id: string;
+  created_at: string;
 }
 
 const statusColors: Record<string, string> = {
@@ -91,15 +94,8 @@ export default function Projects() {
   const [editParentId, setEditParentId] = useState("");
   const [editStatus, setEditStatus] = useState("");
 
-  // Edit task state
-  const [editTask, setEditTask] = useState<Task | null>(null);
-  const [editTaskTitle, setEditTaskTitle] = useState("");
-  const [editTaskDescription, setEditTaskDescription] = useState("");
-  const [editTaskProjectId, setEditTaskProjectId] = useState("");
-  const [editTaskAssigneeId, setEditTaskAssigneeId] = useState("");
-  const [editTaskPriority, setEditTaskPriority] = useState("normal");
-  const [editTaskDueAt, setEditTaskDueAt] = useState("");
-  const [editTaskStatus, setEditTaskStatus] = useState("todo");
+  // Selected task for detail view
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   const canEditDeleteProject = (p: Project) => isSSAdmin || p.created_by_user_id === profile?.id;
   const canEditDeleteTask = (t: Task) => isSSAdmin || t.created_by_user_id === profile?.id;
@@ -111,7 +107,7 @@ export default function Projects() {
     const { data } = await query;
     setProjects((data as Project[]) || []);
 
-    const { data: tasks } = await supabase.from("tasks").select("id, title, description, status, priority, assigned_to_user_id, assigned_to_team, due_at, project_id, created_by_user_id");
+    const { data: tasks } = await supabase.from("tasks").select("id, title, description, status, priority, assigned_to_user_id, assigned_to_team, due_at, project_id, client_id, created_by_user_id, created_at");
     if (tasks) {
       const grouped: Record<string, Task[]> = {};
       (tasks as Task[]).forEach((t) => {
@@ -210,44 +206,6 @@ export default function Projects() {
     fetchData();
   };
 
-  const openEditTask = (task: Task) => {
-    setEditTask(task);
-    setEditTaskTitle(task.title);
-    setEditTaskDescription(task.description || "");
-    setEditTaskProjectId(task.project_id || "");
-    setEditTaskAssigneeId(task.assigned_to_team ? "__team__" : (task.assigned_to_user_id || ""));
-    setEditTaskPriority(task.priority);
-    setEditTaskDueAt(task.due_at || "");
-    setEditTaskStatus(task.status);
-  };
-
-  const handleSaveTask = async () => {
-    if (!editTask || !editTaskTitle.trim()) return;
-    const isTeam = editTaskAssigneeId === "__team__";
-    const { error } = await supabase.from("tasks").update({
-      title: editTaskTitle.trim(),
-      description: editTaskDescription.trim() || null,
-      project_id: editTaskProjectId || null,
-      assigned_to_user_id: isTeam ? null : (editTaskAssigneeId || null),
-      assigned_to_team: isTeam,
-      priority: editTaskPriority,
-      due_at: editTaskDueAt || null,
-      status: editTaskStatus,
-    } as any).eq("id", editTask.id);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Task updated!");
-    setEditTask(null);
-    fetchData();
-  };
-
-  const handleDeleteTask = async () => {
-    if (!editTask) return;
-    const { error } = await supabase.from("tasks").delete().eq("id", editTask.id);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Task deleted");
-    setEditTask(null);
-    fetchData();
-  };
 
   const updateTaskStatus = async (id: string, status: string) => {
     await supabase.from("tasks").update({ status } as any).eq("id", id);
@@ -283,7 +241,7 @@ export default function Projects() {
     <div
       key={task.id}
       className="flex items-center justify-between p-3 rounded-lg bg-accent/30 cursor-pointer hover:bg-accent/50 transition-colors group"
-      onClick={(e) => { e.stopPropagation(); openEditTask(task); }}
+      onClick={(e) => { e.stopPropagation(); setSelectedTask(task); }}
     >
       <div className="flex items-center gap-2 min-w-0">
         <ListTodo className="h-3 w-3 text-muted-foreground shrink-0" />
@@ -574,95 +532,15 @@ export default function Projects() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Task Dialog */}
-      <Dialog open={!!editTask} onOpenChange={(o) => !o && setEditTask(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Edit Task</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label className="text-xs text-muted-foreground">Title</Label>
-              <Input value={editTaskTitle} onChange={(e) => setEditTaskTitle(e.target.value)} />
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Description</Label>
-              <Textarea value={editTaskDescription} onChange={(e) => setEditTaskDescription(e.target.value)} />
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Project</Label>
-              <Select value={editTaskProjectId || "__none__"} onValueChange={(v) => setEditTaskProjectId(v === "__none__" ? "" : v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">No project</SelectItem>
-                  {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Assignee</Label>
-              <Select value={editTaskAssigneeId || "__none__"} onValueChange={(v) => setEditTaskAssigneeId(v === "__none__" ? "" : v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Unassigned</SelectItem>
-                  <SelectItem value="__team__">🤝 Team (All Hands)</SelectItem>
-                  {ssUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Priority</Label>
-              <Select value={editTaskPriority} onValueChange={setEditTaskPriority}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="normal">Normal</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="urgent">Urgent</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Status</Label>
-              <Select value={editTaskStatus} onValueChange={setEditTaskStatus}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todo">To Do</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="done">Done</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Due Date</Label>
-              <DatePickerField value={editTaskDueAt} onChange={setEditTaskDueAt} placeholder="Pick due date" />
-            </div>
-          </div>
-          <DialogFooter className="flex justify-between sm:justify-between">
-            {editTask && canEditDeleteTask(editTask) && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-1" /> Delete</Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete task?</AlertDialogTitle>
-                    <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteTask}>Delete</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
-            <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => setEditTask(null)}>Cancel</Button>
-              {editTask && canEditDeleteTask(editTask) && (
-                <Button onClick={handleSaveTask} disabled={!editTaskTitle.trim()}>Save</Button>
-              )}
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Task Detail Dialog */}
+      <TaskDetailDialog
+        task={selectedTask}
+        onClose={() => setSelectedTask(null)}
+        onUpdated={fetchData}
+        projects={projects}
+        ssUsers={ssUsers}
+        users={users}
+      />
 
       {/* Add Task from Project Dialog */}
       <Dialog open={!!addTaskProjectId} onOpenChange={(o) => { if (!o) { setAddTaskProjectId(null); setAddTaskTitle(""); setAddTaskDescription(""); setAddTaskAssigneeId(""); setAddTaskPriority("normal"); setAddTaskDueAt(""); } }}>
