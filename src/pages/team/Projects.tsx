@@ -369,10 +369,10 @@ export default function Projects() {
                     <div className="flex items-center gap-2 text-xs text-muted-foreground" onClick={(e) => e.stopPropagation()}>
                       {clientName(project.client_id) && <Badge variant="outline" className="text-[11px]">{clientName(project.client_id)}</Badge>}
                       {(() => {
-                        const directTasks = tasks.filter(t => t.status !== "done");
+                        const directTasks = tasks.filter(t => t.status !== "complete");
                         const subIds = subs.map(s => s.id);
-                        const subTaskCount = Object.entries(projectTasks).filter(([pid]) => subIds.includes(pid)).reduce((sum, [, ts]) => sum + ts.filter(t => t.status !== "done").length, 0);
-                        const total = directTasks.filter(t => t.status !== "done").length + subTaskCount;
+                        const subTaskCount = Object.entries(projectTasks).filter(([pid]) => subIds.includes(pid)).reduce((sum, [, ts]) => sum + ts.filter(t => t.status !== "complete").length, 0);
+                        const total = directTasks.filter(t => t.status !== "complete").length + subTaskCount;
                         return <span className="text-xs text-muted-foreground">{total} task{total !== 1 ? "s" : ""}</span>;
                       })()}
                       {canEditDeleteProject(project) && (
