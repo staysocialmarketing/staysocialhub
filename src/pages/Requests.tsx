@@ -296,6 +296,11 @@ export default function Requests() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
                     <Badge variant="outline" className="text-[11px]">{getTypeLabel(req.type)}</Badge>
+                    {isSSRole && req.strategy_brief && typeof req.strategy_brief === "object" && Object.values(req.strategy_brief).some((v: any) => v && String(v).trim()) && (
+                      <Badge variant="secondary" className="text-[10px] gap-1 bg-primary/10 text-primary">
+                        <Target className="h-3 w-3" /> Strategy Ready
+                      </Badge>
+                    )}
                     {assignedName && (
                       <Badge variant="secondary" className="text-[10px] gap-1">
                         <User className="h-3 w-3" /> {assignedName}

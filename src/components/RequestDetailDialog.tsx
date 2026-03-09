@@ -330,8 +330,7 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
           {isSSUser && request && (
             <div className="space-y-2">
               <AIFieldsPanel fields={request} />
-              <StrategyBriefPanel brief={request.strategy_brief} />
-              <RunStrategyButton itemType="request" itemId={request.id} />
+              <StrategyEditPanel requestId={request.id} brief={request.strategy_brief} />
             </div>
           )}
 
