@@ -436,6 +436,9 @@ function ClientDashboard() {
         />
       </div>
 
+      {/* Recent Activity */}
+      <RecentActivitySection clientId={profile?.client_id} />
+
       {/* Scheduled Posts */}
       {scheduledPosts.length > 0 && (
         <div>
