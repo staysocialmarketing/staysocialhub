@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { AddActivityDialog } from "@/components/activity/AddActivityDialog";
+import { OnboardingTracker } from "@/components/OnboardingTracker";
 
 export default function SuccessCenter() {
   const navigate = useNavigate();
@@ -226,6 +227,20 @@ export default function SuccessCenter() {
           </div>
         </CardContent>
       </Card>
+
+      {/* ONBOARDING PROGRESS (client read-only) */}
+      {clientId && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <CheckSquare className="h-4 w-4 text-primary" /> Onboarding Progress
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <OnboardingTracker clientId={clientId} isAdmin={false} compact />
+          </CardContent>
+        </Card>
+      )}
 
       {/* STRATEGY HIGHLIGHTS (from visible_sections) */}
       {(() => {

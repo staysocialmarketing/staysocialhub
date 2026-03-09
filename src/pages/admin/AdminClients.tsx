@@ -13,12 +13,13 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Building2, Sparkles, FolderOpen, ListTodo, Lightbulb, MessageSquarePlus, Target, Image, Activity, ImageIcon, Film, Mic, Download, Link2, ExternalLink, User } from "lucide-react";
+import { Plus, Building2, Sparkles, FolderOpen, ListTodo, Lightbulb, MessageSquarePlus, Target, Image, Activity, ImageIcon, Film, Mic, Download, Link2, ExternalLink, User, ClipboardList } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { AddActivityDialog } from "@/components/activity/AddActivityDialog";
 import { ClientHealthIndicator } from "@/components/ClientHealthIndicator";
+import { OnboardingTracker } from "@/components/OnboardingTracker";
 
 function isVoiceNote(url: string | null) {
   if (!url) return false;
@@ -53,6 +54,10 @@ export default function AdminClients() {
   // Activity dialog
   const [activityClientId, setActivityClientId] = useState<string | null>(null);
   const [activityClientName, setActivityClientName] = useState("");
+
+  // Onboarding dialog
+  const [onboardingClientId, setOnboardingClientId] = useState<string | null>(null);
+  const [onboardingClientName, setOnboardingClientName] = useState("");
 
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ["admin-clients"],
@@ -589,6 +594,18 @@ export default function AdminClients() {
         </DialogContent>
       </Dialog>
 
+      {/* Onboarding Dialog */}
+      <Dialog open={!!onboardingClientId} onOpenChange={(o) => { if (!o) setOnboardingClientId(null); }}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Onboarding — {onboardingClientName}</DialogTitle>
+          </DialogHeader>
+          {onboardingClientId && (
+            <OnboardingTracker clientId={onboardingClientId} isAdmin={isSSAdmin} />
+          )}
+        </DialogContent>
+      </Dialog>
+
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : (
         <div className="space-y-3">
           {clients.map((c: any) => (
@@ -611,6 +628,9 @@ export default function AdminClients() {
                   </Button>
                   <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => { setActivityClientId(c.id); setActivityClientName(c.name); }}>
                     <Activity className="h-3.5 w-3.5" />Activity
+                  </Button>
+                  <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => { setOnboardingClientId(c.id); setOnboardingClientName(c.name); }}>
+                    <ClipboardList className="h-3.5 w-3.5" />Onboarding
                   </Button>
                   {isSSAdmin && (
                     <>
