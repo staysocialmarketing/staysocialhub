@@ -266,19 +266,7 @@ export default function Requests() {
         )}
       </div>
 
-      {/* Type Filter */}
-      <div className="flex items-center gap-2">
-        <Label className="text-sm text-muted-foreground">Filter:</Label>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-[180px] h-8 text-xs"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            {REQUEST_TYPE_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <FilterBar filters={filterConfigs} values={filterValues} onChange={setFilterValues} />
 
       {isLoading ? (
         <p className="text-muted-foreground">Loading requests...</p>
