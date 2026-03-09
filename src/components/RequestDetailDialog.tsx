@@ -212,7 +212,7 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
               </div>
 
               {isSSRole && (
-                <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <Label>Type</Label>
                     <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v as RequestType })}>
@@ -254,7 +254,7 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <Label>Priority</Label>
                   <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v })}>
@@ -288,17 +288,17 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
               </div>
 
               <div className="flex gap-2">
-                <Button size="sm" onClick={() => updateRequest.mutate()} disabled={!form.topic || updateRequest.isPending}>
+                <Button size="sm" className="min-h-[44px] sm:min-h-0" onClick={() => updateRequest.mutate()} disabled={!form.topic || updateRequest.isPending}>
                   <Save className="h-3 w-3 mr-1" /> Save
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
+                <Button size="sm" variant="ghost" className="min-h-[44px] sm:min-h-0" onClick={() => setEditing(false)}>
                   <X className="h-3 w-3 mr-1" /> Cancel
                 </Button>
               </div>
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                 <div><span className="text-muted-foreground">Type:</span> <span className="capitalize">{request.type.replace("_", " ")}</span></div>
                 <div><span className="text-muted-foreground">Priority:</span> <span className="capitalize">{request.priority}</span></div>
                 <div><span className="text-muted-foreground">Created by:</span> {request.users?.name || request.users?.email || "Unknown"}</div>

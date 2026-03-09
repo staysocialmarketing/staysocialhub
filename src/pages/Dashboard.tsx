@@ -251,11 +251,11 @@ function WorkQueueDashboard() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <Button size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" title="Mark Complete" onClick={() => updateTaskStatus(task.id, "complete")}>
+                  <Button size="icon" variant="ghost" className="h-7 w-7 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity" title="Mark Complete" onClick={() => updateTaskStatus(task.id, "complete")}>
                     <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />
                   </Button>
                   <Select value={task.assigned_to_user_id || ""} onValueChange={(v) => updateTaskAssignee(task.id, v)}>
-                    <SelectTrigger className="h-7 text-xs w-7 border-none bg-transparent p-0 opacity-0 group-hover:opacity-100 transition-opacity" title="Assign">
+                    <SelectTrigger className="h-7 text-xs w-7 border-none bg-transparent p-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity" title="Assign">
                       <UserPlus className="h-3.5 w-3.5 text-muted-foreground" />
                     </SelectTrigger>
                     <SelectContent>

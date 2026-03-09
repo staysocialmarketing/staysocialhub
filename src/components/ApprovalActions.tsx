@@ -59,10 +59,10 @@ export default function ApprovalActions({ postId, postTitle, currentStatus, cont
 
   return (
     <div className={className}>
-      <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row gap-2">
         <Button
           size="sm"
-          className="flex-1 gap-1"
+          className="flex-1 gap-1 min-h-[44px] sm:min-h-0"
           onClick={(e) => { e.stopPropagation(); approve.mutate(); }}
           disabled={approve.isPending}
         >
@@ -72,7 +72,7 @@ export default function ApprovalActions({ postId, postTitle, currentStatus, cont
         <Button
           size="sm"
           variant="outline"
-          className="flex-1 gap-1"
+          className="flex-1 gap-1 min-h-[44px] sm:min-h-0"
           onClick={(e) => { e.stopPropagation(); setChangesOpen(true); }}
         >
           <RotateCcw className="h-3.5 w-3.5" />
