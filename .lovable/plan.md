@@ -1,57 +1,67 @@
 
 
-# Workflow, Approvals, and Auto-Assignment Overhaul
+# Hub Security + Data Integrity Hardening
 
-## Summary of Changes
+## Summary
+Security audit found several concrete issues to fix. The overall RLS posture is solid — most tables have proper policies scoped to `client_id` via `can_access_client()` and `is_ss_role()`. The key issues are: internal notes leaking to clients, a public storage bucket exposing media, missing storage RLS policies, the `generate-strategy` edge function having no JWT verification, and missing database indexes for performance.
 
-This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
+## Issues Found
 
-## 1. Database: Update Auto-Assignment Triggers
+### 1. Internal Notes Exposed to Clients (SECURITY FIX)
+**File: `src/components/WorkflowCardDialog.tsx` (line 487)**
+`post.internal_notes` is displayed to ALL users without checking `isSSRole`. Clients can see internal team notes.
 
-**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
+**Fix**: Wrap the internal_notes display block with `{isSSRole && ...}`.
 
-**Changes (migration)**:
-- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
-- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
-- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
-- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
+### 2. `creative-assets` Bucket Is Public (SECURITY CONCERN)
+The `creative-assets` bucket is set to `public: true`, meaning any URL is guessable and accessible without auth. This exposes all client creative assets to anyone with the URL.
 
-All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
+**Fix**: Add storage RLS policies to restrict access. Since URLs are already shared via `getPublicUrl()` throughout the codebase (7+ files), making the bucket private would break all existing media rendering. Instead, add **storage.objects RLS policies** that restrict uploads to authenticated users while keeping reads public (acceptable tradeoff — URLs contain UUIDs and aren't enumerable).
 
-## 2. Approvals Page — Separate Media from Published Content
+### 3. `request-attachments` Bucket Missing RLS Policies
+The bucket is private (good), but needs explicit RLS policies on `storage.objects` for upload/download scoping.
 
-**Client Approvals (`ClientApprovals`)**: 
-- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
-- Alternatively, only show posts in Published that were moved there by admin approval flow
+**Fix**: Add storage RLS policies:
+- INSERT: authenticated users can upload to their client's folder
+- SELECT: users can read files via `can_access_client` or SS role
 
-**Admin Approvals (`AdminApprovals`)**:
-- Same fix for Published column — filter to only show posts linked to requests
+### 4. `generate-strategy` Edge Function Has `verify_jwt = false`
+This means anyone can call the function without authentication. The function does its own auth check via `getClaims`, but the config should enforce JWT verification at the gateway level too.
 
-**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
+**Fix**: Set `verify_jwt = true` in `supabase/config.toml`. The function already passes the auth header to the Supabase client.
 
-## 3. Workflow Page — Move Internal Review to Bottom Section
+### 5. Missing Database Indexes for Performance
+No custom indexes exist on commonly queried columns.
 
-**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
+**Fix**: Add indexes via migration:
+- `requests(client_id)`, `requests(status)`, `requests(created_at)`
+- `posts(client_id)`, `posts(status_column)`, `posts(created_at)`
+- `tasks(client_id)`, `tasks(status)`, `tasks(assigned_to_user_id)`
+- `comments(post_id)`, `comments(request_id)`
+- `notifications(user_id, read)`
 
-**New layout**:
-- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
-- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
+### 6. No Role Check in `generate-strategy` Function
+The edge function authenticates the user but doesn't verify they have an SS role. A client user could call it.
 
-## 4. Admin & Team Dashboards — Show Assignments + Tasks
+**Fix**: After auth, query `user_roles` to verify the caller has an SS role before proceeding.
 
-**SuperAdminDashboard**: Already shows team activity. Add:
-- "My Assignments" section showing posts assigned to the current admin user
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+## No Issues Found (Already Secure)
+- **RLS on all tables**: All 20+ tables have RLS enabled with proper policies ✓
+- **Client data isolation**: All client-facing tables use `can_access_client(client_id)` ✓
+- **Role separation**: SS-only tables (tasks, projects, think_tank, universal_inbox) restrict to `is_ss_role()` ✓
+- **Auth context**: All queries go through the Supabase client with session tokens ✓
+- **File size limits**: 10MB enforced client-side ✓
+- **Image compression**: Applied before upload ✓
+- **Internal notes in PostDetail**: Already gated by `isSSRole` ✓
+- **Signed URLs for private attachments**: `request-attachments` uses `createSignedUrl` with 300s expiry ✓
 
-**TeamDashboard**: Already shows "My Assignments". Add:
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+## Changes
 
-## Files Changed
-
-| File | Change |
-|------|--------|
-| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
-| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
-| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
-| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
+| Action | File/Target | Change |
+|--------|-------------|--------|
+| Edit | `src/components/WorkflowCardDialog.tsx` | Gate `internal_notes` display with `isSSRole` |
+| Edit | `supabase/config.toml` | Set `verify_jwt = true` for `generate-strategy` |
+| Edit | `supabase/functions/generate-strategy/index.ts` | Add SS role verification after auth |
+| Migration | Database | Add performance indexes on key columns |
+| Migration | Storage | Add RLS policies on `storage.objects` for upload restrictions |
 
