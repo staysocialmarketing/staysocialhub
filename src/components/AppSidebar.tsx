@@ -152,7 +152,7 @@ import { cn } from "@/lib/utils";
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2">
-          <img src={orangeLogo} alt="Stay Social" className="h-8 w-auto rounded-lg object-contain shrink-0" />
+          <img src={orangeLogo} alt="Stay Social" className={cn("rounded-lg shrink-0", collapsed ? "h-8 w-8 object-cover" : "h-8 w-auto object-contain")} />
           {!collapsed && (
             <div className="flex flex-col min-w-0">
               <span className="text-sm font-semibold text-sidebar-foreground truncate">Stay Social</span>
