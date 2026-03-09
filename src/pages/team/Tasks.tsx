@@ -170,7 +170,12 @@ export default function Tasks() {
     return projects.find((p) => p.id === id)?.name;
   };
 
-  const tasksByStatus = (status: string) => tasks.filter((t) => t.status === status);
+  const tasksByStatus = (status: string) => tasks.filter((t) => {
+    if (t.status !== status) return false;
+    if (filterValues.priority !== "all" && t.priority !== filterValues.priority) return false;
+    if (!applyDueDateFilter(t.due_at, filterValues.dueDate || "all")) return false;
+    return true;
+  });
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
