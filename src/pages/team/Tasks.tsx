@@ -18,6 +18,8 @@ import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
 import DatePickerField from "@/components/DatePickerField";
 import TaskDetailDialog from "@/components/TaskDetailDialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import FilterBar, { useFilterBar, applyDueDateFilter, PRIORITY_FILTER_OPTIONS, DUE_DATE_FILTER_OPTIONS } from "@/components/FilterBar";
+import type { FilterConfig } from "@/components/FilterBar";
 
 interface Task {
   id: string;
