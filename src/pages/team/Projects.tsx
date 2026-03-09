@@ -326,7 +326,7 @@ export default function Projects() {
             const tasks = projectTasks[project.id] || [];
             const isExpanded = expandedIds.has(project.id);
             return (
-              <Card key={project.id} className="border-border/40 shadow-sm hover:shadow-md transition-all">
+              <Card key={project.id} className="group border-border/40 shadow-sm hover:shadow-md transition-all">
                 <div
                   className="p-5 cursor-pointer hover:bg-accent/30 transition-colors"
                   onClick={() => toggleExpand(project.id)}
