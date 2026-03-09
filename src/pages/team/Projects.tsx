@@ -60,7 +60,7 @@ const priorityColors: Record<string, string> = {
 };
 
 export default function Projects() {
-  const { profile, isSSAdmin } = useAuth();
+  const { profile, isSSAdmin, isSSRole } = useAuth();
   const { selectedClientId: globalClientId } = useClientFilter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectTasks, setProjectTasks] = useState<Record<string, Task[]>>({});
