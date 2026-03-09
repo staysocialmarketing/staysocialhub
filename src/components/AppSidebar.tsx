@@ -101,8 +101,6 @@ export function AppSidebar() {
   const navigate = useNavigate();
 
   const [allUsers, setAllUsers] = useState<UserWithRole[]>([]);
-  const [versionLabel, setVersionLabel] = useState("");
-  const [versionDialogOpen, setVersionDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!actualIsSSAdmin) return;
