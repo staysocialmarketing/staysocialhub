@@ -16,6 +16,8 @@ import { toast } from "sonner";
 import { Plus, Building2, Sparkles, FolderOpen, ListTodo, Lightbulb, MessageSquarePlus, Target, Image, Activity, ImageIcon, Film, Mic, Download, Link2, ExternalLink, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
+import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
+import { AddActivityDialog } from "@/components/activity/AddActivityDialog";
 
 function isVoiceNote(url: string | null) {
   if (!url) return false;
