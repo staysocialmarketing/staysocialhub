@@ -282,7 +282,7 @@ export default function Tasks() {
                     </div>
                     <div onClick={(e) => e.stopPropagation()}>
                       <Select value={task.status} onValueChange={(s) => updateStatus(task.id, s)}>
-                        <SelectTrigger className="h-7 text-[11px] w-full border-border/50 bg-transparent">
+                        <SelectTrigger className={`h-7 text-[11px] w-full border-border/50 ${taskStatusColors[task.status] || "bg-transparent"}`}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
