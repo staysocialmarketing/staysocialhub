@@ -1,57 +1,50 @@
 
 
-# Workflow, Approvals, and Auto-Assignment Overhaul
+# Media Library Tagging + Search
 
-## Summary of Changes
+## Summary
+Add a `tags` jsonb column to the `posts` table for flexible tagging (campaign, custom labels). Leverage existing `platform` and `content_type` columns for those filters. Add a search bar and tag-based filtering to both the client My Media and admin Media Library views. Tags are editable by admin/team in the edit dialog and optionally set during upload.
 
-This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
+## Database Changes
 
-## 1. Database: Update Auto-Assignment Triggers
+### Migration
+```sql
+ALTER TABLE public.posts ADD COLUMN tags jsonb NOT NULL DEFAULT '[]'::jsonb;
+```
+Tags stored as array of objects: `[{"category": "campaign", "value": "Spring Renewal"}, {"category": "content_type", "value": "Reel"}]`
 
-**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
+No new tables needed — keeps it simple and avoids join overhead for filtering.
 
-**Changes (migration)**:
-- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
-- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
-- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
-- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
+## Frontend Changes
 
-All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
+### `src/pages/admin/AdminMedia.tsx`
+- Add search bar (Input) above the grid — filters by title, client name, platform, and tag values (client-side)
+- Replace the simple type/client dropdowns with a richer filter row: Client, Platform, Campaign, Content Type (all derived from posts data + tags)
+- In the Edit Media dialog, add a "Tags" section: show existing tags as removable badges, add new tags via category select + value input
+- Media cards show up to 3 tag badges below the title
 
-## 2. Approvals Page — Separate Media from Published Content
+### `src/pages/ContentLibrary.tsx` (client My Media)
+- Add search bar above tabs — filters by title and tag values
+- Show tag badges on media cards (read-only, max 3)
+- No tag editing for clients
 
-**Client Approvals (`ClientApprovals`)**: 
-- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
-- Alternatively, only show posts in Published that were moved there by admin approval flow
+### Upload Dialog (both pages)
+- Add optional tag inputs during upload: Campaign and Content Type tag fields
+- Use simple text inputs with autocomplete from existing tag values
 
-**Admin Approvals (`AdminApprovals`)**:
-- Same fix for Published column — filter to only show posts linked to requests
+## Approach Details
 
-**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
+**Search**: Client-side filtering on the already-fetched posts array. Matches title, client name, platform, and any tag value against the search query (case-insensitive).
 
-## 3. Workflow Page — Move Internal Review to Bottom Section
+**Tag Autocomplete**: Extract unique tag values from all posts to suggest existing tags when adding new ones.
 
-**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
+**Permissions**: Admin/Team can add/remove tags via edit dialog. Clients see tags read-only.
 
-**New layout**:
-- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
-- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
+## Files
 
-## 4. Admin & Team Dashboards — Show Assignments + Tasks
-
-**SuperAdminDashboard**: Already shows team activity. Add:
-- "My Assignments" section showing posts assigned to the current admin user
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
-
-**TeamDashboard**: Already shows "My Assignments". Add:
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
-
-## Files Changed
-
-| File | Change |
-|------|--------|
-| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
-| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
-| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
-| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
+| Action | File | Change |
+|--------|------|--------|
+| Migration | `posts` | Add `tags` jsonb column |
+| Edit | `src/pages/admin/AdminMedia.tsx` | Search bar, tag filters, tag editing in dialog, tag badges on cards |
+| Edit | `src/pages/ContentLibrary.tsx` | Search bar, tag badges on cards (read-only) |
 
