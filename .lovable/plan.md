@@ -1,57 +1,70 @@
 
+# Hub Mobile Optimization Sweep
 
-# Workflow, Approvals, and Auto-Assignment Overhaul
+## Summary
+Comprehensive mobile optimization across the Stay Social HUB focusing on layout adjustments, touch interactions, and responsive behavior for phones and tablets.
 
-## Summary of Changes
+## Current State Analysis
+- **Dashboard**: Already uses `grid-cols-2 lg:grid-cols-4` for stat cards ✓
+- **Workflow Board**: Uses `ScrollArea` with horizontal scroll, but columns have fixed widths that make mobile difficult
+- **Sidebar**: Already uses Sheet/drawer pattern on mobile via the `useIsMobile` hook ✓
+- **Request Detail**: Uses `max-w-2xl` dialog but needs vertical stacking on mobile
+- **Approvals**: Action buttons are side-by-side, need stacking on mobile
+- **Content Library**: Grid is `grid-cols-1 sm:grid-cols-2` — partially mobile ready
+- **Global Search**: Trigger button is minimal; CommandDialog needs no changes
 
-This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
+## Changes Required
 
-## 1. Database: Update Auto-Assignment Triggers
+### 1. Dashboard — Already Optimized ✓
+Current: `grid-cols-2 lg:grid-cols-4` on line 187 of Dashboard.tsx
+No changes needed.
 
-**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
+### 2. Workflow Board Mobile Improvements
+**File: `src/pages/Workflow.tsx`**
+- Add visible left/right scroll indicators (chevron arrows) when columns overflow
+- Reduce column width on mobile (`w-[260px] sm:w-[290px]`)
+- Add touch-friendly tap targets (cards already clickable)
+- Ensure proper padding for mobile
 
-**Changes (migration)**:
-- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
-- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
-- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
-- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
+### 3. Request Detail Dialog Mobile Optimization
+**File: `src/components/RequestDetailDialog.tsx`**
+- Stack form fields vertically on mobile (change `grid-cols-2` to `grid-cols-1 sm:grid-cols-2`)
+- Increase button heights for touch (`min-h-[44px]`)
+- Strategy/AI panels already use Collapsible, add `defaultOpen={false}` on mobile
 
-All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
+### 4. Approvals Screen Mobile Buttons
+**File: `src/components/ApprovalActions.tsx`**
+- Stack Approve/Changes buttons vertically on mobile (`flex-col sm:flex-row`)
+- Add `min-h-[44px]` for touch-friendly targets
 
-## 2. Approvals Page — Separate Media from Published Content
+### 5. Content Library — Verify 2-Column Mobile
+**File: `src/pages/ContentLibrary.tsx`**
+Already uses `grid-cols-1 sm:grid-cols-2` — change to `grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4` for 2-col on mobile
 
-**Client Approvals (`ClientApprovals`)**: 
-- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
-- Alternatively, only show posts in Published that were moved there by admin approval flow
+### 6. Global Search Mobile Behavior
+**File: `src/components/GlobalSearch.tsx`**
+- Add mobile-specific full-width styling to trigger
+- CommandDialog is already modal/overlay — works well on mobile
 
-**Admin Approvals (`AdminApprovals`)**:
-- Same fix for Published column — filter to only show posts linked to requests
+### 7. Workflow Mobile Navigation Arrows
+Add left/right arrow buttons that appear on scroll overflow for easier column navigation on mobile
 
-**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
+### 8. General Touch Improvements
+- Remove `opacity-0 group-hover:opacity-100` patterns on mobile (make always visible)
+- Ensure all interactive elements have minimum 44px touch targets
 
-## 3. Workflow Page — Move Internal Review to Bottom Section
-
-**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
-
-**New layout**:
-- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
-- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
-
-## 4. Admin & Team Dashboards — Show Assignments + Tasks
-
-**SuperAdminDashboard**: Already shows team activity. Add:
-- "My Assignments" section showing posts assigned to the current admin user
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
-
-**TeamDashboard**: Already shows "My Assignments". Add:
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
-
-## Files Changed
+## Files to Edit
 
 | File | Change |
 |------|--------|
-| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
-| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
-| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
-| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
+| `src/pages/Workflow.tsx` | Add scroll arrows, reduce column width on mobile, touch improvements |
+| `src/components/RequestDetailDialog.tsx` | Stack fields vertically on mobile, increase button heights |
+| `src/components/ApprovalActions.tsx` | Stack buttons vertically on mobile, increase touch targets |
+| `src/pages/ContentLibrary.tsx` | Change to 2-column grid on mobile |
+| `src/pages/Dashboard.tsx` | Make hover-only actions always visible on mobile |
+| `src/components/GlobalSearch.tsx` | Minor mobile styling for trigger button |
 
+## Implementation Notes
+- Use existing `useIsMobile` hook from `@/hooks/use-mobile` for conditional logic
+- Keep all animations lightweight — existing Tailwind transitions are fine
+- Preserve desktop UX while optimizing mobile
