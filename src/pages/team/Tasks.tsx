@@ -147,9 +147,21 @@ export default function Tasks() {
     fetchTasks();
   };
 
+  const [completingTaskIds, setCompletingTaskIds] = useState<Set<string>>(new Set());
+
   const updateStatus = async (id: string, status: string) => {
-    await supabase.from("tasks").update({ status } as any).eq("id", id);
-    fetchTasks();
+    if (status === "complete") {
+      setCompletingTaskIds((prev) => new Set(prev).add(id));
+      toast.success("🎉 Task complete!");
+      setTimeout(async () => {
+        await supabase.from("tasks").update({ status } as any).eq("id", id);
+        setCompletingTaskIds((prev) => { const n = new Set(prev); n.delete(id); return n; });
+        fetchTasks();
+      }, 500);
+    } else {
+      await supabase.from("tasks").update({ status } as any).eq("id", id);
+      fetchTasks();
+    }
   };
 
   const userName = (task: Task) => {
