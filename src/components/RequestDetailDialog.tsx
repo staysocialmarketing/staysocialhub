@@ -212,7 +212,7 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
               </div>
 
               {isSSRole && (
-                <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <Label>Type</Label>
                     <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v as RequestType })}>
