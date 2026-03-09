@@ -594,6 +594,18 @@ export default function AdminClients() {
         </DialogContent>
       </Dialog>
 
+      {/* Onboarding Dialog */}
+      <Dialog open={!!onboardingClientId} onOpenChange={(o) => { if (!o) setOnboardingClientId(null); }}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Onboarding — {onboardingClientName}</DialogTitle>
+          </DialogHeader>
+          {onboardingClientId && (
+            <OnboardingTracker clientId={onboardingClientId} isAdmin={isSSAdmin} />
+          )}
+        </DialogContent>
+      </Dialog>
+
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : (
         <div className="space-y-3">
           {clients.map((c: any) => (
