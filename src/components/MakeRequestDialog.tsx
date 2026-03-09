@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,10 +12,11 @@ import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
 import { compressImage } from "@/lib/imageUtils";
+import { REQUEST_TYPE_OPTIONS } from "@/lib/workflowUtils";
 
 type RequestType = Database["public"]["Enums"]["request_type"];
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ACCEPTED_FILE_TYPES = ".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.webp,.csv,.xlsx,.pptx,.txt";
 
 interface MakeRequestDialogProps {
@@ -79,7 +80,6 @@ export default function MakeRequestDialog({
     if (!clientId || !topic.trim() || !profile) return;
     setSubmitting(true);
     try {
-      // Upload attachment (non-blocking)
       let attachments_url: string | null = null;
       if (attachmentFile) {
         const compressed = await compressImage(attachmentFile);
@@ -110,6 +110,7 @@ export default function MakeRequestDialog({
       setClientId("");
       setTopic("");
       setNotes("");
+      setType("social_post");
       setAttachmentFile(null);
       onSuccess?.();
     } catch (err: any) {
@@ -133,12 +134,13 @@ export default function MakeRequestDialog({
             </div>
           )}
           <div>
-            <Label>Type</Label>
+            <Label>Request Type</Label>
             <Select value={type} onValueChange={(v) => setType(v as RequestType)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="social_post">Social Post</SelectItem>
-                <SelectItem value="email_campaign">Email Campaign</SelectItem>
+                {REQUEST_TYPE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

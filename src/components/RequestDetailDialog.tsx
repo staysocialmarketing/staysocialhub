@@ -219,8 +219,9 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
                     <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v as RequestType })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="social_post">Social Post</SelectItem>
-                        <SelectItem value="email_campaign">Email Campaign</SelectItem>
+                        {REQUEST_TYPE_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
