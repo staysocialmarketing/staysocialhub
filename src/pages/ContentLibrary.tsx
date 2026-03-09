@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,9 +12,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { ImageIcon, Film, Video, FolderOpen, Upload, Download, Link2, Mic } from "lucide-react";
+import { ImageIcon, Film, Video, FolderOpen, Upload, Download, Link2, Mic, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { compressImage } from "@/lib/imageUtils";
+
+interface PostTag {
+  category: string;
+  value: string;
+}
+
+function parseTags(tags: unknown): PostTag[] {
+  if (!Array.isArray(tags)) return [];
+  return tags.filter((t: any) => t && typeof t.category === "string" && typeof t.value === "string");
+}
 
 function isVideo(url: string | null) {
   if (!url) return false;
@@ -41,13 +51,14 @@ export default function ContentLibrary() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadTitle, setUploadTitle] = useState("");
   const [visibleCount, setVisibleCount] = useState(50);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { data: posts = [], isLoading } = useQuery({
     queryKey: ["content-library"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("posts")
-        .select("id, title, platform, creative_url, created_at, scheduled_at")
+        .select("id, title, platform, creative_url, created_at, scheduled_at, tags")
         .eq("status_column", "published")
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -103,20 +114,32 @@ export default function ContentLibrary() {
     onError: () => toast.error("Upload failed"),
   });
 
+  // Apply search filter
+  const searchedPosts = useMemo(() => {
+    if (!searchQuery.trim()) return posts;
+    const q = searchQuery.toLowerCase();
+    return posts.filter((p) => {
+      const title = (p.title || "").toLowerCase();
+      const platform = (p.platform || "").toLowerCase();
+      const tagValues = parseTags(p.tags).map((t) => t.value.toLowerCase());
+      return title.includes(q) || platform.includes(q) || tagValues.some((v) => v.includes(q));
+    });
+  }, [posts, searchQuery]);
+
   const filterPosts = (tab: string) => {
     let filtered;
-    if (tab === "all") filtered = posts;
-    else if (tab === "reels") filtered = posts.filter((p) => isReel(p.platform));
-    else if (tab === "videos") filtered = posts.filter((p) => isVideo(p.creative_url) && !isReel(p.platform));
-    else filtered = posts.filter((p) => p.creative_url && !isVideo(p.creative_url) && !isReel(p.platform));
+    if (tab === "all") filtered = searchedPosts;
+    else if (tab === "reels") filtered = searchedPosts.filter((p) => isReel(p.platform));
+    else if (tab === "videos") filtered = searchedPosts.filter((p) => isVideo(p.creative_url) && !isReel(p.platform));
+    else filtered = searchedPosts.filter((p) => p.creative_url && !isVideo(p.creative_url) && !isReel(p.platform));
     return filtered.slice(0, visibleCount);
   };
 
   const totalForTab = (tab: string) => {
-    if (tab === "all") return posts.length;
-    if (tab === "reels") return posts.filter((p) => isReel(p.platform)).length;
-    if (tab === "videos") return posts.filter((p) => isVideo(p.creative_url) && !isReel(p.platform)).length;
-    return posts.filter((p) => p.creative_url && !isVideo(p.creative_url) && !isReel(p.platform)).length;
+    if (tab === "all") return searchedPosts.length;
+    if (tab === "reels") return searchedPosts.filter((p) => isReel(p.platform)).length;
+    if (tab === "videos") return searchedPosts.filter((p) => isVideo(p.creative_url) && !isReel(p.platform)).length;
+    return searchedPosts.filter((p) => p.creative_url && !isVideo(p.creative_url) && !isReel(p.platform)).length;
   };
 
   const handleDownload = (url: string, e?: React.MouseEvent) => {
@@ -148,40 +171,51 @@ export default function ContentLibrary() {
 
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {items.map((post) => (
-          <Card key={post.id} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden group" onClick={() => navigate(`/approvals/${post.id}`)}>
-            <AspectRatio ratio={1}>
-              {post.creative_url ? (
-                isVideo(post.creative_url) ? (
-                  <div className="w-full h-full bg-muted flex items-center justify-center"><Film className="h-10 w-10 text-muted-foreground/50" /></div>
+        {items.map((post) => {
+          const tags = parseTags(post.tags);
+          return (
+            <Card key={post.id} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden group" onClick={() => navigate(`/approvals/${post.id}`)}>
+              <AspectRatio ratio={1}>
+                {post.creative_url ? (
+                  isVideo(post.creative_url) ? (
+                    <div className="w-full h-full bg-muted flex items-center justify-center"><Film className="h-10 w-10 text-muted-foreground/50" /></div>
+                  ) : (
+                    <img src={post.creative_url} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  )
                 ) : (
-                  <img src={post.creative_url} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                )
-              ) : (
-                <div className="w-full h-full bg-muted flex items-center justify-center"><ImageIcon className="h-10 w-10 text-muted-foreground/50" /></div>
-              )}
-            </AspectRatio>
-            <CardContent className="p-3">
-              <p className="text-sm font-medium truncate">{post.title}</p>
-              <div className="flex items-center justify-between mt-1.5">
-                <div className="flex items-center gap-1">
-                  {post.platform && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{post.platform}</Badge>}
+                  <div className="w-full h-full bg-muted flex items-center justify-center"><ImageIcon className="h-10 w-10 text-muted-foreground/50" /></div>
+                )}
+              </AspectRatio>
+              <CardContent className="p-3">
+                <p className="text-sm font-medium truncate">{post.title}</p>
+                <div className="flex items-center justify-between mt-1.5">
+                  <div className="flex items-center gap-1">
+                    {post.platform && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{post.platform}</Badge>}
+                  </div>
+                  <span className="text-[10px] text-muted-foreground ml-auto">{format(new Date(post.scheduled_at || post.created_at), "MMM d, yyyy")}</span>
                 </div>
-                <span className="text-[10px] text-muted-foreground ml-auto">{format(new Date(post.scheduled_at || post.created_at), "MMM d, yyyy")}</span>
-              </div>
-              {post.creative_url && (
-                <div className="flex gap-1 mt-2" onClick={(e) => e.stopPropagation()}>
-                  <Button variant="ghost" size="sm" className="h-6 text-[10px] px-1.5" onClick={(e) => handleDownload(post.creative_url!, e)}>
-                    <Download className="h-3 w-3 mr-0.5" /> Download
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-6 text-[10px] px-1.5" onClick={(e) => handleCopyLink(post.creative_url!, e)}>
-                    <Link2 className="h-3 w-3 mr-0.5" /> Copy Link
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+                {tags.length > 0 && (
+                  <div className="flex gap-1 mt-1.5 flex-wrap">
+                    {tags.slice(0, 3).map((t, i) => (
+                      <Badge key={i} variant="outline" className="text-[10px] px-1.5 py-0">{t.value}</Badge>
+                    ))}
+                    {tags.length > 3 && <span className="text-[10px] text-muted-foreground">+{tags.length - 3}</span>}
+                  </div>
+                )}
+                {post.creative_url && (
+                  <div className="flex gap-1 mt-2" onClick={(e) => e.stopPropagation()}>
+                    <Button variant="ghost" size="sm" className="h-6 text-[10px] px-1.5" onClick={(e) => handleDownload(post.creative_url!, e)}>
+                      <Download className="h-3 w-3 mr-0.5" /> Download
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-6 text-[10px] px-1.5" onClick={(e) => handleCopyLink(post.creative_url!, e)}>
+                      <Link2 className="h-3 w-3 mr-0.5" /> Copy Link
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     );
   };
@@ -259,12 +293,28 @@ export default function ContentLibrary() {
         )}
       </div>
 
+      {/* Search Bar */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search by title, platform, tag…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9 h-9"
+        />
+        {searchQuery && (
+          <button onClick={() => setSearchQuery("")} className="absolute right-2.5 top-2.5">
+            <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+          </button>
+        )}
+      </div>
+
       {isLoading ? (
         <div className="flex items-center justify-center py-20"><p className="text-muted-foreground text-sm">Loading…</p></div>
       ) : (
         <Tabs defaultValue="all">
           <TabsList>
-            <TabsTrigger value="all">All ({posts.length})</TabsTrigger>
+            <TabsTrigger value="all">All ({totalForTab("all")})</TabsTrigger>
             <TabsTrigger value="images"><ImageIcon className="h-3.5 w-3.5 mr-1" /> Images</TabsTrigger>
             <TabsTrigger value="videos"><Video className="h-3.5 w-3.5 mr-1" /> Videos</TabsTrigger>
             <TabsTrigger value="reels"><Film className="h-3.5 w-3.5 mr-1" /> Reels</TabsTrigger>
