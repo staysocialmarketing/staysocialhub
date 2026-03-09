@@ -18,6 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { AddActivityDialog } from "@/components/activity/AddActivityDialog";
+import { ClientHealthIndicator } from "@/components/ClientHealthIndicator";
 
 function isVoiceNote(url: string | null) {
   if (!url) return false;
