@@ -40,9 +40,9 @@ interface OnboardingTrackerProps {
 type OnboardingStatus = "not_started" | "in_progress" | "completed";
 
 const statusConfig: Record<OnboardingStatus, { label: string; color: string }> = {
-  not_started: { label: "Not Started", color: "bg-muted text-muted-foreground" },
-  in_progress: { label: "In Progress", color: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20" },
-  completed: { label: "Completed", color: "bg-green-500/10 text-green-600 border-green-500/20" },
+  not_started: { label: "Not Started", color: "border-border text-muted-foreground" },
+  in_progress: { label: "In Progress", color: "border-primary/30 text-primary bg-primary/5" },
+  completed: { label: "Completed", color: "border-border text-foreground bg-muted" },
 };
 
 export function OnboardingTracker({ clientId, isAdmin, compact = false }: OnboardingTrackerProps) {
