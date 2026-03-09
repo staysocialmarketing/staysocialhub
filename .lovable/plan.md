@@ -1,36 +1,57 @@
 
 
-# Sort Tasks Under Projects by Date, Then Name, Then Recent
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-## Problem
-Tasks grouped under projects are currently unsorted -- they appear in whatever order the database returns them.
+## Summary of Changes
 
-## Fix
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
-### File: `src/pages/team/Projects.tsx` (lines 113-119)
+## 1. Database: Update Auto-Assignment Triggers
 
-After grouping tasks by project, sort each group using this logic:
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-1. **Tasks with due dates** come first, sorted earliest to latest
-2. **Tasks without dates** are sorted by title using natural sort (handles "PW 1.1", "PW 1.2", "PW 1.10" correctly)
-3. **If titles don't contain numbering**, fall back to most recent (`created_at` descending)
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
-```typescript
-// After grouping, sort each project's tasks
-Object.values(grouped).forEach((taskList) => {
-  taskList.sort((a, b) => {
-    // Tasks with due dates first, sorted by date ascending
-    if (a.due_at && b.due_at) return new Date(a.due_at).getTime() - new Date(b.due_at).getTime();
-    if (a.due_at && !b.due_at) return -1;
-    if (!a.due_at && b.due_at) return 1;
-    // No dates: natural sort by title (handles "PW 1.1" vs "PW 1.2")
-    const cmp = a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' });
-    if (cmp !== 0) return cmp;
-    // Fallback: most recent first
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-  });
-});
-```
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
 
-This is a single insertion after line 119, no other files need changes.
+## 2. Approvals Page — Separate Media from Published Content
+
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
+
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
+
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
+
+## 3. Workflow Page — Move Internal Review to Bottom Section
+
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
+
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
+
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
+
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 

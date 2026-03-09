@@ -117,6 +117,17 @@ export default function Projects() {
           grouped[t.project_id].push(t);
         }
       });
+      // Sort each project's tasks: by due date, then title (natural), then most recent
+      Object.values(grouped).forEach((taskList) => {
+        taskList.sort((a, b) => {
+          if (a.due_at && b.due_at) return new Date(a.due_at).getTime() - new Date(b.due_at).getTime();
+          if (a.due_at && !b.due_at) return -1;
+          if (!a.due_at && b.due_at) return 1;
+          const cmp = a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' });
+          if (cmp !== 0) return cmp;
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+      });
       setProjectTasks(grouped);
 
       // Fetch rollup stats for all task IDs
