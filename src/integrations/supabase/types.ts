@@ -98,6 +98,47 @@ export type Database = {
           },
         ]
       }
+      client_activity: {
+        Row: {
+          activity_type: string
+          client_id: string
+          created_at: string
+          created_by_user_id: string | null
+          description: string | null
+          id: string
+          title: string
+          visible_to_client: boolean
+        }
+        Insert: {
+          activity_type?: string
+          client_id: string
+          created_at?: string
+          created_by_user_id?: string | null
+          description?: string | null
+          id?: string
+          title: string
+          visible_to_client?: boolean
+        }
+        Update: {
+          activity_type?: string
+          client_id?: string
+          created_at?: string
+          created_by_user_id?: string | null
+          description?: string | null
+          id?: string
+          title?: string
+          visible_to_client?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_activity_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_profile: {
         Row: {
           assets_json: Json | null
