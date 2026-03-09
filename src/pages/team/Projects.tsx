@@ -267,7 +267,7 @@ export default function Projects() {
   const renderTaskRow = (task: Task) => (
     <div
       key={task.id}
-      className="flex items-center justify-between p-3 rounded-lg bg-accent/30 cursor-pointer hover:bg-accent/50 transition-colors group/task"
+      className={`flex items-center justify-between p-3 rounded-lg bg-accent/30 cursor-pointer hover:bg-accent/50 transition-colors group/task ${completingTaskIds.has(task.id) ? "animate-task-complete" : ""}`}
       onClick={(e) => { e.stopPropagation(); setSelectedTask(task); }}
     >
       <div className="flex items-center gap-2 min-w-0">
@@ -286,12 +286,12 @@ export default function Projects() {
         {task.due_at && (
           <span className="text-xs text-muted-foreground flex items-center gap-0.5 hidden sm:flex"><Calendar className="h-3 w-3" />{format(new Date(task.due_at), "MMM d")}</span>
         )}
-        <Select value={task.status} onValueChange={(s) => updateTaskStatus(task.id, s)}>
-          <SelectTrigger className="h-7 text-[11px] w-24 border-border/50 bg-transparent"><SelectValue /></SelectTrigger>
+        <Select value={task.status} onValueChange={(s) => updateTaskStatus(task.id, s, task.project_id)}>
+          <SelectTrigger className={`h-7 text-[11px] w-28 border-border/50 ${taskStatusColors[task.status] || "bg-transparent"}`}><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="todo">To Do</SelectItem>
-            <SelectItem value="in_progress">In Progress</SelectItem>
-            <SelectItem value="done">Done</SelectItem>
+            {taskStatusColumns.map((s) => (
+              <SelectItem key={s} value={s}>{taskStatusLabels[s]}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
