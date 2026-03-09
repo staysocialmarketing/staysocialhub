@@ -280,7 +280,7 @@ export default function TaskDetailDialog({ task, onClose, onUpdated, projects, s
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {editing ? (
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} className="text-lg font-semibold border-none p-0 h-auto focus-visible:ring-0 shadow-none" />
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} className="text-lg font-semibold" />
             ) : (
               <span>{title}</span>
             )}
