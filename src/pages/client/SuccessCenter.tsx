@@ -29,6 +29,7 @@ import {
   Phone,
   Pencil,
   Activity,
+  Columns3,
 } from "lucide-react";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { AddActivityDialog } from "@/components/activity/AddActivityDialog";
