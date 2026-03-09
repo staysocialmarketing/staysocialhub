@@ -1,40 +1,57 @@
 
 
-# Global Search System
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-## Summary
-Add a command-palette-style global search (Cmd+K / Ctrl+K) to the HUB header, visible only to SS roles. Uses the existing `cmdk` library and `CommandDialog` component. Searches across clients, requests, tasks, media (posts), strategy, and Think Tank items with debounced queries and grouped results.
+## Summary of Changes
 
-## Approach
-Use the already-installed `cmdk` package and the existing `CommandDialog` UI component. Create a new `GlobalSearch` component that:
-- Renders a search trigger button in the header (search icon + "Search..." text + keyboard shortcut hint)
-- Opens a `CommandDialog` with grouped results
-- Queries 6 tables on debounced input (300ms)
-- Groups results by category with icons
-- Navigates on selection
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
-## New File: `src/components/GlobalSearch.tsx`
-- State: `open`, `query` (debounced), results per category
-- Keyboard shortcut: Cmd+K / Ctrl+K to toggle
-- On query change (debounced 300ms), run parallel queries:
-  - `clients` → name ilike `%query%`, limit 5
-  - `requests` → topic ilike, limit 5
-  - `tasks` → title ilike, limit 5
-  - `posts` → title ilike, limit 5 (media)
-  - `client_strategy` → join clients for name, limit 5
-  - `think_tank_items` → title ilike, limit 5
-- Results grouped in `CommandGroup` sections with category icons
-- Each `CommandItem` navigates: clients→`/admin/clients`, requests→`/requests`, tasks→`/team/tasks`, media→`/admin/media`, strategy→`/admin/client-strategy/:id`, think tank→`/team/think-tank`
-- Only rendered when `isSSRole` is true
+## 1. Database: Update Auto-Assignment Triggers
 
-## Edit: `src/components/AppLayout.tsx`
-- Import and render `<GlobalSearch />` in the header, between the title area and NotificationBell
-- Only show when `isSSRole` is true
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-## Files
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
-| Action | File | Change |
-|--------|------|--------|
-| Create | `src/components/GlobalSearch.tsx` | Command palette search component |
-| Edit | `src/components/AppLayout.tsx` | Add GlobalSearch to header |
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
+
+## 2. Approvals Page — Separate Media from Published Content
+
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
+
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
+
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
+
+## 3. Workflow Page — Move Internal Review to Bottom Section
+
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
+
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
+
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
+
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 
