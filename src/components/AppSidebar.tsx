@@ -248,20 +248,6 @@ export function AppSidebar() {
             <p className="text-xs text-sidebar-foreground/50 truncate">{profile.email}</p>
           </div>
         )}
-        {!collapsed && versionLabel && (
-          <button
-            onClick={() => {
-              if (isInternalUser) {
-                setVersionDialogOpen(true);
-              } else {
-                navigate("/whats-new#release-notes");
-              }
-            }}
-            className="px-2 py-1.5 mb-1 text-xs font-medium text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-md transition-colors text-left truncate"
-          >
-            {versionLabel}
-          </button>
-        )}
         <Button
           variant="ghost"
           size={collapsed ? "icon" : "sm"}
