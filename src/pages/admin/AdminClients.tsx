@@ -44,6 +44,7 @@ export default function AdminClients() {
   const [editStatus, setEditStatus] = useState("active");
   const [editPlanId, setEditPlanId] = useState("");
   const [editAssistants, setEditAssistants] = useState(false);
+  const [editHealthOverride, setEditHealthOverride] = useState<string>("__auto__");
 
   // Media dialog
   const [mediaClientId, setMediaClientId] = useState<string | null>(null);
