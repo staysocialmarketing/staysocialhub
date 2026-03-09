@@ -204,44 +204,6 @@ export default function Projects() {
     fetchData();
   };
 
-  const openEditTask = (task: Task) => {
-    setEditTask(task);
-    setEditTaskTitle(task.title);
-    setEditTaskDescription(task.description || "");
-    setEditTaskProjectId(task.project_id || "");
-    setEditTaskAssigneeId(task.assigned_to_team ? "__team__" : (task.assigned_to_user_id || ""));
-    setEditTaskPriority(task.priority);
-    setEditTaskDueAt(task.due_at || "");
-    setEditTaskStatus(task.status);
-  };
-
-  const handleSaveTask = async () => {
-    if (!editTask || !editTaskTitle.trim()) return;
-    const isTeam = editTaskAssigneeId === "__team__";
-    const { error } = await supabase.from("tasks").update({
-      title: editTaskTitle.trim(),
-      description: editTaskDescription.trim() || null,
-      project_id: editTaskProjectId || null,
-      assigned_to_user_id: isTeam ? null : (editTaskAssigneeId || null),
-      assigned_to_team: isTeam,
-      priority: editTaskPriority,
-      due_at: editTaskDueAt || null,
-      status: editTaskStatus,
-    } as any).eq("id", editTask.id);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Task updated!");
-    setEditTask(null);
-    fetchData();
-  };
-
-  const handleDeleteTask = async () => {
-    if (!editTask) return;
-    const { error } = await supabase.from("tasks").delete().eq("id", editTask.id);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Task deleted");
-    setEditTask(null);
-    fetchData();
-  };
 
   const updateTaskStatus = async (id: string, status: string) => {
     await supabase.from("tasks").update({ status } as any).eq("id", id);
