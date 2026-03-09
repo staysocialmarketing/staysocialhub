@@ -596,6 +596,7 @@ export default function AdminClients() {
               <CardContent className="py-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Building2 className="h-5 w-5 text-muted-foreground" />
+                  <ClientHealthIndicator clientId={c.id} override={c.health_override} />
                   <div>
                     <h4 className="font-medium text-foreground">{c.name}</h4>
                     <p className="text-xs text-muted-foreground">Plan: {c.plans?.name || "None"}</p>
