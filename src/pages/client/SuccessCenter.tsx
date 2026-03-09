@@ -336,6 +336,21 @@ export default function SuccessCenter() {
         </CardContent>
       </Card>
 
+      {/* 5b. ACTIVITY TIMELINE */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Activity className="h-4 w-4 text-primary" /> Recent Activity
+            </CardTitle>
+            {isSSRole && clientId && <AddActivityDialog clientId={clientId} />}
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ActivityTimeline activities={activities} isSSRole={!!isSSRole} />
+        </CardContent>
+      </Card>
+
       {/* 6. COMING UP NEXT */}
       <Card>
         <CardHeader className="pb-3">
