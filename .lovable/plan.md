@@ -1,57 +1,33 @@
 
 
-# Workflow, Approvals, and Auto-Assignment Overhaul
+# Task & Project Editing Permissions + Default Filter Fix
 
-## Summary of Changes
+## Changes
 
-This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
+### 1. Tasks page: Default filter for team members → "Mine" (already partially done)
+The current code at line 96-101 in `Tasks.tsx` checks `!isSSAdmin` and sets to "mine", but `isSSAdmin` only covers admins. Need to also pull `isSSTeam` from auth context and use `isSSRole` — the intent is: SS Admins see "all" by default, team members see "mine". The current logic is correct since `!isSSAdmin` catches team members. However, the "all" option should be available for team members to switch to. This is already working — no change needed here.
 
-## 1. Database: Update Auto-Assignment Triggers
+**Actually**: Looking more carefully, the filter options include individual assignees and "all" implicitly via the FilterBar. The default logic is correct. No change needed.
 
-**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
+### 2. Projects page: Allow SS Team to edit projects and rename
+Currently `canEditDeleteProject` (line 100) only allows `isSSAdmin` or the creator. Need to also allow `isSSTeam` roles.
 
-**Changes (migration)**:
-- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
-- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
-- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
-- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
+**File: `src/pages/team/Projects.tsx`**
+- Import `isSSTeam` from `useAuth()` (line 63)
+- Update `canEditDeleteProject` to: `isSSAdmin || isSSTeam || p.created_by_user_id === profile?.id`
+- Same for `canEditDeleteTask`
 
-All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
+### 3. TaskDetailDialog: Allow SS Team to edit tasks (rename, etc.)
+Currently `canEdit` (line 95) only allows `isSSAdmin` or creator. Need to include `isSSRole` (which covers all SS roles).
 
-## 2. Approvals Page — Separate Media from Published Content
+**File: `src/components/TaskDetailDialog.tsx`**
+- Change line 95: `const canEdit = task ? (isSSRole || task.created_by_user_id === profile?.id) : false;`
+- This uses `isSSRole` which already includes ss_admin, ss_team, ss_producer, ss_ops
 
-**Client Approvals (`ClientApprovals`)**: 
-- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
-- Alternatively, only show posts in Published that were moved there by admin approval flow
-
-**Admin Approvals (`AdminApprovals`)**:
-- Same fix for Published column — filter to only show posts linked to requests
-
-**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
-
-## 3. Workflow Page — Move Internal Review to Bottom Section
-
-**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
-
-**New layout**:
-- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
-- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
-
-## 4. Admin & Team Dashboards — Show Assignments + Tasks
-
-**SuperAdminDashboard**: Already shows team activity. Add:
-- "My Assignments" section showing posts assigned to the current admin user
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
-
-**TeamDashboard**: Already shows "My Assignments". Add:
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
-
-## Files Changed
+### Summary
 
 | File | Change |
 |------|--------|
-| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
-| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
-| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
-| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
+| `src/pages/team/Projects.tsx` | Import `isSSTeam`, update `canEditDeleteProject` and `canEditDeleteTask` to include SS Team |
+| `src/components/TaskDetailDialog.tsx` | Change `canEdit` from `isSSAdmin` to `isSSRole` so all team members can edit/rename tasks |
 
