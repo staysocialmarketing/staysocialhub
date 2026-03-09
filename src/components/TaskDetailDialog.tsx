@@ -183,6 +183,14 @@ export default function TaskDetailDialog({ task, onClose, onUpdated, projects, s
 
   const handleDelete = async () => {
     if (!task) return;
+    // Delete child records first to avoid FK violations
+    await supabase.from("task_checklist_items").delete().eq("task_id", task.id);
+    await supabase.from("task_attachments").delete().eq("task_id", task.id);
+    await supabase.from("task_activity_log").delete().eq("task_id", task.id);
+    await supabase.from("comments").delete().eq("task_id", task.id);
+    // Unlink from requests
+    await supabase.from("requests").update({ task_id: null }).eq("task_id", task.id);
+    // Delete the task
     const { error } = await supabase.from("tasks").delete().eq("id", task.id);
     if (error) { toast.error(error.message); return; }
     toast.success("Task deleted");
