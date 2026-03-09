@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { AddActivityDialog } from "@/components/activity/AddActivityDialog";
+import { OnboardingTracker } from "@/components/OnboardingTracker";
 
 export default function SuccessCenter() {
   const navigate = useNavigate();
