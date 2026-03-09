@@ -60,7 +60,7 @@ const priorityColors: Record<string, string> = {
 };
 
 export default function Projects() {
-  const { profile, isSSAdmin } = useAuth();
+  const { profile, isSSAdmin, isSSRole } = useAuth();
   const { selectedClientId: globalClientId } = useClientFilter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectTasks, setProjectTasks] = useState<Record<string, Task[]>>({});
@@ -97,8 +97,8 @@ export default function Projects() {
   // Selected task for detail view
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
-  const canEditDeleteProject = (p: Project) => isSSAdmin || p.created_by_user_id === profile?.id;
-  const canEditDeleteTask = (t: Task) => isSSAdmin || t.created_by_user_id === profile?.id;
+  const canEditDeleteProject = (p: Project) => isSSRole || p.created_by_user_id === profile?.id;
+  const canEditDeleteTask = (t: Task) => isSSRole || t.created_by_user_id === profile?.id;
 
   const fetchData = async () => {
     let query = supabase.from("projects").select("*").order("created_at", { ascending: false });
