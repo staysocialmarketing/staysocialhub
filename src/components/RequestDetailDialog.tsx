@@ -11,12 +11,13 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { FileText, Mail, Download, Send, Pencil, Save, X, Loader2 } from "lucide-react";
+import { Download, Send, Pencil, Save, X, Loader2 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { compressImage } from "@/lib/imageUtils";
 import AIFieldsPanel from "@/components/AIFieldsPanel";
 import StrategyBriefPanel from "@/components/StrategyBriefPanel";
 import RunStrategyButton from "@/components/RunStrategyButton";
+import { REQUEST_TYPE_OPTIONS } from "@/lib/workflowUtils";
 
 type RequestStatus = Database["public"]["Enums"]["request_status"];
 type RequestType = Database["public"]["Enums"]["request_type"];
