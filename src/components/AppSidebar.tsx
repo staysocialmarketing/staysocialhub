@@ -258,7 +258,7 @@ export function AppSidebar() {
           {!collapsed && <span className="ml-2">Sign Out</span>}
         </Button>
       </SidebarFooter>
-      <VersionHistoryDialog open={versionDialogOpen} onOpenChange={setVersionDialogOpen} />
+      
     </Sidebar>
   );
 }

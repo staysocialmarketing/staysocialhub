@@ -156,13 +156,30 @@ function AdminApprovals() {
         {clientApproval.length === 0 ? (
           <Card><CardContent className="py-8 text-center text-muted-foreground">No posts awaiting client approval</CardContent></Card>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {clientApproval.map((post: any) => (
-              <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} showClient />
+              <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} showClient>
+                <ApprovalActions postId={post.id} postTitle={post.title} currentStatus={post.status_column} contentType={post.content_type} />
+              </PostCard>
             ))}
           </div>
         )}
       </section>
+
+      {/* Ready to Schedule (social posts) */}
+      {readyToSchedule.length > 0 && (
+        <section>
+          <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-primary" />
+            Ready to Schedule <Badge variant="secondary">{readyToSchedule.length}</Badge>
+          </h3>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {readyToSchedule.map((post: any) => (
+              <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} showClient />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Ready to Send (email campaigns) */}
       {readyToSend.length > 0 && (
