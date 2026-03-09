@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,6 +20,7 @@ import TaskDetailDialog from "@/components/TaskDetailDialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import FilterBar, { useFilterBar, applyDueDateFilter, PRIORITY_FILTER_OPTIONS, DUE_DATE_FILTER_OPTIONS } from "@/components/FilterBar";
 import type { FilterConfig } from "@/components/FilterBar";
+import { taskStatusColors, taskStatusLabels, taskStatusColumns } from "@/lib/taskStatusUtils";
 
 interface Task {
   id: string;
@@ -43,15 +44,8 @@ const priorityColors: Record<string, string> = {
   urgent: "bg-red-500/15 text-red-700 border-red-500/20",
 };
 
-const statusColumns = ["backlog", "todo", "in_progress", "waiting", "review", "complete"] as const;
-const statusLabels: Record<string, string> = {
-  backlog: "Backlog",
-  todo: "To Do",
-  in_progress: "In Progress",
-  waiting: "Waiting",
-  review: "Review",
-  complete: "Complete",
-};
+const statusColumns = taskStatusColumns;
+const statusLabels = taskStatusLabels;
 
 export default function Tasks() {
   const { profile, isSSAdmin } = useAuth();
