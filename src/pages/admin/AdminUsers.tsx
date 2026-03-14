@@ -28,6 +28,7 @@ export default function AdminUsers() {
   const queryClient = useQueryClient();
   const { isSSAdmin } = useAuth();
   const [addingRoleFor, setAddingRoleFor] = useState<string | null>(null);
+  const [newDomain, setNewDomain] = useState("");
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["admin-users"],
