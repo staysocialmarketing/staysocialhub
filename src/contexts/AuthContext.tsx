@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
@@ -62,7 +63,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [viewAsProfile, setViewAsProfile] = useState<UserProfile | null>(null);
   const [viewAsRoles, setViewAsRoles] = useState<AppRole[]>([]);
 
-  const fetchProfile = async (userId: string) => {
+  const checkDomainAllowed = async (email: string): Promise<boolean> => {
+    const domain = email.split("@")[1]?.toLowerCase();
+    if (!domain) return false;
+    const { data } = await supabase
+      .from("allowed_domains")
+      .select("id")
+      .eq("domain", domain)
+      .maybeSingle();
+    return !!data;
+  };
+
+  const fetchProfile = async (userId: string, email: string) => {
+    // Check domain whitelist first
+    const allowed = await checkDomainAllowed(email);
+    if (!allowed) {
+      toast.error("Your email domain is not authorized. Contact Stay Social to request access.");
+      await supabase.auth.signOut();
+      return;
+    }
+
     const { data: profileData } = await supabase
       .from("users")
       .select("*")
@@ -114,7 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          setTimeout(() => fetchProfile(session.user.id), 0);
+          setTimeout(() => fetchProfile(session.user.id, session.user.email || ""), 0);
         } else {
           setRealProfile(null);
           setRealRoles([]);
@@ -130,7 +150,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile(session.user.id);
+        fetchProfile(session.user.id, session.user.email || "");
       }
       setLoading(false);
     });

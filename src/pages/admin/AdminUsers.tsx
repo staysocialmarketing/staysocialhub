@@ -5,8 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Plus, X, Building2 } from "lucide-react";
+import { Users, Plus, X, Building2, Globe, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -27,6 +28,7 @@ export default function AdminUsers() {
   const queryClient = useQueryClient();
   const { isSSAdmin } = useAuth();
   const [addingRoleFor, setAddingRoleFor] = useState<string | null>(null);
+  const [newDomain, setNewDomain] = useState("");
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["admin-users"],
@@ -38,6 +40,43 @@ export default function AdminUsers() {
       if (error) throw error;
       return data || [];
     },
+  });
+
+  const { data: domains = [] } = useQuery({
+    queryKey: ["allowed-domains"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("allowed_domains")
+        .select("*")
+        .order("domain");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const addDomain = useMutation({
+    mutationFn: async (domain: string) => {
+      const { error } = await supabase.from("allowed_domains").insert({ domain: domain.toLowerCase().trim() });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["allowed-domains"] });
+      toast.success("Domain added");
+      setNewDomain("");
+    },
+    onError: (err: any) => toast.error(err.message?.includes("duplicate") ? "Domain already exists" : err.message || "Failed to add domain"),
+  });
+
+  const removeDomain = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("allowed_domains").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["allowed-domains"] });
+      toast.success("Domain removed");
+    },
+    onError: (err: any) => toast.error(err.message || "Failed to remove domain"),
   });
 
   const { data: clients = [] } = useQuery({
@@ -87,7 +126,40 @@ export default function AdminUsers() {
   });
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-6 max-w-4xl mx-auto space-y-8">
+      {/* Domain Whitelist */}
+      {isSSAdmin && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Globe className="h-5 w-5 text-primary" />
+            <h2 className="text-2xl font-bold text-foreground">Allowed Domains</h2>
+          </div>
+          <p className="text-sm text-muted-foreground">Only users with emails from these domains can sign in.</p>
+          <div className="flex gap-2">
+            <Input
+              placeholder="example.com"
+              value={newDomain}
+              onChange={(e) => setNewDomain(e.target.value)}
+              className="max-w-xs"
+              onKeyDown={(e) => { if (e.key === "Enter" && newDomain.trim()) addDomain.mutate(newDomain); }}
+            />
+            <Button size="sm" onClick={() => newDomain.trim() && addDomain.mutate(newDomain)} disabled={!newDomain.trim()}>
+              <Plus className="h-4 w-4 mr-1" />Add
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {domains.map((d: any) => (
+              <Badge key={d.id} variant="secondary" className="text-sm gap-1.5 pr-1.5">
+                {d.domain}
+                <button onClick={() => removeDomain.mutate(d.id)} className="ml-1 hover:text-destructive">
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
       <h2 className="text-2xl font-bold text-foreground">Users</h2>
 
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : (

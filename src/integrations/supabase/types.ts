@@ -56,6 +56,35 @@ export type Database = {
           },
         ]
       }
+      allowed_domains: {
+        Row: {
+          added_by_user_id: string | null
+          created_at: string
+          domain: string
+          id: string
+        }
+        Insert: {
+          added_by_user_id?: string | null
+          created_at?: string
+          domain: string
+          id?: string
+        }
+        Update: {
+          added_by_user_id?: string | null
+          created_at?: string
+          domain?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "allowed_domains_added_by_user_id_fkey"
+            columns: ["added_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approvals: {
         Row: {
           created_at: string
