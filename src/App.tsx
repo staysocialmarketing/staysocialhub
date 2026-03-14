@@ -82,6 +82,7 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/workflow" element={<AdminRoute><Workflow /></AdminRoute>} />
               <Route path="/approvals" element={<Approvals />} />
+              <Route path="/calendar" element={<AdminRoute><MarketingCalendar /></AdminRoute>} />
               <Route path="/approvals/:postId" element={<PostDetail />} />
               <Route path="/requests" element={<Requests />} />
               <Route path="/content-library" element={<ContentLibrary />} />

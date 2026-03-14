@@ -57,6 +57,7 @@ import { supabase } from "@/integrations/supabase/client";
 const menuSection = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Workflow", url: "/workflow", icon: ClipboardList },
+  { title: "Calendar", url: "/calendar", icon: CalendarDays },
   { title: "Approvals", url: "/approvals", icon: CheckSquare },
   { title: "Requests", url: "/requests", icon: MessageSquarePlus },
 ];
