@@ -89,7 +89,7 @@ export function AppLayout() {
                 </button>
               )}
             </div>
-            {isSSRole && <GlobalSearch />}
+            {profile && <CommandPalette />}
             {profile && <NotificationBell />}
           </header>
           <main className="flex-1 overflow-auto">
