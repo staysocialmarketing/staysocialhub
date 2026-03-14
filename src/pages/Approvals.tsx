@@ -147,6 +147,38 @@ function StrategicCommentButton({ postId, postTitle }: { postId: string; postTit
   );
 }
 
+// ─── RELEASE TO CLIENT BUTTON ──────────────────────────────────────
+function ReleaseToClientButton({ postId }: { postId: string }) {
+  const queryClient = useQueryClient();
+
+  const release = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("posts")
+        .update({ status_column: "client_approval" } as any)
+        .eq("id", postId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["approval-posts"] });
+      queryClient.invalidateQueries({ queryKey: ["client-approval-posts"] });
+      toast.success("Released to client");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  return (
+    <Button
+      size="sm"
+      className="w-full gap-1 mt-1"
+      onClick={(e) => { e.stopPropagation(); release.mutate(); }}
+      disabled={release.isPending}
+    >
+      <Send className="h-3 w-3" /> Release to Client
+    </Button>
+  );
+}
+
 // ─── ADMIN APPROVALS VIEW ──────────────────────────────────────────
 function AdminApprovals() {
   const navigate = useNavigate();
