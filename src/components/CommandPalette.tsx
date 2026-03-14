@@ -91,7 +91,7 @@ export function CommandPalette() {
 
   const clientNavItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-    { icon: Trophy, label: "Success Center", path: "/success" },
+    { icon: Trophy, label: "Success Center", path: "/client/success" },
     { icon: Megaphone, label: "Approvals", path: "/approvals" },
     { icon: FileText, label: "Requests", path: "/requests" },
     { icon: Image, label: "My Media", path: "/content-library" },
