@@ -156,7 +156,7 @@ export default function MarketingCalendar() {
     { key: "client", label: "Client", options: clients.map((c: any) => ({ value: c.id, label: c.name })) },
     { key: "platform", label: "Platform", options: platforms.map((p) => ({ value: p.toLowerCase(), label: p })) },
     { key: "status", label: "Status", options: Object.entries(STATUS_MAP).filter(([k]) => k !== "ready_to_schedule").map(([k, v]) => ({ value: k, label: v.label })) },
-    { key: "assignee", label: "Assignee", options: teamMembers.map((u: any) => ({ value: u.id, label: u.name || u.email })) },
+    { key: "assignee", label: "Assignee", options: teamMembers.filter((u: any) => u.id).map((u: any) => ({ value: u.id, label: u.name || u.email || "Unknown" })) },
   ], [clients, platforms, teamMembers]);
 
   const { values: filterValues, setValues: setFilterValues } = useFilterBar(filterConfigs, "calendar");
