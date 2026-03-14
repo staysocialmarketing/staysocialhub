@@ -42,7 +42,43 @@ export default function AdminUsers() {
     },
   });
 
-  const { data: clients = [] } = useQuery({
+  const { data: domains = [] } = useQuery({
+    queryKey: ["allowed-domains"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("allowed_domains")
+        .select("*")
+        .order("domain");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const addDomain = useMutation({
+    mutationFn: async (domain: string) => {
+      const { error } = await supabase.from("allowed_domains").insert({ domain: domain.toLowerCase().trim() });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["allowed-domains"] });
+      toast.success("Domain added");
+      setNewDomain("");
+    },
+    onError: (err: any) => toast.error(err.message?.includes("duplicate") ? "Domain already exists" : err.message || "Failed to add domain"),
+  });
+
+  const removeDomain = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("allowed_domains").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["allowed-domains"] });
+      toast.success("Domain removed");
+    },
+    onError: (err: any) => toast.error(err.message || "Failed to remove domain"),
+  });
+
     queryKey: ["all-clients"],
     queryFn: async () => {
       const { data, error } = await supabase.from("clients").select("id, name").order("name");
