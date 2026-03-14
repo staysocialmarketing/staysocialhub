@@ -9,7 +9,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  MessageSquare, Calendar, Image as ImageIcon, Hash, Clock, CheckCircle, Mail, Eye,
+  MessageSquare, Calendar, Image as ImageIcon, Hash, Clock, CheckCircle, Mail, Eye, Send,
 } from "lucide-react";
 import { format, isToday, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
