@@ -1640,6 +1640,8 @@ export type Database = {
         | "sent"
         | "complete"
         | "ready_to_schedule"
+        | "ai_draft"
+        | "ready_for_client_batch"
       profile_update_status:
         | "pending"
         | "approved"
@@ -1806,6 +1808,8 @@ export const Constants = {
         "sent",
         "complete",
         "ready_to_schedule",
+        "ai_draft",
+        "ready_for_client_batch",
       ],
       profile_update_status: [
         "pending",

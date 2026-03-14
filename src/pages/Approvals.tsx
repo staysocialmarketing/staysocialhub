@@ -9,7 +9,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  MessageSquare, Calendar, Image as ImageIcon, Hash, Clock, CheckCircle, Mail, Eye,
+  MessageSquare, Calendar, Image as ImageIcon, Hash, Clock, CheckCircle, Mail, Eye, Send,
 } from "lucide-react";
 import { format, isToday, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -147,6 +147,38 @@ function StrategicCommentButton({ postId, postTitle }: { postId: string; postTit
   );
 }
 
+// ─── RELEASE TO CLIENT BUTTON ──────────────────────────────────────
+function ReleaseToClientButton({ postId }: { postId: string }) {
+  const queryClient = useQueryClient();
+
+  const release = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("posts")
+        .update({ status_column: "client_approval" } as any)
+        .eq("id", postId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["approval-posts"] });
+      queryClient.invalidateQueries({ queryKey: ["client-approval-posts"] });
+      toast.success("Released to client");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  return (
+    <Button
+      size="sm"
+      className="w-full gap-1 mt-1"
+      onClick={(e) => { e.stopPropagation(); release.mutate(); }}
+      disabled={release.isPending}
+    >
+      <Send className="h-3 w-3" /> Release to Client
+    </Button>
+  );
+}
+
 // ─── ADMIN APPROVALS VIEW ──────────────────────────────────────────
 function AdminApprovals() {
   const navigate = useNavigate();
@@ -158,7 +190,7 @@ function AdminApprovals() {
       const { data, error } = await supabase
         .from("posts")
         .select("*, comments(id), assigned_user:assigned_to_user_id(name), clients(name)")
-        .in("status_column", ["internal_review", "corey_review", "client_approval", "ready_to_schedule", "ready_to_send", "scheduled", "published", "sent", "complete"])
+        .in("status_column", ["internal_review", "corey_review", "ready_for_client_batch", "client_approval", "ready_to_schedule", "ready_to_send", "scheduled", "published", "sent", "complete"])
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -167,6 +199,7 @@ function AdminApprovals() {
 
   const internalReview = posts.filter((p: any) => p.status_column === "internal_review");
   const coreyReview = posts.filter((p: any) => p.status_column === "corey_review");
+  const readyForClientBatch = posts.filter((p: any) => p.status_column === "ready_for_client_batch");
   const clientApproval = posts.filter((p: any) => p.status_column === "client_approval");
   const readyToSchedule = posts.filter((p: any) => p.status_column === "ready_to_schedule");
   const readyToSend = posts.filter((p: any) => p.status_column === "ready_to_send");
@@ -223,6 +256,26 @@ function AdminApprovals() {
                     <StrategicCommentButton postId={post.id} postTitle={post.title} />
                   </>
                 )}
+              </PostCard>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Ready for Client Batch */}
+      <section>
+        <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+          <Send className="h-5 w-5 text-primary" />
+          Ready for Client Batch
+          <Badge variant="secondary">{readyForClientBatch.length}</Badge>
+        </h3>
+        {readyForClientBatch.length === 0 ? (
+          <Card><CardContent className="py-8 text-center text-muted-foreground">No posts ready for client release</CardContent></Card>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {readyForClientBatch.map((post: any) => (
+              <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} showClient>
+                <ReleaseToClientButton postId={post.id} />
               </PostCard>
             ))}
           </div>

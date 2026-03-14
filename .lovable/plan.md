@@ -1,63 +1,57 @@
 
 
-# Stabilize Core Workflow Logic
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-## Summary
+## Summary of Changes
 
-Logic-only update. No UI redesign. Add two new `post_status` enum values, update workflow columns, update approval flow logic, and add a "Ready for Client Batch" gating stage.
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
-## Database Migration
+## 1. Database: Update Auto-Assignment Triggers
 
-Add two new values to the `post_status` enum:
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-```sql
-ALTER TYPE public.post_status ADD VALUE IF NOT EXISTS 'ai_draft';
-ALTER TYPE public.post_status ADD VALUE IF NOT EXISTS 'ready_for_client_batch';
-```
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
-Update `log_client_activity_on_post_status` trigger function to handle the new statuses (no client notification for `ready_for_client_batch`).
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
 
-## Code Changes
+## 2. Approvals Page — Separate Media from Published Content
 
-### `src/pages/Workflow.tsx`
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
 
-Update `PRIMARY_COLUMNS` to the new 5-column pipeline:
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
 
-| Key | Label |
-|-----|-------|
-| `idea` | New |
-| `ai_draft` | AI Draft Generated |
-| `in_progress` | In Progress |
-| `internal_review` | Internal Review |
-| `corey_review` | Ready for Corey |
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
 
-Update `ALL_STATUSES` to match. Remove ApprovalActions from workflow cards in `internal_review` column (approvals happen on the Approvals page).
+## 3. Workflow Page — Move Internal Review to Bottom Section
 
-### `src/pages/Approvals.tsx` (AdminApprovals)
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
 
-Add `ready_for_client_batch` to the query filter. Add a new section "Ready for Client Batch" between Corey Review and Client Approval. This section shows a "Release to Client" button that moves the post to `client_approval` (which triggers the existing client notification). This is the gating mechanism that prevents automatic client notification.
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
 
-### `src/lib/workflowUtils.ts`
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
 
-Update `getApproveTarget`:
-- `internal_review` approve → `corey_review` (unchanged)
-- `corey_review` approve → `ready_for_client_batch` (changed from `client_approval`)
-- `client_approval` approve → content-type branching (unchanged)
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
-### `src/components/ApprovalActions.tsx`
-
-No structural changes. The `getApproveTarget` update handles the new flow automatically.
-
-### `src/components/WorkflowCardDialog.tsx`
-
-No structural changes. Status dropdown already uses `Constants.public.Enums.post_status` which will include the new values after migration.
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| Migration SQL | Add `ai_draft` and `ready_for_client_batch` to enum, update activity trigger |
-| `src/pages/Workflow.tsx` | Update column definitions to 5 stages |
-| `src/pages/Approvals.tsx` | Add "Ready for Client Batch" section with release button |
-| `src/lib/workflowUtils.ts` | Update `getApproveTarget` for corey → batch |
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 
