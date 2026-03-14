@@ -251,6 +251,7 @@ function AdminApprovals() {
       </section>
 
       {/* Client Approval */}
+      <section>
         <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
           Awaiting Client Approval
           <Badge variant="secondary">{clientApproval.length}</Badge>
