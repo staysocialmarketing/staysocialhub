@@ -1,106 +1,57 @@
 
 
-# Controlled Notification System
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-## Summary
+## Summary of Changes
 
-Refactor the notification trigger to suppress per-item client notifications, add batch-aware client notifications, add role-aware team notifications with deduplication, and lay groundwork for optional email/digest.
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
-## Database Changes
+## 1. Database: Update Auto-Assignment Triggers
 
-### 1. Create `notification_preferences` table
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-Stores per-user notification settings (in-app on/off, email on/off, daily digest on/off).
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
-```sql
-CREATE TABLE public.notification_preferences (
-  user_id uuid PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,
-  in_app_enabled boolean NOT NULL DEFAULT true,
-  email_enabled boolean NOT NULL DEFAULT false,
-  daily_digest boolean NOT NULL DEFAULT false,
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-ALTER TABLE public.notification_preferences ENABLE ROW LEVEL SECURITY;
--- Users can read/update their own; SS can read all
-```
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
 
-### 2. Add `notification_key` column to `notifications` table
+## 2. Approvals Page — Separate Media from Published Content
 
-A unique deduplication key to prevent duplicate alerts for the same workflow change.
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
 
-```sql
-ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS notification_key text;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_dedup ON public.notifications (notification_key) WHERE notification_key IS NOT NULL;
-```
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
 
-### 3. Update `notify_on_status_change()` trigger function
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
 
-Key changes:
-- **Remove client notification on `client_approval`** — clients no longer get per-item notifications when a post moves to `client_approval`
-- **Add deduplication** — each insert uses `notification_key` (e.g., `post:{id}:status:{new_status}:user:{user_id}`) with `ON CONFLICT DO NOTHING`
-- **Add overdue-aware fields** — no change needed here (overdue checks happen at query time)
-- Keep team notifications for assigned user, reviewer, ss_admin on internal_review/corey_review
+## 3. Workflow Page — Move Internal Review to Bottom Section
 
-### 4. Create batch notification helper function
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
 
-```sql
-CREATE OR REPLACE FUNCTION public.notify_batch_sent_to_client(
-  _batch_name text, _client_id uuid, _item_count int
-) RETURNS void ...
-```
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
 
-This function:
-- Inserts a single notification per `client_admin` user for that client
-- Message: "Your next batch of content is ready for review in the Stay Social HUB."
-- Uses `notification_key = 'batch_sent:{batch_name}:{client_id}'` for dedup
-- Also notifies SS admins: "Batch '{name}' sent to client"
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
 
-### 5. Create team notification functions
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
-```sql
--- Called when client approves/requests changes on a batch
-CREATE OR REPLACE FUNCTION public.notify_batch_client_response(
-  _batch_name text, _client_id uuid, _action text -- 'approved' or 'changes_requested'
-) RETURNS void ...
-```
-
-Notifies all SS admin/team users with dedup key.
-
-## Code Changes
-
-### `src/pages/Approvals.tsx`
-
-When the "Release to Client" button is clicked (currently just updates `status_column`), also call `supabase.rpc('notify_batch_sent_to_client', ...)` to send the single batch notification. This replaces the per-item `client_approval` notification that the trigger currently fires.
-
-*Note: The approval batches feature hasn't been built yet, so for now the ReleaseToClientButton will call this RPC directly. When batches are implemented, the batch send action will call this instead.*
-
-### `src/components/NotificationBell.tsx`
-
-No structural changes needed — it already renders all notifications. The dedup key prevents duplicates at the DB level.
-
-### `src/pages/Profile.tsx`
-
-Add a "Notification Preferences" section where users can toggle in-app notifications, email notifications, and daily digest. Query/upsert `notification_preferences` table.
-
-## Deduplication Strategy
-
-Every notification insert uses a deterministic `notification_key`:
-- Post status change: `post:{postId}:to:{status}:for:{userId}`
-- Batch sent: `batch:{batchName}:client:{clientId}:for:{userId}`
-- Assignment: `assign:{postId}:to:{userId}`
-
-The unique index with `ON CONFLICT DO NOTHING` prevents duplicates silently.
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| Migration SQL | Create `notification_preferences`, add `notification_key` to `notifications`, update `notify_on_status_change`, create `notify_batch_sent_to_client` and `notify_batch_client_response` RPCs |
-| `src/pages/Approvals.tsx` | ReleaseToClientButton calls batch notification RPC |
-| `src/pages/Profile.tsx` | Add notification preferences UI section |
-
-## What This Does NOT Do (Future)
-
-- Email sending and daily digest processing require an edge function + cron job — the preferences table is created now, but actual email/digest delivery is deferred until email infrastructure is set up
-- Approval Batches table creation (separate feature request already planned)
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 

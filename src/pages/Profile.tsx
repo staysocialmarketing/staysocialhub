@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { Save, Clock, Upload, X, Image as ImageIcon } from "lucide-react";
 import { compressImage } from "@/lib/imageUtils";
+import NotificationPreferences from "@/components/NotificationPreferences";
 
 const PLATFORM_OPTIONS = ["Instagram", "Facebook", "LinkedIn", "TikTok", "Twitter/X", "YouTube"];
 
@@ -335,6 +336,9 @@ export default function Profile() {
           </TabsContent>
         </Tabs>
       )}
+
+      {/* Notification Preferences */}
+      <NotificationPreferences />
 
       {isClientAdmin && clientProfile && !pendingUpdate && (
         <div className="flex justify-end">
