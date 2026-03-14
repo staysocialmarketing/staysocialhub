@@ -79,6 +79,7 @@ export default function AdminUsers() {
     onError: (err: any) => toast.error(err.message || "Failed to remove domain"),
   });
 
+  const { data: clients = [] } = useQuery({
     queryKey: ["all-clients"],
     queryFn: async () => {
       const { data, error } = await supabase.from("clients").select("id, name").order("name");
