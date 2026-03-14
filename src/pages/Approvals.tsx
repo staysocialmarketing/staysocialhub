@@ -158,7 +158,7 @@ function AdminApprovals() {
       const { data, error } = await supabase
         .from("posts")
         .select("*, comments(id), assigned_user:assigned_to_user_id(name), clients(name)")
-        .in("status_column", ["internal_review", "corey_review", "client_approval", "ready_to_schedule", "ready_to_send", "scheduled", "published", "sent", "complete"])
+        .in("status_column", ["internal_review", "corey_review", "ready_for_client_batch", "client_approval", "ready_to_schedule", "ready_to_send", "scheduled", "published", "sent", "complete"])
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
