@@ -1,57 +1,34 @@
 
 
-# Workflow, Approvals, and Auto-Assignment Overhaul
+# Fix Issues Found in Audit
 
-## Summary of Changes
+## Issues to Fix
 
-This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
+### 1. CommandPalette: Wrong Success Center route
+In `src/components/CommandPalette.tsx` line 94, the client nav item for Success Center uses `path: "/success"` but the actual route in `App.tsx` is `/client/success`.
 
-## 1. Database: Update Auto-Assignment Triggers
+**Fix:** Change path to `/client/success`.
 
-**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
+### 2. CommandPalette: Missing DialogTitle for accessibility
+The `CommandDialog` triggers console errors about missing `DialogTitle`. The cmdk `CommandDialog` uses Radix Dialog under the hood but doesn't include a title.
 
-**Changes (migration)**:
-- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
-- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
-- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
-- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
+**Fix:** This is inside the shadcn `CommandDialog` wrapper — we need to add a `VisuallyHidden` `DialogTitle` inside the `CommandDialog` usage, or patch the `command.tsx` UI component to include one.
 
-All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
-
-## 2. Approvals Page — Separate Media from Published Content
-
-**Client Approvals (`ClientApprovals`)**: 
-- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
-- Alternatively, only show posts in Published that were moved there by admin approval flow
-
-**Admin Approvals (`AdminApprovals`)**:
-- Same fix for Published column — filter to only show posts linked to requests
-
-**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
-
-## 3. Workflow Page — Move Internal Review to Bottom Section
-
-**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
-
-**New layout**:
-- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
-- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
-
-## 4. Admin & Team Dashboards — Show Assignments + Tasks
-
-**SuperAdminDashboard**: Already shows team activity. Add:
-- "My Assignments" section showing posts assigned to the current admin user
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
-
-**TeamDashboard**: Already shows "My Assignments". Add:
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+### 3. No code changes needed for the Dashboard Select ref warning
+This is a pre-existing issue unrelated to recent changes. Can be addressed separately.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
-| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
-| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
-| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
+| `src/components/CommandPalette.tsx` | Fix Success Center path from `/success` to `/client/success` |
+| `src/components/ui/command.tsx` | Add `VisuallyHidden` `DialogTitle` to `CommandDialog` to fix accessibility warning |
+
+## Security & Data Integrity Summary
+
+- All new tables have proper RLS policies
+- Notification dedup prevents duplicate alerts via unique index
+- Batch operations correctly check SS role access
+- Client data isolation maintained via `is_client_member()` and `can_access_client()`
+- No sensitive data exposed; no public-facing tables without auth gating
 
