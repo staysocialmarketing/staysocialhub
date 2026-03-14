@@ -148,7 +148,7 @@ function StrategicCommentButton({ postId, postTitle }: { postId: string; postTit
 }
 
 // ─── RELEASE TO CLIENT BUTTON ──────────────────────────────────────
-function ReleaseToClientButton({ postId }: { postId: string }) {
+function ReleaseToClientButton({ postId, postTitle, clientId }: { postId: string; postTitle: string; clientId: string }) {
   const queryClient = useQueryClient();
 
   const release = useMutation({
@@ -158,6 +158,13 @@ function ReleaseToClientButton({ postId }: { postId: string }) {
         .update({ status_column: "client_approval" } as any)
         .eq("id", postId);
       if (error) throw error;
+
+      // Send batch-style notification instead of per-item
+      await supabase.rpc("notify_batch_sent_to_client" as any, {
+        _batch_name: postTitle,
+        _client_id: clientId,
+        _item_count: 1,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["approval-posts"] });
