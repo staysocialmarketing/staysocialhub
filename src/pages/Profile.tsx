@@ -337,6 +337,9 @@ export default function Profile() {
         </Tabs>
       )}
 
+      {/* Notification Preferences */}
+      <NotificationPreferences />
+
       {isClientAdmin && clientProfile && !pendingUpdate && (
         <div className="flex justify-end">
           {!draft ? (

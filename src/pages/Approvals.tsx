@@ -282,7 +282,7 @@ function AdminApprovals() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {readyForClientBatch.map((post: any) => (
               <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} showClient>
-                <ReleaseToClientButton postId={post.id} />
+                <ReleaseToClientButton postId={post.id} postTitle={post.title} clientId={post.client_id} />
               </PostCard>
             ))}
           </div>
