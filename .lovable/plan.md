@@ -1,63 +1,57 @@
 
 
-# Marketing Calendar System
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-## Overview
+## Summary of Changes
 
-Add a new `/calendar` page as the primary planning view for scheduled content. It queries `posts` directly (no new tables needed) and provides three sub-views: Calendar, List, and Board — all with filtering by client, platform, status, and assignee.
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
-## No Database Changes
+## 1. Database: Update Auto-Assignment Triggers
 
-All data already exists in the `posts` table (`scheduled_at`, `status_column`, `platform`, `client_id`, `assigned_to_user_id`, `creative_url`, `caption`, `title`). No migration needed.
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-## Files to Create/Modify
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
-### New: `src/pages/MarketingCalendar.tsx`
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
 
-Main page with three tab views (Calendar / List / Board) using the existing `Tabs` component.
+## 2. Approvals Page — Separate Media from Published Content
 
-- **Query**: Fetch all posts with `scheduled_at IS NOT NULL` OR status in approval pipeline stages, joined with `clients(name)` and `assigned_user:assigned_to_user_id(name)`
-- **Filters**: Reuse `FilterBar` component with configs for client, platform, status (the 6 approval pipeline statuses), and assigned team member
-- **Status badges** use color coding matching the approval pipeline:
-  - `internal_review` → "Awaiting Internal Review"
-  - `corey_review` → "Awaiting Corey Review"
-  - `ready_for_client_batch` → "Ready for Client Batch"
-  - `client_approval` → "Awaiting Client Approval"
-  - `scheduled` / `ready_to_schedule` → "Approved / Scheduled"
-  - `published` → "Published"
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
 
-**Calendar Tab**: Reuse and extend the existing `CalendarView` component pattern — month grid with post dots, click to expand day detail showing preview image, caption, client, platform, date, status badge.
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
 
-**List Tab**: Table view using existing `Table` components. Columns: preview thumbnail, title, client, platform, publish date, status badge, assignee.
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
 
-**Board Tab**: Kanban columns grouped by status (the 6 pipeline stages), each card showing preview image, title, client badge, platform badge, date.
+## 3. Workflow Page — Move Internal Review to Bottom Section
 
-Each content card across all views shows:
-- Preview image (or placeholder)
-- Caption preview (truncated)
-- Client name
-- Platform badge(s)
-- Publish date
-- Status badge
-- Clicking navigates to `/approvals/:postId`
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
 
-### Modify: `src/App.tsx`
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
 
-Add route: `<Route path="/calendar" element={<AdminRoute><MarketingCalendar /></AdminRoute>} />`
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
 
-### Modify: `src/components/AppSidebar.tsx`
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
-Add calendar entry to `menuSection` between Workflow and Approvals:
-```
-{ title: "Calendar", url: "/calendar", icon: Calendar }
-```
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
-Import `Calendar` from lucide-react (already imported as `CalendarIcon` pattern exists).
+## Files Changed
 
-## Implementation Notes
-
-- No changes to request or approval workflows
-- Posts without `scheduled_at` still appear if they're in an approval pipeline status (so nothing is hidden)
-- Filters use the same `useFilterBar` hook with session storage key `"calendar"`
-- Board view cards are read-only (no drag-and-drop — that stays in Workflow)
+| File | Change |
+|------|--------|
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 

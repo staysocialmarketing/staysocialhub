@@ -16,6 +16,7 @@ import Profile from "./pages/Profile";
 import WhatsNew from "./pages/WhatsNew";
 import Plan from "./pages/Plan";
 import ContentLibrary from "./pages/ContentLibrary";
+import MarketingCalendar from "./pages/MarketingCalendar";
 import SuccessCenter from "./pages/client/SuccessCenter";
 import AdminClients from "./pages/admin/AdminClients";
 import AdminUsers from "./pages/admin/AdminUsers";
@@ -81,6 +82,7 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/workflow" element={<AdminRoute><Workflow /></AdminRoute>} />
               <Route path="/approvals" element={<Approvals />} />
+              <Route path="/calendar" element={<AdminRoute><MarketingCalendar /></AdminRoute>} />
               <Route path="/approvals/:postId" element={<PostDetail />} />
               <Route path="/requests" element={<Requests />} />
               <Route path="/content-library" element={<ContentLibrary />} />
