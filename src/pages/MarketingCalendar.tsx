@@ -145,7 +145,10 @@ export default function MarketingCalendar() {
 
   const platforms = useMemo(() => {
     const set = new Set<string>();
-    posts.forEach((p: any) => p.platform?.split(",").forEach((x: string) => set.add(x.trim())));
+    posts.forEach((p: any) => p.platform?.split(",").forEach((x: string) => {
+      const trimmed = x.trim();
+      if (trimmed) set.add(trimmed);
+    }));
     return Array.from(set).sort();
   }, [posts]);
 
