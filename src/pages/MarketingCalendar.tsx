@@ -179,7 +179,10 @@ export default function MarketingCalendar() {
 
   return (
     <div className="space-y-6">
-      <SectionHeader title="Marketing Calendar" subtitle="Plan, schedule, and track content across clients" />
+      <div className="space-y-1">
+        <h1 className="text-xl font-bold text-foreground">Marketing Calendar</h1>
+        <p className="text-sm text-muted-foreground">Plan, schedule, and track content across clients</p>
+      </div>
 
       <FilterBar filters={filterConfigs} values={filterValues} onChange={setFilterValues} />
 
