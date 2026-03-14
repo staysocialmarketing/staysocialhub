@@ -232,24 +232,16 @@ function AdminApprovals() {
         )}
       </section>
 
-      {/* Ready for Client Batch */}
+      {/* Approval Batches */}
       <section>
         <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
           <Send className="h-5 w-5 text-primary" />
-          Ready for Client Batch
-          <Badge variant="secondary">{readyForClientBatch.length}</Badge>
+          Approval Batches
         </h3>
-        {readyForClientBatch.length === 0 ? (
-          <Card><CardContent className="py-8 text-center text-muted-foreground">No posts ready for client release</CardContent></Card>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {readyForClientBatch.map((post: any) => (
-              <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} showClient>
-                <ReleaseToClientButton postId={post.id} postTitle={post.title} clientId={post.client_id} />
-              </PostCard>
-            ))}
-          </div>
-        )}
+        <ApprovalBatchManager
+          unbatchedPosts={readyForClientBatch}
+          allPosts={posts.map((p: any) => ({ id: p.id, status_column: p.status_column }))}
+        />
       </section>
 
       {/* Client Approval */}
