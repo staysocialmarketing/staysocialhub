@@ -126,7 +126,40 @@ export default function AdminUsers() {
   });
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-6 max-w-4xl mx-auto space-y-8">
+      {/* Domain Whitelist */}
+      {isSSAdmin && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Globe className="h-5 w-5 text-primary" />
+            <h2 className="text-2xl font-bold text-foreground">Allowed Domains</h2>
+          </div>
+          <p className="text-sm text-muted-foreground">Only users with emails from these domains can sign in.</p>
+          <div className="flex gap-2">
+            <Input
+              placeholder="example.com"
+              value={newDomain}
+              onChange={(e) => setNewDomain(e.target.value)}
+              className="max-w-xs"
+              onKeyDown={(e) => { if (e.key === "Enter" && newDomain.trim()) addDomain.mutate(newDomain); }}
+            />
+            <Button size="sm" onClick={() => newDomain.trim() && addDomain.mutate(newDomain)} disabled={!newDomain.trim()}>
+              <Plus className="h-4 w-4 mr-1" />Add
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {domains.map((d: any) => (
+              <Badge key={d.id} variant="secondary" className="text-sm gap-1.5 pr-1.5">
+                {d.domain}
+                <button onClick={() => removeDomain.mutate(d.id)} className="ml-1 hover:text-destructive">
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
       <h2 className="text-2xl font-bold text-foreground">Users</h2>
 
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : (
