@@ -6,7 +6,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { useAuth } from "@/contexts/AuthContext";
 import { X } from "lucide-react";
 import { GlobalCaptureButton } from "@/components/GlobalCaptureButton";
-import { GlobalSearch } from "@/components/GlobalSearch";
+import { CommandPalette } from "@/components/CommandPalette";
 import { VersionHistoryDialog } from "@/components/VersionHistoryDialog";
 import { supabase } from "@/integrations/supabase/client";
 
