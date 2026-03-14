@@ -63,7 +63,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [viewAsProfile, setViewAsProfile] = useState<UserProfile | null>(null);
   const [viewAsRoles, setViewAsRoles] = useState<AppRole[]>([]);
 
-  const fetchProfile = async (userId: string) => {
+  const checkDomainAllowed = async (email: string): Promise<boolean> => {
+    const domain = email.split("@")[1]?.toLowerCase();
+    if (!domain) return false;
+    const { data } = await supabase
+      .from("allowed_domains")
+      .select("id")
+      .eq("domain", domain)
+      .maybeSingle();
+    return !!data;
+  };
+
+  const fetchProfile = async (userId: string, email: string) => {
+    // Check domain whitelist first
+    const allowed = await checkDomainAllowed(email);
+    if (!allowed) {
+      toast.error("Your email domain is not authorized. Contact Stay Social to request access.");
+      await supabase.auth.signOut();
+      return;
+    }
+
     const { data: profileData } = await supabase
       .from("users")
       .select("*")
