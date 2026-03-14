@@ -16,6 +16,7 @@ import Profile from "./pages/Profile";
 import WhatsNew from "./pages/WhatsNew";
 import Plan from "./pages/Plan";
 import ContentLibrary from "./pages/ContentLibrary";
+import MarketingCalendar from "./pages/MarketingCalendar";
 import SuccessCenter from "./pages/client/SuccessCenter";
 import AdminClients from "./pages/admin/AdminClients";
 import AdminUsers from "./pages/admin/AdminUsers";
