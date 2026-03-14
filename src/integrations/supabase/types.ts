@@ -475,12 +475,45 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_preferences: {
+        Row: {
+          daily_digest: boolean
+          email_enabled: boolean
+          in_app_enabled: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          daily_digest?: boolean
+          email_enabled?: boolean
+          in_app_enabled?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          daily_digest?: boolean
+          email_enabled?: boolean
+          in_app_enabled?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           body: string | null
           created_at: string
           id: string
           link: string | null
+          notification_key: string | null
           read: boolean
           title: string
           user_id: string
@@ -490,6 +523,7 @@ export type Database = {
           created_at?: string
           id?: string
           link?: string | null
+          notification_key?: string | null
           read?: boolean
           title: string
           user_id: string
@@ -499,6 +533,7 @@ export type Database = {
           created_at?: string
           id?: string
           link?: string | null
+          notification_key?: string | null
           read?: boolean
           title?: string
           user_id?: string
@@ -1614,6 +1649,14 @@ export type Database = {
       }
       is_client_member: { Args: { _client_id: string }; Returns: boolean }
       is_ss_role: { Args: never; Returns: boolean }
+      notify_batch_client_response: {
+        Args: { _action: string; _batch_name: string; _client_id: string }
+        Returns: undefined
+      }
+      notify_batch_sent_to_client: {
+        Args: { _batch_name: string; _client_id: string; _item_count: number }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role:
