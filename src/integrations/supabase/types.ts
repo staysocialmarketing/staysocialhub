@@ -85,6 +85,93 @@ export type Database = {
           },
         ]
       }
+      approval_batch_items: {
+        Row: {
+          batch_id: string
+          created_at: string
+          id: string
+          post_id: string
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          id?: string
+          post_id: string
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          id?: string
+          post_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_batch_items_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "approval_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_batch_items_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      approval_batches: {
+        Row: {
+          batch_type: string
+          client_id: string
+          created_at: string
+          created_by_user_id: string
+          id: string
+          name: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          batch_type?: string
+          client_id: string
+          created_at?: string
+          created_by_user_id: string
+          id?: string
+          name: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          batch_type?: string
+          client_id?: string
+          created_at?: string
+          created_by_user_id?: string
+          id?: string
+          name?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_batches_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_batches_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approvals: {
         Row: {
           created_at: string

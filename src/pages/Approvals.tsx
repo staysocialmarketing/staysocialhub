@@ -15,6 +15,7 @@ import { format, isToday, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 import ApprovalActions from "@/components/ApprovalActions";
+import ApprovalBatchManager from "@/components/ApprovalBatchManager";
 import { toast } from "sonner";
 
 type PostStatus = Database["public"]["Enums"]["post_status"];
@@ -147,46 +148,8 @@ function StrategicCommentButton({ postId, postTitle }: { postId: string; postTit
   );
 }
 
-// ─── RELEASE TO CLIENT BUTTON ──────────────────────────────────────
-function ReleaseToClientButton({ postId, postTitle, clientId }: { postId: string; postTitle: string; clientId: string }) {
-  const queryClient = useQueryClient();
 
-  const release = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase
-        .from("posts")
-        .update({ status_column: "client_approval" } as any)
-        .eq("id", postId);
-      if (error) throw error;
 
-      // Send batch-style notification instead of per-item
-      await supabase.rpc("notify_batch_sent_to_client" as any, {
-        _batch_name: postTitle,
-        _client_id: clientId,
-        _item_count: 1,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["approval-posts"] });
-      queryClient.invalidateQueries({ queryKey: ["client-approval-posts"] });
-      toast.success("Released to client");
-    },
-    onError: (err: any) => toast.error(err.message),
-  });
-
-  return (
-    <Button
-      size="sm"
-      className="w-full gap-1 mt-1"
-      onClick={(e) => { e.stopPropagation(); release.mutate(); }}
-      disabled={release.isPending}
-    >
-      <Send className="h-3 w-3" /> Release to Client
-    </Button>
-  );
-}
-
-// ─── ADMIN APPROVALS VIEW ──────────────────────────────────────────
 function AdminApprovals() {
   const navigate = useNavigate();
   const { isSSAdmin } = useAuth();
@@ -269,24 +232,16 @@ function AdminApprovals() {
         )}
       </section>
 
-      {/* Ready for Client Batch */}
+      {/* Approval Batches */}
       <section>
         <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
           <Send className="h-5 w-5 text-primary" />
-          Ready for Client Batch
-          <Badge variant="secondary">{readyForClientBatch.length}</Badge>
+          Approval Batches
         </h3>
-        {readyForClientBatch.length === 0 ? (
-          <Card><CardContent className="py-8 text-center text-muted-foreground">No posts ready for client release</CardContent></Card>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {readyForClientBatch.map((post: any) => (
-              <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} showClient>
-                <ReleaseToClientButton postId={post.id} postTitle={post.title} clientId={post.client_id} />
-              </PostCard>
-            ))}
-          </div>
-        )}
+        <ApprovalBatchManager
+          unbatchedPosts={readyForClientBatch}
+          allPosts={posts.map((p: any) => ({ id: p.id, status_column: p.status_column }))}
+        />
       </section>
 
       {/* Client Approval */}

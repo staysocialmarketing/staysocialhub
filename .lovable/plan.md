@@ -1,73 +1,57 @@
 
 
-# Approval Batches System
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-## Database Changes (Migration)
+## Summary of Changes
 
-### New table: `approval_batches`
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
-| Column | Type | Default |
-|--------|------|---------|
-| `id` | uuid PK | `gen_random_uuid()` |
-| `client_id` | uuid NOT NULL | FK to clients |
-| `name` | text NOT NULL | — |
-| `batch_type` | text NOT NULL | `'custom'` |
-| `status` | text NOT NULL | `'draft'` |
-| `created_by_user_id` | uuid NOT NULL | — |
-| `sent_at` | timestamptz | NULL |
-| `created_at` / `updated_at` | timestamptz | `now()` |
+## 1. Database: Update Auto-Assignment Triggers
 
-RLS: SS roles full access; clients can SELECT where `is_client_member(client_id)`.
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-### New table: `approval_batch_items`
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
-| Column | Type |
-|--------|------|
-| `id` | uuid PK |
-| `batch_id` | uuid NOT NULL FK |
-| `post_id` | uuid NOT NULL FK |
-| `created_at` | timestamptz |
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
 
-Unique constraint on `(batch_id, post_id)`. RLS: SS roles full access; clients can SELECT via batch's client_id.
+## 2. Approvals Page — Separate Media from Published Content
 
-## Code Changes
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
 
-### `src/pages/Approvals.tsx` — Replace "Ready for Client Batch" section
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
 
-The current section shows individual cards with "Release to Client" buttons. Replace with a batch-aware UI:
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
 
-**Unbatched items subsection**: Posts in `ready_for_client_batch` that are NOT in any `approval_batch_items` row. Each card gets a checkbox for multi-select. An "Add to Batch" button opens a dialog to either create a new batch or add to an existing draft batch for that client.
+## 3. Workflow Page — Move Internal Review to Bottom Section
 
-**Batches subsection**: Query `approval_batches` with status in `('draft', 'ready_for_client_batch', 'sent_to_client', 'partially_approved', 'approved', 'needs_changes', 'scheduled', 'completed')`. Group by client. Each batch card shows:
-- Batch name, type badge, item count, status badge, sent date
-- Expand to see items inside
-- Actions: "Send to Client" (draft batches), "Resend Reminder" (sent batches), "Hold" toggle
-- Edit: add/remove items dialog
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
 
-**Send to Client action**:
-1. Update all batch item posts: `status_column = 'client_approval'`
-2. Update batch: `status = 'sent_to_client'`, `sent_at = now()`
-3. Call existing `notify_batch_sent_to_client` RPC with batch name, client_id, item count
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
 
-**Create Batch dialog**:
-- Client selector (auto-set if only one client's items selected)
-- Batch name input (auto-suggest: `{client} – Week {n} Content`)
-- Batch type: weekly / monthly / custom
-- Multi-select unbatched posts for that client
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
 
-### Batch status derivation (on frontend)
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
-After a batch is sent, individual post statuses drive the batch display status:
-- All posts approved/scheduled/published → `approved`/`scheduled`/`completed`
-- Any post has changes requested → `needs_changes`
-- Mix → `partially_approved`
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
-This is computed at render time from joined post statuses, not stored (keeps it simple and always accurate).
-
-## Files
+## Files Changed
 
 | File | Change |
 |------|--------|
-| Migration SQL | Create `approval_batches` + `approval_batch_items` with RLS |
-| `src/pages/Approvals.tsx` | Replace "Ready for Client Batch" section with batch management UI (unbatched items, batch cards, create/edit/send dialogs) |
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 
