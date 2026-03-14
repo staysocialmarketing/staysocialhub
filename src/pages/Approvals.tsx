@@ -15,6 +15,7 @@ import { format, isToday, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 import ApprovalActions from "@/components/ApprovalActions";
+import ApprovalBatchManager from "@/components/ApprovalBatchManager";
 import { toast } from "sonner";
 
 type PostStatus = Database["public"]["Enums"]["post_status"];
