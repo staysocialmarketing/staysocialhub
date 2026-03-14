@@ -1,57 +1,49 @@
 
 
-# Workflow, Approvals, and Auto-Assignment Overhaul
+# Fix Login Access and Add Domain-Level Approval
 
-## Summary of Changes
+## Tristan's Issue
 
-This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
+The "personal/business account" error is a Google Workspace restriction on mobile -- Google blocks OAuth when there's a conflict between personal and workspace accounts on the device. This is a Google-side limitation, not something we can fix in our app.
 
-## 1. Database: Update Auto-Assignment Triggers
+**Immediate fix**: Tristan can use the **Magic Link** option right now -- it bypasses Google OAuth entirely and works on any device. He just enters his email and clicks the link sent to his inbox.
 
-**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
+## Domain-Level Approval for Future Signups
 
-**Changes (migration)**:
-- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
-- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
-- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
-- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
+To prevent unauthorized access while keeping things open for legitimate users, we will add an `allowed_domains` table that acts as a whitelist. Only users with emails matching an approved domain can sign in.
 
-All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
+### Database Changes
 
-## 2. Approvals Page — Separate Media from Published Content
+**New table: `allowed_domains`**
+- `id` (uuid, PK)
+- `domain` (text, unique) -- e.g. "staysocial.ca", "clientcompany.com"
+- `created_at` (timestamptz)
+- `added_by_user_id` (uuid)
 
-**Client Approvals (`ClientApprovals`)**: 
-- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
-- Alternatively, only show posts in Published that were moved there by admin approval flow
+RLS: SS roles can manage, all authenticated can read.
 
-**Admin Approvals (`AdminApprovals`)**:
-- Same fix for Published column — filter to only show posts linked to requests
+### Code Changes
 
-**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
+**`src/pages/Auth.tsx`**
+- After Google sign-in or magic link succeeds, check if the user's email domain is in `allowed_domains`
+- If not found, sign them out immediately and show an error: "Your email domain is not authorized. Contact Stay Social to request access."
+- This applies to both new and existing users whose domain isn't whitelisted
 
-## 3. Workflow Page — Move Internal Review to Bottom Section
+**`src/pages/admin/AdminUsers.tsx`** (or new section)
+- Add a "Domains" management section where SS Admins can add/remove allowed domains
+- Simple list with add/remove buttons
+- Pre-populate with "staysocial.ca" and any existing client email domains
 
-**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
+**`src/contexts/AuthContext.tsx`**
+- Add domain validation check in the auth state change handler
+- If a user signs in with an unauthorized domain, auto sign-out
 
-**New layout**:
-- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
-- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
-
-## 4. Admin & Team Dashboards — Show Assignments + Tasks
-
-**SuperAdminDashboard**: Already shows team activity. Add:
-- "My Assignments" section showing posts assigned to the current admin user
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
-
-**TeamDashboard**: Already shows "My Assignments". Add:
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
-
-## Files Changed
+### Files Changed
 
 | File | Change |
 |------|--------|
-| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
-| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
-| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
-| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
+| Migration SQL | Create `allowed_domains` table with RLS |
+| `src/pages/Auth.tsx` | Add domain check after successful auth |
+| `src/contexts/AuthContext.tsx` | Add domain validation on auth state change |
+| `src/pages/admin/AdminUsers.tsx` | Add domain management UI for SS Admins |
 
