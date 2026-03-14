@@ -1,57 +1,81 @@
 
 
-# Workflow, Approvals, and Auto-Assignment Overhaul
+# Refine UX Architecture: Quick Capture + Command/Action Layer
 
-## Summary of Changes
+## What This Changes
 
-This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
+Transform the existing `GlobalSearch` (Cmd+K) from a search-only tool into a full **Command Palette** that serves as the "control/power-user/AI" layer, while keeping the `+` FAB unchanged as the "input/capture" layer.
 
-## 1. Database: Update Auto-Assignment Triggers
+No visual redesign. Same layouts, cards, spacing, navigation. This is a system connection and interaction architecture update.
 
-**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
+## Interaction Model
 
-**Changes (migration)**:
-- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
-- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
-- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
-- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
+```text
+┌─────────────────────────────────────┐
+│  + FAB (Quick Capture)              │  = Add something new quickly
+│  ─ Capture Idea → Think Tank        │
+│  ─ Create Request → Request         │
+│  ─ Add Task → Task                  │
+│  ─ Upload Image → Media/Inbox       │
+│  ─ Voice Note → Media/Inbox         │
+└─────────────────────────────────────┘
 
-All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
-
-## 2. Approvals Page — Separate Media from Published Content
-
-**Client Approvals (`ClientApprovals`)**: 
-- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
-- Alternatively, only show posts in Published that were moved there by admin approval flow
-
-**Admin Approvals (`AdminApprovals`)**:
-- Same fix for Published column — filter to only show posts linked to requests
-
-**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
-
-## 3. Workflow Page — Move Internal Review to Bottom Section
-
-**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
-
-**New layout**:
-- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
-- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
-
-## 4. Admin & Team Dashboards — Show Assignments + Tasks
-
-**SuperAdminDashboard**: Already shows team activity. Add:
-- "My Assignments" section showing posts assigned to the current admin user
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
-
-**TeamDashboard**: Already shows "My Assignments". Add:
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+┌─────────────────────────────────────┐
+│  ⌘K Command Palette                │  = Find, navigate, trigger actions, AI
+│  ─ Search: clients, requests, etc.  │
+│  ─ Navigate: open approvals, cal    │
+│  ─ Actions: create request, task    │
+│  ─ Future: AI generate, summarize   │
+└─────────────────────────────────────┘
+```
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
-| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
-| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
-| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
+| `src/components/GlobalSearch.tsx` | Rewrite into `CommandPalette.tsx` — add navigation shortcuts, action commands, and empty-state quick actions alongside existing search |
+| `src/components/AppLayout.tsx` | Swap `GlobalSearch` for `CommandPalette`, make ⌘K available to all roles (not just SS) |
+
+## Detailed Changes
+
+### `src/components/GlobalSearch.tsx` → `src/components/CommandPalette.tsx`
+
+Expand the existing command dialog to include three command groups when the search query is empty:
+
+**1. Quick Navigation (always visible when query is empty)**
+Static list of navigation shortcuts filtered by role:
+- SS roles: Dashboard, Workflow, Calendar, Approvals, Requests, Inbox, Tasks, Projects, Think Tank, Clients, Media, Team
+- Clients: Dashboard, Success Center, Approvals, Requests, My Media, Profile, Plan
+
+Each item uses `navigate()` on select, same as current search results.
+
+**2. Actions (always visible when query is empty)**
+These trigger the same flows that already exist in the app — they open dialogs or navigate:
+- "Create Request" → opens `MakeRequestDialog` (same as + button)
+- "Create Task" → navigates to `/team/tasks` (SS only)
+- "Capture Idea" → navigates to `/team/think-tank` (SS only)
+- "Upload Media" → navigates to `/admin/media` (SS only)
+- "View Approvals" → navigates to `/approvals`
+- "Open Content Calendar" → navigates to `/calendar` (SS only)
+
+**3. Future AI Actions (visible but disabled/placeholder)**
+Show a greyed-out "AI Actions" group with items like:
+- "Generate strategy…" (coming soon)
+- "Generate draft…" (coming soon)
+- "Summarize approvals…" (coming soon)
+
+These render with a `disabled` state and a subtle "Coming soon" badge. No functionality yet — just establishes the pattern for future AI integration.
+
+**4. Search results (visible when query is typed)**
+Keep existing search behavior exactly as-is — clients, requests, tasks, media, strategy, think tank.
+
+### `src/components/AppLayout.tsx`
+
+- Replace `<GlobalSearch />` import/usage with `<CommandPalette />`
+- Remove the `{isSSRole && ...}` gate — make the command palette available to all authenticated users (clients get navigation + search for their accessible data; action items are role-filtered inside the component)
+- The header trigger button text changes from "Search…" to "Search & Commands…" with same ⌘K shortcut
+
+### Quick Capture (`GlobalCaptureButton.tsx`)
+
+**No changes.** The + button stays exactly as it is. Same options, same forms, same destinations. The only conceptual change is that the command palette can also trigger "Create Request" — this is intentional overlap since both layers should support the most common action, but through different interaction patterns (quick form vs. command search).
 
