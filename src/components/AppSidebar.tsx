@@ -82,6 +82,7 @@ const clientItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Success Center", url: "/client/success", icon: Sparkles },
   { title: "Approvals", url: "/approvals", icon: CheckSquare },
+  { title: "Calendar", url: "/calendar", icon: CalendarDays },
   { title: "Requests", url: "/requests", icon: MessageSquarePlus },
   { title: "My Media", url: "/content-library", icon: FolderOpen },
   { title: "My Profile", url: "/profile", icon: UserCircle },
