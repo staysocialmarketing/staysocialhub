@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,8 +10,7 @@ import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { SectionHeader } from "@/components/ui/section-header";
-import FilterBar, { useFilterBar, type FilterConfig, type FilterOption } from "@/components/FilterBar";
+import FilterBar, { useFilterBar, type FilterConfig } from "@/components/FilterBar";
 import { CalendarDays, List, LayoutGrid, ChevronLeft, ChevronRight, Image as ImageIcon } from "lucide-react";
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek,
@@ -30,16 +30,26 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
   published: { label: "Published", color: "bg-green-100 text-green-800 border-green-300" },
 };
 
-const PIPELINE_STATUSES = [
+const ALL_PIPELINE_STATUSES = [
   "internal_review", "corey_review", "ready_for_client_batch",
   "client_approval", "scheduled", "ready_to_schedule", "published",
 ];
 
-const BOARD_COLUMNS = [
+const CLIENT_VISIBLE_STATUSES = [
+  "client_approval", "scheduled", "ready_to_schedule", "published",
+];
+
+const ALL_BOARD_COLUMNS = [
   { key: "internal_review", label: "Awaiting Internal Review" },
   { key: "corey_review", label: "Awaiting Corey Review" },
   { key: "ready_for_client_batch", label: "Ready for Client Batch" },
   { key: "client_approval", label: "Awaiting Client Approval" },
+  { key: "scheduled", label: "Approved / Scheduled" },
+  { key: "published", label: "Published" },
+];
+
+const CLIENT_BOARD_COLUMNS = [
+  { key: "client_approval", label: "Awaiting Your Approval" },
   { key: "scheduled", label: "Approved / Scheduled" },
   { key: "published", label: "Published" },
 ];
@@ -104,11 +114,15 @@ function ContentCard({ post, onClick }: { post: any; onClick: () => void }) {
 
 export default function MarketingCalendar() {
   const navigate = useNavigate();
+  const { isSSRole } = useAuth();
   const [tab, setTab] = useState("calendar");
 
+  const PIPELINE_STATUSES = isSSRole ? ALL_PIPELINE_STATUSES : CLIENT_VISIBLE_STATUSES;
+  const BOARD_COLUMNS = isSSRole ? ALL_BOARD_COLUMNS : CLIENT_BOARD_COLUMNS;
+
   // Fetch posts in pipeline or with scheduled_at
-  const { data: posts = [], isLoading } = useQuery({
-    queryKey: ["marketing-calendar-posts"],
+  const { data: posts = [] } = useQuery({
+    queryKey: ["marketing-calendar-posts", isSSRole],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("posts")
@@ -116,17 +130,24 @@ export default function MarketingCalendar() {
         .or(`scheduled_at.not.is.null,status_column.in.(${PIPELINE_STATUSES.join(",")})`)
         .order("scheduled_at", { ascending: true, nullsFirst: false });
       if (error) throw error;
+      // Client-side filter to ensure only visible statuses for clients
+      if (!isSSRole) {
+        return (data || []).filter((p: any) =>
+          CLIENT_VISIBLE_STATUSES.includes(p.status_column) || p.scheduled_at
+        );
+      }
       return data || [];
     },
   });
 
-  // Fetch filter options
+  // Fetch filter options (only for SS roles)
   const { data: clients = [] } = useQuery({
     queryKey: ["calendar-clients"],
     queryFn: async () => {
       const { data } = await supabase.from("clients").select("id, name").order("name");
       return data || [];
     },
+    enabled: isSSRole,
   });
 
   const { data: teamMembers = [] } = useQuery({
@@ -141,6 +162,7 @@ export default function MarketingCalendar() {
       );
       return ssUsers;
     },
+    enabled: isSSRole,
   });
 
   const platforms = useMemo(() => {
@@ -152,28 +174,43 @@ export default function MarketingCalendar() {
     return Array.from(set).sort();
   }, [posts]);
 
-  const filterConfigs: FilterConfig[] = useMemo(() => [
-    { key: "client", label: "Client", options: clients.map((c: any) => ({ value: c.id, label: c.name })) },
-    { key: "platform", label: "Platform", options: platforms.map((p) => ({ value: p.toLowerCase(), label: p })) },
-    { key: "status", label: "Status", options: Object.entries(STATUS_MAP).filter(([k]) => k !== "ready_to_schedule").map(([k, v]) => ({ value: k, label: v.label })) },
-    { key: "assignee", label: "Assignee", options: teamMembers.filter((u: any) => u.id).map((u: any) => ({ value: u.id, label: u.name || u.email || "Unknown" })) },
-  ], [clients, platforms, teamMembers]);
+  const visibleStatusOptions = useMemo(() => {
+    const statusMap = isSSRole ? STATUS_MAP : Object.fromEntries(
+      Object.entries(STATUS_MAP).filter(([k]) => CLIENT_VISIBLE_STATUSES.includes(k))
+    );
+    return Object.entries(statusMap)
+      .filter(([k]) => k !== "ready_to_schedule")
+      .map(([k, v]) => ({ value: k, label: v.label }));
+  }, [isSSRole]);
+
+  const filterConfigs: FilterConfig[] = useMemo(() => {
+    const configs: FilterConfig[] = [];
+    if (isSSRole) {
+      configs.push({ key: "client", label: "Client", options: clients.map((c: any) => ({ value: c.id, label: c.name })) });
+    }
+    configs.push({ key: "platform", label: "Platform", options: platforms.map((p) => ({ value: p.toLowerCase(), label: p })) });
+    configs.push({ key: "status", label: "Status", options: visibleStatusOptions });
+    if (isSSRole) {
+      configs.push({ key: "assignee", label: "Assignee", options: teamMembers.filter((u: any) => u.id).map((u: any) => ({ value: u.id, label: u.name || u.email || "Unknown" })) });
+    }
+    return configs;
+  }, [isSSRole, clients, platforms, teamMembers, visibleStatusOptions]);
 
   const { values: filterValues, setValues: setFilterValues } = useFilterBar(filterConfigs, "calendar");
 
   const filteredPosts = useMemo(() => {
     return posts.filter((post: any) => {
-      if (filterValues.client !== "all" && post.client_id !== filterValues.client) return false;
-      if (filterValues.platform !== "all") {
+      if (filterValues.client && filterValues.client !== "all" && post.client_id !== filterValues.client) return false;
+      if (filterValues.platform && filterValues.platform !== "all") {
         const postPlatforms = (post.platform || "").toLowerCase().split(",").map((s: string) => s.trim());
         if (!postPlatforms.includes(filterValues.platform)) return false;
       }
-      if (filterValues.status !== "all") {
+      if (filterValues.status && filterValues.status !== "all") {
         const statusKey = post.status_column;
         if (filterValues.status === "scheduled" && statusKey !== "scheduled" && statusKey !== "ready_to_schedule") return false;
         if (filterValues.status !== "scheduled" && statusKey !== filterValues.status) return false;
       }
-      if (filterValues.assignee !== "all" && post.assigned_to_user_id !== filterValues.assignee) return false;
+      if (filterValues.assignee && filterValues.assignee !== "all" && post.assigned_to_user_id !== filterValues.assignee) return false;
       return true;
     });
   }, [posts, filterValues]);
@@ -184,7 +221,9 @@ export default function MarketingCalendar() {
     <div className="space-y-6">
       <div className="space-y-1">
         <h1 className="text-xl font-bold text-foreground">Marketing Calendar</h1>
-        <p className="text-sm text-muted-foreground">Plan, schedule, and track content across clients</p>
+        <p className="text-sm text-muted-foreground">
+          {isSSRole ? "Plan, schedule, and track content across clients" : "View your upcoming and published content"}
+        </p>
       </div>
 
       <FilterBar filters={filterConfigs} values={filterValues} onChange={setFilterValues} />
@@ -200,10 +239,10 @@ export default function MarketingCalendar() {
           <CalendarTab posts={filteredPosts} onPostClick={goToPost} />
         </TabsContent>
         <TabsContent value="list">
-          <ListTab posts={filteredPosts} onPostClick={goToPost} />
+          <ListTab posts={filteredPosts} onPostClick={goToPost} isSSRole={isSSRole} />
         </TabsContent>
         <TabsContent value="board">
-          <BoardTab posts={filteredPosts} onPostClick={goToPost} />
+          <BoardTab posts={filteredPosts} onPostClick={goToPost} boardColumns={BOARD_COLUMNS} />
         </TabsContent>
       </Tabs>
     </div>
@@ -248,9 +287,9 @@ function CalendarTab({ posts, onPostClick }: { posts: any[]; onPostClick: (id: s
         </Button>
       </div>
 
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-px sm:gap-1">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-          <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2">{d}</div>
+          <div key={d} className="text-center text-[10px] sm:text-xs font-medium text-muted-foreground py-1 sm:py-2">{d}</div>
         ))}
         {days.map((day) => {
           const key = format(day, "yyyy-MM-dd");
@@ -263,7 +302,7 @@ function CalendarTab({ posts, onPostClick }: { posts: any[]; onPostClick: (id: s
             <div
               key={key}
               className={cn(
-                "min-h-[80px] border rounded-md p-1 cursor-pointer transition-colors",
+                "min-h-[60px] sm:min-h-[80px] border rounded-md p-1 cursor-pointer transition-colors",
                 !isCurrentMonth ? "bg-muted/30 text-muted-foreground/50" : "bg-card",
                 isSelected ? "ring-2 ring-primary" : "",
                 isToday ? "border-primary" : "border-border",
@@ -271,8 +310,8 @@ function CalendarTab({ posts, onPostClick }: { posts: any[]; onPostClick: (id: s
               )}
               onClick={() => setSelectedDate(day)}
             >
-              <span className={cn("text-xs font-medium", isToday && "text-primary font-bold")}>{format(day, "d")}</span>
-              <div className="mt-0.5 space-y-0.5">
+              <span className={cn("text-xs font-medium p-0.5", isToday && "text-primary font-bold")}>{format(day, "d")}</span>
+              <div className="mt-0.5 space-y-0.5 hidden sm:block">
                 {dayPosts.slice(0, 3).map((post: any) => (
                   <div
                     key={post.id}
@@ -284,6 +323,15 @@ function CalendarTab({ posts, onPostClick }: { posts: any[]; onPostClick: (id: s
                 ))}
                 {dayPosts.length > 3 && <span className="text-[10px] text-muted-foreground">+{dayPosts.length - 3} more</span>}
               </div>
+              {/* Mobile: just show dot indicators */}
+              {dayPosts.length > 0 && (
+                <div className="flex gap-0.5 mt-1 sm:hidden justify-center">
+                  {dayPosts.slice(0, 3).map((post: any) => (
+                    <div key={post.id} className="h-1.5 w-1.5 rounded-full bg-primary" />
+                  ))}
+                  {dayPosts.length > 3 && <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />}
+                </div>
+              )}
             </div>
           );
         })}
@@ -297,7 +345,7 @@ function CalendarTab({ posts, onPostClick }: { posts: any[]; onPostClick: (id: s
           {selectedPosts.length === 0 ? (
             <p className="text-sm text-muted-foreground">No content scheduled for this day.</p>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               {selectedPosts.map((post: any) => (
                 <ContentCard key={post.id} post={post} onClick={() => onPostClick(post.id)} />
               ))}
@@ -311,19 +359,19 @@ function CalendarTab({ posts, onPostClick }: { posts: any[]; onPostClick: (id: s
 
 // ─── List Tab ────────────────────────────────────────────────────────────────
 
-function ListTab({ posts, onPostClick }: { posts: any[]; onPostClick: (id: string) => void }) {
+function ListTab({ posts, onPostClick, isSSRole }: { posts: any[]; onPostClick: (id: string) => void; isSSRole: boolean }) {
   return (
-    <div className="rounded-md border">
+    <div className="rounded-md border overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead className="w-12" />
             <TableHead>Title</TableHead>
-            <TableHead>Client</TableHead>
-            <TableHead>Platform</TableHead>
+            <TableHead className={isSSRole ? "" : "hidden"}>Client</TableHead>
+            <TableHead className="hidden sm:table-cell">Platform</TableHead>
             <TableHead>Publish Date</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Assignee</TableHead>
+            <TableHead className={isSSRole ? "hidden sm:table-cell" : "hidden"}>Assignee</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -345,11 +393,11 @@ function ListTab({ posts, onPostClick }: { posts: any[]; onPostClick: (id: strin
                 )}
               </TableCell>
               <TableCell className="font-medium text-foreground max-w-[200px] truncate">{post.title}</TableCell>
-              <TableCell className="text-muted-foreground">{post.clients?.name || "—"}</TableCell>
-              <TableCell><PlatformBadges platform={post.platform} /></TableCell>
+              <TableCell className={isSSRole ? "text-muted-foreground" : "hidden"}>{post.clients?.name || "—"}</TableCell>
+              <TableCell className="hidden sm:table-cell"><PlatformBadges platform={post.platform} /></TableCell>
               <TableCell className="text-muted-foreground">{post.scheduled_at ? format(new Date(post.scheduled_at), "MMM d, yyyy") : "—"}</TableCell>
               <TableCell><StatusBadge status={post.status_column} /></TableCell>
-              <TableCell className="text-muted-foreground">{(post as any).assigned_user?.name || "—"}</TableCell>
+              <TableCell className={isSSRole ? "hidden sm:table-cell text-muted-foreground" : "hidden"}>{(post as any).assigned_user?.name || "—"}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -360,23 +408,22 @@ function ListTab({ posts, onPostClick }: { posts: any[]; onPostClick: (id: strin
 
 // ─── Board Tab ───────────────────────────────────────────────────────────────
 
-function BoardTab({ posts, onPostClick }: { posts: any[]; onPostClick: (id: string) => void }) {
+function BoardTab({ posts, onPostClick, boardColumns }: { posts: any[]; onPostClick: (id: string) => void; boardColumns: typeof ALL_BOARD_COLUMNS }) {
   const grouped = useMemo(() => {
     const map: Record<string, any[]> = {};
-    BOARD_COLUMNS.forEach((col) => { map[col.key] = []; });
+    boardColumns.forEach((col) => { map[col.key] = []; });
     posts.forEach((post: any) => {
       const status = post.status_column;
-      // Merge ready_to_schedule into scheduled column
       const key = status === "ready_to_schedule" ? "scheduled" : status;
       if (map[key]) map[key].push(post);
     });
     return map;
-  }, [posts]);
+  }, [posts, boardColumns]);
 
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4">
-      {BOARD_COLUMNS.map((col) => (
-        <div key={col.key} className="flex-shrink-0 w-72">
+    <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4">
+      {boardColumns.map((col) => (
+        <div key={col.key} className="flex-shrink-0 w-64 sm:w-72 min-w-0">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-foreground">{col.label}</h3>
             <Badge variant="secondary" className="text-[10px]">{grouped[col.key]?.length || 0}</Badge>

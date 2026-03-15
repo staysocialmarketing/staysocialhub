@@ -1,59 +1,57 @@
 
 
-# Calendar & Access Design Review
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-## Issues Found
+## Summary of Changes
 
-### 1. Calendar not accessible to clients
-The `/calendar` route is wrapped in `<AdminRoute>`, blocking clients entirely. Clients should see it — filtered to their own content only. RLS on `posts` already enforces `can_access_client(client_id)`, so data isolation is safe at the database level.
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
-### 2. Client sidebar has no Calendar link
-The `clientItems` array in `AppSidebar.tsx` doesn't include a Calendar entry.
+## 1. Database: Update Auto-Assignment Triggers
 
-### 3. Calendar filter: clients see "Client" dropdown (irrelevant for them)
-The filter bar shows a Client dropdown even for client users who can only see their own data. Should hide Client/Assignee filters for client roles.
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-### 4. Calendar mobile spacing
-Calendar cells use `min-h-[80px]` and `gap-1` which is tight on mobile. The 7-column grid doesn't adapt — needs smaller cells on mobile and a better daily detail view.
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
-### 5. Board tab horizontal scroll on mobile
-The board tab uses `flex gap-4` with fixed `w-72` columns — fine on desktop but awkward on mobile. Should stack or scroll gracefully.
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
 
-## Plan
+## 2. Approvals Page — Separate Media from Published Content
 
-### `src/App.tsx`
-- Remove `<AdminRoute>` wrapper from `/calendar` route — make it a standard protected route accessible to all authenticated users (data isolation handled by RLS)
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
 
-### `src/components/AppSidebar.tsx`
-- Add `{ title: "Calendar", url: "/calendar", icon: CalendarDays }` to `clientItems` array (after Approvals)
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
 
-### `src/pages/MarketingCalendar.tsx`
-**Role-aware filters:**
-- Import `useAuth` and check `isSSRole`
-- If client role: hide Client and Assignee filter dropdowns (they only see their own data via RLS anyway)
-- If SS role: show all filters as-is
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
 
-**Mobile calendar spacing:**
-- Calendar cells: reduce `min-h-[80px]` to `min-h-[60px] sm:min-h-[80px]`
-- Calendar grid gap: `gap-px sm:gap-1`
-- Day number text: slightly larger tap target
-- Selected date cards grid: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`
+## 3. Workflow Page — Move Internal Review to Bottom Section
 
-**Board tab mobile:**
-- Change fixed `w-72` to `w-64 sm:w-72` and add `min-w-0` for better mobile scroll
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
 
-**List tab mobile:**
-- Hide less important columns (Assignee, Platform) on small screens with `hidden sm:table-cell`
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
 
-**Client-visible statuses:**
-- For client users, filter the `PIPELINE_STATUSES` query to only show client-visible stages: `client_approval`, `scheduled`, `ready_to_schedule`, `published`. Internal stages like `internal_review`, `corey_review`, `ready_for_client_batch` should not appear for clients.
-- Similarly filter `BOARD_COLUMNS` to only show client-relevant columns for client users.
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
 
-### Files Changed
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+
+## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/App.tsx` | Remove AdminRoute from `/calendar` |
-| `src/components/AppSidebar.tsx` | Add Calendar to client nav |
-| `src/pages/MarketingCalendar.tsx` | Role-aware filters, mobile spacing, client status filtering |
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 
