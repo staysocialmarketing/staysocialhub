@@ -13,7 +13,7 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Building2, Sparkles, FolderOpen, ListTodo, Lightbulb, MessageSquarePlus, Target, Image, Activity, ImageIcon, Film, Mic, Download, Link2, ExternalLink, User, ClipboardList } from "lucide-react";
+import { Plus, Building2, Sparkles, FolderOpen, ListTodo, Lightbulb, MessageSquarePlus, Target, Image, Activity, ImageIcon, Film, Mic, Download, Link2, ExternalLink, User, ClipboardList, Brain } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
@@ -622,6 +622,9 @@ export default function AdminClients() {
                 <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
                   <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => navigate(`/admin/client-strategy/${c.id}`)}>
                     <Target className="h-3.5 w-3.5" />Strategy
+                  </Button>
+                  <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => navigate(`/admin/client-brain/${c.id}`)}>
+                    <Brain className="h-3.5 w-3.5" />Brain
                   </Button>
                   <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => { setMediaClientId(c.id); setMediaClientName(c.name); }}>
                     <Image className="h-3.5 w-3.5" />Media

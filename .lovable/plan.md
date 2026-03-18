@@ -1,86 +1,57 @@
 
 
-# Stay Social Brain — Batch 1 (Foundation)
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-## Overview
-Add an internal-only "Stay Social Brain" page per client, housing a "Brand Twin" intelligence profile. Accessible only to Admin and Team roles. No modifications to existing pages, nav, or workflows.
+## Summary of Changes
 
-## Database
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
-### New table: `brand_twin`
-One row per client (client_id as primary key), with JSONB columns for each section:
+## 1. Database: Update Auto-Assignment Triggers
 
-| Column | Type | Default |
-|--------|------|---------|
-| `client_id` | uuid (PK, references clients) | — |
-| `brand_basics_json` | jsonb | `{}` |
-| `brand_voice_json` | jsonb | `{}` |
-| `audience_json` | jsonb | `{}` |
-| `offers_json` | jsonb | `{}` |
-| `content_rules_json` | jsonb | `{}` |
-| `source_material_json` | jsonb | `{}` |
-| `updated_at` | timestamptz | `now()` |
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-RLS: SS roles only (read + write). Clients have no access.
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
-## Routing
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
 
-Add route in `App.tsx`:
-```
-/admin/client-brain/:clientId → <AdminRoute><ClientBrain /></AdminRoute>
-```
+## 2. Approvals Page — Separate Media from Published Content
 
-## Navigation Entry Point
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
 
-In `AdminClients.tsx`, add a "Brain" icon button on each client card (next to existing Strategy button). Links to `/admin/client-brain/{clientId}`. No sidebar changes — accessed from client workspace only.
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
 
-## New Page: `src/pages/admin/ClientBrain.tsx`
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
 
-### Layout
-- Back button + client name header + "Stay Social Brain" title
-- "Brand Twin" section label
-- 6 collapsible card sections, each with editable fields
-- Auto-save on blur or explicit Save button
+## 3. Workflow Page — Move Internal Review to Bottom Section
 
-### Section 1: Brand Basics
-Fields: Business Name, Industry, Region/Market, Website, Primary Contact — rendered as labeled Input fields inside a Card.
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
 
-### Section 2: Brand Voice
-Fields: Tone/Personality, Writing Style, Messaging Style, Key Phrases to Use (tag list), Phrases to Avoid (tag list), CTA Style, Brand Positioning Summary (textarea).
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
 
-### Section 3: Audience
-Fields: Primary Audience, Secondary Audience, Pain Points (textarea), Objections (textarea), Desired Outcomes (textarea).
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
 
-### Section 4: Offers
-Fields: Main Services (tag list), Key Offers (tag list), Priority Services (tag list), Seasonal Focus (textarea).
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
-### Section 5: Content Rules
-Fields: Platforms Used (tag list), Preferred Content Types (tag list), Posting Goals, Compliance/Restrictions (textarea), Do/Don't Rules (textarea).
-
-### Section 6: Source Material
-- File upload (to `creative-assets` bucket under `brain/{clientId}/` path)
-- Add links (stored as JSON array)
-- Approved examples (stored as JSON array of URLs/descriptions)
-- Internal notes (textarea)
-
-### UX Details
-- Card-based layout with section headers using existing `SectionHeader` component
-- Collapsible sections via Accordion or Collapsible components
-- Tag-list fields use inline chip input (type + Enter to add, X to remove)
-- Clean, premium feel — generous spacing, muted labels, structured sections
-- Mobile responsive with single-column stack
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `supabase/migrations/` | New migration: create `brand_twin` table + RLS |
-| `src/pages/admin/ClientBrain.tsx` | New page component |
-| `src/App.tsx` | Add route (1 line) |
-| `src/pages/admin/AdminClients.tsx` | Add Brain icon button per client card |
-
-## Security
-- RLS restricted to `is_ss_role()` only — no client access
-- File uploads use existing authenticated storage policies
-- No new edge functions needed
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 

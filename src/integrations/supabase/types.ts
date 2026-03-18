@@ -214,6 +214,47 @@ export type Database = {
           },
         ]
       }
+      brand_twin: {
+        Row: {
+          audience_json: Json
+          brand_basics_json: Json
+          brand_voice_json: Json
+          client_id: string
+          content_rules_json: Json
+          offers_json: Json
+          source_material_json: Json
+          updated_at: string
+        }
+        Insert: {
+          audience_json?: Json
+          brand_basics_json?: Json
+          brand_voice_json?: Json
+          client_id: string
+          content_rules_json?: Json
+          offers_json?: Json
+          source_material_json?: Json
+          updated_at?: string
+        }
+        Update: {
+          audience_json?: Json
+          brand_basics_json?: Json
+          brand_voice_json?: Json
+          client_id?: string
+          content_rules_json?: Json
+          offers_json?: Json
+          source_material_json?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_twin_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_activity: {
         Row: {
           activity_type: string
