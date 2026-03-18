@@ -623,6 +623,9 @@ export default function AdminClients() {
                   <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => navigate(`/admin/client-strategy/${c.id}`)}>
                     <Target className="h-3.5 w-3.5" />Strategy
                   </Button>
+                  <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => navigate(`/admin/client-brain/${c.id}`)}>
+                    <Brain className="h-3.5 w-3.5" />Brain
+                  </Button>
                   <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => { setMediaClientId(c.id); setMediaClientName(c.name); }}>
                     <Image className="h-3.5 w-3.5" />Media
                   </Button>
