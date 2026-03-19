@@ -1,97 +1,123 @@
 
 
-# Fix Mobile Menu Scroll + Connect Capture Pipeline
+# Phase 5: AI-Powered Features — The Stay Social Brain Engine
 
-Two issues to address, plus a discussion on next features.
-
----
-
-## Issue 1: Mobile Menu Cannot Scroll
-
-**Root cause**: The `SheetContent` uses `max-h-[80vh]` but the Radix Sheet internally blocks body scroll and the `ScrollArea` component needs an explicit fixed height, not just `max-h`. On a 394px viewport, content overflows without scrolling.
-
-**Fix**:
-- In `BottomTabBar.tsx`: Add `overflow-hidden` to the `SheetContent`
-- In `MobileMenu.tsx`: Replace `ScrollArea` with a plain `div` using `overflow-y-auto max-h-[65vh]` — Radix ScrollArea has known issues inside Sheet/Dialog on mobile touch devices. A native scrollable div works reliably.
-
-**Files**: `src/components/MobileMenu.tsx`, `src/components/BottomTabBar.tsx`
+This is the big one. We're adding the AI capabilities that transform the HUB from a project management tool into an intelligent content operating system — comparable to Pressmaster but built for your 3-layer model (Internal OS, Client Portal, DIY).
 
 ---
 
-## Issue 2: Captures Go Nowhere (No Pipeline Connection)
+## What Pressmaster Does (and how we'll match/exceed it)
 
-**Problem**: When a client (or SS user) records a voice note or captures anything via the Global Capture Button, it saves to `brain_captures` only. The internal team's **Universal Inbox** reads from `universal_inbox` — a completely separate table. There is no bridge between them.
+| Pressmaster Feature | HUB Equivalent (exists) | What We Need to Build |
+|---|---|---|
+| AI Twin (persona model) | Brand Twin (manual forms) | **AI Interview** that auto-populates the Brand Twin |
+| AI Interview | Capture (voice/text) | **Chat-based AI interviewer** that extracts insights |
+| Content Suite | Workflow + Strategy Brief | **AI Content Generator** — turn ideas into platform-ready drafts |
+| Trendmaster | None | Future phase (requires external APIs) |
+| AI Agent (autonomous) | Run Strategy button | **AI Draft Pipeline** — auto-generate drafts from captures |
+| Image Generation | None | Future phase (Gemini image models) |
+| Calendar + Auto-publish | Marketing Calendar | Future phase (social API integrations) |
+| Agency white-label | Multi-client architecture | Already built (Layer 1 + 2) |
 
-**Fix — Database trigger to mirror captures into the inbox**:
+---
 
-Create a Postgres trigger on `brain_captures` that automatically inserts a corresponding row into `universal_inbox` whenever a new capture is created. This gives the internal team immediate visibility.
+## Implementation Plan (3 Batches)
 
-```sql
-CREATE OR REPLACE FUNCTION public.mirror_capture_to_inbox()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $$
-DECLARE
-  _source text;
-  _client_name text;
-BEGIN
-  -- Map brain_captures type to inbox source_type
-  CASE NEW.type
-    WHEN 'voice' THEN _source := 'voice_note';
-    WHEN 'file' THEN _source := 'screenshot';
-    WHEN 'link' THEN _source := 'quick_capture';
-    ELSE _source := 'quick_capture';
-  END CASE;
+### Batch A: AI Interview Chat
 
-  -- Get client name for the suggested_client field
-  SELECT name INTO _client_name FROM public.clients WHERE id = NEW.client_id;
+A conversational AI that interviews the user (or client) to build their Brand Twin profile. Like speaking to a journalist — it asks smart follow-up questions, then extracts structured data back into the Brand Twin fields.
 
-  INSERT INTO public.universal_inbox (
-    source_type, title, raw_input_text, attachment_url,
-    voice_transcript, suggested_client, status,
-    created_by_user_id
-  ) VALUES (
-    _source,
-    COALESCE(NULLIF(NEW.content, ''), 'Capture from ' || COALESCE(_client_name, 'unknown')),
-    NEW.content,
-    NEW.attachment_url,
-    NEW.voice_transcript,
-    _client_name,
-    'new',
-    NEW.created_by_user_id
-  );
+**New edge function: `ai-interview`**
+- Accepts conversation history + client's current Brand Twin data
+- System prompt: "You are a brand strategist interviewing a client. Ask focused questions about their business, voice, audience, offers, and content preferences. Extract actionable insights."
+- Uses Lovable AI (Gemini) with streaming
+- After the interview, a "Save to Brain" action extracts structured data and writes it back to `brand_twin` table
 
-  RETURN NEW;
-END;
-$$;
+**New UI: Interview tab in Client Brain**
+- Third tab alongside Brand Twin and Capture: "AI Interview"
+- Chat interface with streaming responses
+- Pre-built interview templates: "Brand Voice Discovery", "Audience Deep Dive", "Content Strategy Session"
+- "Extract to Brand Twin" button that processes the conversation and auto-fills Brand Twin fields
 
-CREATE TRIGGER trg_mirror_capture_to_inbox
-  AFTER INSERT ON public.brain_captures
-  FOR EACH ROW
-  EXECUTE FUNCTION public.mirror_capture_to_inbox();
+**Database**: New `brain_interviews` table to store conversation history per client
+
+```text
+brain_interviews
+├── id (uuid)
+├── client_id (uuid)
+├── started_by_user_id (uuid)
+├── template (text) — e.g. 'brand_voice', 'audience', 'full_onboarding'
+├── messages (jsonb) — array of {role, content, timestamp}
+├── extracted_data (jsonb) — structured output after extraction
+├── status (text) — 'active', 'completed', 'extracted'
+├── created_at, updated_at
 ```
 
-**Also**: Add a notification for SS admins when a client submits a capture, so the team sees it immediately in their notification bell (not just the inbox).
+**Files**:
+- `supabase/functions/ai-interview/index.ts` — streaming chat + extraction
+- `src/components/brain/InterviewTab.tsx` — chat UI
+- `src/pages/admin/ClientBrain.tsx` — add third tab
+- Database migration for `brain_interviews`
 
-**Files**: Database migration only (no code changes needed — Universal Inbox already reads from `universal_inbox`)
+---
+
+### Batch B: AI Content Generator
+
+Turn any capture, idea, or interview insight into platform-ready content drafts — using the Brand Twin as context for voice matching.
+
+**New edge function: `generate-content`**
+- Accepts: source text (capture, idea, interview excerpt), target platform(s), content type, client_id
+- Pulls Brand Twin + Strategy data as context
+- Returns: structured draft(s) with caption, hashtags, CTA, formatted per platform
+- Supports multi-platform output (LinkedIn post, Instagram caption, X thread) from one input
+
+**New UI: "Generate Content" action**
+- Available from: Capture cards, Think Tank items, Request details, Interview excerpts
+- Opens a panel: select platform(s), content type, tone adjustments
+- Shows generated draft(s) with inline editing
+- "Send to Workflow" creates a post in the production pipeline (status: `ai_draft`)
+
+**Files**:
+- `supabase/functions/generate-content/index.ts`
+- `src/components/brain/GenerateContentPanel.tsx`
+- Update `CaptureTab.tsx`, `ThinkTank.tsx` with generate action
+
+---
+
+### Batch C: AI Draft Pipeline (Auto-triage + Draft)
+
+Connect the full loop: Capture → Inbox → AI Processing → Draft in Workflow.
+
+**Enhanced edge function: `ai-triage`**
+- Processes new Universal Inbox items automatically
+- Suggests: client, priority, content type, assignee
+- Optionally auto-generates a draft post using Brand Twin context
+- Writes suggestions back to `universal_inbox` AI fields
+
+**New UI: "AI Process" button in Universal Inbox**
+- One-click AI triage for individual items or batch
+- Shows AI suggestions with accept/edit/reject controls
+- "Generate Draft" creates an `ai_draft` post directly
+
+**Files**:
+- `supabase/functions/ai-triage/index.ts`
+- Update `src/pages/team/UniversalInbox.tsx`
+
+---
+
+## Layer 3 Consideration (DIY / Self-Serve)
+
+For the future productized version, the AI Interview becomes the onboarding flow — new users complete an interview instead of filling forms, and the system builds their Brand Twin automatically. The Content Generator becomes their primary creation tool. This batch lays the infrastructure for that.
 
 ---
 
 ## Summary
 
-| Change | Type | Impact |
-|--------|------|--------|
-| Fix mobile menu scroll | UI fix | MobileMenu.tsx, BottomTabBar.tsx |
-| Bridge captures → Universal Inbox | DB trigger migration | Connects client captures to team workflow |
-| Notify SS on client capture | DB trigger addition | Team awareness |
+| Batch | Scope | Key Deliverables |
+|---|---|---|
+| **A** | AI Interview | Edge function, chat UI, brain_interviews table, extraction |
+| **B** | Content Generator | Edge function, generate panel, multi-platform drafts |
+| **C** | AI Draft Pipeline | Auto-triage, inbox AI processing, draft creation |
 
----
-
-## Technical Details
-
-- The trigger uses `SECURITY DEFINER` to bypass RLS when inserting into `universal_inbox` (which only allows SS roles)
-- The notification is inserted for all `ss_admin` users with a dedup key to prevent duplicates
-- No frontend code changes needed for the inbox connection — the existing Universal Inbox page already queries `universal_inbox` and will show new items automatically
+Batch A is the highest-impact starting point — it's the feature Pressmaster users rave about most ("the interview functionality is actually quite useful"), and it directly feeds your existing Brand Twin with richer data.
 
