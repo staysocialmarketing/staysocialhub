@@ -48,7 +48,7 @@ export function BottomTabBar() {
                     <span className="text-[10px] font-medium leading-tight">{item.label}</span>
                   </button>
                 </SheetTrigger>
-                <SheetContent side="bottom" className="rounded-t-3xl px-4 pt-3 pb-8 max-h-[80vh]">
+                <SheetContent side="bottom" className="rounded-t-3xl px-4 pt-3 pb-8 max-h-[80vh] overflow-hidden">
                   <div className="w-10 h-1 bg-muted rounded-full mx-auto mb-4" />
                   <MobileMenu onNavigate={(path) => { navigate(path); setMenuOpen(false); }} />
                 </SheetContent>

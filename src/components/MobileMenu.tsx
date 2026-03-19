@@ -7,7 +7,6 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { useLocation } from "react-router-dom";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface MobileMenuProps {
   onNavigate: (path: string) => void;
@@ -82,7 +81,7 @@ export function MobileMenu({ onNavigate }: MobileMenuProps) {
   };
 
   return (
-    <ScrollArea className="max-h-[65vh]">
+    <div className="overflow-y-auto max-h-[65vh] overscroll-contain -webkit-overflow-scrolling-touch">
       <div className="space-y-4 pb-4">
         {isInternalUser ? (
           ssMenuSections.map((section) => {
@@ -124,6 +123,6 @@ export function MobileMenu({ onNavigate }: MobileMenuProps) {
           </button>
         </div>
       </div>
-    </ScrollArea>
+    </div>
   );
 }
