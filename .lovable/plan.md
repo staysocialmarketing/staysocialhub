@@ -1,57 +1,97 @@
 
 
-# Workflow, Approvals, and Auto-Assignment Overhaul
+# Fix Mobile Menu Scroll + Connect Capture Pipeline
 
-## Summary of Changes
+Two issues to address, plus a discussion on next features.
 
-This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
+---
 
-## 1. Database: Update Auto-Assignment Triggers
+## Issue 1: Mobile Menu Cannot Scroll
 
-**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
+**Root cause**: The `SheetContent` uses `max-h-[80vh]` but the Radix Sheet internally blocks body scroll and the `ScrollArea` component needs an explicit fixed height, not just `max-h`. On a 394px viewport, content overflows without scrolling.
 
-**Changes (migration)**:
-- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
-- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
-- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
-- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
+**Fix**:
+- In `BottomTabBar.tsx`: Add `overflow-hidden` to the `SheetContent`
+- In `MobileMenu.tsx`: Replace `ScrollArea` with a plain `div` using `overflow-y-auto max-h-[65vh]` — Radix ScrollArea has known issues inside Sheet/Dialog on mobile touch devices. A native scrollable div works reliably.
 
-All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
+**Files**: `src/components/MobileMenu.tsx`, `src/components/BottomTabBar.tsx`
 
-## 2. Approvals Page — Separate Media from Published Content
+---
 
-**Client Approvals (`ClientApprovals`)**: 
-- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
-- Alternatively, only show posts in Published that were moved there by admin approval flow
+## Issue 2: Captures Go Nowhere (No Pipeline Connection)
 
-**Admin Approvals (`AdminApprovals`)**:
-- Same fix for Published column — filter to only show posts linked to requests
+**Problem**: When a client (or SS user) records a voice note or captures anything via the Global Capture Button, it saves to `brain_captures` only. The internal team's **Universal Inbox** reads from `universal_inbox` — a completely separate table. There is no bridge between them.
 
-**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
+**Fix — Database trigger to mirror captures into the inbox**:
 
-## 3. Workflow Page — Move Internal Review to Bottom Section
+Create a Postgres trigger on `brain_captures` that automatically inserts a corresponding row into `universal_inbox` whenever a new capture is created. This gives the internal team immediate visibility.
 
-**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
+```sql
+CREATE OR REPLACE FUNCTION public.mirror_capture_to_inbox()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+  _source text;
+  _client_name text;
+BEGIN
+  -- Map brain_captures type to inbox source_type
+  CASE NEW.type
+    WHEN 'voice' THEN _source := 'voice_note';
+    WHEN 'file' THEN _source := 'screenshot';
+    WHEN 'link' THEN _source := 'quick_capture';
+    ELSE _source := 'quick_capture';
+  END CASE;
 
-**New layout**:
-- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
-- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
+  -- Get client name for the suggested_client field
+  SELECT name INTO _client_name FROM public.clients WHERE id = NEW.client_id;
 
-## 4. Admin & Team Dashboards — Show Assignments + Tasks
+  INSERT INTO public.universal_inbox (
+    source_type, title, raw_input_text, attachment_url,
+    voice_transcript, suggested_client, status,
+    created_by_user_id
+  ) VALUES (
+    _source,
+    COALESCE(NULLIF(NEW.content, ''), 'Capture from ' || COALESCE(_client_name, 'unknown')),
+    NEW.content,
+    NEW.attachment_url,
+    NEW.voice_transcript,
+    _client_name,
+    'new',
+    NEW.created_by_user_id
+  );
 
-**SuperAdminDashboard**: Already shows team activity. Add:
-- "My Assignments" section showing posts assigned to the current admin user
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+  RETURN NEW;
+END;
+$$;
 
-**TeamDashboard**: Already shows "My Assignments". Add:
-- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+CREATE TRIGGER trg_mirror_capture_to_inbox
+  AFTER INSERT ON public.brain_captures
+  FOR EACH ROW
+  EXECUTE FUNCTION public.mirror_capture_to_inbox();
+```
 
-## Files Changed
+**Also**: Add a notification for SS admins when a client submits a capture, so the team sees it immediately in their notification bell (not just the inbox).
 
-| File | Change |
-|------|--------|
-| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
-| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
-| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
-| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
+**Files**: Database migration only (no code changes needed — Universal Inbox already reads from `universal_inbox`)
+
+---
+
+## Summary
+
+| Change | Type | Impact |
+|--------|------|--------|
+| Fix mobile menu scroll | UI fix | MobileMenu.tsx, BottomTabBar.tsx |
+| Bridge captures → Universal Inbox | DB trigger migration | Connects client captures to team workflow |
+| Notify SS on client capture | DB trigger addition | Team awareness |
+
+---
+
+## Technical Details
+
+- The trigger uses `SECURITY DEFINER` to bypass RLS when inserting into `universal_inbox` (which only allows SS roles)
+- The notification is inserted for all `ss_admin` users with a dedup key to prevent duplicates
+- No frontend code changes needed for the inbox connection — the existing Universal Inbox page already queries `universal_inbox` and will show new items automatically
 
