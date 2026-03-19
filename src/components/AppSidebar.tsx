@@ -12,7 +12,6 @@ import {
   Sparkles,
   Users,
   Building2,
-  Image as ImageIcon,
   ShoppingCart,
   LogOut,
   ClipboardList,
@@ -41,7 +40,6 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-
 import {
   Select,
   SelectContent,
@@ -53,7 +51,6 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 
-// ─── Sections for admin/team views ───────────────────────────────────────────
 const menuSection = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Workflow", url: "/workflow", icon: ClipboardList },
@@ -77,7 +74,6 @@ const adminSection = [
   { title: "Versions", url: "/admin/versions", icon: Tag },
 ];
 
-// ─── Client nav ──────────────────────────────────────────────────────────────
 const clientItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Success Center", url: "/client/success", icon: Sparkles },
@@ -102,7 +98,6 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const { profile, isSSAdmin, isSSTeam, actualIsSSAdmin, isViewingAs, viewAsUserId, setViewAs, signOut } = useAuth();
   const navigate = useNavigate();
-
   const [allUsers, setAllUsers] = useState<UserWithRole[]>([]);
 
   useEffect(() => {
@@ -122,8 +117,6 @@ export function AppSidebar() {
     fetchUsers();
   }, [actualIsSSAdmin]);
 
-
-
   const isInternalUser = isSSAdmin || isSSTeam;
   const visibleAdminItems = isSSAdmin
     ? adminSection
@@ -139,8 +132,8 @@ export function AppSidebar() {
           <SidebarMenuButton asChild>
             <NavLink
               to={item.url}
-              className="hover:bg-sidebar-accent/50"
-              activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+              className="hover:bg-sidebar-accent/50 rounded-xl transition-colors"
+              activeClassName="bg-primary/10 text-primary font-medium"
             >
               <item.icon className="h-4 w-4 shrink-0" />
               {!collapsed && <span>{item.title}</span>}
@@ -154,12 +147,19 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
-        <div className="flex items-center gap-2">
-          <img src={orangeLogo} alt="Stay Social" className={cn("rounded-lg shrink-0", collapsed ? "h-8 w-8 object-cover" : "h-8 w-auto object-contain")} />
+        <div className="flex items-center gap-2.5">
+          <img
+            src={orangeLogo}
+            alt="Stay Social"
+            className={cn(
+              "rounded-xl shrink-0",
+              collapsed ? "h-8 w-8 object-cover" : "h-8 w-auto object-contain"
+            )}
+          />
           {!collapsed && (
             <div className="flex flex-col min-w-0">
-              <span className="text-sm font-semibold text-sidebar-foreground truncate">Stay Social</span>
-              <span className="text-xs text-sidebar-foreground/60 truncate">Client HUB</span>
+              <span className="text-sm font-bold text-sidebar-foreground tracking-tight truncate">Stay Social</span>
+              <span className="text-[10px] text-sidebar-foreground/50 font-medium uppercase tracking-widest truncate">Client HUB</span>
             </div>
           )}
         </div>
@@ -168,10 +168,10 @@ export function AppSidebar() {
       {actualIsSSAdmin && !collapsed && (
         <div className="px-3 pb-2">
           <div className="flex items-center gap-1.5 mb-1.5">
-            <Eye className="h-3.5 w-3.5 text-sidebar-foreground/50" />
-            <span className="text-xs font-medium text-sidebar-foreground/50">View As</span>
+            <Eye className="h-3.5 w-3.5 text-sidebar-foreground/40" />
+            <span className="text-[10px] font-semibold text-sidebar-foreground/40 uppercase tracking-wider">View As</span>
             {isViewingAs && (
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 ml-auto bg-primary/15 text-primary border-primary/20">
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 ml-auto">
                 Active
               </Badge>
             )}
@@ -180,7 +180,7 @@ export function AppSidebar() {
             value={viewAsUserId || "__self__"}
             onValueChange={(val) => setViewAs(val === "__self__" ? null : val)}
           >
-            <SelectTrigger className="h-8 text-xs bg-transparent border-sidebar-border text-sidebar-foreground focus:bg-background focus:text-foreground">
+            <SelectTrigger className="h-8 text-xs bg-transparent border-sidebar-border/50 text-sidebar-foreground rounded-xl focus:bg-background focus:text-foreground">
               <SelectValue placeholder="My View" />
             </SelectTrigger>
             <SelectContent>
@@ -210,13 +210,13 @@ export function AppSidebar() {
         </div>
       )}
 
-      <SidebarSeparator />
+      <SidebarSeparator className="opacity-50" />
 
       <SidebarContent>
         {isInternalUser ? (
           <>
             <SidebarGroup>
-              {!collapsed && <SidebarGroupLabel>Menu</SidebarGroupLabel>}
+              {!collapsed && <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40">Menu</SidebarGroupLabel>}
               <SidebarGroupContent>{renderMenuItems(
                 isSSTeam && !isSSAdmin
                   ? menuSection.filter(i => i.title !== "Approvals")
@@ -224,17 +224,17 @@ export function AppSidebar() {
               )}</SidebarGroupContent>
             </SidebarGroup>
 
-            <SidebarSeparator />
+            <SidebarSeparator className="opacity-30" />
 
             <SidebarGroup>
-              {!collapsed && <SidebarGroupLabel>Team</SidebarGroupLabel>}
+              {!collapsed && <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40">Team</SidebarGroupLabel>}
               <SidebarGroupContent>{renderMenuItems(teamSection)}</SidebarGroupContent>
             </SidebarGroup>
 
-            <SidebarSeparator />
+            <SidebarSeparator className="opacity-30" />
 
             <SidebarGroup>
-              {!collapsed && <SidebarGroupLabel>Admin</SidebarGroupLabel>}
+              {!collapsed && <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40">Admin</SidebarGroupLabel>}
               <SidebarGroupContent>{renderMenuItems(visibleAdminItems)}</SidebarGroupContent>
             </SidebarGroup>
           </>
@@ -247,22 +247,21 @@ export function AppSidebar() {
 
       <SidebarFooter className="p-3">
         {!collapsed && profile && (
-          <div className="px-2 py-1 mb-2">
-            <p className="text-xs font-medium text-sidebar-foreground truncate">{profile.name || profile.email}</p>
-            <p className="text-xs text-sidebar-foreground/50 truncate">{profile.email}</p>
+          <div className="px-2 py-2 mb-1 bg-sidebar-accent/30 rounded-xl">
+            <p className="text-xs font-semibold text-sidebar-foreground truncate">{profile.name || profile.email}</p>
+            <p className="text-[10px] text-sidebar-foreground/50 truncate">{profile.email}</p>
           </div>
         )}
         <Button
           variant="ghost"
           size={collapsed ? "icon" : "sm"}
-          className="w-full text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+          className="w-full text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-xl"
           onClick={signOut}
         >
           <LogOut className="h-4 w-4 shrink-0" />
           {!collapsed && <span className="ml-2">Sign Out</span>}
         </Button>
       </SidebarFooter>
-      
     </Sidebar>
   );
 }
