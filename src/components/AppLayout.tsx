@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { BottomTabBar } from "@/components/BottomTabBar";
 import { Outlet, useNavigate } from "react-router-dom";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,10 +10,12 @@ import { GlobalCaptureButton } from "@/components/GlobalCaptureButton";
 import { CommandPalette } from "@/components/CommandPalette";
 import { VersionHistoryDialog } from "@/components/VersionHistoryDialog";
 import { supabase } from "@/integrations/supabase/client";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export function AppLayout() {
   const { profile, isViewingAs, setViewAs, isSSRole } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [versionLabel, setVersionLabel] = useState("");
   const [versionDialogOpen, setVersionDialogOpen] = useState(false);
 
@@ -55,7 +58,9 @@ export function AppLayout() {
   return (
     <SidebarProvider>
       <div className="h-dvh flex w-full overflow-hidden">
-        <AppSidebar />
+        {/* Desktop sidebar only */}
+        {!isMobile && <AppSidebar />}
+        
         <div className="flex-1 flex flex-col min-w-0">
           {isViewingAs && profile && (
             <div className="h-8 flex items-center justify-center gap-2 bg-primary text-primary-foreground text-xs font-medium shrink-0">
@@ -68,10 +73,11 @@ export function AppLayout() {
               </button>
             </div>
           )}
-          <header className="h-14 flex items-center border-b bg-card px-4 shrink-0">
-            <SidebarTrigger className="mr-4" />
+          
+          <header className="h-14 flex items-center border-b border-border/50 bg-background px-4 shrink-0">
+            {!isMobile && <SidebarTrigger className="mr-4" />}
             <div className="flex items-center gap-2 flex-1 min-w-0 shrink-0">
-              <h1 className="text-lg font-semibold text-foreground whitespace-nowrap">
+              <h1 className="text-lg font-bold text-foreground whitespace-nowrap tracking-tight">
                 Stay Social <span className="text-primary">HUB</span>
               </h1>
               {versionLabel && (
@@ -83,7 +89,7 @@ export function AppLayout() {
                       navigate("/whats-new#release-notes");
                     }
                   }}
-                  className="text-xs text-muted-foreground font-medium hover:text-primary transition-colors cursor-pointer"
+                  className="text-[10px] text-muted-foreground/60 font-medium hover:text-primary transition-colors cursor-pointer bg-muted/50 px-1.5 py-0.5 rounded-md"
                 >
                   {versionLabel}
                 </button>
@@ -92,12 +98,18 @@ export function AppLayout() {
             {profile && <CommandPalette />}
             {profile && <NotificationBell />}
           </header>
-          <main className="flex-1 overflow-auto">
+          
+          <main className={`flex-1 overflow-auto ${isMobile ? "pb-16" : ""}`}>
             <Outlet />
           </main>
+          
           <GlobalCaptureButton />
         </div>
       </div>
+      
+      {/* Mobile bottom tab bar */}
+      {isMobile && <BottomTabBar />}
+      
       <VersionHistoryDialog open={versionDialogOpen} onOpenChange={setVersionDialogOpen} />
     </SidebarProvider>
   );
