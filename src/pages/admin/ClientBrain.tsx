@@ -467,6 +467,10 @@ export default function ClientBrain() {
           </Accordion>
         </TabsContent>
 
+        <TabsContent value="interview" className="mt-4">
+          {clientId && <InterviewTab clientId={clientId} />}
+        </TabsContent>
+
         <TabsContent value="capture" className="mt-4">
           {clientId && <CaptureTab clientId={clientId} />}
         </TabsContent>
