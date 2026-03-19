@@ -4,7 +4,6 @@ import { useClientFilter } from "@/contexts/ClientFilterContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -12,13 +11,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus, User, Target } from "lucide-react";
+import { Plus, User, Target, ChevronRight } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import RequestDetailDialog from "@/components/RequestDetailDialog";
 import { compressImage } from "@/lib/imageUtils";
 import { REQUEST_TYPE_OPTIONS } from "@/lib/workflowUtils";
 import FilterBar, { useFilterBar, PRIORITY_FILTER_OPTIONS } from "@/components/FilterBar";
 import type { FilterConfig } from "@/components/FilterBar";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type RequestType = Database["public"]["Enums"]["request_type"];
 type RequestStatus = Database["public"]["Enums"]["request_status"];
@@ -26,11 +26,11 @@ type RequestStatus = Database["public"]["Enums"]["request_status"];
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ACCEPTED_FILE_TYPES = ".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.webp,.csv,.xlsx,.pptx,.txt";
 
-const statusColors: Record<string, string> = {
-  open: "bg-blue-100 text-blue-800",
-  in_progress: "bg-yellow-100 text-yellow-800",
-  completed: "bg-green-100 text-green-800",
-  cancelled: "bg-red-100 text-red-800",
+const statusConfig: Record<string, { label: string; className: string }> = {
+  open: { label: "Open", className: "bg-blue-500/10 text-blue-600" },
+  in_progress: { label: "In Progress", className: "bg-amber-500/10 text-amber-600" },
+  completed: { label: "Completed", className: "bg-emerald-500/10 text-emerald-600" },
+  cancelled: { label: "Cancelled", className: "bg-muted text-muted-foreground" },
 };
 
 export default function Requests() {
@@ -185,16 +185,17 @@ export default function Requests() {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-8 max-w-5xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-end justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-foreground">Requests</h2>
-          <p className="text-muted-foreground">Submit and track content requests</p>
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">Requests</h1>
+          <p className="text-muted-foreground mt-1">Submit and track content requests</p>
         </div>
         {canCreate && (
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button><Plus className="h-4 w-4 mr-2" />New Request</Button>
+              <Button className="gap-1.5 rounded-xl"><Plus className="h-4 w-4" />New Request</Button>
             </DialogTrigger>
             <DialogContent className="max-h-[90vh] overflow-y-auto">
               <DialogHeader>
@@ -214,7 +215,6 @@ export default function Requests() {
                     </Select>
                   </div>
                 )}
-
                 <div>
                   <Label>Request Type</Label>
                   <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v as RequestType })}>
@@ -226,24 +226,20 @@ export default function Requests() {
                     </SelectContent>
                   </Select>
                 </div>
-
                 <div>
                   <Label>Topic / Title</Label>
                   <Input value={form.topic} onChange={(e) => setForm({ ...form, topic: e.target.value })} placeholder="What's this about?" />
                 </div>
-
                 <div>
                   <Label>Preferred Publish Window</Label>
                   <Input value={form.preferred_publish_window} onChange={(e) => setForm({ ...form, preferred_publish_window: e.target.value })} placeholder="e.g. Next week, March 15" />
                 </div>
-
                 <div><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Additional details..." /></div>
                 <div>
                   <Label>Attachment (max 10MB)</Label>
                   <Input type="file" accept={ACCEPTED_FILE_TYPES} onChange={handleFileChange} />
                   <p className="text-xs text-muted-foreground mt-1">PDF, images, docs, spreadsheets, presentations</p>
                 </div>
-
                 <div>
                   <Label>Priority</Label>
                   <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v })}>
@@ -256,8 +252,7 @@ export default function Requests() {
                     </SelectContent>
                   </Select>
                 </div>
-
-                <Button className="w-full" onClick={() => createRequest.mutate()} disabled={!form.topic || createRequest.isPending || (isSSAdmin && !selectedClientId)}>
+                <Button className="w-full rounded-xl" onClick={() => createRequest.mutate()} disabled={!form.topic || createRequest.isPending || (isSSAdmin && !selectedClientId)}>
                   {createRequest.isPending ? "Submitting..." : "Submit Request"}
                 </Button>
               </div>
@@ -269,60 +264,65 @@ export default function Requests() {
       <FilterBar filters={filterConfigs} values={filterValues} onChange={setFilterValues} />
 
       {isLoading ? (
-        <p className="text-muted-foreground">Loading requests...</p>
+        <div className="flex items-center justify-center py-20">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        </div>
       ) : filteredRequests.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Plus className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-            <p className="text-muted-foreground">No requests yet. Create your first request!</p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          title="No requests yet"
+          description={canCreate ? "Create your first content request to get started." : "No requests to show."}
+          icon={<Plus className="h-8 w-8" />}
+        />
       ) : (
-        <div className="space-y-3">
+        <div className="card-elevated divide-y divide-border/40">
           {filteredRequests.map((req: any) => {
             const assignedName = isSSRole ? getAssignedName(req.assigned_to_user_id) : null;
+            const status = statusConfig[req.status] || statusConfig.open;
             return (
-              <Card key={req.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSelectedRequest(req)}>
-                <CardContent className="py-4 flex items-center justify-between">
-                  <div className="space-y-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-medium text-foreground truncate">{req.topic}</h4>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {req.clients?.name && <span className="font-medium">{req.clients.name} · </span>}
-                      By {req.users?.name || req.users?.email || "Unknown"} · {new Date(req.created_at).toLocaleDateString()}
-                      {req.attachments_url && " · 📎 Attachment"}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <Badge variant="outline" className="text-[11px]">{getTypeLabel(req.type)}</Badge>
+              <div
+                key={req.id}
+                className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/30 transition-colors cursor-pointer group"
+                onClick={() => setSelectedRequest(req)}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <h4 className="font-medium text-sm text-foreground truncate">{req.topic}</h4>
                     {isSSRole && req.strategy_brief && typeof req.strategy_brief === "object" && Object.values(req.strategy_brief).some((v: any) => v && String(v).trim()) && (
-                      <Badge variant="secondary" className="text-[10px] gap-1 bg-primary/10 text-primary">
-                        <Target className="h-3 w-3" /> Strategy Ready
+                      <Badge variant="secondary" className="text-[10px] gap-0.5 bg-primary/10 text-primary shrink-0">
+                        <Target className="h-2.5 w-2.5" /> Strategy
                       </Badge>
                     )}
-                    {assignedName && (
-                      <Badge variant="secondary" className="text-[10px] gap-1">
-                        <User className="h-3 w-3" /> {assignedName}
-                      </Badge>
-                    )}
-                    {isSSRole ? (
-                      <Select value={req.status} onValueChange={(v) => updateStatus.mutate({ id: req.id, status: v as RequestStatus })}>
-                        <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="open">Open</SelectItem>
-                          <SelectItem value="in_progress">In Progress</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                          <SelectItem value="cancelled">Cancelled</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Badge className={statusColors[req.status] || ""}>{req.status.replace("_", " ")}</Badge>
-                    )}
-                    <Badge variant="outline" className="text-xs capitalize">{req.priority}</Badge>
                   </div>
-                </CardContent>
-              </Card>
+                  <p className="text-xs text-muted-foreground">
+                    {req.clients?.name && <span className="font-medium">{req.clients.name} · </span>}
+                    {getTypeLabel(req.type)} · {new Date(req.created_at).toLocaleDateString()}
+                    {req.attachments_url && " · 📎"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                  {assignedName && (
+                    <span className="text-[10px] text-muted-foreground hidden sm:inline">
+                      <User className="h-3 w-3 inline mr-0.5" />{assignedName}
+                    </span>
+                  )}
+                  {isSSRole ? (
+                    <Select value={req.status} onValueChange={(v) => updateStatus.mutate({ id: req.id, status: v as RequestStatus })}>
+                      <SelectTrigger className="h-7 text-[11px] w-[100px] border-0 bg-muted/50 rounded-lg">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="open">Open</SelectItem>
+                        <SelectItem value="in_progress">In Progress</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Badge className={`${status.className} border-0 text-[10px]`}>{status.label}</Badge>
+                  )}
+                  <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+                </div>
+              </div>
             );
           })}
         </div>

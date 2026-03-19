@@ -41,7 +41,6 @@ export function useFilterBar(filters: FilterConfig[], storageKey?: string) {
     }
   }, [values, storageKey]);
 
-  // Ensure new filter keys get default "all"
   useEffect(() => {
     const updated = { ...values };
     let changed = false;
@@ -116,7 +115,7 @@ export default function FilterBar({ filters, values, onChange }: FilterBarProps)
             value={values[filter.key] || "all"}
             onValueChange={(v) => handleChange(filter.key, v)}
           >
-            <SelectTrigger className="w-auto min-w-[130px] h-8 text-xs">
+            <SelectTrigger className="w-auto min-w-[120px] h-8 text-[11px] border-0 bg-muted/50 rounded-lg font-medium">
               <SelectValue placeholder={filter.label} />
             </SelectTrigger>
             <SelectContent>
@@ -137,12 +136,12 @@ export default function FilterBar({ filters, values, onChange }: FilterBarProps)
             return (
               <Badge
                 key={filter.key}
-                variant="outline"
-                className="text-[11px] gap-1 cursor-pointer hover:bg-destructive/10"
+                variant="secondary"
+                className="text-[10px] gap-1 cursor-pointer hover:bg-destructive/10 border-0 bg-primary/10 text-primary"
                 onClick={() => handleRemove(filter.key)}
               >
                 {filter.label}: {opt?.label || values[filter.key]}
-                <X className="h-3 w-3" />
+                <X className="h-2.5 w-2.5" />
               </Badge>
             );
           })}

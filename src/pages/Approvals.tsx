@@ -4,7 +4,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,14 +16,15 @@ import type { Database } from "@/integrations/supabase/types";
 import ApprovalActions from "@/components/ApprovalActions";
 import ApprovalBatchManager from "@/components/ApprovalBatchManager";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type PostStatus = Database["public"]["Enums"]["post_status"];
 
 const platformColors: Record<string, string> = {
-  instagram: "bg-pink-100 text-pink-800",
-  facebook: "bg-blue-100 text-blue-800",
-  linkedin: "bg-sky-100 text-sky-800",
-  tiktok: "bg-purple-100 text-purple-800",
+  instagram: "bg-pink-500/10 text-pink-600",
+  facebook: "bg-blue-500/10 text-blue-600",
+  linkedin: "bg-sky-500/10 text-sky-600",
+  tiktok: "bg-purple-500/10 text-purple-600",
 };
 
 function getDueDateColor(dueAt: string | null) {
@@ -46,52 +46,52 @@ function PostCard({ post, onClick, showClient = false, children }: {
     <div className="space-y-1.5">
       <Tooltip>
         <TooltipTrigger asChild>
-          <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={onClick}>
-            <CardContent className="p-3 space-y-2">
-              {isCoreyReview && (
-                <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px]">
-                  <Eye className="h-3 w-3 mr-1" />Corey Review
-                </Badge>
-              )}
-              {post.creative_url ? (
-                <div className="aspect-video bg-muted rounded overflow-hidden">
-                  <img src={post.creative_url} alt="" className="w-full h-full object-cover" />
-                </div>
-              ) : (
-                <div className="aspect-video bg-muted rounded flex items-center justify-center">
-                  {isEmail ? <Mail className="h-6 w-6 text-muted-foreground/40" /> : <ImageIcon className="h-6 w-6 text-muted-foreground/40" />}
-                </div>
-              )}
-              <h4 className="text-sm font-medium text-foreground line-clamp-2">{post.title}</h4>
-              {isEmail && post.subject_line && (
-                <p className="text-xs text-muted-foreground line-clamp-1">Subject: {post.subject_line}</p>
-              )}
-              {showClient && post.clients?.name && (
-                <Badge variant="outline" className="text-[10px]">{post.clients.name}</Badge>
-              )}
-              <div className="flex flex-wrap gap-1">
-                {post.platform?.split(",").map((p: string) => (
-                  <Badge key={p} variant="secondary" className={`text-[10px] ${platformColors[p.trim().toLowerCase()] || ""}`}>{p.trim()}</Badge>
-                ))}
-                {isEmail && <Badge variant="secondary" className="text-[10px] bg-blue-100 text-blue-800">Email Campaign</Badge>}
+          <div className="card-elevated p-3 space-y-2.5 cursor-pointer hover:shadow-lifted transition-all" onClick={onClick}>
+            {isCoreyReview && (
+              <Badge className="bg-amber-500/10 text-amber-600 border-0 text-[10px]">
+                <Eye className="h-3 w-3 mr-1" />Corey Review
+              </Badge>
+            )}
+            {post.creative_url ? (
+              <div className="aspect-video bg-muted rounded-xl overflow-hidden">
+                <img src={post.creative_url} alt="" className="w-full h-full object-cover" />
               </div>
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  {post.due_at && (
-                    <span className={cn("flex items-center gap-1", dueDateColor)}>
-                      <Clock className="h-3 w-3" />{format(new Date(post.due_at), "MMM d")}
-                    </span>
-                  )}
-                  <span className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />{post.scheduled_at ? new Date(post.scheduled_at).toLocaleDateString() : "TBD"}
+            ) : (
+              <div className="aspect-video bg-muted/50 rounded-xl flex items-center justify-center">
+                {isEmail ? <Mail className="h-6 w-6 text-muted-foreground/30" /> : <ImageIcon className="h-6 w-6 text-muted-foreground/30" />}
+              </div>
+            )}
+            <h4 className="text-sm font-semibold text-foreground line-clamp-2">{post.title}</h4>
+            {isEmail && post.subject_line && (
+              <p className="text-xs text-muted-foreground/70 line-clamp-1">Subject: {post.subject_line}</p>
+            )}
+            {showClient && post.clients?.name && (
+              <Badge variant="outline" className="text-[10px]">{post.clients.name}</Badge>
+            )}
+            <div className="flex flex-wrap gap-1">
+              {post.platform?.split(",").map((p: string) => (
+                <Badge key={p} variant="secondary" className={`text-[10px] border-0 ${platformColors[p.trim().toLowerCase()] || "bg-muted"}`}>{p.trim()}</Badge>
+              ))}
+              {isEmail && <Badge variant="secondary" className="text-[10px] bg-blue-500/10 text-blue-600 border-0">Email</Badge>}
+            </div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <div className="flex items-center gap-2">
+                {post.due_at && (
+                  <span className={cn("flex items-center gap-1", dueDateColor)}>
+                    <Clock className="h-3 w-3" />{format(new Date(post.due_at), "MMM d")}
                   </span>
-                </div>
+                )}
                 <span className="flex items-center gap-1">
-                  <MessageSquare className="h-3 w-3" />{post.comments?.length || 0}
+                  <Calendar className="h-3 w-3" />{post.scheduled_at ? new Date(post.scheduled_at).toLocaleDateString() : "TBD"}
                 </span>
               </div>
-            </CardContent>
-          </Card>
+              {(post.comments?.length || 0) > 0 && (
+                <span className="flex items-center gap-1">
+                  <MessageSquare className="h-3 w-3" />{post.comments.length}
+                </span>
+              )}
+            </div>
+          </div>
         </TooltipTrigger>
         <TooltipContent side="right" className="max-w-[250px]">
           <p className="text-xs line-clamp-3">{post.caption ? post.caption.substring(0, 120) + (post.caption.length > 120 ? "…" : "") : isEmail && post.subject_line ? post.subject_line : "No caption"}</p>
@@ -131,7 +131,7 @@ function StrategicCommentButton({ postId, postTitle }: { postId: string; postTit
 
   if (!open) {
     return (
-      <Button size="sm" variant="ghost" className="w-full text-xs gap-1 mt-1" onClick={(e) => { e.stopPropagation(); setOpen(true); }}>
+      <Button size="sm" variant="ghost" className="w-full text-xs gap-1 mt-1 rounded-xl" onClick={(e) => { e.stopPropagation(); setOpen(true); }}>
         <MessageSquare className="h-3 w-3" /> Strategic Comment
       </Button>
     );
@@ -141,14 +141,25 @@ function StrategicCommentButton({ postId, postTitle }: { postId: string; postTit
     <div className="space-y-2 mt-1" onClick={(e) => e.stopPropagation()}>
       <Textarea placeholder="Leave strategic direction…" value={comment} onChange={(e) => setComment(e.target.value)} rows={2} className="text-xs" />
       <div className="flex gap-1">
-        <Button size="sm" className="flex-1 text-xs" onClick={() => submit.mutate()} disabled={!comment.trim() || submit.isPending}>Send</Button>
-        <Button size="sm" variant="ghost" className="text-xs" onClick={() => { setOpen(false); setComment(""); }}>Cancel</Button>
+        <Button size="sm" className="flex-1 text-xs rounded-xl" onClick={() => submit.mutate()} disabled={!comment.trim() || submit.isPending}>Send</Button>
+        <Button size="sm" variant="ghost" className="text-xs rounded-xl" onClick={() => { setOpen(false); setComment(""); }}>Cancel</Button>
       </div>
     </div>
   );
 }
 
-
+function SectionBlock({ title, icon, count, children }: { title: string; icon?: React.ReactNode; count: number; children: React.ReactNode }) {
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center gap-2">
+        {icon}
+        <h3 className="text-base font-bold text-foreground tracking-tight">{title}</h3>
+        <Badge variant="secondary" className="text-[10px] h-5">{count}</Badge>
+      </div>
+      {children}
+    </section>
+  );
+}
 
 function AdminApprovals() {
   const navigate = useNavigate();
@@ -178,174 +189,97 @@ function AdminApprovals() {
   const sent = posts.filter((p: any) => p.status_column === "sent");
   const complete = posts.filter((p: any) => p.status_column === "complete");
 
-  if (isLoading) return <p className="text-muted-foreground p-6">Loading approvals...</p>;
+  if (isLoading) return (
+    <div className="flex items-center justify-center h-full py-20">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+    </div>
+  );
+
+  const renderGrid = (items: any[], showActions = false, showCorey = false) => (
+    items.length === 0 ? (
+      <EmptyState title="Nothing here yet" compact />
+    ) : (
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {items.map((post: any) => (
+          <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} showClient>
+            {showActions && <ApprovalActions postId={post.id} postTitle={post.title} currentStatus={post.status_column} contentType={post.content_type} />}
+            {showCorey && isSSAdmin && (
+              <>
+                <ApprovalActions postId={post.id} postTitle={post.title} currentStatus={post.status_column} contentType={post.content_type} />
+                <StrategicCommentButton postId={post.id} postTitle={post.title} />
+              </>
+            )}
+          </PostCard>
+        ))}
+      </div>
+    )
+  );
 
   return (
-    <div className="p-6 space-y-8">
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-8">
       <div>
-        <h2 className="text-2xl font-bold text-foreground">Approvals</h2>
-        <p className="text-muted-foreground">Review team work and track client approvals</p>
+        <h1 className="text-3xl font-bold text-foreground tracking-tight">Approvals</h1>
+        <p className="text-muted-foreground mt-1">Review team work and track client approvals</p>
       </div>
 
-      {/* Internal Review */}
-      <section>
-        <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
-          <CheckCircle className="h-5 w-5 text-primary" />
-          Awaiting Internal Review
-          <Badge variant="secondary">{internalReview.length}</Badge>
-        </h3>
-        {internalReview.length === 0 ? (
-          <Card><CardContent className="py-8 text-center text-muted-foreground">No posts awaiting review</CardContent></Card>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {internalReview.map((post: any) => (
-              <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} showClient>
-                <ApprovalActions postId={post.id} postTitle={post.title} currentStatus={post.status_column} contentType={post.content_type} />
-              </PostCard>
-            ))}
-          </div>
-        )}
-      </section>
+      <SectionBlock title="Internal Review" icon={<CheckCircle className="h-5 w-5 text-primary" />} count={internalReview.length}>
+        {renderGrid(internalReview, true)}
+      </SectionBlock>
 
-      {/* Corey Review */}
-      <section>
-        <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
-          <Eye className="h-5 w-5 text-amber-600" />
-          Awaiting Corey Review
-          <Badge variant="secondary">{coreyReview.length}</Badge>
-        </h3>
-        {coreyReview.length === 0 ? (
-          <Card><CardContent className="py-8 text-center text-muted-foreground">No posts awaiting Corey review</CardContent></Card>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {coreyReview.map((post: any) => (
-              <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} showClient>
-                {isSSAdmin && (
-                  <>
-                    <ApprovalActions postId={post.id} postTitle={post.title} currentStatus={post.status_column} contentType={post.content_type} />
-                    <StrategicCommentButton postId={post.id} postTitle={post.title} />
-                  </>
-                )}
-              </PostCard>
-            ))}
-          </div>
-        )}
-      </section>
+      <SectionBlock title="Corey Review" icon={<Eye className="h-5 w-5 text-amber-500" />} count={coreyReview.length}>
+        {renderGrid(coreyReview, false, true)}
+      </SectionBlock>
 
-      {/* Approval Batches */}
-      <section>
-        <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
-          <Send className="h-5 w-5 text-primary" />
-          Approval Batches
-        </h3>
+      <SectionBlock title="Approval Batches" icon={<Send className="h-5 w-5 text-primary" />} count={readyForClientBatch.length}>
         <ApprovalBatchManager
           unbatchedPosts={readyForClientBatch}
           allPosts={posts.map((p: any) => ({ id: p.id, status_column: p.status_column }))}
         />
-      </section>
+      </SectionBlock>
 
-      {/* Client Approval */}
-      <section>
-        <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
-          Awaiting Client Approval
-          <Badge variant="secondary">{clientApproval.length}</Badge>
-        </h3>
-        {clientApproval.length === 0 ? (
-          <Card><CardContent className="py-8 text-center text-muted-foreground">No posts awaiting client approval</CardContent></Card>
-        ) : (
-           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {clientApproval.map((post: any) => (
-              <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} showClient>
-                <ApprovalActions postId={post.id} postTitle={post.title} currentStatus={post.status_column} contentType={post.content_type} />
-              </PostCard>
-            ))}
-          </div>
-        )}
-      </section>
+      <SectionBlock title="Client Approval" count={clientApproval.length}>
+        {renderGrid(clientApproval, true)}
+      </SectionBlock>
 
-      {/* Ready to Schedule (social posts) */}
       {readyToSchedule.length > 0 && (
-        <section>
-          <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-primary" />
-            Ready to Schedule <Badge variant="secondary">{readyToSchedule.length}</Badge>
-          </h3>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {readyToSchedule.map((post: any) => (
-              <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} showClient />
-            ))}
-          </div>
-        </section>
+        <SectionBlock title="Ready to Schedule" icon={<Calendar className="h-5 w-5 text-primary" />} count={readyToSchedule.length}>
+          {renderGrid(readyToSchedule)}
+        </SectionBlock>
       )}
 
-      {/* Ready to Send (email campaigns) */}
       {readyToSend.length > 0 && (
-        <section>
-          <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
-            <Mail className="h-5 w-5 text-primary" />
-            Ready to Send <Badge variant="secondary">{readyToSend.length}</Badge>
-          </h3>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {readyToSend.map((post: any) => (
-              <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} showClient />
-            ))}
-          </div>
-        </section>
+        <SectionBlock title="Ready to Send" icon={<Mail className="h-5 w-5 text-primary" />} count={readyToSend.length}>
+          {renderGrid(readyToSend)}
+        </SectionBlock>
       )}
 
-      {/* Scheduled */}
       {scheduled.length > 0 && (
-        <section>
-          <h3 className="text-lg font-semibold text-foreground mb-3">Scheduled <Badge variant="secondary">{scheduled.length}</Badge></h3>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {scheduled.map((post: any) => (
-              <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} showClient />
-            ))}
-          </div>
-        </section>
+        <SectionBlock title="Scheduled" count={scheduled.length}>
+          {renderGrid(scheduled)}
+        </SectionBlock>
       )}
 
-      {/* Published */}
       {published.length > 0 && (
-        <section>
-          <h3 className="text-lg font-semibold text-foreground mb-3">Published <Badge variant="secondary">{published.length}</Badge></h3>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {published.map((post: any) => (
-              <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} showClient />
-            ))}
-          </div>
-        </section>
+        <SectionBlock title="Published" count={published.length}>
+          {renderGrid(published)}
+        </SectionBlock>
       )}
 
-      {/* Sent Campaigns */}
       {sent.length > 0 && (
-        <section>
-          <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
-            <Mail className="h-5 w-5 text-primary" />
-            Sent Campaigns <Badge variant="secondary">{sent.length}</Badge>
-          </h3>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {sent.map((post: any) => (
-              <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} showClient />
-            ))}
-          </div>
-        </section>
+        <SectionBlock title="Sent Campaigns" icon={<Mail className="h-5 w-5 text-primary" />} count={sent.length}>
+          {renderGrid(sent)}
+        </SectionBlock>
       )}
 
-      {/* Complete (other work types) */}
       {complete.length > 0 && (
-        <section>
-          <h3 className="text-lg font-semibold text-foreground mb-3">Complete <Badge variant="secondary">{complete.length}</Badge></h3>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {complete.map((post: any) => (
-              <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} showClient />
-            ))}
-          </div>
-        </section>
+        <SectionBlock title="Complete" count={complete.length}>
+          {renderGrid(complete)}
+        </SectionBlock>
       )}
     </div>
   );
 }
+
 // ─── CLIENT APPROVALS VIEW ─────────────────────────────────────────
 function ClientApprovals() {
   const { profile, isClientAdmin, isClientAssistant } = useAuth();
@@ -385,25 +319,24 @@ function ClientApprovals() {
   const sentCampaigns = posts.filter((p: any) => p.status_column === "sent" && p.content_type === "email_campaign");
   const completed = posts.filter((p: any) => p.status_column === "complete");
 
-  if (isLoading) return <p className="text-muted-foreground p-6">Loading your approvals...</p>;
+  if (isLoading) return (
+    <div className="flex items-center justify-center h-full py-20">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+    </div>
+  );
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-8">
       <div>
-        <h2 className="text-2xl font-bold text-foreground">Approvals</h2>
-        <p className="text-muted-foreground">Review and approve your content</p>
+        <h1 className="text-3xl font-bold text-foreground tracking-tight">Approvals</h1>
+        <p className="text-muted-foreground mt-1">Review and approve your content</p>
       </div>
 
-      {/* Content for Approval */}
-      <section>
-        <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
-          Content for Approval
-          <Badge variant="secondary">{forApproval.length}</Badge>
-        </h3>
+      <SectionBlock title="Content for Approval" count={forApproval.length}>
         {forApproval.length === 0 ? (
-          <Card><CardContent className="py-8 text-center text-muted-foreground">No content awaiting your approval</CardContent></Card>
+          <EmptyState title="No content awaiting your approval ✨" compact />
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {forApproval.map((post: any) => (
               <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)}>
                 {canApprove && (
@@ -413,57 +346,38 @@ function ClientApprovals() {
             ))}
           </div>
         )}
-      </section>
+      </SectionBlock>
 
-      {/* Scheduled */}
       {scheduled.length > 0 && (
-        <section>
-          <h3 className="text-lg font-semibold text-foreground mb-3">Scheduled <Badge variant="secondary">{scheduled.length}</Badge></h3>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {scheduled.map((post: any) => (
-              <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} />
-            ))}
+        <SectionBlock title="Scheduled" count={scheduled.length}>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {scheduled.map((post: any) => <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} />)}
           </div>
-        </section>
+        </SectionBlock>
       )}
 
-      {/* Published */}
       {published.length > 0 && (
-        <section>
-          <h3 className="text-lg font-semibold text-foreground mb-3">Published <Badge variant="secondary">{published.length}</Badge></h3>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {published.map((post: any) => (
-              <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} />
-            ))}
+        <SectionBlock title="Published" count={published.length}>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {published.map((post: any) => <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} />)}
           </div>
-        </section>
+        </SectionBlock>
       )}
 
-      {/* Sent Campaigns */}
       {sentCampaigns.length > 0 && (
-        <section>
-          <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
-            <Mail className="h-5 w-5 text-primary" />
-            Sent Campaigns <Badge variant="secondary">{sentCampaigns.length}</Badge>
-          </h3>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {sentCampaigns.map((post: any) => (
-              <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} />
-            ))}
+        <SectionBlock title="Sent Campaigns" icon={<Mail className="h-5 w-5 text-primary" />} count={sentCampaigns.length}>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {sentCampaigns.map((post: any) => <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} />)}
           </div>
-        </section>
+        </SectionBlock>
       )}
 
-      {/* Complete */}
       {completed.length > 0 && (
-        <section>
-          <h3 className="text-lg font-semibold text-foreground mb-3">Completed <Badge variant="secondary">{completed.length}</Badge></h3>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {completed.map((post: any) => (
-              <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} />
-            ))}
+        <SectionBlock title="Completed" count={completed.length}>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {completed.map((post: any) => <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} />)}
           </div>
-        </section>
+        </SectionBlock>
       )}
     </div>
   );

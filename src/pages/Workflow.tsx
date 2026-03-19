@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -33,32 +32,32 @@ type PostStatus = Database["public"]["Enums"]["post_status"];
 
 const PRIMARY_COLUMNS: { key: PostStatus; label: string }[] = [
   { key: "idea", label: "New" },
-  { key: "ai_draft" as PostStatus, label: "AI Draft Generated" },
+  { key: "ai_draft" as PostStatus, label: "AI Draft" },
   { key: "in_progress" as PostStatus, label: "In Progress" },
-  { key: "internal_review", label: "Internal Review" },
-  { key: "corey_review" as PostStatus, label: "Ready for Corey" },
+  { key: "internal_review", label: "Review" },
+  { key: "corey_review" as PostStatus, label: "Corey" },
 ];
 
 const platformColors: Record<string, string> = {
-  instagram: "bg-pink-100 text-pink-800",
-  facebook: "bg-blue-100 text-blue-800",
-  linkedin: "bg-sky-100 text-sky-800",
-  tiktok: "bg-purple-100 text-purple-800",
+  instagram: "bg-pink-500/10 text-pink-600",
+  facebook: "bg-blue-500/10 text-blue-600",
+  linkedin: "bg-sky-500/10 text-sky-600",
+  tiktok: "bg-purple-500/10 text-purple-600",
 };
 
 const PLATFORM_OPTIONS = ["Instagram", "Facebook", "LinkedIn", "TikTok"];
 
 const contentTypeConfig: Record<string, { icon: React.ReactNode; label: string; className: string }> = {
-  image: { icon: <ImageIcon className="h-3 w-3" />, label: "Image", className: "bg-emerald-100 text-emerald-800" },
-  video: { icon: <Film className="h-3 w-3" />, label: "Video", className: "bg-violet-100 text-violet-800" },
-  reel: { icon: <Play className="h-3 w-3" />, label: "Reel", className: "bg-rose-100 text-rose-800" },
-  carousel: { icon: <LayoutGrid className="h-3 w-3" />, label: "Carousel", className: "bg-amber-100 text-amber-800" },
-  email_campaign: { icon: <Mail className="h-3 w-3" />, label: "Email", className: "bg-blue-100 text-blue-800" },
-  ad_creative: { icon: <ImageIcon className="h-3 w-3" />, label: "Ad Creative", className: "bg-teal-100 text-teal-800" },
-  landing_page: { icon: <FileText className="h-3 w-3" />, label: "Landing Page", className: "bg-indigo-100 text-indigo-800" },
-  graphic_design: { icon: <ImageIcon className="h-3 w-3" />, label: "Design", className: "bg-fuchsia-100 text-fuchsia-800" },
-  website_update: { icon: <FileText className="h-3 w-3" />, label: "Website", className: "bg-cyan-100 text-cyan-800" },
-  general_task: { icon: <CheckCircle2 className="h-3 w-3" />, label: "Task", className: "bg-gray-100 text-gray-800" },
+  image: { icon: <ImageIcon className="h-3 w-3" />, label: "Image", className: "bg-emerald-500/10 text-emerald-600" },
+  video: { icon: <Film className="h-3 w-3" />, label: "Video", className: "bg-violet-500/10 text-violet-600" },
+  reel: { icon: <Play className="h-3 w-3" />, label: "Reel", className: "bg-rose-500/10 text-rose-600" },
+  carousel: { icon: <LayoutGrid className="h-3 w-3" />, label: "Carousel", className: "bg-amber-500/10 text-amber-600" },
+  email_campaign: { icon: <Mail className="h-3 w-3" />, label: "Email", className: "bg-blue-500/10 text-blue-600" },
+  ad_creative: { icon: <ImageIcon className="h-3 w-3" />, label: "Ad", className: "bg-teal-500/10 text-teal-600" },
+  landing_page: { icon: <FileText className="h-3 w-3" />, label: "Landing", className: "bg-indigo-500/10 text-indigo-600" },
+  graphic_design: { icon: <ImageIcon className="h-3 w-3" />, label: "Design", className: "bg-fuchsia-500/10 text-fuchsia-600" },
+  website_update: { icon: <FileText className="h-3 w-3" />, label: "Website", className: "bg-cyan-500/10 text-cyan-600" },
+  general_task: { icon: <CheckCircle2 className="h-3 w-3" />, label: "Task", className: "bg-muted text-muted-foreground" },
 };
 
 function getDueDateColor(dueAt: string | null) {
@@ -73,7 +72,7 @@ function getDueDateColor(dueAt: string | null) {
 function UserInitials({ name, className }: { name: string | null; className?: string }) {
   const initials = (name || "?").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
   return (
-    <div className={cn("h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-medium text-primary", className)}>
+    <div className={cn("h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-semibold text-primary", className)}>
       {initials}
     </div>
   );
@@ -86,7 +85,6 @@ export default function Workflow() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<any>(null);
-  // FilterBar setup
   const { data: allClients = [] } = useQuery({
     queryKey: ["all-clients"],
     queryFn: async () => {
@@ -97,8 +95,6 @@ export default function Workflow() {
   });
 
   const { selectedClientId: globalClientId } = useClientFilter();
-
-  
 
   const [newPost, setNewPost] = useState({
     client_id: "",
@@ -112,7 +108,6 @@ export default function Workflow() {
     assigned_to_user_id: "",
     reviewer_user_id: "",
     due_at: null as Date | null,
-    // Email fields
     subject_line: "",
     preview_text: "",
     email_body: "",
@@ -136,7 +131,6 @@ export default function Workflow() {
     enabled: !!profile,
   });
 
-  // clients query is already above in filterConfigs
   const clients = allClients;
 
   const { data: ssUsers = [] } = useQuery({
@@ -275,7 +269,11 @@ export default function Workflow() {
   };
 
   if (isLoading) {
-    return <div className="p-6 flex items-center justify-center"><p className="text-muted-foreground">Loading workflow board...</p></div>;
+    return (
+      <div className="flex items-center justify-center h-full py-20">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
   }
 
   const renderCard = (post: any) => {
@@ -287,20 +285,21 @@ export default function Workflow() {
     return (
       <div key={post.id} className="space-y-1.5">
         <div
-          className="card-elevated p-4 space-y-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-all"
+          className="card-elevated p-3.5 space-y-2.5 cursor-grab active:cursor-grabbing hover:shadow-lifted transition-all"
           draggable
           onDragStart={(e) => handleDragStart(e, post.id, post.status_column)}
           onClick={() => setSelectedPost(post)}
         >
           {post.creative_url && (
-            <div className="aspect-video bg-muted rounded-lg overflow-hidden">
+            <div className="aspect-video bg-muted rounded-xl overflow-hidden">
               <img src={post.creative_url} alt="" className="w-full h-full object-cover" />
             </div>
           )}
           {!post.creative_url && ct && (
-            <div className="flex items-center gap-1.5 text-muted-foreground">
-              {ct.icon}
-              <span className="text-[11px]">{ct.label}</span>
+            <div className="flex items-center gap-1.5">
+              <Badge variant="secondary" className={`text-[10px] border-0 gap-1 ${ct.className}`}>
+                {ct.icon} {ct.label}
+              </Badge>
             </div>
           )}
           <h4 className="text-sm font-semibold text-foreground line-clamp-2">{post.title}</h4>
@@ -308,9 +307,9 @@ export default function Workflow() {
             <p className="text-xs text-muted-foreground/70 line-clamp-1">Subject: {post.subject_line}</p>
           )}
           <div className="flex flex-wrap gap-1">
-            {post.clients?.name && <Badge variant="outline" className="text-[11px]">{post.clients.name}</Badge>}
+            {post.clients?.name && <Badge variant="outline" className="text-[10px]">{post.clients.name}</Badge>}
             {post.request_id && (
-              <Badge variant="secondary" className="text-[11px] gap-1">
+              <Badge variant="secondary" className="text-[10px] gap-0.5 border-0">
                 <FileText className="h-2.5 w-2.5" />Request
               </Badge>
             )}
@@ -318,7 +317,7 @@ export default function Workflow() {
           {post.platform && (
             <div className="flex flex-wrap gap-1">
               {post.platform.split(",").map((p: string) => (
-                <Badge key={p} variant="secondary" className={`text-[11px] ${platformColors[p.trim().toLowerCase()] || ""}`}>{p.trim()}</Badge>
+                <Badge key={p} variant="secondary" className={`text-[10px] border-0 ${platformColors[p.trim().toLowerCase()] || "bg-muted"}`}>{p.trim()}</Badge>
               ))}
             </div>
           )}
@@ -342,26 +341,21 @@ export default function Workflow() {
             )}
           </div>
           {post.assigned_user?.name && (
-            <div className="flex items-center gap-1.5 pt-2">
+            <div className="flex items-center gap-1.5 pt-1 border-t border-border/30">
               <UserInitials name={post.assigned_user.name} />
               <span className="text-[11px] text-muted-foreground truncate">{post.assigned_user.name}</span>
             </div>
           )}
         </div>
         {showApprovalActions && (
-          <ApprovalActions
-            postId={post.id}
-            postTitle={post.title}
-            currentStatus={post.status_column}
-            contentType={post.content_type}
-          />
+          <ApprovalActions postId={post.id} postTitle={post.title} currentStatus={post.status_column} contentType={post.content_type} />
         )}
         {showSendActions && (
           <div className="flex gap-2">
-            <Button size="sm" className="flex-1 gap-1" onClick={(e) => { e.stopPropagation(); sendNow.mutate(post.id); }}>
+            <Button size="sm" className="flex-1 gap-1 rounded-xl" onClick={(e) => { e.stopPropagation(); sendNow.mutate(post.id); }}>
               <Send className="h-3.5 w-3.5" />Send Now
             </Button>
-            <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={(e) => { e.stopPropagation(); movePost.mutate({ postId: post.id, newStatus: "scheduled" as PostStatus }); }}>
+            <Button size="sm" variant="outline" className="flex-1 gap-1 rounded-xl" onClick={(e) => { e.stopPropagation(); movePost.mutate({ postId: post.id, newStatus: "scheduled" as PostStatus }); }}>
               <Calendar className="h-3.5 w-3.5" />Schedule
             </Button>
           </div>
@@ -372,16 +366,16 @@ export default function Workflow() {
 
   return (
     <div className="p-4 sm:p-6 h-full flex flex-col">
-      <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="mb-5 flex flex-col sm:flex-row sm:items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Workflow</h1>
-          <p className="text-sm text-muted-foreground">Production pipeline — drag cards or use action buttons</p>
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">Workflow</h1>
+          <p className="text-sm text-muted-foreground">Drag cards between columns to move through the pipeline</p>
         </div>
         <div className="flex items-center gap-3">
           <FilterBar filters={filterConfigs} values={filterValues} onChange={setFilterValues} />
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
-              <Button><Plus className="h-4 w-4 mr-2" />New Post</Button>
+              <Button className="gap-1.5 rounded-xl shrink-0"><Plus className="h-4 w-4" />New Post</Button>
             </DialogTrigger>
             <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>Create New Post</DialogTitle></DialogHeader>
@@ -407,7 +401,6 @@ export default function Workflow() {
                 </div>
 
                 {isEmailType ? (
-                  /* Email-specific fields */
                   <>
                     <div><Label>Subject Line</Label><Input value={newPost.subject_line} onChange={e => setNewPost({ ...newPost, subject_line: e.target.value })} placeholder="Email subject line" /></div>
                     <div><Label>Preview Text</Label><Input value={newPost.preview_text} onChange={e => setNewPost({ ...newPost, preview_text: e.target.value })} placeholder="Preview text shown in inbox" /></div>
@@ -423,7 +416,6 @@ export default function Workflow() {
                     </div>
                   </>
                 ) : (
-                  /* Social / Other fields */
                   <>
                     <div>
                       <Label>Platform(s)</Label>
@@ -460,7 +452,7 @@ export default function Workflow() {
                   <Label>Due Date</Label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <Button variant="outline" className="w-full justify-start text-left font-normal rounded-xl">
                         <Clock className="h-4 w-4 mr-2" />{newPost.due_at ? format(newPost.due_at, "PPP") : "Pick a due date"}
                       </Button>
                     </PopoverTrigger>
@@ -474,7 +466,7 @@ export default function Workflow() {
                   <Label>Schedule Date</Label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <Button variant="outline" className="w-full justify-start text-left font-normal rounded-xl">
                         <Calendar className="h-4 w-4 mr-2" />{newPost.scheduled_at ? format(newPost.scheduled_at, "PPP") : "Pick a date"}
                       </Button>
                     </PopoverTrigger>
@@ -484,7 +476,7 @@ export default function Workflow() {
                   </Popover>
                 </div>
                 <div><Label>Internal Notes (team only)</Label><Textarea value={newPost.internal_notes} onChange={e => setNewPost({ ...newPost, internal_notes: e.target.value })} placeholder="Team notes..." /></div>
-                <Button className="w-full" onClick={() => createPost.mutate()} disabled={!newPost.client_id || !newPost.title || createPost.isPending}>
+                <Button className="w-full rounded-xl" onClick={() => createPost.mutate()} disabled={!newPost.client_id || !newPost.title || createPost.isPending}>
                   {createPost.isPending ? "Creating..." : "Create Post"}
                 </Button>
               </div>
@@ -493,9 +485,9 @@ export default function Workflow() {
         </div>
       </div>
 
-      {/* Primary Kanban — daily working columns */}
+      {/* Kanban */}
       <ScrollArea className="flex-1 min-h-0">
-        <div className="flex gap-3 sm:gap-5 pb-4" style={{ minWidth: PRIMARY_COLUMNS.length * 280 }}>
+        <div className="flex gap-3 pb-4" style={{ minWidth: PRIMARY_COLUMNS.length * 280 }}>
           {PRIMARY_COLUMNS.map(col => {
             const columnPosts = posts.filter((p: any) => {
               if (p.status_column !== col.key) return false;
@@ -511,14 +503,14 @@ export default function Workflow() {
               return true;
             });
             return (
-              <div key={col.key} className="w-[260px] sm:w-[290px] shrink-0 flex flex-col bg-accent/30 rounded-xl" onDrop={e => handleDrop(e, col.key)} onDragOver={handleDragOver}>
+              <div key={col.key} className="w-[260px] sm:w-[280px] shrink-0 flex flex-col bg-muted/30 rounded-2xl" onDrop={e => handleDrop(e, col.key)} onDragOver={handleDragOver}>
                 <div className="px-4 py-3 flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-foreground">{col.label}</h3>
-                  <Badge variant="secondary" className="text-[11px]">{columnPosts.length}</Badge>
+                  <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">{col.label}</h3>
+                  <Badge variant="secondary" className="text-[10px] h-5 min-w-[20px] justify-center">{columnPosts.length}</Badge>
                 </div>
                 <div className="px-2 pb-3 space-y-2 flex-1 min-h-[120px]">
                   {columnPosts.length === 0 && (
-                    <div className="flex items-center justify-center h-20 text-xs text-muted-foreground/50 border border-dashed border-muted-foreground/20 rounded-lg">
+                    <div className="flex items-center justify-center h-20 text-[11px] text-muted-foreground/40 border border-dashed border-muted-foreground/15 rounded-xl">
                       Drop here
                     </div>
                   )}
