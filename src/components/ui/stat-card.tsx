@@ -13,14 +13,14 @@ function StatCard({ label, value, subtitle, icon, accent = "default", className,
   return (
     <div
       className={cn(
-        "rounded-xl bg-card border border-border/40 shadow-sm p-5 hover:shadow-md transition-all cursor-pointer group",
+        "card-interactive rounded-2xl p-5",
         className
       )}
       {...props}
     >
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase">{label}</span>
-        {icon && <span className="text-muted-foreground group-hover:text-primary transition-colors">{icon}</span>}
+        <span className="text-xs font-medium text-muted-foreground tracking-wide">{label}</span>
+        {icon && <span className="text-muted-foreground/60 group-hover:text-primary transition-colors">{icon}</span>}
       </div>
       <div className={cn(
         "text-3xl font-bold tracking-tight",
@@ -28,7 +28,7 @@ function StatCard({ label, value, subtitle, icon, accent = "default", className,
       )}>
         {value}
       </div>
-      {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
+      {subtitle && <p className="text-xs text-muted-foreground mt-1.5">{subtitle}</p>}
     </div>
   );
 }

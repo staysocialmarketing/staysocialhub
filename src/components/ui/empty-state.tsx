@@ -16,14 +16,14 @@ function EmptyState({ icon, title, description, action, onAction, className, com
   return (
     <div className={cn(
       "flex flex-col items-center justify-center text-center",
-      compact ? "py-8" : "py-16",
+      compact ? "py-10" : "py-16",
       className
     )}>
-      {icon && <span className="text-muted-foreground/40 mb-3">{icon}</span>}
+      {icon && <span className="text-muted-foreground/30 mb-4">{icon}</span>}
       <p className="text-sm font-medium text-muted-foreground">{title}</p>
-      {description && <p className="text-xs text-muted-foreground/70 mt-1 max-w-xs">{description}</p>}
+      {description && <p className="text-xs text-muted-foreground/60 mt-1.5 max-w-xs">{description}</p>}
       {action && onAction && (
-        <Button variant="outline" size="sm" className="mt-4" onClick={onAction}>{action}</Button>
+        <Button variant="outline" size="sm" className="mt-5 rounded-full" onClick={onAction}>{action}</Button>
       )}
     </div>
   );
