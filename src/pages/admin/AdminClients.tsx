@@ -319,7 +319,7 @@ export default function AdminClients() {
 
       {/* Edit Client Dialog */}
       <Dialog open={!!editClient} onOpenChange={(o) => !o && setEditClient(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg rounded-2xl border-0 shadow-float">
           <DialogHeader><DialogTitle>Edit Client — {editClient?.name}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
