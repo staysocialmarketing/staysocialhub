@@ -12,6 +12,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
+import { getWaveEmoji } from "@/lib/waveEmoji";
 
 interface CaptureTabProps {
   clientId: string;
@@ -243,7 +244,7 @@ export default function CaptureTab({ clientId }: CaptureTabProps) {
       {/* ─── Greeting ─── */}
       <div>
         <h2 className="text-xl font-semibold text-foreground">
-          Hi {firstName} 👋
+          Hi {firstName} {getWaveEmoji(firstName)}
         </h2>
         <p className="text-sm text-muted-foreground mt-0.5">
           Anything to capture?

@@ -18,6 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, isPast } from "date-fns";
+import { getWaveEmoji } from "@/lib/waveEmoji";
 import {
   CheckSquare,
   MessageSquarePlus,
@@ -178,7 +179,7 @@ function WorkQueueDashboard() {
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground tracking-tight">
-            {profile?.name ? `Hey, ${profile.name.split(" ")[0]} 👋` : "Work Queue"}
+            {profile?.name ? `Hey, ${profile.name.split(" ")[0]} ${getWaveEmoji(profile.name)}` : "Work Queue"}
           </h1>
           <p className="text-muted-foreground mt-1">Here's what needs your attention today.</p>
         </div>
@@ -484,7 +485,7 @@ function ClientDashboard() {
       {/* Hero greeting */}
       <div>
         <h1 className="text-3xl font-bold text-foreground tracking-tight">
-          Welcome back{profile?.name ? `, ${profile.name.split(" ")[0]}` : ""} 👋
+          Welcome back{profile?.name ? `, ${profile.name.split(" ")[0]}` : ""} {getWaveEmoji(profile?.name)}
         </h1>
         <p className="text-muted-foreground mt-1">Here's what's happening with your marketing.</p>
       </div>
