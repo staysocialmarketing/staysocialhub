@@ -214,6 +214,69 @@ export type Database = {
           },
         ]
       }
+      brain_captures: {
+        Row: {
+          attachment_name: string | null
+          attachment_url: string | null
+          client_id: string
+          content: string
+          converted_to_request_id: string | null
+          created_at: string
+          created_by_user_id: string
+          id: string
+          link_url: string | null
+          notes: string | null
+          tags: Json
+          type: string
+          voice_transcript: string | null
+        }
+        Insert: {
+          attachment_name?: string | null
+          attachment_url?: string | null
+          client_id: string
+          content?: string
+          converted_to_request_id?: string | null
+          created_at?: string
+          created_by_user_id: string
+          id?: string
+          link_url?: string | null
+          notes?: string | null
+          tags?: Json
+          type?: string
+          voice_transcript?: string | null
+        }
+        Update: {
+          attachment_name?: string | null
+          attachment_url?: string | null
+          client_id?: string
+          content?: string
+          converted_to_request_id?: string | null
+          created_at?: string
+          created_by_user_id?: string
+          id?: string
+          link_url?: string | null
+          notes?: string | null
+          tags?: Json
+          type?: string
+          voice_transcript?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brain_captures_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brain_captures_converted_to_request_id_fkey"
+            columns: ["converted_to_request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brand_twin: {
         Row: {
           audience_json: Json
