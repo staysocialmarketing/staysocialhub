@@ -199,27 +199,25 @@ export default function AdminMarketplace() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {list.map((item) => (
-            <Card key={item.id} className={`transition-shadow hover:shadow-md ${!item.is_active ? "opacity-50" : ""}`}>
-              <CardContent className="pt-5 space-y-2">
-                <div className="flex items-start justify-between">
-                  <span className="text-2xl">{item.icon || "📦"}</span>
-                  <div className="flex items-center gap-1">
-                    {!item.is_active && <Badge variant="outline" className="text-[10px]">Inactive</Badge>}
-                    {isSSAdmin && (
-                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openEdit(item)}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                  </div>
+            <div key={item.id} className={`rounded-2xl bg-card shadow-soft p-5 space-y-2 hover:shadow-lifted transition-all ${!item.is_active ? "opacity-50" : ""}`}>
+              <div className="flex items-start justify-between">
+                <span className="text-2xl">{item.icon || "📦"}</span>
+                <div className="flex items-center gap-1">
+                  {!item.is_active && <Badge variant="outline" className="text-[10px] rounded-full">Inactive</Badge>}
+                  {isSSAdmin && (
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0 rounded-lg" onClick={() => openEdit(item)}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
-                <h4 className="font-semibold text-foreground">{item.name}</h4>
-                {item.description && <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>}
-                <div className="flex items-center gap-2">
-                  {item.price && <p className="text-sm font-medium text-primary">{item.price}</p>}
-                  <Badge variant="secondary" className="text-[10px]">{billingLabels[item.billing_type] || item.billing_type}</Badge>
-                </div>
-              </CardContent>
-            </Card>
+              </div>
+              <h4 className="font-semibold text-foreground">{item.name}</h4>
+              {item.description && <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>}
+              <div className="flex items-center gap-2">
+                {item.price && <p className="text-sm font-medium text-primary">{item.price}</p>}
+                <Badge variant="secondary" className="text-[10px] rounded-full">{billingLabels[item.billing_type] || item.billing_type}</Badge>
+              </div>
+            </div>
           ))}
         </div>
       )}
@@ -229,18 +227,25 @@ export default function AdminMarketplace() {
   if (loading) return <div className="p-6"><p className="text-muted-foreground">Loading…</p></div>;
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center gap-2">
-        <Store className="h-6 w-6 text-primary" />
-        <h2 className="text-2xl font-bold text-foreground">Marketplace</h2>
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
+      <div className="flex items-center gap-3">
+        <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
+          <Store className="h-4 w-4 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">Marketplace</h1>
+          <p className="text-sm text-muted-foreground">Plans, upgrades, and client requests.</p>
+        </div>
       </div>
 
       <Tabs defaultValue="plans">
-        <TabsList>
-          <TabsTrigger value="plans">Plans</TabsTrigger>
-          <TabsTrigger value="upgrades">Upgrades</TabsTrigger>
-          <TabsTrigger value="requests">Client Requests</TabsTrigger>
-        </TabsList>
+        <div className="flex gap-1 bg-muted/40 rounded-full p-1 w-fit">
+          <TabsList className="bg-transparent p-0 h-auto">
+            <TabsTrigger value="plans" className="rounded-full px-4 py-1.5 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm">Plans</TabsTrigger>
+            <TabsTrigger value="upgrades" className="rounded-full px-4 py-1.5 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm">Upgrades</TabsTrigger>
+            <TabsTrigger value="requests" className="rounded-full px-4 py-1.5 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm">Client Requests</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="plans" className="mt-4">
           <p className="text-sm text-muted-foreground mb-4">Done-for-you plans and services available to clients.</p>
@@ -309,7 +314,7 @@ export default function AdminMarketplace() {
 
       {/* Create / Edit Item Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md rounded-2xl border-0 shadow-float">
           <DialogHeader>
             <DialogTitle>{editItem ? "Edit Item" : `New ${formCategory === "solution" ? "Plan" : "Upgrade"}`}</DialogTitle>
           </DialogHeader>

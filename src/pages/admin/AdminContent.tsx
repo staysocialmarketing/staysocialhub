@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -151,24 +150,27 @@ export default function AdminContent() {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-foreground">Content Management</h2>
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">Content Management</h1>
+          <p className="text-sm text-muted-foreground mt-1">Create and manage social media posts.</p>
+        </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" />New Post</Button>
+            <Button size="sm"><Plus className="h-4 w-4 mr-1" />New Post</Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border-0 shadow-float">
             <DialogHeader><DialogTitle>Create New Post</DialogTitle></DialogHeader>
             <div className="space-y-4 mt-2">
               <div>
                 <Label>Client</Label>
                 <Select value={newPost.client_id} onValueChange={(v) => setNewPost({ ...newPost, client_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select client" /></SelectTrigger>
+                  <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select client" /></SelectTrigger>
                   <SelectContent>{clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div><Label>Post Title</Label><Input value={newPost.title} onChange={(e) => setNewPost({ ...newPost, title: e.target.value })} /></div>
+              <div><Label>Post Title</Label><Input value={newPost.title} onChange={(e) => setNewPost({ ...newPost, title: e.target.value })} className="rounded-xl" /></div>
               <div>
                 <Label>Platform(s)</Label>
                 <div className="flex flex-wrap gap-3 mt-1">
@@ -179,21 +181,21 @@ export default function AdminContent() {
                   ))}
                 </div>
               </div>
-              <div><Label>Caption</Label><Textarea value={newPost.caption} onChange={(e) => setNewPost({ ...newPost, caption: e.target.value })} /></div>
-              <div><Label>Hashtags</Label><Input value={newPost.hashtags} onChange={(e) => setNewPost({ ...newPost, hashtags: e.target.value })} /></div>
-              <div><Label>Creative</Label><Input type="file" accept="image/*,video/*" onChange={(e) => setCreativeFile(e.target.files?.[0] || null)} /></div>
+              <div><Label>Caption</Label><Textarea value={newPost.caption} onChange={(e) => setNewPost({ ...newPost, caption: e.target.value })} className="rounded-xl" /></div>
+              <div><Label>Hashtags</Label><Input value={newPost.hashtags} onChange={(e) => setNewPost({ ...newPost, hashtags: e.target.value })} className="rounded-xl" /></div>
+              <div><Label>Creative</Label><Input type="file" accept="image/*,video/*" onChange={(e) => setCreativeFile(e.target.files?.[0] || null)} className="rounded-xl" /></div>
               <div>
                 <Label>Schedule Date</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                    <Button variant="outline" className="w-full justify-start text-left font-normal rounded-xl">
                       <Calendar className="h-4 w-4 mr-2" />{newPost.scheduled_at ? format(newPost.scheduled_at, "PPP") : "Pick a date"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0"><CalendarWidget mode="single" selected={newPost.scheduled_at || undefined} onSelect={(d) => setNewPost({ ...newPost, scheduled_at: d || null })} /></PopoverContent>
                 </Popover>
               </div>
-              <div><Label>Internal Notes</Label><Textarea value={newPost.internal_notes} onChange={(e) => setNewPost({ ...newPost, internal_notes: e.target.value })} /></div>
+              <div><Label>Internal Notes</Label><Textarea value={newPost.internal_notes} onChange={(e) => setNewPost({ ...newPost, internal_notes: e.target.value })} className="rounded-xl" /></div>
               <Button className="w-full" onClick={() => createPost.mutate()} disabled={!newPost.client_id || !newPost.title || createPost.isPending}>
                 {createPost.isPending ? "Creating..." : "Create Post"}
               </Button>
@@ -203,31 +205,29 @@ export default function AdminContent() {
       </div>
 
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : (
-        <div className="space-y-3">
+        <div className="rounded-2xl bg-card shadow-soft divide-y divide-border/30">
           {posts.map((p: any) => (
-            <Card key={p.id}>
-              <CardContent className="py-4 flex items-center gap-4">
-                <div className="h-12 w-12 rounded bg-muted flex items-center justify-center shrink-0 overflow-hidden">
-                  {p.creative_url ? (
-                    <img src={p.creative_url} alt="" className="h-12 w-12 rounded object-cover" />
-                  ) : (
-                    <ImageIcon className="h-5 w-5 text-muted-foreground/40" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-foreground truncate">{p.title}</h4>
-                  <p className="text-xs text-muted-foreground">
-                    {p.clients?.name} · {p.platform || "No platform"}
-                    {p.post_versions?.length > 0 && ` · ${p.post_versions.length} version(s)`}
-                    {p.approvals?.length > 0 && ` · ${p.approvals.length} approval(s)`}
-                  </p>
-                </div>
-                <Badge variant="secondary">{statusLabels[p.status_column] || p.status_column}</Badge>
-                <Button variant="ghost" size="sm" onClick={() => setEditPost({ ...p })}>
-                  <Eye className="h-4 w-4" />
-                </Button>
-              </CardContent>
-            </Card>
+            <div key={p.id} className="px-5 py-4 flex items-center gap-4 hover:bg-muted/10 transition-colors">
+              <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center shrink-0 overflow-hidden">
+                {p.creative_url ? (
+                  <img src={p.creative_url} alt="" className="h-12 w-12 rounded-xl object-cover" />
+                ) : (
+                  <ImageIcon className="h-5 w-5 text-muted-foreground/40" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-semibold text-foreground text-sm truncate">{p.title}</h4>
+                <p className="text-xs text-muted-foreground">
+                  {p.clients?.name} · {p.platform || "No platform"}
+                  {p.post_versions?.length > 0 && ` · ${p.post_versions.length} version(s)`}
+                  {p.approvals?.length > 0 && ` · ${p.approvals.length} approval(s)`}
+                </p>
+              </div>
+              <Badge variant="secondary" className="rounded-full">{statusLabels[p.status_column] || p.status_column}</Badge>
+              <Button variant="ghost" size="sm" className="rounded-lg" onClick={() => setEditPost({ ...p })}>
+                <Eye className="h-4 w-4" />
+              </Button>
+            </div>
           ))}
           {posts.length === 0 && <p className="text-muted-foreground text-center py-8">No content yet</p>}
         </div>
@@ -235,23 +235,23 @@ export default function AdminContent() {
 
       {/* Edit dialog */}
       <Dialog open={!!editPost} onOpenChange={() => setEditPost(null)}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border-0 shadow-float">
           <DialogHeader><DialogTitle>Edit Post</DialogTitle></DialogHeader>
           {editPost && (
             <div className="space-y-4 mt-2">
-              <div><Label>Title</Label><Input value={editPost.title} onChange={(e) => setEditPost({ ...editPost, title: e.target.value })} /></div>
-              <div><Label>Caption</Label><Textarea value={editPost.caption || ""} onChange={(e) => setEditPost({ ...editPost, caption: e.target.value })} /></div>
-              <div><Label>Hashtags</Label><Input value={editPost.hashtags || ""} onChange={(e) => setEditPost({ ...editPost, hashtags: e.target.value })} /></div>
+              <div><Label>Title</Label><Input value={editPost.title} onChange={(e) => setEditPost({ ...editPost, title: e.target.value })} className="rounded-xl" /></div>
+              <div><Label>Caption</Label><Textarea value={editPost.caption || ""} onChange={(e) => setEditPost({ ...editPost, caption: e.target.value })} className="rounded-xl" /></div>
+              <div><Label>Hashtags</Label><Input value={editPost.hashtags || ""} onChange={(e) => setEditPost({ ...editPost, hashtags: e.target.value })} className="rounded-xl" /></div>
               <div>
                 <Label>Status</Label>
                 <Select value={editPost.status_column} onValueChange={(v) => setEditPost({ ...editPost, status_column: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {Object.entries(statusLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label>Internal Notes</Label><Textarea value={(editPost as any).internal_notes || ""} onChange={(e) => setEditPost({ ...editPost, internal_notes: e.target.value })} /></div>
+              <div><Label>Internal Notes</Label><Textarea value={(editPost as any).internal_notes || ""} onChange={(e) => setEditPost({ ...editPost, internal_notes: e.target.value })} className="rounded-xl" /></div>
               {editPost.approvals?.length > 0 && (
                 <div>
                   <Label className="text-muted-foreground">Approval Log</Label>

@@ -59,7 +59,7 @@ export default function TeamRoles() {
         {roles.map(role => {
           const isEditing = editingId === role.id;
           return (
-            <div key={role.id} className="rounded-xl bg-card border border-border/40 shadow-sm p-5 space-y-3">
+            <div key={role.id} className="rounded-2xl bg-card shadow-soft p-5 space-y-3">
               <div className="flex items-start justify-between">
                 <div>
                   <h3 className="text-base font-semibold text-foreground">{role.user_name}</h3>
@@ -67,7 +67,7 @@ export default function TeamRoles() {
                     <Input
                       value={editForm.title || ""}
                       onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))}
-                      className="mt-1 text-sm"
+                      className="mt-1 text-sm rounded-xl"
                       placeholder="Title"
                     />
                   ) : (
@@ -75,7 +75,7 @@ export default function TeamRoles() {
                   )}
                 </div>
                 {isSSAdmin && !isEditing && (
-                  <Button variant="ghost" size="icon" onClick={() => startEdit(role)}>
+                  <Button variant="ghost" size="icon" className="rounded-lg" onClick={() => startEdit(role)}>
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
                 )}
@@ -87,7 +87,7 @@ export default function TeamRoles() {
                   <Textarea
                     value={(editForm.responsibilities || []).join("\n")}
                     onChange={e => setEditForm(f => ({ ...f, responsibilities: e.target.value.split("\n") }))}
-                    className="mt-1 text-sm"
+                    className="mt-1 text-sm rounded-xl"
                     rows={4}
                     placeholder="One per line"
                   />
@@ -108,7 +108,7 @@ export default function TeamRoles() {
                   <Textarea
                     value={editForm.mission || ""}
                     onChange={e => setEditForm(f => ({ ...f, mission: e.target.value }))}
-                    className="mt-1 text-sm"
+                    className="mt-1 text-sm rounded-xl"
                     rows={2}
                   />
                 ) : (

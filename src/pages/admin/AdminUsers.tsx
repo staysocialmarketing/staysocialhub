@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -126,21 +125,25 @@ export default function AdminUsers() {
   });
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-8">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-8">
       {/* Domain Whitelist */}
       {isSSAdmin && (
-        <div className="space-y-3">
+        <div className="rounded-2xl bg-card shadow-soft p-5 space-y-4">
           <div className="flex items-center gap-2">
-            <Globe className="h-5 w-5 text-primary" />
-            <h2 className="text-2xl font-bold text-foreground">Allowed Domains</h2>
+            <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Globe className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-foreground">Allowed Domains</h2>
+              <p className="text-xs text-muted-foreground">Only users with emails from these domains can sign in.</p>
+            </div>
           </div>
-          <p className="text-sm text-muted-foreground">Only users with emails from these domains can sign in.</p>
           <div className="flex gap-2">
             <Input
               placeholder="example.com"
               value={newDomain}
               onChange={(e) => setNewDomain(e.target.value)}
-              className="max-w-xs"
+              className="max-w-xs rounded-xl"
               onKeyDown={(e) => { if (e.key === "Enter" && newDomain.trim()) addDomain.mutate(newDomain); }}
             />
             <Button size="sm" onClick={() => newDomain.trim() && addDomain.mutate(newDomain)} disabled={!newDomain.trim()}>
@@ -149,7 +152,7 @@ export default function AdminUsers() {
           </div>
           <div className="flex flex-wrap gap-2">
             {domains.map((d: any) => (
-              <Badge key={d.id} variant="secondary" className="text-sm gap-1.5 pr-1.5">
+              <Badge key={d.id} variant="secondary" className="text-sm gap-1.5 pr-1.5 rounded-full">
                 {d.domain}
                 <button onClick={() => removeDomain.mutate(d.id)} className="ml-1 hover:text-destructive">
                   <Trash2 className="h-3 w-3" />
@@ -160,88 +163,91 @@ export default function AdminUsers() {
         </div>
       )}
 
-      <h2 className="text-2xl font-bold text-foreground">Users</h2>
+      <div>
+        <h1 className="text-xl font-bold tracking-tight text-foreground">Users</h1>
+        <p className="text-sm text-muted-foreground mt-1">Manage team members and their roles.</p>
+      </div>
 
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : (
-        <div className="space-y-3">
+        <div className="rounded-2xl bg-card shadow-soft divide-y divide-border/30">
           {users.map((u: any) => {
             const userRoles: AppRole[] = (u.user_roles || []).map((r: any) => r.role);
             const availableRoles = ALL_ROLES.filter((r) => !userRoles.includes(r));
 
             return (
-              <Card key={u.id}>
-                <CardContent className="py-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Users className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <h4 className="font-medium text-foreground">{u.name || u.email}</h4>
-                        <p className="text-xs text-muted-foreground">{u.email}</p>
-                      </div>
+              <div key={u.id} className="px-5 py-4 space-y-3 hover:bg-muted/10 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-xl bg-muted flex items-center justify-center text-sm font-semibold text-foreground">
+                      {(u.name || u.email || "?")[0].toUpperCase()}
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-foreground text-sm">{u.name || u.email}</h4>
+                      <p className="text-xs text-muted-foreground">{u.email}</p>
                     </div>
                   </div>
+                </div>
 
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {(u.user_roles || []).map((r: any) => (
-                      <Badge key={r.id} variant="secondary" className="text-xs gap-1 pr-1">
-                        {roleLabels[r.role as AppRole] || r.role}
-                        <button
-                          onClick={() => removeRole.mutate({ roleId: r.id })}
-                          className="ml-0.5 hover:text-destructive"
-                          disabled={!isSSAdmin}
-                          style={{ visibility: isSSAdmin ? "visible" : "hidden" }}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                    {isSSAdmin && addingRoleFor === u.id ? (
-                      <Select onValueChange={(v) => addRole.mutate({ userId: u.id, role: v as AppRole })}>
-                        <SelectTrigger className="h-7 w-36 text-xs">
-                          <SelectValue placeholder="Select role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableRoles.map((r) => (
-                            <SelectItem key={r} value={r}>{roleLabels[r]}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      isSSAdmin && availableRoles.length > 0 && (
-                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setAddingRoleFor(u.id)}>
-                          <Plus className="h-3 w-3 mr-1" />Add Role
-                        </Button>
-                      )
-                    )}
-                  </div>
-
-                  {isSSAdmin && (
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4 text-muted-foreground" />
-                      <Select
-                        value={u.client_id || "none"}
-                        onValueChange={(v) => updateClient.mutate({ userId: u.id, clientId: v === "none" ? null : v })}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {(u.user_roles || []).map((r: any) => (
+                    <Badge key={r.id} variant="secondary" className="text-xs gap-1 pr-1 rounded-full">
+                      {roleLabels[r.role as AppRole] || r.role}
+                      <button
+                        onClick={() => removeRole.mutate({ roleId: r.id })}
+                        className="ml-0.5 hover:text-destructive"
+                        disabled={!isSSAdmin}
+                        style={{ visibility: isSSAdmin ? "visible" : "hidden" }}
                       >
-                        <SelectTrigger className="h-7 w-48 text-xs">
-                          <SelectValue placeholder="No client" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">No client</SelectItem>
-                          {clients.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                  {isSSAdmin && addingRoleFor === u.id ? (
+                    <Select onValueChange={(v) => addRole.mutate({ userId: u.id, role: v as AppRole })}>
+                      <SelectTrigger className="h-7 w-36 text-xs rounded-lg">
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableRoles.map((r) => (
+                          <SelectItem key={r} value={r}>{roleLabels[r]}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    isSSAdmin && availableRoles.length > 0 && (
+                      <Button variant="ghost" size="sm" className="h-6 px-2 text-xs rounded-lg" onClick={() => setAddingRoleFor(u.id)}>
+                        <Plus className="h-3 w-3 mr-1" />Add Role
+                      </Button>
+                    )
                   )}
-                  {!isSSAdmin && u.client_id && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Building2 className="h-4 w-4" />
-                      <span>{clients.find((c) => c.id === u.client_id)?.name || "Assigned client"}</span>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                </div>
+
+                {isSSAdmin && (
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <Select
+                      value={u.client_id || "none"}
+                      onValueChange={(v) => updateClient.mutate({ userId: u.id, clientId: v === "none" ? null : v })}
+                    >
+                      <SelectTrigger className="h-7 w-48 text-xs rounded-lg">
+                        <SelectValue placeholder="No client" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No client</SelectItem>
+                        {clients.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {!isSSAdmin && u.client_id && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Building2 className="h-4 w-4" />
+                    <span>{clients.find((c) => c.id === u.client_id)?.name || "Assigned client"}</span>
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>

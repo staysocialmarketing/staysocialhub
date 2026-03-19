@@ -53,7 +53,7 @@ export default function TeamWins() {
             value={newWin}
             onChange={e => setNewWin(e.target.value)}
             onKeyDown={e => e.key === "Enter" && addWin()}
-            className="flex-1"
+            className="flex-1 rounded-xl"
           />
           <Button size="sm" onClick={addWin}><Plus className="h-3.5 w-3.5 mr-1" /> Add</Button>
         </div>
@@ -62,9 +62,9 @@ export default function TeamWins() {
       {wins.length === 0 ? (
         <EmptyState icon={<Trophy className="h-8 w-8" />} title="No wins logged yet" description="Add team achievements to keep momentum going." />
       ) : (
-        <div className="space-y-2">
+        <div className="rounded-2xl bg-card shadow-soft divide-y divide-border/30">
           {wins.map(win => (
-            <div key={win.id} className="rounded-xl bg-card border border-border/40 shadow-sm p-4 flex items-center justify-between group">
+            <div key={win.id} className="px-5 py-4 flex items-center justify-between group hover:bg-muted/10 transition-colors">
               <div className="flex items-center gap-3">
                 <Sparkles className="h-4 w-4 text-primary shrink-0" />
                 <div>
@@ -73,7 +73,7 @@ export default function TeamWins() {
                 </div>
               </div>
               {isSSAdmin && (
-                <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => deleteWin(win.id)}>
+                <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg" onClick={() => deleteWin(win.id)}>
                   <Trash2 className="h-3.5 w-3.5 text-destructive" />
                 </Button>
               )}

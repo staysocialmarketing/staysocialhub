@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,10 +9,10 @@ import { useState } from "react";
 import { Check, X, MessageSquare } from "lucide-react";
 
 const statusColors: Record<string, string> = {
-  pending: "bg-yellow-100 text-yellow-800",
-  approved: "bg-green-100 text-green-800",
-  changes_requested: "bg-orange-100 text-orange-800",
-  rejected: "bg-red-100 text-red-800",
+  pending: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
+  approved: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
+  changes_requested: "bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20",
+  rejected: "bg-destructive/10 text-destructive border-destructive/20",
 };
 
 export default function AdminProfileUpdates() {
@@ -64,45 +63,49 @@ export default function AdminProfileUpdates() {
   });
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <h2 className="text-2xl font-bold text-foreground">Profile Update Reviews</h2>
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6">
+      <div>
+        <h1 className="text-xl font-bold tracking-tight text-foreground">Profile Update Reviews</h1>
+        <p className="text-sm text-muted-foreground mt-1">Review and approve client profile changes.</p>
+      </div>
 
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : updates.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">No profile update requests</CardContent></Card>
+        <div className="rounded-2xl bg-card shadow-soft py-12 text-center text-muted-foreground">No profile update requests</div>
       ) : (
-        <div className="space-y-4">
+        <div className="rounded-2xl bg-card shadow-soft divide-y divide-border/30">
           {updates.map((u: any) => (
-            <Card key={u.id}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">{u.clients?.name || "Unknown Client"}</CardTitle>
-                  <Badge className={statusColors[u.status]}>{u.status.replace("_", " ")}</Badge>
+            <div key={u.id} className="px-5 py-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-semibold text-foreground text-sm">{u.clients?.name || "Unknown Client"}</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Submitted by {u.users?.name || u.users?.email} on {new Date(u.created_at).toLocaleDateString()}
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Submitted by {u.users?.name || u.users?.email} on {new Date(u.created_at).toLocaleDateString()}
-                </p>
-              </CardHeader>
+                <Badge variant="outline" className={`rounded-full ${statusColors[u.status]}`}>{u.status.replace("_", " ")}</Badge>
+              </div>
               {u.status === "pending" && (
-                <CardContent className="space-y-3">
+                <div className="space-y-3">
                   <Textarea
                     placeholder="Review note (optional)"
                     value={reviewNote[u.id] || ""}
                     onChange={(e) => setReviewNote({ ...reviewNote, [u.id]: e.target.value })}
+                    className="rounded-xl"
                   />
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={() => actionUpdate.mutate({ id: u.id, status: "approved", clientId: u.client_id, proposedJson: u.proposed_profile_json })}>
+                    <Button size="sm" className="rounded-lg" onClick={() => actionUpdate.mutate({ id: u.id, status: "approved", clientId: u.client_id, proposedJson: u.proposed_profile_json })}>
                       <Check className="h-3 w-3 mr-1" />Approve
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => actionUpdate.mutate({ id: u.id, status: "changes_requested", clientId: u.client_id })}>
+                    <Button size="sm" variant="outline" className="rounded-lg" onClick={() => actionUpdate.mutate({ id: u.id, status: "changes_requested", clientId: u.client_id })}>
                       <MessageSquare className="h-3 w-3 mr-1" />Request Changes
                     </Button>
-                    <Button size="sm" variant="destructive" onClick={() => actionUpdate.mutate({ id: u.id, status: "rejected", clientId: u.client_id })}>
+                    <Button size="sm" variant="destructive" className="rounded-lg" onClick={() => actionUpdate.mutate({ id: u.id, status: "rejected", clientId: u.client_id })}>
                       <X className="h-3 w-3 mr-1" />Reject
                     </Button>
                   </div>
-                </CardContent>
+                </div>
               )}
-            </Card>
+            </div>
           ))}
         </div>
       )}

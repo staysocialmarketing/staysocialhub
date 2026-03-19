@@ -61,7 +61,7 @@ export default function TeamDashboard() {
         />
       </div>
 
-      <div className="rounded-xl bg-card border border-border/40 shadow-sm p-5 space-y-3">
+      <div className="rounded-2xl bg-card shadow-soft p-5 space-y-3">
         <SectionHeader title="Revenue Progress" icon={<TrendingUp className="h-4 w-4" />} className="mb-0" />
         <Progress value={progress} className="h-3" />
         <div className="flex justify-between text-xs text-muted-foreground">
@@ -72,7 +72,7 @@ export default function TeamDashboard() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div
-          className="rounded-xl bg-card border border-border/40 shadow-sm p-5 hover:shadow-md transition-all cursor-pointer"
+          className="rounded-2xl bg-card shadow-soft p-5 hover:shadow-lifted transition-all cursor-pointer"
           onClick={() => navigate("/admin/team/roles")}
         >
           <div className="flex items-center gap-2 mb-1">
@@ -82,7 +82,7 @@ export default function TeamDashboard() {
           <p className="text-xs text-muted-foreground">View team structure and missions.</p>
         </div>
         <div
-          className="rounded-xl bg-card border border-border/40 shadow-sm p-5 hover:shadow-md transition-all cursor-pointer"
+          className="rounded-2xl bg-card shadow-soft p-5 hover:shadow-lifted transition-all cursor-pointer"
           onClick={() => navigate("/admin/team/growth")}
         >
           <div className="flex items-center gap-2 mb-1">
@@ -92,7 +92,7 @@ export default function TeamDashboard() {
           <p className="text-xs text-muted-foreground">Learning paths for the team.</p>
         </div>
         <div
-          className="rounded-xl bg-card border border-border/40 shadow-sm p-5 hover:shadow-md transition-all cursor-pointer"
+          className="rounded-2xl bg-card shadow-soft p-5 hover:shadow-lifted transition-all cursor-pointer"
           onClick={() => navigate("/admin/team/wins")}
         >
           <div className="flex items-center gap-2 mb-1">

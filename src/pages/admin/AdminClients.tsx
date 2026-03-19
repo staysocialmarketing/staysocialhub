@@ -255,18 +255,21 @@ export default function AdminClients() {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-foreground">Clients</h2>
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">Clients</h1>
+          <p className="text-sm text-muted-foreground mt-1">Manage client accounts and settings.</p>
+        </div>
         {isSSAdmin && (
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button><Plus className="h-4 w-4 mr-2" />Add Client</Button>
+              <Button size="sm"><Plus className="h-4 w-4 mr-1" />Add Client</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="rounded-2xl border-0 shadow-float">
               <DialogHeader><DialogTitle>New Client</DialogTitle></DialogHeader>
               <div className="space-y-4 mt-2">
-                <div><Label>Client Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Business name" /></div>
+                <div><Label>Client Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Business name" className="rounded-xl" /></div>
                 <Button className="w-full" onClick={() => createClient.mutate()} disabled={!name}>Create Client</Button>
               </div>
             </DialogContent>
@@ -316,7 +319,7 @@ export default function AdminClients() {
 
       {/* Edit Client Dialog */}
       <Dialog open={!!editClient} onOpenChange={(o) => !o && setEditClient(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg rounded-2xl border-0 shadow-float">
           <DialogHeader><DialogTitle>Edit Client — {editClient?.name}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
@@ -607,52 +610,54 @@ export default function AdminClients() {
       </Dialog>
 
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : (
-        <div className="space-y-3">
+        <div className="rounded-2xl bg-card shadow-soft divide-y divide-border/30">
           {clients.map((c: any) => (
-            <Card key={c.id} className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => { if (isSSAdmin) openEditClient(c); }}>
-              <CardContent className="py-4 flex items-center justify-between">
+            <div key={c.id} className="px-5 py-4 cursor-pointer hover:bg-muted/20 transition-colors" onClick={() => { if (isSSAdmin) openEditClient(c); }}>
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Building2 className="h-5 w-5 text-muted-foreground" />
+                  <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Building2 className="h-4 w-4 text-primary" />
+                  </div>
                   <ClientHealthIndicator clientId={c.id} override={c.health_override} />
                   <div>
-                    <h4 className="font-medium text-foreground">{c.name}</h4>
+                    <h4 className="font-semibold text-foreground text-sm">{c.name}</h4>
                     <p className="text-xs text-muted-foreground">Plan: {c.plans?.name || "None"}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
-                  <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => navigate(`/admin/client-strategy/${c.id}`)}>
-                    <Target className="h-3.5 w-3.5" />Strategy
-                  </Button>
-                  <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => navigate(`/admin/client-brain/${c.id}`)}>
-                    <Brain className="h-3.5 w-3.5" />Brain
-                  </Button>
-                  <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => { setMediaClientId(c.id); setMediaClientName(c.name); }}>
-                    <Image className="h-3.5 w-3.5" />Media
-                  </Button>
-                  <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => { setActivityClientId(c.id); setActivityClientName(c.name); }}>
-                    <Activity className="h-3.5 w-3.5" />Activity
-                  </Button>
-                  <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => { setOnboardingClientId(c.id); setOnboardingClientName(c.name); }}>
-                    <ClipboardList className="h-3.5 w-3.5" />Onboarding
-                  </Button>
-                  {isSSAdmin && (
-                    <>
-                      <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => setWhatsNewClient(c.id)}>
-                        <Sparkles className="h-3.5 w-3.5" />What's New
-                      </Button>
-                      <div className="flex items-center gap-2">
-                        <Label className="text-xs text-muted-foreground">Assistants approve</Label>
-                        <Switch
-                          checked={c.assistants_can_approve}
-                          onCheckedChange={(v) => toggleAssistants.mutate({ id: c.id, value: v })}
-                        />
-                      </div>
-                    </>
-                  )}
-                  <Badge variant={c.status === "active" ? "default" : "secondary"}>{c.status}</Badge>
-                </div>
-              </CardContent>
-            </Card>
+                <Badge variant={c.status === "active" ? "default" : "secondary"} className="rounded-full">{c.status}</Badge>
+              </div>
+              <div className="flex items-center gap-1.5 mt-3 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="sm" className="text-xs gap-1 h-7 rounded-lg" onClick={() => navigate(`/admin/client-strategy/${c.id}`)}>
+                  <Target className="h-3.5 w-3.5" />Strategy
+                </Button>
+                <Button variant="ghost" size="sm" className="text-xs gap-1 h-7 rounded-lg" onClick={() => navigate(`/admin/client-brain/${c.id}`)}>
+                  <Brain className="h-3.5 w-3.5" />Brain
+                </Button>
+                <Button variant="ghost" size="sm" className="text-xs gap-1 h-7 rounded-lg" onClick={() => { setMediaClientId(c.id); setMediaClientName(c.name); }}>
+                  <Image className="h-3.5 w-3.5" />Media
+                </Button>
+                <Button variant="ghost" size="sm" className="text-xs gap-1 h-7 rounded-lg" onClick={() => { setActivityClientId(c.id); setActivityClientName(c.name); }}>
+                  <Activity className="h-3.5 w-3.5" />Activity
+                </Button>
+                <Button variant="ghost" size="sm" className="text-xs gap-1 h-7 rounded-lg" onClick={() => { setOnboardingClientId(c.id); setOnboardingClientName(c.name); }}>
+                  <ClipboardList className="h-3.5 w-3.5" />Onboarding
+                </Button>
+                {isSSAdmin && (
+                  <>
+                    <Button variant="ghost" size="sm" className="text-xs gap-1 h-7 rounded-lg" onClick={() => setWhatsNewClient(c.id)}>
+                      <Sparkles className="h-3.5 w-3.5" />What's New
+                    </Button>
+                    <div className="flex items-center gap-2 ml-2">
+                      <Label className="text-xs text-muted-foreground">Assistants approve</Label>
+                      <Switch
+                        checked={c.assistants_can_approve}
+                        onCheckedChange={(v) => toggleAssistants.mutate({ id: c.id, value: v })}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           ))}
         </div>
       )}
