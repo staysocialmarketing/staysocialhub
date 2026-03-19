@@ -417,7 +417,7 @@ function ClientDashboard() {
         .eq("client_id", profile.client_id)
         .order("created_at", { ascending: false })
         .limit(3);
-      return (data || []) as Array<{ id: string; type: string; content: string; created_at: string }>;
+      return (data || []) as unknown as Array<{ id: string; type: string; content: string; created_at: string }>;
     },
     enabled: !!profile?.client_id,
   });
