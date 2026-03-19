@@ -3,12 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { SectionHeader } from "@/components/ui/section-header";
 import { toast } from "sonner";
 import {
   Sparkles,
@@ -43,7 +41,6 @@ export default function SuccessCenter() {
 
   const clientId = profile?.client_id;
 
-  // Fetch client info + plan
   const { data: clientData } = useQuery({
     queryKey: ["success-client", clientId],
     queryFn: async () => {
@@ -57,7 +54,6 @@ export default function SuccessCenter() {
     enabled: !!clientId,
   });
 
-  // Fetch strategy
   const { data: strategy } = useQuery({
     queryKey: ["success-strategy", clientId],
     queryFn: async () => {
@@ -71,7 +67,6 @@ export default function SuccessCenter() {
     enabled: !!clientId,
   });
 
-  // Fetch extras
   const { data: extras } = useQuery({
     queryKey: ["success-extras", clientId],
     queryFn: async () => {
@@ -92,7 +87,6 @@ export default function SuccessCenter() {
     enabled: !!clientId,
   });
 
-  // Fetch activities with pagination
   const [activityLimit, setActivityLimit] = useState(10);
   const { data: activities = [] } = useQuery({
     queryKey: ["client-activity", clientId, activityLimit],
@@ -114,7 +108,7 @@ export default function SuccessCenter() {
     },
     enabled: !!clientId,
   });
-  // --- Derived data ---
+
   const strategyData = strategy as any;
   const focusText = extras?.focus_override || (strategyData?.focus_json as any)?.weekly_focus || "";
   const goalsText: string = (strategyData?.goals_json as any)?.objectives || "";
@@ -130,7 +124,6 @@ export default function SuccessCenter() {
   const recommendedStep = extras?.recommended_next_step || (recommendedItem ? `Add ${recommendedItem.name}` : null);
   const lastUpdated = extras?.updated_at || strategy?.updated_at || null;
 
-  // --- Editing state ---
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [editFocus, setEditFocus] = useState("");
   const [editWins, setEditWins] = useState<string[]>([]);
@@ -189,61 +182,55 @@ export default function SuccessCenter() {
 
   const EditButton = ({ section }: { section: string }) =>
     isSSRole && editingSection !== section ? (
-      <Button variant="ghost" size="sm" className="text-xs text-muted-foreground gap-1" onClick={() => startEdit(section)}>
+      <Button variant="ghost" size="sm" className="text-xs text-muted-foreground gap-1 rounded-xl" onClick={() => startEdit(section)}>
         <Pencil className="h-3 w-3" /> Edit
       </Button>
     ) : null;
 
   const SaveCancelButtons = ({ onSave }: { onSave: () => void }) => (
     <div className="flex gap-2 mt-3">
-      <Button size="sm" onClick={onSave} disabled={saveMutation.isPending}>
+      <Button size="sm" className="rounded-xl" onClick={onSave} disabled={saveMutation.isPending}>
         <Save className="h-3 w-3 mr-1" /> Save
       </Button>
-      <Button size="sm" variant="outline" onClick={() => setEditingSection(null)}>Cancel</Button>
+      <Button size="sm" variant="outline" className="rounded-xl" onClick={() => setEditingSection(null)}>Cancel</Button>
     </div>
   );
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-6">
-      {/* 1. HERO */}
-      <Card className="bg-gradient-to-br from-primary/5 via-background to-accent/5 border-primary/10">
-        <CardContent className="p-6 md:p-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-1">
-            Welcome back, {clientData?.name || profile?.name || "there"} {getWaveEmoji(profile?.name)}
-          </h1>
-          <p className="text-muted-foreground text-sm md:text-base">
-            Here's what we're focused on right now and what's coming next in your Stay Social System.
-          </p>
-          <div className="flex flex-wrap gap-2 mt-4">
-            {planName && (
-              <Badge variant="secondary" className="text-[11px]">
-                <CreditCard className="h-3 w-3 mr-1" /> {planName}
-              </Badge>
-            )}
-            {lastUpdated && (
-              <Badge variant="outline" className="text-[11px] text-muted-foreground">
-                Updated {new Date(lastUpdated).toLocaleDateString()}
-              </Badge>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+    <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
+      {/* 1. HERO — warm, borderless */}
+      <div className="rounded-2xl bg-gradient-to-br from-primary/8 via-background to-accent/5 p-6 md:p-8">
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight mb-1">
+          Welcome back, {clientData?.name || profile?.name || "there"} {getWaveEmoji(profile?.name)}
+        </h1>
+        <p className="text-muted-foreground text-sm md:text-base">
+          Here's what we're focused on right now and what's coming next in your Stay Social System.
+        </p>
+        <div className="flex flex-wrap gap-2 mt-4">
+          {planName && (
+            <Badge variant="secondary" className="text-[11px] rounded-full">
+              <CreditCard className="h-3 w-3 mr-1" /> {planName}
+            </Badge>
+          )}
+          {lastUpdated && (
+            <Badge variant="outline" className="text-[11px] text-muted-foreground rounded-full">
+              Updated {new Date(lastUpdated).toLocaleDateString()}
+            </Badge>
+          )}
+        </div>
+      </div>
 
-      {/* ONBOARDING PROGRESS (client read-only) */}
+      {/* ONBOARDING PROGRESS */}
       {clientId && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <CheckSquare className="h-4 w-4 text-primary" /> Onboarding Progress
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <OnboardingTracker clientId={clientId} isAdmin={false} compact />
-          </CardContent>
-        </Card>
+        <div className="card-elevated p-5">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground mb-3">
+            <CheckSquare className="h-4 w-4 text-primary" /> Onboarding Progress
+          </h3>
+          <OnboardingTracker clientId={clientId} isAdmin={false} compact />
+        </div>
       )}
 
-      {/* STRATEGY HIGHLIGHTS (from visible_sections) */}
+      {/* STRATEGY HIGHLIGHTS */}
       {(() => {
         const vs = (strategyData?.visible_sections as any) || {};
         const hasGoals = vs.goals && goalsText.trim();
@@ -253,246 +240,216 @@ export default function SuccessCenter() {
         const hasAny = hasGoals || hasFocus || hasPillars || hasCampaigns;
         if (!hasAny) return null;
         return (
-          <Card className="border-primary/10">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Sparkles className="h-4 w-4 text-primary" /> Strategy Highlights
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {hasFocus && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1"><Focus className="h-3 w-3" /> Current Focus</p>
-                  <p className="text-sm whitespace-pre-wrap">{focusText}</p>
+          <div className="card-elevated p-5 space-y-4">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Sparkles className="h-4 w-4 text-primary" /> Strategy Highlights
+            </h3>
+            {hasFocus && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1"><Focus className="h-3 w-3" /> Current Focus</p>
+                <p className="text-sm whitespace-pre-wrap">{focusText}</p>
+              </div>
+            )}
+            {hasGoals && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1"><Target className="h-3 w-3" /> Goals</p>
+                <ul className="space-y-1">
+                  {goalsList.map((g, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm">
+                      <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />{g}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {hasPillars && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1"><Columns3 className="h-3 w-3" /> Content Pillars</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {(strategyData.pillars_json as string[]).map((p, i) => (
+                    <Badge key={i} variant="secondary" className="text-xs rounded-full">{p}</Badge>
+                  ))}
                 </div>
-              )}
-              {hasGoals && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1"><Target className="h-3 w-3" /> Goals</p>
-                  <ul className="space-y-1">
-                    {goalsList.map((g, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm">
-                        <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />{g}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {hasPillars && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1"><Columns3 className="h-3 w-3" /> Content Pillars</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(strategyData.pillars_json as string[]).map((p, i) => (
-                      <Badge key={i} variant="secondary" className="text-xs">{p}</Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {hasCampaigns && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1"><Megaphone className="h-3 w-3" /> Campaigns</p>
-                  <ul className="space-y-1">
-                    {prioritiesList.map((c, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm">
-                        <span className="mt-1 h-1.5 w-1.5 rounded-full bg-accent-foreground/30 shrink-0" />{c}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              </div>
+            )}
+            {hasCampaigns && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1"><Megaphone className="h-3 w-3" /> Campaigns</p>
+                <ul className="space-y-1">
+                  {prioritiesList.map((c, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm">
+                      <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-accent-foreground/30 shrink-0" />{c}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         );
       })()}
 
       {/* 2. CURRENT FOCUS */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Focus className="h-4 w-4 text-primary" /> Current Focus
-            </CardTitle>
-            <EditButton section="focus" />
-          </div>
-        </CardHeader>
-        <CardContent>
-          {editingSection === "focus" ? (
-            <>
-              <Textarea value={editFocus} onChange={(e) => setEditFocus(e.target.value)} rows={3} placeholder="What we're focused on this week..." />
-              <SaveCancelButtons onSave={saveFocus} />
-            </>
-          ) : (
-            <p className="text-sm text-foreground whitespace-pre-wrap">{focusText || <span className="text-muted-foreground italic">No focus set yet.</span>}</p>
-          )}
-        </CardContent>
-      </Card>
+      <div className="card-elevated p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Focus className="h-4 w-4 text-primary" /> Current Focus
+          </h3>
+          <EditButton section="focus" />
+        </div>
+        {editingSection === "focus" ? (
+          <>
+            <Textarea className="rounded-xl" value={editFocus} onChange={(e) => setEditFocus(e.target.value)} rows={3} placeholder="What we're focused on this week..." />
+            <SaveCancelButtons onSave={saveFocus} />
+          </>
+        ) : (
+          <p className="text-sm text-foreground whitespace-pre-wrap">{focusText || <span className="text-muted-foreground italic">No focus set yet.</span>}</p>
+        )}
+      </div>
 
       {/* 3. GOALS */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Target className="h-4 w-4 text-primary" /> Goals
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {goalsList.length > 0 ? (
-            <ul className="space-y-2">
-              {goalsList.map((g, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm">
-                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
-                  {g}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-muted-foreground italic">No goals defined yet.</p>
-          )}
-        </CardContent>
-      </Card>
+      <div className="card-elevated p-5">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground mb-3">
+          <Target className="h-4 w-4 text-primary" /> Goals
+        </h3>
+        {goalsList.length > 0 ? (
+          <ul className="space-y-2">
+            {goalsList.map((g, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm">
+                <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                {g}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground italic">No goals defined yet.</p>
+        )}
+      </div>
 
       {/* 4. ACTIVE PRIORITIES */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Megaphone className="h-4 w-4 text-primary" /> Active Priorities
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {prioritiesList.length > 0 ? (
-            <ul className="space-y-2">
-              {prioritiesList.map((p, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm">
-                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-accent-foreground/30 shrink-0" />
-                  {p}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-muted-foreground italic">No active priorities yet.</p>
-          )}
-        </CardContent>
-      </Card>
+      <div className="card-elevated p-5">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground mb-3">
+          <Megaphone className="h-4 w-4 text-primary" /> Active Priorities
+        </h3>
+        {prioritiesList.length > 0 ? (
+          <ul className="space-y-2">
+            {prioritiesList.map((p, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm">
+                <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-accent-foreground/30 shrink-0" />
+                {p}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground italic">No active priorities yet.</p>
+        )}
+      </div>
 
       {/* 5. RECENT WINS */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Trophy className="h-4 w-4 text-primary" /> Recent Wins
-            </CardTitle>
-            <EditButton section="wins" />
-          </div>
-        </CardHeader>
-        <CardContent>
-          {editingSection === "wins" ? (
-            <>
-              <div className="space-y-2">
-                {editWins.map((w, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <span className="text-sm flex-1">{w}</span>
-                    <button onClick={() => removeFromList(editWins, setEditWins, i)} className="text-muted-foreground hover:text-destructive">
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <div className="flex gap-2 mt-3">
-                <Input value={newItem} onChange={(e) => setNewItem(e.target.value)} placeholder="Add a win..." onKeyDown={(e) => e.key === "Enter" && addToList(editWins, setEditWins)} />
-                <Button variant="outline" size="icon" onClick={() => addToList(editWins, setEditWins)}><Plus className="h-4 w-4" /></Button>
-              </div>
-              <SaveCancelButtons onSave={saveWins} />
-            </>
-          ) : recentWins.length > 0 ? (
-            <ul className="space-y-2">
-              {recentWins.map((w, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm">
-                  <span className="text-primary mt-0.5">✓</span> {w}
-                </li>
+      <div className="card-elevated p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Trophy className="h-4 w-4 text-primary" /> Recent Wins
+          </h3>
+          <EditButton section="wins" />
+        </div>
+        {editingSection === "wins" ? (
+          <>
+            <div className="space-y-2">
+              {editWins.map((w, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-sm flex-1">{w}</span>
+                  <button onClick={() => removeFromList(editWins, setEditWins, i)} className="text-muted-foreground hover:text-destructive">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-muted-foreground italic">No recent wins yet.</p>
-          )}
-        </CardContent>
-      </Card>
+            </div>
+            <div className="flex gap-2 mt-3">
+              <Input className="rounded-xl" value={newItem} onChange={(e) => setNewItem(e.target.value)} placeholder="Add a win..." onKeyDown={(e) => e.key === "Enter" && addToList(editWins, setEditWins)} />
+              <Button variant="outline" size="icon" className="rounded-xl" onClick={() => addToList(editWins, setEditWins)}><Plus className="h-4 w-4" /></Button>
+            </div>
+            <SaveCancelButtons onSave={saveWins} />
+          </>
+        ) : recentWins.length > 0 ? (
+          <ul className="space-y-2">
+            {recentWins.map((w, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm">
+                <span className="text-primary mt-0.5">✓</span> {w}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground italic">No recent wins yet.</p>
+        )}
+      </div>
 
       {/* 5b. ACTIVITY TIMELINE */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Activity className="h-4 w-4 text-primary" /> Recent Activity
-            </CardTitle>
-            {isSSRole && clientId && <AddActivityDialog clientId={clientId} />}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <ActivityTimeline
-            activities={activities}
-            isSSRole={!!isSSRole}
-            hasMore={activities.length === activityLimit}
-            onLoadMore={() => setActivityLimit((l) => l + 10)}
-          />
-        </CardContent>
-      </Card>
+      <div className="card-elevated p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Activity className="h-4 w-4 text-primary" /> Recent Activity
+          </h3>
+          {isSSRole && clientId && <AddActivityDialog clientId={clientId} />}
+        </div>
+        <ActivityTimeline
+          activities={activities}
+          isSSRole={!!isSSRole}
+          hasMore={activities.length === activityLimit}
+          onLoadMore={() => setActivityLimit((l) => l + 10)}
+        />
+      </div>
 
       {/* 6. COMING UP NEXT */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <CalendarClock className="h-4 w-4 text-primary" /> Coming Up Next
-            </CardTitle>
-            <EditButton section="upcoming" />
-          </div>
-        </CardHeader>
-        <CardContent>
-          {editingSection === "upcoming" ? (
-            <>
-              <div className="space-y-2">
-                {editUpcoming.map((u, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <span className="text-sm flex-1">{u}</span>
-                    <button onClick={() => removeFromList(editUpcoming, setEditUpcoming, i)} className="text-muted-foreground hover:text-destructive">
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <div className="flex gap-2 mt-3">
-                <Input value={newItem} onChange={(e) => setNewItem(e.target.value)} placeholder="Add upcoming item..." onKeyDown={(e) => e.key === "Enter" && addToList(editUpcoming, setEditUpcoming)} />
-                <Button variant="outline" size="icon" onClick={() => addToList(editUpcoming, setEditUpcoming)}><Plus className="h-4 w-4" /></Button>
-              </div>
-              <SaveCancelButtons onSave={saveUpcoming} />
-            </>
-          ) : comingUpNext.length > 0 ? (
-            <ul className="space-y-2">
-              {comingUpNext.map((u, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm">
-                  <CalendarClock className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" /> {u}
-                </li>
+      <div className="card-elevated p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <CalendarClock className="h-4 w-4 text-primary" /> Coming Up Next
+          </h3>
+          <EditButton section="upcoming" />
+        </div>
+        {editingSection === "upcoming" ? (
+          <>
+            <div className="space-y-2">
+              {editUpcoming.map((u, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-sm flex-1">{u}</span>
+                  <button onClick={() => removeFromList(editUpcoming, setEditUpcoming, i)} className="text-muted-foreground hover:text-destructive">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-muted-foreground italic">Nothing scheduled yet.</p>
-          )}
-        </CardContent>
-      </Card>
+            </div>
+            <div className="flex gap-2 mt-3">
+              <Input className="rounded-xl" value={newItem} onChange={(e) => setNewItem(e.target.value)} placeholder="Add upcoming item..." onKeyDown={(e) => e.key === "Enter" && addToList(editUpcoming, setEditUpcoming)} />
+              <Button variant="outline" size="icon" className="rounded-xl" onClick={() => addToList(editUpcoming, setEditUpcoming)}><Plus className="h-4 w-4" /></Button>
+            </div>
+            <SaveCancelButtons onSave={saveUpcoming} />
+          </>
+        ) : comingUpNext.length > 0 ? (
+          <ul className="space-y-2">
+            {comingUpNext.map((u, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm">
+                <CalendarClock className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" /> {u}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground italic">Nothing scheduled yet.</p>
+        )}
+      </div>
 
       {/* 7. YOUR PLAN */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <CreditCard className="h-4 w-4 text-primary" /> Your Plan
-            </CardTitle>
-            <EditButton section="recommended" />
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <div className="card-elevated p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <CreditCard className="h-4 w-4 text-primary" /> Your Plan
+          </h3>
+          <EditButton section="recommended" />
+        </div>
+        <div className="space-y-4">
           {planName ? (
             <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="text-sm px-3 py-1">{planName}</Badge>
+              <Badge variant="secondary" className="text-sm px-3 py-1 rounded-full">{planName}</Badge>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground italic">No plan assigned.</p>
@@ -502,68 +459,59 @@ export default function SuccessCenter() {
             <>
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Recommended Next Step</p>
-                <Input value={editRecommended} onChange={(e) => setEditRecommended(e.target.value)} placeholder="e.g. Add Lead Capture" />
+                <Input className="rounded-xl" value={editRecommended} onChange={(e) => setEditRecommended(e.target.value)} placeholder="e.g. Add Lead Capture" />
               </div>
               <SaveCancelButtons onSave={saveRecommended} />
             </>
           ) : recommendedStep ? (
-            <Card className="bg-accent/30 border-accent">
-              <CardContent className="p-4 flex items-start gap-3">
-                <Sparkles className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-foreground">Recommended Next Step</p>
-                  <p className="text-sm text-muted-foreground">{recommendedStep}</p>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="rounded-xl bg-accent/30 p-4 flex items-start gap-3">
+              <Sparkles className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-foreground">Recommended Next Step</p>
+                <p className="text-sm text-muted-foreground">{recommendedStep}</p>
+              </div>
+            </div>
           ) : null}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* 8. QUICK ACTIONS */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Zap className="h-4 w-4 text-primary" /> Quick Actions
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" onClick={() => navigate("/requests")}>
-              <MessageSquarePlus className="h-4 w-4" />
-              <span className="text-xs">Submit a Request</span>
-            </Button>
-            <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" onClick={() => navigate("/approvals")}>
-              <CheckSquare className="h-4 w-4" />
-              <span className="text-xs">View Approvals</span>
-            </Button>
-            <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" onClick={() => navigate("/content-library")}>
-              <FolderOpen className="h-4 w-4" />
-              <span className="text-xs">View My Media</span>
-            </Button>
-            <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" onClick={() => window.open("https://calendly.com", "_blank")}>
-              <Phone className="h-4 w-4" />
-              <span className="text-xs">Book a Strategy Call</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* 8. QUICK ACTIONS — large tappable cards */}
+      <div>
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground mb-3">
+          <Zap className="h-4 w-4 text-primary" /> Quick Actions
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { icon: MessageSquarePlus, label: "Submit a Request", to: "/requests" },
+            { icon: CheckSquare, label: "View Approvals", to: "/approvals" },
+            { icon: FolderOpen, label: "View My Media", to: "/content-library" },
+            { icon: Phone, label: "Book a Call", to: "https://calendly.com", external: true },
+          ].map((action) => (
+            <button
+              key={action.label}
+              onClick={() => action.external ? window.open(action.to, "_blank") : navigate(action.to)}
+              className="card-elevated p-4 flex flex-col items-center gap-2 hover:shadow-lifted transition-all group cursor-pointer"
+            >
+              <action.icon className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+              <span className="text-xs font-medium text-foreground text-center">{action.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* 9. PLATFORM UPDATES */}
-      <Card className="border-dashed">
-        <CardContent className="p-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <div>
-              <p className="text-sm font-medium text-foreground">Platform Updates</p>
-              <p className="text-xs text-muted-foreground">See what's new in the Stay Social HUB.</p>
-            </div>
+      <div className="card-elevated p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Sparkles className="h-5 w-5 text-primary" />
+          <div>
+            <p className="text-sm font-medium text-foreground">Platform Updates</p>
+            <p className="text-xs text-muted-foreground">See what's new in the Stay Social HUB.</p>
           </div>
-          <Button variant="ghost" size="sm" className="gap-1" onClick={() => navigate("/whats-new")}>
-            View Updates <ArrowRight className="h-3 w-3" />
-          </Button>
-        </CardContent>
-      </Card>
+        </div>
+        <Button variant="ghost" size="sm" className="gap-1 rounded-xl" onClick={() => navigate("/whats-new")}>
+          View Updates <ArrowRight className="h-3 w-3" />
+        </Button>
+      </div>
     </div>
   );
 }

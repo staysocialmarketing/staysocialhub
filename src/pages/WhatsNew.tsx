@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Sparkles, Check, Loader2, Star, FileText } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,7 +60,6 @@ export default function WhatsNew() {
     });
   }, [profile?.client_id]);
 
-  // Fetch client-visible release notes
   useEffect(() => {
     supabase
       .from("platform_versions")
@@ -107,50 +104,54 @@ export default function WhatsNew() {
     const requested = requestedAddons.has(item.name);
     const isLoading = loading === item.name;
     return (
-      <Card key={item.id} className={`hover:shadow-md transition-shadow ${isRecommended ? "border-primary/40 ring-1 ring-primary/20" : ""}`}>
-        <CardContent className="pt-5 space-y-3">
-          <div className="flex items-start justify-between">
-            <span className="text-3xl">{item.icon || "📦"}</span>
-            {isRecommended && (
-              <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px]">
-                <Star className="h-3 w-3 mr-0.5" /> Recommended
-              </Badge>
-            )}
-          </div>
-          <h3 className="font-semibold text-foreground">{item.name}</h3>
-          {item.description && <p className="text-sm text-muted-foreground">{item.description}</p>}
-          {item.price && <p className="text-sm font-medium text-primary">{item.price}</p>}
-          <Button
-            variant={requested ? "secondary" : "default"}
-            size="sm"
-            disabled={requested || isLoading}
-            onClick={() => handleRequest(item.name)}
-          >
-            {isLoading ? (
-              <><Loader2 className="h-3 w-3 animate-spin" /> Sending…</>
-            ) : requested ? (
-              <><Check className="h-3 w-3" /> Requested</>
-            ) : (
-              "Request Package"
-            )}
-          </Button>
-        </CardContent>
-      </Card>
+      <div
+        key={item.id}
+        className={`card-elevated p-5 space-y-3 transition-all hover:shadow-lifted ${isRecommended ? "ring-1 ring-primary/20" : ""}`}
+      >
+        <div className="flex items-start justify-between">
+          <span className="text-3xl">{item.icon || "📦"}</span>
+          {isRecommended && (
+            <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] rounded-full">
+              <Star className="h-3 w-3 mr-0.5" /> Recommended
+            </Badge>
+          )}
+        </div>
+        <h3 className="font-semibold text-foreground">{item.name}</h3>
+        {item.description && <p className="text-sm text-muted-foreground">{item.description}</p>}
+        {item.price && <p className="text-sm font-medium text-primary">{item.price}</p>}
+        <Button
+          variant={requested ? "secondary" : "default"}
+          size="sm"
+          className="rounded-xl"
+          disabled={requested || isLoading}
+          onClick={() => handleRequest(item.name)}
+        >
+          {isLoading ? (
+            <><Loader2 className="h-3 w-3 animate-spin" /> Sending…</>
+          ) : requested ? (
+            <><Check className="h-3 w-3" /> Requested</>
+          ) : (
+            "Request Package"
+          )}
+        </Button>
+      </div>
     );
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-8">
-      <div className="flex items-center gap-2">
-        <Sparkles className="h-6 w-6 text-warning" />
-        <h2 className="text-2xl font-bold text-foreground">What's New</h2>
+    <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-8">
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <Sparkles className="h-6 w-6 text-warning" />
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">What's New</h1>
+        </div>
+        <p className="text-sm text-muted-foreground">Supercharge your social presence with these services.</p>
       </div>
-      <p className="text-muted-foreground">Supercharge your social presence with these services.</p>
 
       {recommendedItem && (
         <div>
-          <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
-            <Star className="h-5 w-5 text-warning" /> Recommended for You
+          <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+            <Star className="h-4 w-4 text-warning" /> Recommended for You
           </h3>
           <div className="max-w-sm">
             {renderCard(recommendedItem, true)}
@@ -160,8 +161,8 @@ export default function WhatsNew() {
 
       {solutions.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold text-foreground mb-3">Solutions</h3>
-          <p className="text-sm text-muted-foreground mb-4">Our done-for-you plans to take your brand further.</p>
+          <h3 className="text-sm font-semibold text-foreground mb-1">Solutions</h3>
+          <p className="text-xs text-muted-foreground mb-4">Our done-for-you plans to take your brand further.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {solutions.map((item) => renderCard(item, item.id === recommendedItem?.id))}
           </div>
@@ -170,8 +171,8 @@ export default function WhatsNew() {
 
       {upgrades.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold text-foreground mb-3">Upgrades</h3>
-          <p className="text-sm text-muted-foreground mb-4">Add-on services to enhance your current plan.</p>
+          <h3 className="text-sm font-semibold text-foreground mb-1">Upgrades</h3>
+          <p className="text-xs text-muted-foreground mb-4">Add-on services to enhance your current plan.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {upgrades.map((item) => renderCard(item, item.id === recommendedItem?.id))}
           </div>
@@ -182,38 +183,48 @@ export default function WhatsNew() {
         <p className="text-muted-foreground text-center py-12">No services available right now. Check back soon!</p>
       )}
 
-      {/* Release Notes Section */}
+      {/* Release Notes — Timeline layout */}
       {releaseNotes.length > 0 && (
-        <>
-          <Separator />
-          <div id="release-notes">
-            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-              <FileText className="h-5 w-5 text-primary" /> Release Notes
-            </h3>
-            <div className="space-y-3">
+        <div id="release-notes">
+          <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+            <FileText className="h-4 w-4 text-primary" /> Release Notes
+          </h3>
+          <div className="relative pl-6">
+            {/* Timeline line */}
+            <div className="absolute left-[9px] top-2 bottom-2 w-px bg-border/50" />
+
+            <div className="space-y-4">
               {releaseNotes.map((rn) => (
-                <Card key={rn.id}>
-                  <CardContent className="pt-4">
+                <div key={rn.id} className="relative">
+                  {/* Timeline dot */}
+                  <div className={`absolute -left-6 top-1.5 h-[10px] w-[10px] rounded-full border-2 ${rn.minor_version === 0 ? "border-primary bg-primary/20" : "border-muted-foreground/40 bg-background"}`} />
+
+                  <div className="card-elevated p-4">
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline" className={`text-xs ${rn.minor_version === 0 ? "border-orange-400 text-orange-600 bg-orange-50" : "border-blue-400 text-blue-600 bg-blue-50"}`}>V{rn.major_version}.{rn.minor_version}</Badge>
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] rounded-full ${rn.minor_version === 0 ? "border-primary/40 text-primary bg-primary/5" : "border-muted-foreground/30 text-muted-foreground"}`}
+                          >
+                            V{rn.major_version}.{rn.minor_version}
+                          </Badge>
                           {rn.title && <span className="font-medium text-foreground text-sm">{rn.title}</span>}
                         </div>
                         {rn.notes && <p className="text-sm text-muted-foreground">{rn.notes}</p>}
                       </div>
                       {rn.published_at && (
-                        <span className="text-xs text-muted-foreground shrink-0">
+                        <span className="text-[11px] text-muted-foreground shrink-0 ml-4">
                           {format(new Date(rn.published_at), "MMM d, yyyy")}
                         </span>
                       )}
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
