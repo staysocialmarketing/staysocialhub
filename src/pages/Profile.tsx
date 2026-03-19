@@ -152,7 +152,7 @@ export default function Profile() {
           <p className="text-sm text-muted-foreground mt-0.5">Your brand information and preferences</p>
         </div>
         {pendingUpdate && (
-          <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 rounded-full">
+          <Badge className="bg-warning/10 text-warning border-warning/20 rounded-full">
             <Clock className="h-3 w-3 mr-1" />
             Pending Review
           </Badge>
