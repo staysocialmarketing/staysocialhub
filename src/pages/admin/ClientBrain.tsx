@@ -9,7 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ArrowLeft, Brain, Building2, Mic2, Users, ShoppingBag, FileText, FolderOpen, X, Plus, Upload, Link2, Save } from "lucide-react";
+import CaptureTab from "@/components/brain/CaptureTab";
 import { toast } from "sonner";
 
 // Tag input component
