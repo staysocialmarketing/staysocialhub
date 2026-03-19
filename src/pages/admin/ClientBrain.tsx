@@ -208,8 +208,9 @@ export default function ClientBrain() {
       </div>
 
       <Tabs defaultValue="brand-twin" className="w-full">
-        <TabsList className="w-full grid grid-cols-2">
+        <TabsList className="w-full grid grid-cols-3">
           <TabsTrigger value="brand-twin">Brand Twin</TabsTrigger>
+          <TabsTrigger value="interview">AI Interview</TabsTrigger>
           <TabsTrigger value="capture">Capture</TabsTrigger>
         </TabsList>
 
