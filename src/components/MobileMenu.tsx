@@ -81,7 +81,7 @@ export function MobileMenu({ onNavigate }: MobileMenuProps) {
   };
 
   return (
-    <ScrollArea className="max-h-[65vh]">
+    <div className="overflow-y-auto max-h-[65vh] overscroll-contain -webkit-overflow-scrolling-touch">
       <div className="space-y-4 pb-4">
         {isInternalUser ? (
           ssMenuSections.map((section) => {
