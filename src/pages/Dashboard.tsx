@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientFilter } from "@/contexts/ClientFilterContext";
 import { Button } from "@/components/ui/button";
@@ -30,10 +30,20 @@ import {
   Sparkles,
   CheckCircle2,
   UserPlus,
+  PenLine,
+  Mic,
+  Paperclip,
+  Send,
+  Square,
+  X,
+  Loader2,
 } from "lucide-react";
 import { StatCard } from "@/components/ui/stat-card";
 import { SectionHeader } from "@/components/ui/section-header";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { compressImage } from "@/lib/imageUtils";
 
 const TASK_STATUSES = ["backlog", "todo", "in_progress", "waiting", "review", "complete"] as const;
 const TASK_STATUS_LABELS: Record<string, string> = {
@@ -386,11 +396,187 @@ function ClientDashboard() {
     : marketplaceItems[0] || null;
   const newestItem = marketplaceItems.find((i: any) => i.id !== recommendedItem?.id) || null;
 
+  const queryClient = useQueryClient();
+  const [captureInput, setCaptureInput] = useState("");
+  const [captureExpanded, setCaptureExpanded] = useState(false);
+  const [captureSaving, setCaptureSaving] = useState(false);
+  const [captureRecording, setCaptureRecording] = useState(false);
+  const [captureTranscribing, setCaptureTranscribing] = useState(false);
+  const captureMediaRef = useRef<MediaRecorder | null>(null);
+  const captureChunksRef = useRef<Blob[]>([]);
+  const captureFileRef = useRef<HTMLInputElement>(null);
+  const captureInputRef = useRef<HTMLTextAreaElement>(null);
+
+  const { data: recentCaptures = [] } = useQuery({
+    queryKey: ["client-recent-captures", profile?.client_id],
+    queryFn: async () => {
+      if (!profile?.client_id) return [];
+      const { data } = await supabase
+        .from("brain_captures" as any)
+        .select("*")
+        .eq("client_id", profile.client_id)
+        .order("created_at", { ascending: false })
+        .limit(3);
+      return (data || []) as unknown as Array<{ id: string; type: string; content: string; created_at: string }>;
+    },
+    enabled: !!profile?.client_id,
+  });
+
+  const saveCaptureNote = async () => {
+    if (!captureInput.trim() || !profile?.client_id) return;
+    setCaptureSaving(true);
+    const { error } = await supabase.from("brain_captures" as any).insert({
+      client_id: profile.client_id,
+      created_by_user_id: profile.id,
+      type: "note",
+      content: captureInput.trim(),
+    });
+    setCaptureSaving(false);
+    if (error) { toast.error("Failed to save"); return; }
+    toast.success("Captured!");
+    setCaptureInput("");
+    setCaptureExpanded(false);
+    queryClient.invalidateQueries({ queryKey: ["client-recent-captures"] });
+    queryClient.invalidateQueries({ queryKey: ["brain-captures"] });
+  };
+
+  const startCaptureRecording = useCallback(async () => {
+    if (!profile?.client_id) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      captureChunksRef.current = [];
+      mr.ondataavailable = (e) => { if (e.data.size > 0) captureChunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(captureChunksRef.current, { type: "audio/webm" });
+        const path = `captures/${profile.client_id}/${Date.now()}-voice.webm`;
+        const { error } = await supabase.storage.from("creative-assets").upload(path, blob);
+        if (error) { toast.error("Upload failed"); return; }
+        const url = supabase.storage.from("creative-assets").getPublicUrl(path).data.publicUrl;
+        setCaptureTranscribing(true);
+        let transcript = "";
+        try {
+          const { data } = await supabase.functions.invoke("transcribe-capture", { body: { audioUrl: url } });
+          transcript = data?.transcript || "";
+        } catch {}
+        setCaptureTranscribing(false);
+        const { error: insertErr } = await supabase.from("brain_captures" as any).insert({
+          client_id: profile.client_id,
+          created_by_user_id: profile.id,
+          type: "voice",
+          content: transcript || "Voice note",
+          attachment_url: url,
+          attachment_name: "voice.webm",
+          voice_transcript: transcript,
+        });
+        if (!insertErr) {
+          toast.success("Voice captured!");
+          queryClient.invalidateQueries({ queryKey: ["client-recent-captures"] });
+        }
+      };
+      captureMediaRef.current = mr;
+      mr.start();
+      setCaptureRecording(true);
+    } catch { toast.error("Microphone access denied"); }
+  }, [profile?.client_id, profile?.id, queryClient]);
+
+  const stopCaptureRecording = useCallback(() => {
+    captureMediaRef.current?.stop();
+    setCaptureRecording(false);
+  }, []);
+
+  const handleCaptureFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files?.length || !profile?.client_id) return;
+    setCaptureSaving(true);
+    for (const file of Array.from(files)) {
+      if (file.size > 10 * 1024 * 1024) { toast.error(`${file.name} too large`); continue; }
+      let uploadFile: File | Blob = file;
+      if (file.type.startsWith("image/")) uploadFile = await compressImage(file);
+      const path = `captures/${profile.client_id}/${Date.now()}-${file.name}`;
+      const { error } = await supabase.storage.from("creative-assets").upload(path, uploadFile);
+      if (error) continue;
+      const url = supabase.storage.from("creative-assets").getPublicUrl(path).data.publicUrl;
+      await supabase.from("brain_captures" as any).insert({
+        client_id: profile.client_id, created_by_user_id: profile.id,
+        type: "file", content: file.name, attachment_url: url, attachment_name: file.name,
+      });
+    }
+    setCaptureSaving(false);
+    toast.success("File captured!");
+    queryClient.invalidateQueries({ queryKey: ["client-recent-captures"] });
+    if (captureFileRef.current) captureFileRef.current.value = "";
+  };
+
+  const TYPE_EMOJI: Record<string, string> = { note: "📝", voice: "🎤", link: "🔗", file: "📄" };
+
   return (
     <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-foreground tracking-tight">Welcome back{profile?.name ? `, ${profile.name.split(" ")[0]}` : ""}</h1>
         <p className="text-sm text-muted-foreground mt-1">Here's what's happening with your marketing.</p>
+      </div>
+
+      {/* ─── Capture Widget ─── */}
+      <div className="rounded-xl border border-border bg-card p-4 space-y-3 shadow-sm">
+        <p className="text-sm font-medium text-foreground">💡 What's on your mind?</p>
+        {!captureExpanded ? (
+          <button
+            onClick={() => { setCaptureExpanded(true); setTimeout(() => captureInputRef.current?.focus(), 100); }}
+            className="w-full text-left text-sm text-muted-foreground bg-secondary/50 rounded-xl px-4 py-3 hover:bg-secondary transition-colors"
+          >
+            Tap to capture an idea, link, or thought...
+          </button>
+        ) : (
+          <div className="space-y-2 animate-in slide-in-from-top-2 duration-200">
+            <Textarea
+              ref={captureInputRef}
+              value={captureInput}
+              onChange={(e) => setCaptureInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveCaptureNote(); } }}
+              placeholder="What's on your mind?"
+              className="min-h-[80px] text-sm resize-none rounded-xl bg-background"
+              rows={3}
+            />
+            <div className="flex items-center justify-between">
+              <div className="flex gap-1">
+                <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full" onClick={captureRecording ? stopCaptureRecording : startCaptureRecording}>
+                  {captureRecording ? <Square className="h-4 w-4 text-destructive" /> : <Mic className="h-4 w-4 text-muted-foreground" />}
+                </Button>
+                <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full" onClick={() => captureFileRef.current?.click()}>
+                  <Paperclip className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </div>
+              <div className="flex gap-1.5">
+                <Button size="sm" variant="ghost" className="rounded-full text-xs" onClick={() => { setCaptureExpanded(false); setCaptureInput(""); }}>
+                  <X className="h-3 w-3" />
+                </Button>
+                <Button size="sm" className="rounded-full text-xs" onClick={saveCaptureNote} disabled={!captureInput.trim() || captureSaving}>
+                  {captureSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Send className="h-3 w-3 mr-1" /> Capture</>}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+        {captureTranscribing && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin" /> Transcribing voice...
+          </div>
+        )}
+        {recentCaptures.length > 0 && (
+          <div className="space-y-1.5 pt-1">
+            <p className="text-xs text-muted-foreground font-medium">Recent captures</p>
+            {recentCaptures.map((c: any) => (
+              <div key={c.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/30 text-sm">
+                <span className="text-xs">{TYPE_EMOJI[c.type] || "📝"}</span>
+                <span className="truncate text-foreground text-xs">{c.content || "Untitled"}</span>
+                <span className="ml-auto text-[10px] text-muted-foreground shrink-0">{format(new Date(c.created_at), "MMM d")}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <input ref={captureFileRef} type="file" multiple className="hidden" onChange={handleCaptureFile} />
       </div>
 
       {/* Quick Actions */}

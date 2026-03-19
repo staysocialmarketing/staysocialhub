@@ -1,72 +1,57 @@
 
 
-# Smart FAB + Client Dashboard Capture Widget
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-## Overview
-Two changes: (1) Replace the current GlobalCaptureButton's form-heavy dialog with the Pressmaster-style Capture UI, and (2) add a capture widget to the client dashboard. This sets the foundation for the DIY client layer.
+## Summary of Changes
 
-## What Changes
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
-### 1. Smart FAB — `src/components/GlobalCaptureButton.tsx`
+## 1. Database: Update Auto-Assignment Triggers
 
-Replace the current multi-step form dialog with a clean sheet/drawer that mirrors the CaptureTab design:
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-**For SS roles (internal team):**
-- Opens a bottom sheet (mobile) or dialog (desktop)
-- Shows the same action grid: Pin a Thought, Record Voice, Add Link, Upload File, Create Task, Create Request
-- Submit saves to `brain_captures` if a client is selected, or to `tasks`/`think_tank_items` as before
-- Adds a client selector at the top since we're outside Brain context
-- Keeps existing task/request creation but wraps them in the cleaner visual style
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
-**For client roles:**
-- Opens the same clean sheet
-- Shows: Pin a Thought, Record Voice, Upload File, Make a Request
-- Captures save to `brain_captures` scoped to their `client_id`
-- This is new — clients can now capture ideas directly
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
 
-**RLS update required**: Add a policy allowing clients to insert/select their own `brain_captures` rows (currently SS-only).
+## 2. Approvals Page — Separate Media from Published Content
 
-### 2. Client Dashboard Capture Widget — `src/pages/Dashboard.tsx`
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
 
-In the `ClientDashboard` component, add a capture section between the greeting and Quick Actions:
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
 
-- Greeting stays: "Welcome back, [Name]"
-- New section below: "What's on your mind?" with the same minimal input + action buttons from CaptureTab
-- Inline — not a separate component, but imports/reuses the capture logic
-- Shows last 3 captures as small preview cards below
-- Tapping a card expands inline or navigates to a future "My Ideas" page
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
 
-### 3. Database — Migration
+## 3. Workflow Page — Move Internal Review to Bottom Section
 
-```sql
--- Allow clients to insert and view their own brain_captures
-CREATE POLICY "Clients can insert own captures"
-  ON public.brain_captures FOR INSERT TO authenticated
-  WITH CHECK (client_id = (SELECT client_id FROM public.users WHERE id = auth.uid()));
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
 
-CREATE POLICY "Clients can view own captures"
-  ON public.brain_captures FOR SELECT TO authenticated
-  USING (client_id = (SELECT client_id FROM public.users WHERE id = auth.uid()));
-```
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
+
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
+
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| Migration | Add client RLS policies for `brain_captures` |
-| `src/components/GlobalCaptureButton.tsx` | Rewrite dialog to Pressmaster-style sheet with action grid |
-| `src/pages/Dashboard.tsx` | Add capture widget to `ClientDashboard` |
-| `src/components/brain/CaptureTab.tsx` | Extract reusable capture logic into shared hooks/utils if needed |
-
-## What stays the same
-- Brain > Capture tab — untouched
-- Brand Twin — untouched
-- All existing SS capture functionality (tasks, requests, ideas) — preserved, just restyled
-- Workflow, approvals, requests — no changes
-
-## Architecture Note
-This creates the three-layer foundation:
-1. **Internal team**: Full Brain + Capture + FAB with client selector
-2. **Managed clients**: Dashboard widget + FAB for quick captures + approval workflows
-3. **DIY clients** (future): Enhanced capture with AI suggestions, templates, guided prompts — builds on this same `brain_captures` table and UI patterns
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 
