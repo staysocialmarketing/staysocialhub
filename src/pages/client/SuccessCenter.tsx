@@ -209,7 +209,7 @@ export default function SuccessCenter() {
       <Card className="bg-gradient-to-br from-primary/5 via-background to-accent/5 border-primary/10">
         <CardContent className="p-6 md:p-8">
           <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-1">
-            Welcome back, {clientData?.name || profile?.name || "there"} 👋
+            Welcome back, {clientData?.name || profile?.name || "there"} {getWaveEmoji(profile?.name)}
           </h1>
           <p className="text-muted-foreground text-sm md:text-base">
             Here's what we're focused on right now and what's coming next in your Stay Social System.
