@@ -314,7 +314,7 @@ export default function AdminMarketplace() {
 
       {/* Create / Edit Item Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md rounded-2xl border-0 shadow-float">
           <DialogHeader>
             <DialogTitle>{editItem ? "Edit Item" : `New ${formCategory === "solution" ? "Plan" : "Upgrade"}`}</DialogTitle>
           </DialogHeader>
