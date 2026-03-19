@@ -7,7 +7,6 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { useLocation } from "react-router-dom";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface MobileMenuProps {
   onNavigate: (path: string) => void;
