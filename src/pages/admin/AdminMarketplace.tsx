@@ -227,18 +227,25 @@ export default function AdminMarketplace() {
   if (loading) return <div className="p-6"><p className="text-muted-foreground">Loading…</p></div>;
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center gap-2">
-        <Store className="h-6 w-6 text-primary" />
-        <h2 className="text-2xl font-bold text-foreground">Marketplace</h2>
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
+      <div className="flex items-center gap-3">
+        <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
+          <Store className="h-4 w-4 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">Marketplace</h1>
+          <p className="text-sm text-muted-foreground">Plans, upgrades, and client requests.</p>
+        </div>
       </div>
 
       <Tabs defaultValue="plans">
-        <TabsList>
-          <TabsTrigger value="plans">Plans</TabsTrigger>
-          <TabsTrigger value="upgrades">Upgrades</TabsTrigger>
-          <TabsTrigger value="requests">Client Requests</TabsTrigger>
-        </TabsList>
+        <div className="flex gap-1 bg-muted/40 rounded-full p-1 w-fit">
+          <TabsList className="bg-transparent p-0 h-auto">
+            <TabsTrigger value="plans" className="rounded-full px-4 py-1.5 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm">Plans</TabsTrigger>
+            <TabsTrigger value="upgrades" className="rounded-full px-4 py-1.5 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm">Upgrades</TabsTrigger>
+            <TabsTrigger value="requests" className="rounded-full px-4 py-1.5 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm">Client Requests</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="plans" className="mt-4">
           <p className="text-sm text-muted-foreground mb-4">Done-for-you plans and services available to clients.</p>
