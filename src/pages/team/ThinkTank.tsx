@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,17 +34,25 @@ interface ThinkTankItem {
   updated_at: string;
 }
 
-const typeIcons: Record<string, React.ReactNode> = {
-  idea: <Lightbulb className="h-4 w-4" />,
-  meeting_note: <FileText className="h-4 w-4" />,
-  brainstorm: <Brain className="h-4 w-4" />,
+const typeConfig: Record<string, { icon: React.ReactNode; bg: string; label: string }> = {
+  idea: { icon: <Lightbulb className="h-4 w-4" />, bg: "bg-amber-500/10 text-amber-700", label: "Idea" },
+  meeting_note: { icon: <FileText className="h-4 w-4" />, bg: "bg-blue-500/10 text-blue-700", label: "Meeting Note" },
+  brainstorm: { icon: <Brain className="h-4 w-4" />, bg: "bg-purple-500/10 text-purple-700", label: "Brainstorm" },
 };
 
-const typeBadgeVariant: Record<string, "default" | "secondary" | "outline"> = {
-  idea: "default",
-  meeting_note: "secondary",
-  brainstorm: "outline",
-};
+const typeFilterOptions = [
+  { value: "all", label: "All Types" },
+  { value: "idea", label: "💡 Ideas" },
+  { value: "meeting_note", label: "📝 Notes" },
+  { value: "brainstorm", label: "🧠 Brainstorms" },
+];
+
+const statusFilterOptions = [
+  { value: "all", label: "All" },
+  { value: "open", label: "Open" },
+  { value: "actioned", label: "Actioned" },
+  { value: "archived", label: "Archived" },
+];
 
 export default function ThinkTank() {
   const { profile, isSSAdmin } = useAuth();
@@ -98,7 +105,6 @@ export default function ThinkTank() {
     supabase.from("clients").select("id, name").then(({ data }) => setClients(data || []));
     supabase.from("users").select("id, name, email").then(({ data }) => setUsers(data || []));
     supabase.from("projects").select("id, name, client_id, parent_project_id").order("name").then(({ data }) => setProjects(data || []));
-    // Fetch staff users (ss roles) for assignee selector
     supabase.from("user_roles").select("user_id, role").in("role", ["ss_admin", "ss_producer", "ss_ops", "ss_team"]).then(async ({ data: roles }) => {
       if (!roles?.length) return;
       const staffIds = [...new Set(roles.map(r => r.user_id))];
@@ -186,7 +192,6 @@ export default function ThinkTank() {
       assigned_to_user_id: actionAssigneeId || null,
     } as any).select("id").single();
     if (error) { toast.error(error.message); return; }
-    // Log origin activity
     if (newTask) {
       await supabase.from("task_activity_log").insert({
         task_id: newTask.id,
@@ -219,24 +224,23 @@ export default function ThinkTank() {
     setCreateTaskItem(item);
   };
 
-
   const creatorName = (userId: string) => {
     const u = users.find((u) => u.id === userId);
     return u?.name || u?.email || "Unknown";
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Think Tank</h1>
-          <p className="text-sm text-muted-foreground">Ideas, meeting notes, and brainstorming</p>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Think Tank</h1>
+          <Badge variant="secondary" className="text-xs font-medium">{items.length}</Badge>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" /> New Idea</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="shadow-float border-0">
             <DialogHeader><DialogTitle>New Think Tank Item</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <Input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -256,64 +260,76 @@ export default function ThinkTank() {
         </Dialog>
       </div>
 
-      <div className="flex gap-3">
-        <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="idea">Ideas</SelectItem>
-            <SelectItem value="meeting_note">Meeting Notes</SelectItem>
-            <SelectItem value="brainstorm">Brainstorms</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="open">Open</SelectItem>
-            <SelectItem value="actioned">Actioned</SelectItem>
-            <SelectItem value="archived">Archived</SelectItem>
-          </SelectContent>
-        </Select>
+      {/* Pill toggle filters */}
+      <div className="flex flex-wrap gap-4">
+        <div className="flex gap-1.5">
+          {typeFilterOptions.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setFilterType(opt.value)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                filterType === opt.value
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1.5">
+          {statusFilterOptions.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setFilterStatus(opt.value)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                filterStatus === opt.value
+                  ? "bg-foreground text-background"
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loading ? (
         <p className="text-muted-foreground">Loading...</p>
       ) : items.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">No items yet. Start capturing ideas!</CardContent></Card>
+        <div className="card-elevated py-16 text-center text-muted-foreground">No items yet. Start capturing ideas!</div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {items.map((item) => (
-            <Card key={item.id} className="flex flex-col">
-              <CardHeader className="pb-2">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {items.map((item) => {
+            const tc = typeConfig[item.type] || typeConfig.idea;
+            return (
+              <div key={item.id} className="card-elevated p-5 flex flex-col gap-3 group hover:shadow-lifted transition-all">
                 <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="text-base leading-snug">{item.title}</CardTitle>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Badge variant={typeBadgeVariant[item.type] || "secondary"} className="flex items-center gap-1">
-                      {typeIcons[item.type]} {item.type.replace("_", " ")}
-                    </Badge>
-                    {canEditDelete(item) && (
-                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openEdit(item)}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
+                  <div className="flex items-center gap-2.5">
+                    <span className={`flex items-center justify-center h-8 w-8 rounded-xl ${tc.bg}`}>
+                      {tc.icon}
+                    </span>
+                    <h3 className="text-sm font-bold text-foreground leading-snug">{item.title}</h3>
                   </div>
+                  {canEditDelete(item) && (
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={() => openEdit(item)}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
-              </CardHeader>
-              <CardContent className="flex-1 space-y-3">
-                {item.body && <p className="text-sm text-muted-foreground line-clamp-3">{item.body}</p>}
+                {item.body && <p className="text-sm text-muted-foreground/70 line-clamp-3">{item.body}</p>}
                 {(item as any).ai_summary && (
-                  <Badge variant="secondary" className="text-[10px]">AI: {(item as any).ai_summary.slice(0, 50)}...</Badge>
+                  <Badge variant="secondary" className="text-[10px] w-fit border-0">AI: {(item as any).ai_summary.slice(0, 50)}...</Badge>
                 )}
-                <div className="text-xs text-muted-foreground space-y-0.5">
-                  <p>By {creatorName(item.created_by_user_id)} · {format(new Date(item.created_at), "MMM d, yyyy")}</p>
+                <div className="text-xs text-muted-foreground/50">
+                  {creatorName(item.created_by_user_id)} · {format(new Date(item.created_at), "MMM d, yyyy")}
                 </div>
-                <div className="flex gap-2 pt-1 flex-wrap">
+                <div className="flex gap-2 pt-1 flex-wrap mt-auto">
                   {item.status === "open" && (
                     <>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button size="sm" variant="outline">
+                          <Button size="sm" variant="outline" className="border-0 bg-muted/50 hover:bg-muted">
                             <Zap className="h-3 w-3 mr-1" /> Action <ChevronDown className="h-3 w-3 ml-1" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -340,27 +356,27 @@ export default function ThinkTank() {
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                      <Button size="sm" variant="ghost" onClick={() => updateStatus(item.id, "archived")}>
+                      <Button size="sm" variant="ghost" className="text-muted-foreground/60" onClick={() => updateStatus(item.id, "archived")}>
                         <Archive className="h-3 w-3 mr-1" /> Archive
                       </Button>
                     </>
                   )}
                   {item.status === "archived" && (
-                    <Button size="sm" variant="outline" onClick={() => updateStatus(item.id, "open")}>Reopen</Button>
+                    <Button size="sm" variant="ghost" className="bg-muted/50" onClick={() => updateStatus(item.id, "open")}>Reopen</Button>
                   )}
                   {item.status === "actioned" && (
-                    <Badge variant="secondary">Actioned</Badge>
+                    <Badge variant="secondary" className="border-0 bg-green-500/10 text-green-700">Actioned</Badge>
                   )}
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+            );
+          })}
         </div>
       )}
 
       {/* Edit Think Tank Item Dialog */}
       <Dialog open={!!editItem} onOpenChange={(o) => !o && setEditItem(null)}>
-        <DialogContent>
+        <DialogContent className="shadow-float border-0">
           <DialogHeader><DialogTitle>Edit Item</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
@@ -387,7 +403,7 @@ export default function ThinkTank() {
               <ClientSelectWithCreate value={editClientId} onValueChange={setEditClientId} />
             </div>
             {editItem && (
-              <div className="space-y-2 pt-2 border-t">
+              <div className="space-y-2 pt-2 border-t border-border/30">
                 <AIFieldsPanel fields={editItem as any} />
                 <StrategyBriefPanel brief={(editItem as any).strategy_brief} />
                 <RunStrategyButton itemType="think_tank" itemId={editItem.id} />
@@ -422,7 +438,7 @@ export default function ThinkTank() {
 
       {/* Create Project from Think Tank */}
       <Dialog open={!!createProjectItem} onOpenChange={(o) => !o && setCreateProjectItem(null)}>
-        <DialogContent>
+        <DialogContent className="shadow-float border-0">
           <DialogHeader><DialogTitle>Create Project from Idea</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
@@ -459,7 +475,7 @@ export default function ThinkTank() {
 
       {/* Create Task from Think Tank */}
       <Dialog open={!!createTaskItem} onOpenChange={(o) => !o && setCreateTaskItem(null)}>
-        <DialogContent>
+        <DialogContent className="shadow-float border-0">
           <DialogHeader><DialogTitle>Create Task from Idea</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>

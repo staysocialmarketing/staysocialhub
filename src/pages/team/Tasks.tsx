@@ -171,6 +171,13 @@ export default function Tasks() {
     return u?.name || u?.email;
   };
 
+  const getInitials = (task: Task) => {
+    if (task.assigned_to_team) return "TM";
+    const name = userName(task);
+    if (!name) return null;
+    return name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+  };
+
   const projectName = (id: string | null) => {
     if (!id) return null;
     return projects.find((p) => p.id === id)?.name;
@@ -186,15 +193,15 @@ export default function Tasks() {
   return (
     <div className="p-4 sm:p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <div>
+        <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Tasks</h1>
-          <p className="text-sm text-muted-foreground">Daily task tracker across projects</p>
+          <Badge variant="secondary" className="text-xs font-medium">{tasks.length}</Badge>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" /> New Task</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="shadow-float border-0">
             <DialogHeader><DialogTitle>New Task</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <Input placeholder="Task title" value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -239,62 +246,65 @@ export default function Tasks() {
       {loading ? (
         <p className="text-muted-foreground">Loading...</p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {statusColumns.map((col) => (
-            <div key={col} className="space-y-3 min-w-0">
+            <div key={col} className="space-y-2.5 min-w-0">
               <div className="flex items-center gap-2 pb-2">
-                <h2 className="text-sm font-semibold text-foreground">{statusLabels[col]}</h2>
-                <span className="text-xs text-muted-foreground">{tasksByStatus(col).length}</span>
+                <h2 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{statusLabels[col]}</h2>
+                <span className="text-[11px] font-medium text-muted-foreground/60 bg-muted/50 rounded-full px-1.5 py-0.5">{tasksByStatus(col).length}</span>
               </div>
-              {tasksByStatus(col).length === 0 ? (
-                <EmptyState title="No tasks" compact className="py-6" />
-              ) : (
-                tasksByStatus(col).map((task) => (
-                  <div
-                    key={task.id}
-                    className={`card-elevated p-4 space-y-3 cursor-pointer hover:shadow-md transition-all group ${completingTaskIds.has(task.id) ? "animate-task-complete" : ""}`}
-                    onClick={() => setEditTask(task)}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="text-sm font-semibold leading-snug text-foreground">{task.title}</span>
-                      <Badge variant="outline" className={`text-[11px] shrink-0 ${priorityColors[task.priority] || ""}`}>{task.priority}</Badge>
-                    </div>
-                    {task.description && <p className="text-xs text-muted-foreground/70 line-clamp-1">{task.description}</p>}
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      {projectName(task.project_id) && (
-                        <Badge
-                          variant="secondary"
-                          className="text-[11px] cursor-pointer hover:bg-secondary/80"
-                          onClick={(e) => { e.stopPropagation(); navigate("/team/projects"); }}
-                        >
-                          {projectName(task.project_id)}
-                        </Badge>
-                      )}
-                      {userName(task) && (
-                        <span className="flex items-center gap-0.5">
-                          <User className="h-3 w-3" />
-                          {task.assigned_to_team ? "Team" : userName(task)}
-                        </span>
-                      )}
-                      {task.due_at && (
-                        <span className="flex items-center gap-0.5 ml-auto"><Calendar className="h-3 w-3" /> {format(new Date(task.due_at), "MMM d")}</span>
-                      )}
-                    </div>
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <Select value={task.status} onValueChange={(s) => updateStatus(task.id, s)}>
-                        <SelectTrigger className={`h-7 text-[11px] w-full border-border/50 ${taskStatusColors[task.status] || "bg-transparent"}`}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {statusColumns.map((s) => (
-                            <SelectItem key={s} value={s}>{statusLabels[s]}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+              <div className="space-y-2">
+                {tasksByStatus(col).length === 0 ? (
+                  <div className="rounded-2xl bg-muted/20 py-8 text-center">
+                    <p className="text-xs text-muted-foreground/50">No tasks</p>
                   </div>
-                ))
-              )}
+                ) : (
+                  tasksByStatus(col).map((task) => (
+                    <div
+                      key={task.id}
+                      className={`card-elevated p-3.5 space-y-2.5 cursor-pointer hover:shadow-lifted transition-all group ${completingTaskIds.has(task.id) ? "animate-task-complete" : ""}`}
+                      onClick={() => setEditTask(task)}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-sm font-semibold leading-snug text-foreground">{task.title}</span>
+                        <Badge variant="outline" className={`text-[10px] shrink-0 border-0 ${priorityColors[task.priority] || ""}`}>{task.priority}</Badge>
+                      </div>
+                      {task.description && <p className="text-xs text-muted-foreground/60 line-clamp-1">{task.description}</p>}
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        {projectName(task.project_id) && (
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] cursor-pointer hover:bg-secondary/80"
+                            onClick={(e) => { e.stopPropagation(); navigate("/team/projects"); }}
+                          >
+                            {projectName(task.project_id)}
+                          </Badge>
+                        )}
+                        {getInitials(task) && (
+                          <span className="flex items-center justify-center h-5 w-5 rounded-full bg-primary/10 text-primary text-[9px] font-bold shrink-0">
+                            {getInitials(task)}
+                          </span>
+                        )}
+                        {task.due_at && (
+                          <span className="flex items-center gap-0.5 ml-auto text-muted-foreground/70"><Calendar className="h-3 w-3" /> {format(new Date(task.due_at), "MMM d")}</span>
+                        )}
+                      </div>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <Select value={task.status} onValueChange={(s) => updateStatus(task.id, s)}>
+                          <SelectTrigger className={`h-7 text-[11px] w-full border-0 ${taskStatusColors[task.status] || "bg-muted/30"}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {statusColumns.map((s) => (
+                              <SelectItem key={s} value={s}>{statusLabels[s]}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           ))}
         </div>
