@@ -123,6 +123,6 @@ export function MobileMenu({ onNavigate }: MobileMenuProps) {
           </button>
         </div>
       </div>
-    </ScrollArea>
+    </div>
   );
 }
