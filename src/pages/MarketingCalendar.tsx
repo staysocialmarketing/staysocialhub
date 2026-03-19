@@ -3,9 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -21,13 +19,13 @@ import { cn } from "@/lib/utils";
 // ─── Status mapping ──────────────────────────────────────────────────────────
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
-  internal_review: { label: "Awaiting Internal Review", color: "bg-yellow-100 text-yellow-800 border-yellow-300" },
-  corey_review: { label: "Awaiting Corey Review", color: "bg-amber-100 text-amber-800 border-amber-300" },
-  ready_for_client_batch: { label: "Ready for Client Batch", color: "bg-indigo-100 text-indigo-800 border-indigo-300" },
-  client_approval: { label: "Awaiting Client Approval", color: "bg-blue-100 text-blue-800 border-blue-300" },
-  scheduled: { label: "Approved / Scheduled", color: "bg-emerald-100 text-emerald-800 border-emerald-300" },
-  ready_to_schedule: { label: "Approved / Scheduled", color: "bg-emerald-100 text-emerald-800 border-emerald-300" },
-  published: { label: "Published", color: "bg-green-100 text-green-800 border-green-300" },
+  internal_review: { label: "Awaiting Internal Review", color: "bg-yellow-500/15 text-yellow-700" },
+  corey_review: { label: "Awaiting Corey Review", color: "bg-amber-500/15 text-amber-700" },
+  ready_for_client_batch: { label: "Ready for Client Batch", color: "bg-indigo-500/15 text-indigo-700" },
+  client_approval: { label: "Awaiting Client Approval", color: "bg-blue-500/15 text-blue-700" },
+  scheduled: { label: "Approved / Scheduled", color: "bg-emerald-500/15 text-emerald-700" },
+  ready_to_schedule: { label: "Approved / Scheduled", color: "bg-emerald-500/15 text-emerald-700" },
+  published: { label: "Published", color: "bg-green-500/15 text-green-700" },
 };
 
 const ALL_PIPELINE_STATUSES = [
@@ -54,17 +52,24 @@ const CLIENT_BOARD_COLUMNS = [
   { key: "published", label: "Published" },
 ];
 
-const platformColors: Record<string, string> = {
-  instagram: "bg-pink-100 text-pink-800",
-  facebook: "bg-blue-100 text-blue-800",
-  linkedin: "bg-sky-100 text-sky-800",
-  tiktok: "bg-purple-100 text-purple-800",
+const platformDotColors: Record<string, string> = {
+  instagram: "bg-pink-500",
+  facebook: "bg-blue-500",
+  linkedin: "bg-sky-500",
+  tiktok: "bg-purple-500",
+};
+
+const platformBadgeColors: Record<string, string> = {
+  instagram: "bg-pink-500/10 text-pink-700",
+  facebook: "bg-blue-500/10 text-blue-700",
+  linkedin: "bg-sky-500/10 text-sky-700",
+  tiktok: "bg-purple-500/10 text-purple-700",
 };
 
 function StatusBadge({ status }: { status: string }) {
   const s = STATUS_MAP[status];
-  if (!s) return <Badge variant="outline" className="text-[10px]">{status}</Badge>;
-  return <Badge variant="outline" className={cn("text-[10px]", s.color)}>{s.label}</Badge>;
+  if (!s) return <Badge variant="outline" className="text-[10px] border-0">{status}</Badge>;
+  return <Badge variant="outline" className={cn("text-[10px] border-0", s.color)}>{s.label}</Badge>;
 }
 
 function PlatformBadges({ platform }: { platform: string | null }) {
@@ -72,7 +77,7 @@ function PlatformBadges({ platform }: { platform: string | null }) {
   return (
     <>
       {platform.split(",").map((p) => (
-        <Badge key={p} variant="secondary" className={cn("text-[10px]", platformColors[p.trim().toLowerCase()] || "")}>
+        <Badge key={p} variant="secondary" className={cn("text-[10px] border-0", platformBadgeColors[p.trim().toLowerCase()] || "")}>
           {p.trim()}
         </Badge>
       ))}
@@ -82,33 +87,41 @@ function PlatformBadges({ platform }: { platform: string | null }) {
 
 function ContentCard({ post, onClick }: { post: any; onClick: () => void }) {
   return (
-    <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={onClick}>
-      <CardContent className="p-3 space-y-2">
-        {post.creative_url ? (
-          <div className="aspect-video bg-muted rounded overflow-hidden">
-            <img src={post.creative_url} alt="" className="w-full h-full object-cover" />
-          </div>
-        ) : (
-          <div className="aspect-video bg-muted rounded flex items-center justify-center">
-            <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
-          </div>
-        )}
-        <h4 className="text-sm font-medium text-foreground line-clamp-2">{post.title}</h4>
-        {post.caption && <p className="text-xs text-muted-foreground line-clamp-2">{post.caption}</p>}
+    <div className="card-elevated overflow-hidden cursor-pointer hover:shadow-lifted transition-all group" onClick={onClick}>
+      {post.creative_url ? (
+        <div className="aspect-video bg-muted overflow-hidden">
+          <img src={post.creative_url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+        </div>
+      ) : (
+        <div className="aspect-video bg-muted/30 flex items-center justify-center">
+          <ImageIcon className="h-6 w-6 text-muted-foreground/30" />
+        </div>
+      )}
+      <div className="p-3 space-y-2">
+        <h4 className="text-sm font-semibold text-foreground line-clamp-2">{post.title}</h4>
+        {post.caption && <p className="text-xs text-muted-foreground/60 line-clamp-2">{post.caption}</p>}
         <div className="flex flex-wrap gap-1">
-          {post.clients?.name && <Badge variant="outline" className="text-[10px]">{post.clients.name}</Badge>}
+          {post.clients?.name && <Badge variant="secondary" className="text-[10px] border-0">{post.clients.name}</Badge>}
           <PlatformBadges platform={post.platform} />
         </div>
         <div className="flex items-center justify-between">
           <StatusBadge status={post.status_column} />
           {post.scheduled_at && (
-            <span className="text-[10px] text-muted-foreground">{format(new Date(post.scheduled_at), "MMM d")}</span>
+            <span className="text-[10px] text-muted-foreground/60">{format(new Date(post.scheduled_at), "MMM d")}</span>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
+
+// ─── View toggle ─────────────────────────────────────────────────────────────
+
+const viewOptions = [
+  { value: "calendar", icon: CalendarDays, label: "Calendar" },
+  { value: "list", icon: List, label: "List" },
+  { value: "board", icon: LayoutGrid, label: "Board" },
+];
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
@@ -120,7 +133,6 @@ export default function MarketingCalendar() {
   const PIPELINE_STATUSES = isSSRole ? ALL_PIPELINE_STATUSES : CLIENT_VISIBLE_STATUSES;
   const BOARD_COLUMNS = isSSRole ? ALL_BOARD_COLUMNS : CLIENT_BOARD_COLUMNS;
 
-  // Fetch posts in pipeline or with scheduled_at
   const { data: posts = [] } = useQuery({
     queryKey: ["marketing-calendar-posts", isSSRole],
     queryFn: async () => {
@@ -130,7 +142,6 @@ export default function MarketingCalendar() {
         .or(`scheduled_at.not.is.null,status_column.in.(${PIPELINE_STATUSES.join(",")})`)
         .order("scheduled_at", { ascending: true, nullsFirst: false });
       if (error) throw error;
-      // Client-side filter to ensure only visible statuses for clients
       if (!isSSRole) {
         return (data || []).filter((p: any) =>
           CLIENT_VISIBLE_STATUSES.includes(p.status_column) || p.scheduled_at
@@ -140,7 +151,6 @@ export default function MarketingCalendar() {
     },
   });
 
-  // Fetch filter options (only for SS roles)
   const { data: clients = [] } = useQuery({
     queryKey: ["calendar-clients"],
     queryFn: async () => {
@@ -218,33 +228,39 @@ export default function MarketingCalendar() {
   const goToPost = (id: string) => navigate(`/approvals/${id}`);
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-xl font-bold text-foreground">Marketing Calendar</h1>
-        <p className="text-sm text-muted-foreground">
-          {isSSRole ? "Plan, schedule, and track content across clients" : "View your upcoming and published content"}
-        </p>
+    <div className="p-4 sm:p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Marketing Calendar</h1>
+          <p className="text-sm text-muted-foreground/70">
+            {isSSRole ? "Plan, schedule, and track content across clients" : "View your upcoming and published content"}
+          </p>
+        </div>
+        {/* Pill view toggle */}
+        <div className="flex gap-1 bg-muted/40 rounded-full p-1">
+          {viewOptions.map((v) => (
+            <button
+              key={v.value}
+              onClick={() => setTab(v.value)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                tab === v.value
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <v.icon className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{v.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <FilterBar filters={filterConfigs} values={filterValues} onChange={setFilterValues} />
 
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
-          <TabsTrigger value="calendar" className="gap-1.5"><CalendarDays className="h-3.5 w-3.5" />Calendar</TabsTrigger>
-          <TabsTrigger value="list" className="gap-1.5"><List className="h-3.5 w-3.5" />List</TabsTrigger>
-          <TabsTrigger value="board" className="gap-1.5"><LayoutGrid className="h-3.5 w-3.5" />Board</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="calendar">
-          <CalendarTab posts={filteredPosts} onPostClick={goToPost} />
-        </TabsContent>
-        <TabsContent value="list">
-          <ListTab posts={filteredPosts} onPostClick={goToPost} isSSRole={isSSRole} />
-        </TabsContent>
-        <TabsContent value="board">
-          <BoardTab posts={filteredPosts} onPostClick={goToPost} boardColumns={BOARD_COLUMNS} />
-        </TabsContent>
-      </Tabs>
+      {tab === "calendar" && <CalendarTab posts={filteredPosts} onPostClick={goToPost} />}
+      {tab === "list" && <ListTab posts={filteredPosts} onPostClick={goToPost} isSSRole={isSSRole} />}
+      {tab === "board" && <BoardTab posts={filteredPosts} onPostClick={goToPost} boardColumns={BOARD_COLUMNS} />}
     </div>
   );
 }
@@ -278,18 +294,18 @@ function CalendarTab({ posts, onPostClick }: { posts: any[]; onPostClick: (id: s
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <Button variant="outline" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
+        <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <h3 className="text-lg font-semibold text-foreground">{format(currentMonth, "MMMM yyyy")}</h3>
-        <Button variant="outline" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+        <h3 className="text-lg font-bold text-foreground">{format(currentMonth, "MMMM yyyy")}</h3>
+        <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
 
-      <div className="grid grid-cols-7 gap-px sm:gap-1">
+      <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-          <div key={d} className="text-center text-[10px] sm:text-xs font-medium text-muted-foreground py-1 sm:py-2">{d}</div>
+          <div key={d} className="text-center text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-wider py-2">{d}</div>
         ))}
         {days.map((day) => {
           const key = format(day, "yyyy-MM-dd");
@@ -302,34 +318,35 @@ function CalendarTab({ posts, onPostClick }: { posts: any[]; onPostClick: (id: s
             <div
               key={key}
               className={cn(
-                "min-h-[60px] sm:min-h-[80px] border rounded-md p-1 cursor-pointer transition-colors",
-                !isCurrentMonth ? "bg-muted/30 text-muted-foreground/50" : "bg-card",
-                isSelected ? "ring-2 ring-primary" : "",
-                isToday ? "border-primary" : "border-border",
-                "hover:bg-accent/50"
+                "min-h-[60px] sm:min-h-[80px] rounded-xl p-1.5 cursor-pointer transition-all",
+                !isCurrentMonth ? "bg-muted/10 text-muted-foreground/30" : "hover:bg-muted/20",
+                isSelected ? "ring-2 ring-primary bg-primary/5" : "",
+                isToday ? "ring-1 ring-primary/40" : "",
               )}
               onClick={() => setSelectedDate(day)}
             >
-              <span className={cn("text-xs font-medium p-0.5", isToday && "text-primary font-bold")}>{format(day, "d")}</span>
+              <span className={cn("text-xs font-medium", isToday && "text-primary font-bold")}>{format(day, "d")}</span>
               <div className="mt-0.5 space-y-0.5 hidden sm:block">
                 {dayPosts.slice(0, 3).map((post: any) => (
                   <div
                     key={post.id}
-                    className="text-[10px] leading-tight truncate rounded px-1 py-0.5 bg-primary/10 text-primary cursor-pointer"
+                    className="text-[10px] leading-tight truncate rounded-lg px-1.5 py-0.5 bg-primary/10 text-primary cursor-pointer hover:bg-primary/20 transition-colors"
                     onClick={(e) => { e.stopPropagation(); onPostClick(post.id); }}
                   >
                     {post.title}
                   </div>
                 ))}
-                {dayPosts.length > 3 && <span className="text-[10px] text-muted-foreground">+{dayPosts.length - 3} more</span>}
+                {dayPosts.length > 3 && <span className="text-[10px] text-muted-foreground/50">+{dayPosts.length - 3}</span>}
               </div>
-              {/* Mobile: just show dot indicators */}
+              {/* Mobile: platform-colored dot indicators */}
               {dayPosts.length > 0 && (
                 <div className="flex gap-0.5 mt-1 sm:hidden justify-center">
-                  {dayPosts.slice(0, 3).map((post: any) => (
-                    <div key={post.id} className="h-1.5 w-1.5 rounded-full bg-primary" />
-                  ))}
-                  {dayPosts.length > 3 && <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />}
+                  {dayPosts.slice(0, 4).map((post: any) => {
+                    const firstPlatform = (post.platform || "").split(",")[0]?.trim().toLowerCase();
+                    const dotColor = platformDotColors[firstPlatform] || "bg-primary";
+                    return <div key={post.id} className={cn("h-2 w-2 rounded-full", dotColor)} />;
+                  })}
+                  {dayPosts.length > 4 && <div className="h-2 w-2 rounded-full bg-muted-foreground/30" />}
                 </div>
               )}
             </div>
@@ -339,11 +356,11 @@ function CalendarTab({ posts, onPostClick }: { posts: any[]; onPostClick: (id: s
 
       {selectedDate && (
         <div>
-          <h4 className="text-sm font-semibold text-foreground mb-2">
+          <h4 className="text-sm font-bold text-foreground mb-3">
             {format(selectedDate, "EEEE, MMMM d")} — {selectedPosts.length} item{selectedPosts.length !== 1 ? "s" : ""}
           </h4>
           {selectedPosts.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No content scheduled for this day.</p>
+            <p className="text-sm text-muted-foreground/50">No content scheduled for this day.</p>
           ) : (
             <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               {selectedPosts.map((post: any) => (
@@ -361,43 +378,43 @@ function CalendarTab({ posts, onPostClick }: { posts: any[]; onPostClick: (id: s
 
 function ListTab({ posts, onPostClick, isSSRole }: { posts: any[]; onPostClick: (id: string) => void; isSSRole: boolean }) {
   return (
-    <div className="rounded-md border overflow-x-auto">
+    <div className="card-elevated overflow-hidden">
       <Table>
         <TableHeader>
-          <TableRow>
+          <TableRow className="border-border/20 hover:bg-transparent">
             <TableHead className="w-12" />
-            <TableHead>Title</TableHead>
-            <TableHead className={isSSRole ? "" : "hidden"}>Client</TableHead>
-            <TableHead className="hidden sm:table-cell">Platform</TableHead>
-            <TableHead>Publish Date</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className={isSSRole ? "hidden sm:table-cell" : "hidden"}>Assignee</TableHead>
+            <TableHead className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground/50">Title</TableHead>
+            <TableHead className={cn("text-[11px] uppercase tracking-wider font-semibold text-muted-foreground/50", isSSRole ? "" : "hidden")}>Client</TableHead>
+            <TableHead className="hidden sm:table-cell text-[11px] uppercase tracking-wider font-semibold text-muted-foreground/50">Platform</TableHead>
+            <TableHead className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground/50">Publish Date</TableHead>
+            <TableHead className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground/50">Status</TableHead>
+            <TableHead className={cn("text-[11px] uppercase tracking-wider font-semibold text-muted-foreground/50", isSSRole ? "hidden sm:table-cell" : "hidden")}>Assignee</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {posts.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="text-center text-muted-foreground py-8">No content found</TableCell>
+              <TableCell colSpan={7} className="text-center text-muted-foreground/50 py-12">No content found</TableCell>
             </TableRow>
           ) : posts.map((post: any) => (
-            <TableRow key={post.id} className="cursor-pointer" onClick={() => onPostClick(post.id)}>
-              <TableCell>
+            <TableRow key={post.id} className="cursor-pointer border-border/15 hover:bg-muted/20 transition-colors" onClick={() => onPostClick(post.id)}>
+              <TableCell className="py-2">
                 {post.creative_url ? (
-                  <div className="h-8 w-8 rounded overflow-hidden bg-muted">
+                  <div className="h-9 w-9 rounded-xl overflow-hidden bg-muted">
                     <img src={post.creative_url} alt="" className="h-full w-full object-cover" />
                   </div>
                 ) : (
-                  <div className="h-8 w-8 rounded bg-muted flex items-center justify-center">
-                    <ImageIcon className="h-4 w-4 text-muted-foreground/40" />
+                  <div className="h-9 w-9 rounded-xl bg-muted/30 flex items-center justify-center">
+                    <ImageIcon className="h-4 w-4 text-muted-foreground/30" />
                   </div>
                 )}
               </TableCell>
-              <TableCell className="font-medium text-foreground max-w-[200px] truncate">{post.title}</TableCell>
-              <TableCell className={isSSRole ? "text-muted-foreground" : "hidden"}>{post.clients?.name || "—"}</TableCell>
+              <TableCell className="font-medium text-foreground max-w-[200px] truncate text-sm">{post.title}</TableCell>
+              <TableCell className={cn("text-muted-foreground/70 text-sm", isSSRole ? "" : "hidden")}>{post.clients?.name || "—"}</TableCell>
               <TableCell className="hidden sm:table-cell"><PlatformBadges platform={post.platform} /></TableCell>
-              <TableCell className="text-muted-foreground">{post.scheduled_at ? format(new Date(post.scheduled_at), "MMM d, yyyy") : "—"}</TableCell>
+              <TableCell className="text-muted-foreground/70 text-sm">{post.scheduled_at ? format(new Date(post.scheduled_at), "MMM d, yyyy") : "—"}</TableCell>
               <TableCell><StatusBadge status={post.status_column} /></TableCell>
-              <TableCell className={isSSRole ? "hidden sm:table-cell text-muted-foreground" : "hidden"}>{(post as any).assigned_user?.name || "—"}</TableCell>
+              <TableCell className={cn("text-muted-foreground/70 text-sm", isSSRole ? "hidden sm:table-cell" : "hidden")}>{(post as any).assigned_user?.name || "—"}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -425,15 +442,17 @@ function BoardTab({ posts, onPostClick, boardColumns }: { posts: any[]; onPostCl
       {boardColumns.map((col) => (
         <div key={col.key} className="flex-shrink-0 w-64 sm:w-72 min-w-0">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-foreground">{col.label}</h3>
-            <Badge variant="secondary" className="text-[10px]">{grouped[col.key]?.length || 0}</Badge>
+            <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{col.label}</h3>
+            <span className="text-[10px] font-medium text-muted-foreground/50 bg-muted/50 rounded-full px-1.5 py-0.5">{grouped[col.key]?.length || 0}</span>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {(grouped[col.key] || []).map((post: any) => (
               <ContentCard key={post.id} post={post} onClick={() => onPostClick(post.id)} />
             ))}
             {(grouped[col.key] || []).length === 0 && (
-              <p className="text-xs text-muted-foreground text-center py-8">No items</p>
+              <div className="rounded-2xl bg-muted/15 py-10 text-center">
+                <p className="text-xs text-muted-foreground/40">No items</p>
+              </div>
             )}
           </div>
         </div>
