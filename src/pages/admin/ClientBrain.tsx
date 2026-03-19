@@ -12,6 +12,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ArrowLeft, Brain, Building2, Mic2, Users, ShoppingBag, FileText, FolderOpen, X, Plus, Upload, Link2, Save } from "lucide-react";
 import CaptureTab from "@/components/brain/CaptureTab";
+import InterviewTab from "@/components/brain/InterviewTab";
 import { toast } from "sonner";
 
 // Tag input component
