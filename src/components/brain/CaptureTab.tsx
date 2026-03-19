@@ -12,6 +12,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
+import { getWaveEmoji } from "@/lib/waveEmoji";
 
 interface CaptureTabProps {
   clientId: string;

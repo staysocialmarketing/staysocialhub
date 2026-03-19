@@ -34,6 +34,7 @@ import {
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { AddActivityDialog } from "@/components/activity/AddActivityDialog";
 import { OnboardingTracker } from "@/components/OnboardingTracker";
+import { getWaveEmoji } from "@/lib/waveEmoji";
 
 export default function SuccessCenter() {
   const navigate = useNavigate();
