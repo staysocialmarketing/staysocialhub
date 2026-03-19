@@ -255,18 +255,21 @@ export default function AdminClients() {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-foreground">Clients</h2>
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">Clients</h1>
+          <p className="text-sm text-muted-foreground mt-1">Manage client accounts and settings.</p>
+        </div>
         {isSSAdmin && (
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button><Plus className="h-4 w-4 mr-2" />Add Client</Button>
+              <Button size="sm"><Plus className="h-4 w-4 mr-1" />Add Client</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="rounded-2xl border-0 shadow-float">
               <DialogHeader><DialogTitle>New Client</DialogTitle></DialogHeader>
               <div className="space-y-4 mt-2">
-                <div><Label>Client Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Business name" /></div>
+                <div><Label>Client Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Business name" className="rounded-xl" /></div>
                 <Button className="w-full" onClick={() => createClient.mutate()} disabled={!name}>Create Client</Button>
               </div>
             </DialogContent>
