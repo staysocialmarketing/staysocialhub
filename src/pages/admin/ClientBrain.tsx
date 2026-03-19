@@ -12,6 +12,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ArrowLeft, Brain, Building2, Mic2, Users, ShoppingBag, FileText, FolderOpen, X, Plus, Upload, Link2, Save } from "lucide-react";
 import CaptureTab from "@/components/brain/CaptureTab";
+import InterviewTab from "@/components/brain/InterviewTab";
 import { toast } from "sonner";
 
 // Tag input component
@@ -207,8 +208,9 @@ export default function ClientBrain() {
       </div>
 
       <Tabs defaultValue="brand-twin" className="w-full">
-        <TabsList className="w-full grid grid-cols-2">
+        <TabsList className="w-full grid grid-cols-3">
           <TabsTrigger value="brand-twin">Brand Twin</TabsTrigger>
+          <TabsTrigger value="interview">AI Interview</TabsTrigger>
           <TabsTrigger value="capture">Capture</TabsTrigger>
         </TabsList>
 
@@ -463,6 +465,10 @@ export default function ClientBrain() {
               </AccordionContent>
             </AccordionItem>
           </Accordion>
+        </TabsContent>
+
+        <TabsContent value="interview" className="mt-4">
+          {clientId && <InterviewTab clientId={clientId} />}
         </TabsContent>
 
         <TabsContent value="capture" className="mt-4">
