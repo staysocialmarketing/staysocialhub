@@ -1,90 +1,57 @@
 
 
-# Stay Social Brain — Batch 2: Capture
+# Workflow, Approvals, and Auto-Assignment Overhaul
 
-## Overview
-Add a "Capture" tab alongside the existing "Brand Twin" tab inside the ClientBrain page. New database table for captured items, a messaging-style input UI, voice recording, file/link quick actions, and a mobile sticky capture bar.
+## Summary of Changes
 
-## Database
+This is a multi-part update to align the app's flow with the intended production pipeline: Requests flow into Workflow → Approvals → Published, with proper auto-assignment at each stage and clear separation between media uploads and published content.
 
-### New table: `brain_captures`
+## 1. Database: Update Auto-Assignment Triggers
 
-| Column | Type | Default |
-|--------|------|---------|
-| `id` | uuid PK | `gen_random_uuid()` |
-| `client_id` | uuid (references clients) | — |
-| `created_by_user_id` | uuid | — |
-| `type` | text | `'note'` |
-| `content` | text | `''` |
-| `attachment_url` | text | null |
-| `attachment_name` | text | null |
-| `voice_transcript` | text | null |
-| `link_url` | text | null |
-| `notes` | text | null |
-| `tags` | jsonb | `'[]'` |
-| `converted_to_request_id` | uuid | null |
-| `created_at` | timestamptz | `now()` |
+**Current state**: `auto_create_post_from_request` assigns to `ss_producer`. `auto_reassign_on_design` assigns to `ss_ops`. No trigger for `writing` or `internal_review`.
 
-RLS: `is_ss_role()` for all operations (same as brand_twin).
+**Changes (migration)**:
+- Update `auto_create_post_from_request` to set `assigned_to_user_id = NULL` (Idea = unassigned)
+- Create new trigger `auto_reassign_on_writing`: when status changes to `writing`, auto-assign to `ss_producer`
+- Keep `auto_reassign_on_design` as-is (assigns to `ss_ops`)
+- Add to `auto_reassign_on_design` trigger (or new trigger): when status changes to `internal_review`, auto-assign to `ss_admin`
 
-## UI Changes
+All three reassignment rules can live in a single `BEFORE UPDATE` trigger function for simplicity.
 
-### `src/pages/admin/ClientBrain.tsx`
-Add a tab switcher at the top: **Brand Twin** | **Capture**. The existing Brand Twin content stays untouched — just wrapped in a conditional render.
+## 2. Approvals Page — Separate Media from Published Content
 
-### Capture Tab Layout
+**Client Approvals (`ClientApprovals`)**: 
+- Remove `published` from the query filter — Published section should only show posts with `request_id IS NOT NULL` (actual requests, not media uploads)
+- Alternatively, only show posts in Published that were moved there by admin approval flow
 
-**1. Input Area (Top)**
-- Large, minimal textarea with placeholder "Drop an idea, voice note, or link..."
-- Submit on Enter (Shift+Enter for newline) or a send button
-- Messaging-app feel — no labels, no form chrome
+**Admin Approvals (`AdminApprovals`)**:
+- Same fix for Published column — filter to only show posts linked to requests
 
-**2. Quick Action Buttons**
-- Row of 4 icon buttons below input: Voice, Link, File, Idea
-- Large tap targets, evenly spaced, mobile-friendly
-- Voice: uses browser MediaRecorder API → records audio → uploads to `creative-assets` bucket under `captures/{clientId}/` → saves with type `voice`
-- Link: opens a small inline input to paste a URL
-- File: triggers file picker → uploads → saves with type `file`
-- Idea: sets type to `idea` and focuses input
+**Published should only appear when admin explicitly marks approved content as published** — this is already the flow (admin moves from approved → published), so the fix is just filtering the Published display to exclude non-request media.
 
-**3. Captured Items List**
-- Vertical stack of cards below, newest first
-- Each card shows: content preview (truncated), type badge, date, creator name
-- Click to expand inline (collapsible) showing full content, attachments, notes
-- Card actions: Convert to Request, Add Notes, Tag, Delete
+## 3. Workflow Page — Move Internal Review to Bottom Section
 
-**4. Mobile Sticky Bar**
-- Fixed bottom bar on mobile (`sm:hidden`): `[+ Add Idea] [🎤] [📎]`
-- Scrolls to top input and focuses, or triggers voice/file directly
+**Current layout**: 4 horizontal kanban columns (Idea, Writing, Design, Internal Review)
 
-### Voice Recording
-- Uses native `MediaRecorder` API (no external dependencies)
-- Records as webm/opus
-- Uploads to `creative-assets` bucket
-- For transcription: use Lovable AI (Gemini Flash) via an edge function `transcribe-capture` that takes the audio URL and returns text
-- Saved as a capture item with `type: 'voice'` and `voice_transcript` populated
+**New layout**:
+- Top: 3 horizontal kanban columns (Idea, Writing, Design) in the ScrollArea
+- Bottom: "Internal Review" as a larger grid section (like Published under Approvals), using `grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
 
-### Convert to Request
-- Opens the existing `MakeRequestDialog` pre-filled with capture content
-- On success, updates `converted_to_request_id` on the capture record
+## 4. Admin & Team Dashboards — Show Assignments + Tasks
 
-## New Edge Function: `supabase/functions/transcribe-capture/index.ts`
-- Accepts `{ audioUrl }` 
-- Fetches the audio file
-- Sends to Lovable AI (Gemini Flash) for transcription
-- Returns `{ transcript }`
+**SuperAdminDashboard**: Already shows team activity. Add:
+- "My Assignments" section showing posts assigned to the current admin user
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
+
+**TeamDashboard**: Already shows "My Assignments". Add:
+- "My Tasks" section querying from `tasks` table where `assigned_to_user_id = profile.id`
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| Migration | Create `brain_captures` table + RLS |
-| `src/pages/admin/ClientBrain.tsx` | Add tab switcher, Capture tab with input/cards/mobile bar |
-| `supabase/functions/transcribe-capture/index.ts` | New edge function for voice transcription |
-| `supabase/config.toml` | NOT edited (auto-managed) |
-
-## Security
-- RLS restricted to `is_ss_role()` — clients cannot access
-- File uploads use existing `creative-assets` bucket policies
-- Edge function validates auth token before processing
+| Migration SQL | Update `auto_create_post_from_request` (unassign idea), create combined reassignment trigger for writing→producer, design→ops, internal_review→admin |
+| `src/pages/Workflow.tsx` | Move Internal Review out of horizontal columns into a bottom grid section |
+| `src/pages/Approvals.tsx` | Filter Published section to only show request-linked posts |
+| `src/pages/Dashboard.tsx` | Add "My Tasks" section to both Admin and Team dashboards |
 
