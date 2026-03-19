@@ -2,73 +2,81 @@ import { useState, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, ListTodo, MessageSquarePlus, Lightbulb, ImagePlus, Mic, ArrowLeft, Square, Loader2 } from "lucide-react";
+import {
+  Plus, PenLine, Mic, Link2, Paperclip, ListTodo, MessageSquarePlus,
+  Send, Square, X, ArrowLeft, Loader2
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
 import DatePickerField from "@/components/DatePickerField";
 import MakeRequestDialog from "@/components/MakeRequestDialog";
 import { compressImage } from "@/lib/imageUtils";
 import { cn } from "@/lib/utils";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useIsMobile } from "@/hooks/use-mobile";
 
-type CaptureMode = null | "task" | "idea" | "image" | "voice";
-type SaveDestination = "media" | "inbox";
+type CaptureMode = null | "note" | "voice" | "link" | "file" | "task" | "request";
+
+const ACTION_CONFIG = {
+  note: { label: "Pin a Thought", icon: PenLine, bg: "bg-primary/10", text: "text-primary", desc: "Jot down an idea" },
+  voice: { label: "Record Voice", icon: Mic, bg: "bg-destructive/10", text: "text-destructive", desc: "Speak your mind" },
+  link: { label: "Add Link", icon: Link2, bg: "bg-blue-500/10", text: "text-blue-500", desc: "Save a reference" },
+  file: { label: "Upload File", icon: Paperclip, bg: "bg-green-500/10", text: "text-green-500", desc: "Attach a document" },
+  task: { label: "Create Task", icon: ListTodo, bg: "bg-amber-500/10", text: "text-amber-500", desc: "Add to your queue" },
+  request: { label: "Make Request", icon: MessageSquarePlus, bg: "bg-purple-500/10", text: "text-purple-500", desc: "New client request" },
+} as const;
 
 export function GlobalCaptureButton() {
   const { isSSRole, isClientAdmin, isClientAssistant, profile } = useAuth();
   const isClient = isClientAdmin || isClientAssistant;
+  const isMobile = useIsMobile();
   const queryClient = useQueryClient();
+
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<CaptureMode>(null);
   const [requestOpen, setRequestOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Shared capture state
+  const [input, setInput] = useState("");
+  const [linkInput, setLinkInput] = useState("");
+  const [clientId, setClientId] = useState("");
+
+  // Voice
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+
+  // File
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Task form
   const [taskTitle, setTaskTitle] = useState("");
-  const [taskClient, setTaskClient] = useState("");
   const [taskProject, setTaskProject] = useState("");
   const [taskPriority, setTaskPriority] = useState("normal");
   const [taskAssign, setTaskAssign] = useState("");
   const [taskDue, setTaskDue] = useState("");
   const [taskDesc, setTaskDesc] = useState("");
 
-  // Idea form
-  const [ideaTitle, setIdeaTitle] = useState("");
-  const [ideaDesc, setIdeaDesc] = useState("");
-  const [ideaType, setIdeaType] = useState("idea");
-  const [ideaClient, setIdeaClient] = useState("");
-  const [ideaFile, setIdeaFile] = useState<File | null>(null);
-
-  // Image upload
-  const [imgFile, setImgFile] = useState<File | null>(null);
-  const [imgClient, setImgClient] = useState("");
-  const [imgDest, setImgDest] = useState<SaveDestination>("media");
-
-  // Voice recording
-  const [isRecording, setIsRecording] = useState(false);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  const [voiceClient, setVoiceClient] = useState("");
-  const [voiceDest, setVoiceDest] = useState<SaveDestination>("media");
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-
-  // SS users for assignment
+  // SS data
   const [ssUsers, setSsUsers] = useState<{ id: string; name: string }[]>([]);
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
 
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
   const resetAll = () => {
     setMode(null);
-    setTaskTitle(""); setTaskClient(""); setTaskProject(""); setTaskPriority("normal");
+    setInput(""); setLinkInput(""); setClientId("");
+    setTaskTitle(""); setTaskProject(""); setTaskPriority("normal");
     setTaskAssign(""); setTaskDue(""); setTaskDesc("");
-    setIdeaTitle(""); setIdeaDesc(""); setIdeaType("idea"); setIdeaClient(""); setIdeaFile(null);
-    setImgFile(null); setImgClient(""); setImgDest("media");
-    setAudioBlob(null); setVoiceClient(""); setVoiceDest("media");
-    setIsRecording(false);
+    setRecording(false); setTranscribing(false);
     setSaving(false);
   };
 
@@ -88,13 +96,118 @@ export function GlobalCaptureButton() {
     }
   };
 
-  // --- Task ---
+  const getClientId = () => {
+    if (isClient) return profile?.client_id || "";
+    return clientId;
+  };
+
+  // ─── Save to brain_captures ───
+  const saveToBrain = async (payload: Record<string, any>) => {
+    const cid = getClientId();
+    if (!cid || !profile) return false;
+    const { error } = await supabase.from("brain_captures" as any).insert({
+      client_id: cid,
+      created_by_user_id: profile.id,
+      ...payload,
+    });
+    if (error) { toast.error("Failed to save capture"); return false; }
+    queryClient.invalidateQueries({ queryKey: ["brain-captures", cid] });
+    queryClient.invalidateQueries({ queryKey: ["client-recent-captures"] });
+    return true;
+  };
+
+  // ─── Note ───
+  const handleNoteSubmit = async () => {
+    if (!input.trim()) return;
+    setSaving(true);
+    const ok = await saveToBrain({ type: "note", content: input.trim() });
+    setSaving(false);
+    if (ok) { toast.success("Captured!"); handleOpen(false); }
+  };
+
+  // ─── Link ───
+  const handleLinkSubmit = async () => {
+    if (!linkInput.trim()) return;
+    setSaving(true);
+    const ok = await saveToBrain({ type: "link", content: linkInput.trim(), link_url: linkInput.trim() });
+    setSaving(false);
+    if (ok) { toast.success("Link captured!"); handleOpen(false); }
+  };
+
+  // ─── File ───
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files?.length || !profile) return;
+    const cid = getClientId();
+    if (!cid) { toast.error("Please select a client"); return; }
+    setSaving(true);
+    for (const file of Array.from(files)) {
+      if (file.size > 10 * 1024 * 1024) { toast.error(`${file.name} exceeds 10MB`); continue; }
+      let uploadFile: File | Blob = file;
+      if (file.type.startsWith("image/")) {
+        uploadFile = await compressImage(file);
+      }
+      const path = `captures/${cid}/${Date.now()}-${file.name}`;
+      const { error } = await supabase.storage.from("creative-assets").upload(path, uploadFile);
+      if (error) { toast.error(`Upload failed: ${file.name}`); continue; }
+      const url = supabase.storage.from("creative-assets").getPublicUrl(path).data.publicUrl;
+      await saveToBrain({ type: "file", content: file.name, attachment_url: url, attachment_name: file.name });
+    }
+    setSaving(false);
+    toast.success("File captured!");
+    handleOpen(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // ─── Voice ───
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      chunksRef.current = [];
+      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        const cid = getClientId();
+        if (!cid) { toast.error("Please select a client"); return; }
+        const path = `captures/${cid}/${Date.now()}-voice.webm`;
+        const { error } = await supabase.storage.from("creative-assets").upload(path, blob);
+        if (error) { toast.error("Upload failed"); return; }
+        const url = supabase.storage.from("creative-assets").getPublicUrl(path).data.publicUrl;
+        setTranscribing(true);
+        let transcript = "";
+        try {
+          const { data, error: fnError } = await supabase.functions.invoke("transcribe-capture", { body: { audioUrl: url } });
+          if (fnError) throw fnError;
+          transcript = data?.transcript || "";
+        } catch { console.error("Transcription failed"); }
+        setTranscribing(false);
+        setSaving(true);
+        const ok = await saveToBrain({ type: "voice", content: transcript || "Voice note", attachment_url: url, attachment_name: "voice.webm", voice_transcript: transcript });
+        setSaving(false);
+        if (ok) { toast.success("Voice captured!"); handleOpen(false); }
+      };
+      mediaRecorderRef.current = mr;
+      mr.start();
+      setRecording(true);
+    } catch {
+      toast.error("Microphone access denied");
+    }
+  }, [clientId, profile]);
+
+  const stopRecording = useCallback(() => {
+    mediaRecorderRef.current?.stop();
+    setRecording(false);
+  }, []);
+
+  // ─── Task ───
   const saveTask = async () => {
     if (!taskTitle.trim() || !profile) return;
     setSaving(true);
     const { error } = await supabase.from("tasks").insert({
       title: taskTitle.trim(),
-      client_id: taskClient || null,
+      client_id: getClientId() || null,
       project_id: taskProject || null,
       priority: taskPriority,
       assigned_to_user_id: taskAssign || null,
@@ -112,145 +225,230 @@ export function GlobalCaptureButton() {
     handleOpen(false);
   };
 
-  // --- Idea ---
-  const saveIdea = async () => {
-    if (!ideaTitle.trim() || !profile) return;
-    setSaving(true);
-    let imageUrl: string | null = null;
-    if (ideaFile) {
-      const compressed = await compressImage(ideaFile);
-      const path = `ideas/${Date.now()}-${compressed.name}`;
-      const { error: upErr } = await supabase.storage.from("creative-assets").upload(path, compressed);
-      if (!upErr) {
-        imageUrl = supabase.storage.from("creative-assets").getPublicUrl(path).data.publicUrl;
-      }
-    }
-    const { error } = await supabase.from("think_tank_items").insert({
-      title: ideaTitle.trim(),
-      body: [ideaDesc, imageUrl ? `\n![image](${imageUrl})` : ""].join(""),
-      type: ideaType,
-      client_id: ideaClient || null,
-      created_by_user_id: profile.id,
-      source_type: "capture",
-      raw_input_text: [ideaTitle.trim(), ideaDesc].filter(Boolean).join("\n"),
-      raw_attachment_url: imageUrl || null,
-    } as any);
-    setSaving(false);
-    if (error) { toast.error("Failed to capture idea"); return; }
-    toast.success("Idea captured");
-    queryClient.invalidateQueries({ queryKey: ["think-tank"] });
-    handleOpen(false);
-  };
-
-  // --- Image Upload ---
-  const saveImage = async () => {
-    if (!imgFile || !profile) return;
-    setSaving(true);
-    const compressed = await compressImage(imgFile);
-
-    if (isSSRole && imgDest === "inbox") {
-      // Upload to storage first, then create inbox item
-      const path = `inbox/${Date.now()}-${compressed.name}`;
-      const { error: upErr } = await supabase.storage.from("creative-assets").upload(path, compressed);
-      if (upErr) { setSaving(false); toast.error("Upload failed"); return; }
-      const url = supabase.storage.from("creative-assets").getPublicUrl(path).data.publicUrl;
-      const { error } = await supabase.from("universal_inbox").insert({
-        title: compressed.name,
-        source_type: "screenshot",
-        attachment_url: url,
-        created_by_user_id: profile.id,
-      } as any);
-      setSaving(false);
-      if (error) { toast.error("Failed to save to inbox"); return; }
-      toast.success("Image sent to Universal Inbox");
-    } else {
-      const folder = isClient ? (profile.client_id || "general") : (imgClient || "general");
-      const path = `${folder}/${Date.now()}-${compressed.name}`;
-      const { error } = await supabase.storage.from("creative-assets").upload(path, compressed);
-      setSaving(false);
-      if (error) { toast.error("Upload failed"); return; }
-      toast.success("Image uploaded to Media Library");
-    }
-    handleOpen(false);
-  };
-
-  // --- Voice Recording ---
-  const startRecording = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream, { mimeType: "audio/webm" });
-      chunksRef.current = [];
-      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      mr.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        setAudioBlob(blob);
-        stream.getTracks().forEach(t => t.stop());
-      };
-      mediaRecorderRef.current = mr;
-      mr.start();
-      setIsRecording(true);
-    } catch {
-      toast.error("Microphone access denied");
-    }
-  }, []);
-
-  const stopRecording = useCallback(() => {
-    mediaRecorderRef.current?.stop();
-    setIsRecording(false);
-  }, []);
-
-  const saveVoiceNote = async () => {
-    if (!audioBlob || !profile) return;
-    setSaving(true);
-
-    if (isSSRole && voiceDest === "inbox") {
-      const path = `inbox/voice-${Date.now()}.webm`;
-      const { error: upErr } = await supabase.storage.from("voice-notes").upload(path, audioBlob, { contentType: "audio/webm" });
-      if (upErr) { setSaving(false); toast.error("Upload failed"); return; }
-      const { data: signedData } = await supabase.storage.from("voice-notes").createSignedUrl(path, 3600);
-      const url = signedData?.signedUrl || path;
-      const { error } = await supabase.from("universal_inbox").insert({
-        title: `Voice note ${new Date().toLocaleString()}`,
-        source_type: "voice_note",
-        attachment_url: url,
-        created_by_user_id: profile.id,
-      } as any);
-      setSaving(false);
-      if (error) { toast.error("Failed to save to inbox"); return; }
-      toast.success("Voice note sent to Universal Inbox");
-    } else {
-      const folder = isClient ? (profile.client_id || "general") : (voiceClient || "general");
-      const path = `${folder}/voice-notes/voice-${Date.now()}.webm`;
-      const { error } = await supabase.storage.from("voice-notes").upload(path, audioBlob, { contentType: "audio/webm" });
-      setSaving(false);
-      if (error) { toast.error("Upload failed"); return; }
-      toast.success("Voice note saved");
-    }
-    handleOpen(false);
-  };
-
   if (!isSSRole && !isClient) return null;
 
-  const allOptions = [
-    { key: "task" as const, icon: ListTodo, label: "Create Task", desc: "Quick task creation", ssOnly: true },
-    { key: "request" as const, icon: MessageSquarePlus, label: "Create Request", desc: "New client request", ssOnly: false },
-    { key: "idea" as const, icon: Lightbulb, label: "Capture Idea", desc: "Save to Think Tank", ssOnly: true },
-    { key: "image" as const, icon: ImagePlus, label: "Upload Image", desc: "Add to Media Library", ssOnly: false },
-    { key: "voice" as const, icon: Mic, label: "Voice Note", desc: "Record audio", ssOnly: false },
-  ];
-  const options = allOptions.filter(o => isSSRole || !o.ssOnly);
+  // Build options based on role
+  const ssOptions: (keyof typeof ACTION_CONFIG)[] = ["note", "voice", "link", "file", "task", "request"];
+  const clientOptions: (keyof typeof ACTION_CONFIG)[] = ["note", "voice", "file", "request"];
+  const options = isSSRole ? ssOptions : clientOptions;
 
-  const DestinationSelector = ({ value, onChange }: { value: SaveDestination; onChange: (v: SaveDestination) => void }) => (
-    <div>
-      <Label className="text-xs text-muted-foreground">Save to</Label>
-      <div className="flex gap-2 mt-1">
-        <Button type="button" variant={value === "media" ? "default" : "outline"} size="sm" onClick={() => onChange("media")} className="flex-1 text-xs">
-          Media Library
-        </Button>
-        <Button type="button" variant={value === "inbox" ? "default" : "outline"} size="sm" onClick={() => onChange("inbox")} className="flex-1 text-xs">
-          Universal Inbox
-        </Button>
-      </div>
+  const needsClient = ["note", "voice", "link", "file"].includes(mode || "");
+  const hasClient = !!getClientId();
+
+  // ─── Content ───
+  const captureContent = (
+    <div className="space-y-4 p-4 pt-0">
+      {/* Mode selector (action grid) */}
+      {mode === null && (
+        <>
+          {isSSRole && (
+            <div>
+              <Label className="text-xs text-muted-foreground mb-1.5 block">Client (for captures)</Label>
+              <ClientSelectWithCreate value={clientId} onValueChange={setClientId} />
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            {options.map((key) => {
+              const cfg = ACTION_CONFIG[key];
+              const Icon = cfg.icon;
+              return (
+                <button
+                  key={key}
+                  onClick={() => {
+                    if (key === "request") {
+                      setOpen(false);
+                      setTimeout(() => setRequestOpen(true), 200);
+                    } else {
+                      setMode(key);
+                      if (key === "file") {
+                        setTimeout(() => fileInputRef.current?.click(), 100);
+                      }
+                    }
+                  }}
+                  className={`flex flex-col items-start gap-2 rounded-xl p-4 text-left transition-all active:scale-[0.97] ${cfg.bg} hover:shadow-md`}
+                >
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-full ${cfg.bg} ${cfg.text}`}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{cfg.label}</p>
+                    <p className="text-xs text-muted-foreground">{cfg.desc}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Note mode */}
+      {mode === "note" && (
+        <div className="space-y-3">
+          {isSSRole && !clientId && (
+            <div>
+              <Label className="text-xs text-muted-foreground">Client</Label>
+              <ClientSelectWithCreate value={clientId} onValueChange={setClientId} />
+            </div>
+          )}
+          <Textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleNoteSubmit(); } }}
+            placeholder="What's on your mind?"
+            className="min-h-[100px] text-base resize-none rounded-xl bg-card"
+            autoFocus
+          />
+          <Button onClick={handleNoteSubmit} disabled={!input.trim() || saving || (isSSRole && !hasClient)} className="w-full rounded-xl">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="h-4 w-4 mr-2" /> Capture</>}
+          </Button>
+        </div>
+      )}
+
+      {/* Link mode */}
+      {mode === "link" && (
+        <div className="space-y-3">
+          {isSSRole && !clientId && (
+            <div>
+              <Label className="text-xs text-muted-foreground">Client</Label>
+              <ClientSelectWithCreate value={clientId} onValueChange={setClientId} />
+            </div>
+          )}
+          <Input
+            value={linkInput}
+            onChange={(e) => setLinkInput(e.target.value)}
+            placeholder="Paste a URL..."
+            className="rounded-xl"
+            autoFocus
+            onKeyDown={(e) => { if (e.key === "Enter") handleLinkSubmit(); }}
+          />
+          <Button onClick={handleLinkSubmit} disabled={!linkInput.trim() || saving || (isSSRole && !hasClient)} className="w-full rounded-xl">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Link2 className="h-4 w-4 mr-2" /> Save Link</>}
+          </Button>
+        </div>
+      )}
+
+      {/* Voice mode */}
+      {mode === "voice" && (
+        <div className="space-y-4">
+          {isSSRole && !clientId && (
+            <div>
+              <Label className="text-xs text-muted-foreground">Client</Label>
+              <ClientSelectWithCreate value={clientId} onValueChange={setClientId} />
+            </div>
+          )}
+          <div className="flex flex-col items-center gap-4 py-6">
+            {!recording && !transcribing && (
+              <Button
+                onClick={startRecording}
+                variant="outline"
+                className="h-20 w-20 rounded-full"
+                disabled={isSSRole && !hasClient}
+              >
+                <Mic className="h-8 w-8 text-destructive" />
+              </Button>
+            )}
+            {recording && (
+              <Button onClick={stopRecording} variant="destructive" className="h-20 w-20 rounded-full animate-pulse">
+                <Square className="h-6 w-6" />
+              </Button>
+            )}
+            {transcribing && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Transcribing...
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              {recording ? "Recording... tap to stop" : transcribing ? "Processing your voice note" : "Tap to start recording"}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* File mode */}
+      {mode === "file" && (
+        <div className="space-y-3">
+          {isSSRole && !clientId && (
+            <div>
+              <Label className="text-xs text-muted-foreground">Client</Label>
+              <ClientSelectWithCreate value={clientId} onValueChange={setClientId} />
+            </div>
+          )}
+          <div className="flex flex-col items-center gap-3 py-6 text-center">
+            <Paperclip className="h-10 w-10 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Select a file to upload</p>
+            <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isSSRole && !hasClient} className="rounded-xl">
+              Choose File
+            </Button>
+            {saving && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Uploading...
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Task mode (SS only) */}
+      {mode === "task" && (
+        <div className="space-y-3">
+          <div><Label>Title *</Label><Input value={taskTitle} onChange={e => setTaskTitle(e.target.value)} placeholder="Task title" /></div>
+          <div><Label>Client</Label><ClientSelectWithCreate value={clientId} onValueChange={setClientId} /></div>
+          <div>
+            <Label>Project</Label>
+            <Select value={taskProject} onValueChange={setTaskProject}>
+              <SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No project</SelectItem>
+                {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Priority</Label>
+              <Select value={taskPriority} onValueChange={setTaskPriority}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="normal">Normal</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="urgent">Urgent</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Assign To</Label>
+              <Select value={taskAssign} onValueChange={setTaskAssign}>
+                <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Unassigned</SelectItem>
+                  {ssUsers.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div><Label>Due Date</Label><DatePickerField value={taskDue} onChange={setTaskDue} /></div>
+          <div><Label>Description</Label><Textarea value={taskDesc} onChange={e => setTaskDesc(e.target.value)} placeholder="Optional description" rows={3} /></div>
+          <Button onClick={saveTask} disabled={!taskTitle.trim() || saving} className="w-full rounded-xl">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create Task"}
+          </Button>
+        </div>
+      )}
+
+      <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileUpload} />
+    </div>
+  );
+
+  const headerContent = (
+    <div className="flex items-center gap-2">
+      {mode && (
+        <button onClick={() => setMode(null)} className="text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+      )}
+      {mode === null ? "Quick Capture" : ACTION_CONFIG[mode]?.label || "Capture"}
     </div>
   );
 
@@ -265,175 +463,29 @@ export function GlobalCaptureButton() {
         <Plus className={cn("h-6 w-6 transition-transform", open && "rotate-45")} />
       </button>
 
-      {/* Capture Dialog */}
-      <Dialog open={open} onOpenChange={handleOpen}>
-        <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {mode && (
-                <button onClick={() => setMode(null)} className="text-muted-foreground hover:text-foreground">
-                  <ArrowLeft className="h-4 w-4" />
-                </button>
-              )}
-              {mode === null ? "Quick Capture" : options.find(o => o.key === mode)?.label}
-            </DialogTitle>
-          </DialogHeader>
-
-          {/* Option Grid */}
-          {mode === null && (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {options.map(opt => (
-                <button
-                  key={opt.key}
-                  onClick={() => {
-                    if (opt.key === "request") {
-                      setOpen(false);
-                      setTimeout(() => setRequestOpen(true), 200);
-                    } else {
-                      setMode(opt.key);
-                    }
-                  }}
-                  className="flex flex-col items-center gap-2 rounded-lg border border-border p-4 hover:bg-accent transition-colors text-center"
-                >
-                  <opt.icon className="h-6 w-6 text-primary" />
-                  <span className="text-sm font-medium">{opt.label}</span>
-                  <span className="text-xs text-muted-foreground">{opt.desc}</span>
-                </button>
-              ))}
+      {/* Mobile: Drawer / Desktop: Dialog */}
+      {isMobile ? (
+        <Drawer open={open} onOpenChange={handleOpen}>
+          <DrawerContent className="max-h-[85vh]">
+            <DrawerHeader>
+              <DrawerTitle>{headerContent}</DrawerTitle>
+            </DrawerHeader>
+            <div className="overflow-y-auto pb-6">
+              {captureContent}
             </div>
-          )}
+          </DrawerContent>
+        </Drawer>
+      ) : (
+        <Dialog open={open} onOpenChange={handleOpen}>
+          <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{headerContent}</DialogTitle>
+            </DialogHeader>
+            {captureContent}
+          </DialogContent>
+        </Dialog>
+      )}
 
-          {/* Create Task Form */}
-          {mode === "task" && (
-            <div className="space-y-3">
-              <div><Label>Title *</Label><Input value={taskTitle} onChange={e => setTaskTitle(e.target.value)} placeholder="Task title" /></div>
-              <div><Label>Client</Label><ClientSelectWithCreate value={taskClient} onValueChange={setTaskClient} /></div>
-              <div>
-                <Label>Project</Label>
-                <Select value={taskProject} onValueChange={setTaskProject}>
-                  <SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No project</SelectItem>
-                    {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Priority</Label>
-                  <Select value={taskPriority} onValueChange={setTaskPriority}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="normal">Normal</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="urgent">Urgent</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Assign To</Label>
-                  <Select value={taskAssign} onValueChange={setTaskAssign}>
-                    <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Unassigned</SelectItem>
-                      {ssUsers.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div><Label>Due Date</Label><DatePickerField value={taskDue} onChange={setTaskDue} /></div>
-              <div><Label>Description</Label><Textarea value={taskDesc} onChange={e => setTaskDesc(e.target.value)} placeholder="Optional description" rows={3} /></div>
-              <Button onClick={saveTask} disabled={!taskTitle.trim() || saving} className="w-full">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create Task"}
-              </Button>
-            </div>
-          )}
-
-          {/* Capture Idea Form */}
-          {mode === "idea" && (
-            <div className="space-y-3">
-              <div><Label>Title *</Label><Input value={ideaTitle} onChange={e => setIdeaTitle(e.target.value)} placeholder="Idea title" /></div>
-              <div><Label>Description</Label><Textarea value={ideaDesc} onChange={e => setIdeaDesc(e.target.value)} placeholder="Describe the idea" rows={3} /></div>
-              <div>
-                <Label>Type</Label>
-                <Select value={ideaType} onValueChange={setIdeaType}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="idea">Idea</SelectItem>
-                    <SelectItem value="brainstorm">Brainstorm</SelectItem>
-                    <SelectItem value="meeting_note">Meeting Note</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div><Label>Client</Label><ClientSelectWithCreate value={ideaClient} onValueChange={setIdeaClient} /></div>
-              <div>
-                <Label>Image (optional)</Label>
-                <Input type="file" accept="image/*" onChange={e => setIdeaFile(e.target.files?.[0] || null)} />
-              </div>
-              <Button onClick={saveIdea} disabled={!ideaTitle.trim() || saving} className="w-full">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Capture Idea"}
-              </Button>
-            </div>
-          )}
-
-          {/* Upload Image Form */}
-          {mode === "image" && (
-            <div className="space-y-3">
-              <div>
-                <Label>Image *</Label>
-                <Input type="file" accept="image/*" onChange={e => setImgFile(e.target.files?.[0] || null)} />
-              </div>
-              {isSSRole && <div><Label>Client</Label><ClientSelectWithCreate value={imgClient} onValueChange={setImgClient} /></div>}
-              {imgFile && (
-                <div className="rounded-lg border overflow-hidden">
-                  <img src={URL.createObjectURL(imgFile)} alt="Preview" className="max-h-48 w-full object-contain bg-muted" />
-                </div>
-              )}
-              {isSSRole && <DestinationSelector value={imgDest} onChange={setImgDest} />}
-              <Button onClick={saveImage} disabled={!imgFile || saving} className="w-full">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : imgDest === "inbox" && isSSRole ? "Send to Inbox" : "Upload Image"}
-              </Button>
-            </div>
-          )}
-
-          {/* Voice Note Form */}
-          {mode === "voice" && (
-            <div className="space-y-4">
-              <div className="flex flex-col items-center gap-4 py-4">
-                {!audioBlob && !isRecording && (
-                  <Button onClick={startRecording} variant="outline" className="h-20 w-20 rounded-full">
-                    <Mic className="h-8 w-8 text-primary" />
-                  </Button>
-                )}
-                {isRecording && (
-                  <Button onClick={stopRecording} variant="destructive" className="h-20 w-20 rounded-full animate-pulse">
-                    <Square className="h-6 w-6" />
-                  </Button>
-                )}
-                {audioBlob && (
-                  <div className="w-full space-y-2">
-                    <audio src={URL.createObjectURL(audioBlob)} controls className="w-full" />
-                    <Button variant="ghost" size="sm" onClick={() => { setAudioBlob(null); }} className="text-xs">
-                      Re-record
-                    </Button>
-                  </div>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  {isRecording ? "Recording... tap to stop" : audioBlob ? "Voice note ready" : "Tap to start recording"}
-                </p>
-              </div>
-              {isSSRole && <div><Label>Client</Label><ClientSelectWithCreate value={voiceClient} onValueChange={setVoiceClient} /></div>}
-              {isSSRole && <DestinationSelector value={voiceDest} onChange={setVoiceDest} />}
-              <Button onClick={saveVoiceNote} disabled={!audioBlob || saving} className="w-full">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : voiceDest === "inbox" && isSSRole ? "Send to Inbox" : "Save Voice Note"}
-              </Button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Reuse existing MakeRequestDialog */}
       <MakeRequestDialog open={requestOpen} onOpenChange={setRequestOpen} />
     </>
   );
