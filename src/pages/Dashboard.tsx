@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientFilter } from "@/contexts/ClientFilterContext";
 import { Button } from "@/components/ui/button";
@@ -30,10 +30,20 @@ import {
   Sparkles,
   CheckCircle2,
   UserPlus,
+  PenLine,
+  Mic,
+  Paperclip,
+  Send,
+  Square,
+  X,
+  Loader2,
 } from "lucide-react";
 import { StatCard } from "@/components/ui/stat-card";
 import { SectionHeader } from "@/components/ui/section-header";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { compressImage } from "@/lib/imageUtils";
 
 const TASK_STATUSES = ["backlog", "todo", "in_progress", "waiting", "review", "complete"] as const;
 const TASK_STATUS_LABELS: Record<string, string> = {
