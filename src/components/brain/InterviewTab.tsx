@@ -384,7 +384,7 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
               {isExtracting ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : hasExtracted ? (
-                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
               ) : (
                 <Sparkles className="h-3.5 w-3.5" />
               )}
