@@ -54,7 +54,7 @@ export default function TeamRevenue() {
         <p className="text-sm text-muted-foreground mt-1">Track company growth milestones.</p>
       </div>
 
-      <div className="rounded-xl bg-card border border-border/40 shadow-sm p-5 space-y-4">
+      <div className="rounded-2xl bg-card shadow-soft p-5 space-y-4">
         <SectionHeader title="Progress to Milestone" icon={<TrendingUp className="h-4 w-4" />} className="mb-0" />
         <Progress value={progress} className="h-3" />
         <div className="flex justify-between text-xs text-muted-foreground">
@@ -64,20 +64,20 @@ export default function TeamRevenue() {
       </div>
 
       {isSSAdmin ? (
-        <div className="rounded-xl bg-card border border-border/40 shadow-sm p-5 space-y-4">
+        <div className="rounded-2xl bg-card shadow-soft p-5 space-y-4">
           <SectionHeader title="Edit Revenue Settings" icon={<DollarSign className="h-4 w-4" />} className="mb-0" />
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-1.5">
               <Label className="text-xs">Monthly Revenue</Label>
-              <Input type="number" value={revenue} onChange={e => setRevenue(Number(e.target.value))} />
+              <Input type="number" value={revenue} onChange={e => setRevenue(Number(e.target.value))} className="rounded-xl" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Next Milestone</Label>
-              <Input type="number" value={milestone} onChange={e => setMilestone(Number(e.target.value))} />
+              <Input type="number" value={milestone} onChange={e => setMilestone(Number(e.target.value))} className="rounded-xl" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Bonus Pool</Label>
-              <Input type="number" value={bonusPool} onChange={e => setBonusPool(Number(e.target.value))} />
+              <Input type="number" value={bonusPool} onChange={e => setBonusPool(Number(e.target.value))} className="rounded-xl" />
             </div>
           </div>
           <Button onClick={handleSave} disabled={saving} size="sm">
@@ -85,7 +85,7 @@ export default function TeamRevenue() {
           </Button>
         </div>
       ) : (
-        <div className="rounded-xl bg-card border border-border/40 shadow-sm p-5 space-y-2">
+        <div className="rounded-2xl bg-card shadow-soft p-5 space-y-2">
           <SectionHeader title="Revenue Details" icon={<DollarSign className="h-4 w-4" />} className="mb-0" />
           <div className="grid gap-3 sm:grid-cols-3 text-sm">
             <div><span className="text-muted-foreground">Monthly Revenue:</span> <span className="font-semibold">${revenue.toLocaleString()}</span></div>

@@ -58,11 +58,11 @@ export default function TeamGrowth() {
       </div>
 
       {isSSAdmin && (
-        <div className="rounded-xl bg-card border border-border/40 shadow-sm p-4 space-y-3">
+        <div className="rounded-2xl bg-card shadow-soft p-4 space-y-3">
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Add Track</span>
           <div className="flex gap-2 flex-wrap">
-            <Input placeholder="Team member name" value={newTrack.user_name} onChange={e => setNewTrack(f => ({ ...f, user_name: e.target.value }))} className="w-40" />
-            <Input placeholder="Track name" value={newTrack.track_name} onChange={e => setNewTrack(f => ({ ...f, track_name: e.target.value }))} className="flex-1 min-w-[160px]" />
+            <Input placeholder="Team member name" value={newTrack.user_name} onChange={e => setNewTrack(f => ({ ...f, user_name: e.target.value }))} className="w-40 rounded-xl" />
+            <Input placeholder="Track name" value={newTrack.track_name} onChange={e => setNewTrack(f => ({ ...f, track_name: e.target.value }))} className="flex-1 min-w-[160px] rounded-xl" />
             <Button size="sm" onClick={addTrack}><Plus className="h-3.5 w-3.5 mr-1" /> Add</Button>
           </div>
         </div>
@@ -72,7 +72,7 @@ export default function TeamGrowth() {
         <EmptyState icon={<GraduationCap className="h-8 w-8" />} title="No growth tracks yet" />
       ) : (
         Object.entries(grouped).map(([name, items]) => (
-          <div key={name} className="rounded-xl bg-card border border-border/40 shadow-sm p-5 space-y-3">
+          <div key={name} className="rounded-2xl bg-card shadow-soft p-5 space-y-3">
             <SectionHeader title={`${name}'s Growth Track`} icon={<TrendingUp className="h-4 w-4" />} className="mb-0" />
             <ul className="space-y-2">
               {items.map((item, i) => (
@@ -82,7 +82,7 @@ export default function TeamGrowth() {
                     <span className="text-foreground">{item.track_name}</span>
                   </div>
                   {isSSAdmin && (
-                    <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => deleteTrack(item.id)}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg" onClick={() => deleteTrack(item.id)}>
                       <Trash2 className="h-3.5 w-3.5 text-destructive" />
                     </Button>
                   )}

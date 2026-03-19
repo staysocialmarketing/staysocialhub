@@ -83,7 +83,7 @@ export default function Auth() {
             alt="Stay Social"
             className="h-28 w-auto object-contain mx-auto mb-6"
           />
-          <h1 className="text-4xl font-bold text-white tracking-tight">
+          <h1 className="text-4xl font-bold text-white tracking-tight font-sans">
             Stay Social <span className="text-primary">HUB</span>
           </h1>
           <p className="text-white/50 mt-2 text-sm">
@@ -92,7 +92,7 @@ export default function Auth() {
         </div>
 
         {/* Card */}
-        <div className="rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-sm p-6 space-y-5">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm p-7 space-y-5">
           <div className="text-center mb-2">
             <h2 className="text-lg font-semibold text-white">Welcome back</h2>
             <p className="text-white/40 text-sm">
@@ -102,7 +102,7 @@ export default function Auth() {
 
           <Button
             variant="outline"
-            className="w-full h-11 bg-white/5 border-white/15 text-white hover:bg-white/10 hover:text-white"
+            className="w-full h-12 rounded-xl bg-white/5 border-white/15 text-white hover:bg-white/10 hover:text-white active:scale-[0.98] transition-all"
             onClick={handleGoogleSignIn}
             disabled={loading}
           >
@@ -138,7 +138,7 @@ export default function Auth() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="mt-3 text-white/60 hover:text-white hover:bg-white/10"
+                className="mt-3 text-white/60 hover:text-white hover:bg-white/10 rounded-lg"
                 onClick={() => setMagicLinkSent(false)}
               >
                 Try another email
@@ -152,9 +152,9 @@ export default function Auth() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="h-11 bg-white/5 border-white/15 text-white placeholder:text-white/30 focus:border-primary"
+                className="h-12 rounded-xl bg-white/5 border-white/15 text-white placeholder:text-white/30 focus:border-primary px-4"
               />
-              <Button type="submit" className="w-full h-11" disabled={loading}>
+              <Button type="submit" className="w-full h-12 rounded-xl active:scale-[0.98] transition-all" disabled={loading}>
                 {loading ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : (

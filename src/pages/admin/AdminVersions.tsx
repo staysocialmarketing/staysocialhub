@@ -1,14 +1,12 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { Plus, Tag, Eye, EyeOff, Loader2, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
@@ -33,7 +31,6 @@ export default function AdminVersions() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Form state
   const [majorVersion, setMajorVersion] = useState(1);
   const [minorVersion, setMinorVersion] = useState(0);
   const [title, setTitle] = useState("");
@@ -117,11 +114,16 @@ export default function AdminVersions() {
   };
 
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-3xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Tag className="h-6 w-6 text-primary" />
-          <h2 className="text-2xl font-bold text-foreground">Platform Versions</h2>
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Tag className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">Platform Versions</h1>
+            <p className="text-sm text-muted-foreground">Release history and changelog.</p>
+          </div>
         </div>
         {!showForm && (
           <Button onClick={handleNewRelease} size="sm">
@@ -131,92 +133,75 @@ export default function AdminVersions() {
       </div>
 
       {showForm && (
-        <Card className="border-primary/30">
-          <CardHeader><CardTitle className="text-lg">{editingId ? "Edit Version" : "Publish New Version"}</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Major Version</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={majorVersion}
-                  onChange={e => setMajorVersion(Number(e.target.value))}
-                  disabled={!isSSAdmin}
-                />
-                {!isSSAdmin && <p className="text-xs text-muted-foreground mt-1">Only Super Admin can change major version</p>}
-              </div>
-              <div>
-                <Label>Minor Version</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={minorVersion}
-                  onChange={e => setMinorVersion(Number(e.target.value))}
-                />
-              </div>
+        <div className="rounded-2xl bg-card shadow-soft border border-primary/20 p-5 space-y-4">
+          <h3 className="font-semibold text-foreground">{editingId ? "Edit Version" : "Publish New Version"}</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Major Version</Label>
+              <Input type="number" min={1} value={majorVersion} onChange={e => setMajorVersion(Number(e.target.value))} disabled={!isSSAdmin} className="rounded-xl" />
+              {!isSSAdmin && <p className="text-xs text-muted-foreground mt-1">Only Super Admin can change major version</p>}
             </div>
             <div>
-              <Label>Title *</Label>
-              <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Workflow improvements" />
+              <Label>Minor Version</Label>
+              <Input type="number" min={0} value={minorVersion} onChange={e => setMinorVersion(Number(e.target.value))} className="rounded-xl" />
             </div>
-            <div>
-              <Label>Release Notes</Label>
-              <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Summary of changes..." rows={4} />
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch checked={visibleToClients} onCheckedChange={setVisibleToClients} />
-              <Label className="cursor-pointer">Visible to clients</Label>
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : editingId ? `Update V${majorVersion}.${minorVersion}` : `Publish V${majorVersion}.${minorVersion}`}
-              </Button>
-              <Button variant="ghost" onClick={() => { setShowForm(false); setEditingId(null); }}>Cancel</Button>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div>
+            <Label>Title *</Label>
+            <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Workflow improvements" className="rounded-xl" />
+          </div>
+          <div>
+            <Label>Release Notes</Label>
+            <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Summary of changes..." rows={4} className="rounded-xl" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch checked={visibleToClients} onCheckedChange={setVisibleToClients} />
+            <Label className="cursor-pointer">Visible to clients</Label>
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : editingId ? `Update V${majorVersion}.${minorVersion}` : `Publish V${majorVersion}.${minorVersion}`}
+            </Button>
+            <Button variant="ghost" onClick={() => { setShowForm(false); setEditingId(null); }}>Cancel</Button>
+          </div>
+        </div>
       )}
-
-      <Separator />
 
       {loading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       ) : versions.length === 0 ? (
         <p className="text-center text-muted-foreground py-12">No versions published yet.</p>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-px">
           {versions.map((v, i) => (
-            <Card key={v.id} className={i === 0 ? "border-primary/30" : ""}>
-              <CardContent className="pt-5">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-foreground">V{v.major_version}.{v.minor_version}</span>
-                      {i === 0 && <Badge className="bg-primary/10 text-primary text-[10px]">Current</Badge>}
-                      {v.visible_to_clients ? (
-                        <Eye className="h-3.5 w-3.5 text-muted-foreground" />
-                      ) : (
-                        <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
-                      )}
-                    </div>
-                    {v.title && <h3 className="font-medium text-foreground">{v.title}</h3>}
-                    {v.notes && <p className="text-sm text-muted-foreground whitespace-pre-wrap">{v.notes}</p>}
+            <div key={v.id} className={`rounded-2xl bg-card shadow-soft p-5 ${i === 0 ? "border border-primary/20" : ""}`}>
+              <div className="flex items-start justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="rounded-full font-mono text-xs">V{v.major_version}.{v.minor_version}</Badge>
+                    {i === 0 && <Badge className="bg-primary/10 text-primary text-[10px] rounded-full border-0">Current</Badge>}
+                    {v.visible_to_clients ? (
+                      <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                    ) : (
+                      <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+                    )}
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <span className="text-xs text-muted-foreground mr-2">
-                      {v.published_at ? format(new Date(v.published_at), "MMM d, yyyy") : "—"}
-                    </span>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(v)}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(v)}>
-                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                    </Button>
-                  </div>
+                  {v.title && <h3 className="font-semibold text-foreground text-sm">{v.title}</h3>}
+                  {v.notes && <p className="text-sm text-muted-foreground whitespace-pre-wrap">{v.notes}</p>}
                 </div>
-              </CardContent>
-            </Card>
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="text-xs text-muted-foreground mr-2">
+                    {v.published_at ? format(new Date(v.published_at), "MMM d, yyyy") : "—"}
+                  </span>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => handleEdit(v)}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => handleDelete(v)}>
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+            </div>
           ))}
         </div>
       )}
