@@ -457,7 +457,20 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
         </div>
       )}
 
+      {/* Voice call mode */}
+      {voiceMode && (
+        <div className="border rounded-lg bg-muted/30 flex flex-col" style={{ height: "min(500px, 60vh)" }}>
+          <VoiceCallPanel
+            clientId={clientId}
+            template={template}
+            onCallEnd={handleVoiceCallEnd}
+            onCancel={handleVoiceCancel}
+          />
+        </div>
+      )}
+
       {/* Chat area */}
+      {!voiceMode && (
       <div className="border rounded-lg bg-muted/30 flex flex-col" style={{ height: "min(500px, 60vh)" }}>
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.length === 0 && (
@@ -469,10 +482,16 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
                   Start a conversation to build the Brand Twin through natural dialogue
                 </p>
               </div>
-              <Button onClick={startNew} size="sm" className="gap-1.5 mt-2">
-                <Sparkles className="h-3.5 w-3.5" />
-                Start Interview
-              </Button>
+              <div className="flex gap-2 mt-2">
+                <Button onClick={startNew} size="sm" className="gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Text Interview
+                </Button>
+                <Button onClick={startVoiceCall} size="sm" variant="outline" className="gap-1.5">
+                  <Phone className="h-3.5 w-3.5" />
+                  Voice Call
+                </Button>
+              </div>
             </div>
           )}
 
