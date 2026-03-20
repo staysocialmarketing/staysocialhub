@@ -250,8 +250,6 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
     setMessages([]);
     setInput("");
     setVoiceMode(false);
-    // Start with AI's first question
-    streamChat([]);
   };
 
   const startVoiceCall = () => {
