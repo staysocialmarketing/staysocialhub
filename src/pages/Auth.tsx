@@ -18,13 +18,16 @@ export default function Auth() {
     setLoading(true);
     try {
       const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin + "/dashboard",
+        redirect_uri: window.location.origin,
       });
       if (result.error) {
-        toast.error("Google sign-in was blocked. This may be due to your organization's settings. Try using the magic link below instead.");
+        console.error("Google sign-in error:", result.error);
+        const msg = result.error?.message || String(result.error);
+        toast.error(msg || "Google sign-in failed. Try using the magic link below instead.");
       }
     } catch (err: any) {
-      toast.error("Google sign-in was blocked. Try using the magic link below instead.");
+      console.error("Google sign-in exception:", err);
+      toast.error(err?.message || "Google sign-in failed. Try using the magic link below instead.");
     } finally {
       setLoading(false);
     }
