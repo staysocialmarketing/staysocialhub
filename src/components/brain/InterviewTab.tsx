@@ -249,8 +249,28 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
     setActiveInterviewId(null);
     setMessages([]);
     setInput("");
+    setVoiceMode(false);
     // Start with AI's first question
     streamChat([]);
+  };
+
+  const startVoiceCall = () => {
+    setActiveInterviewId(null);
+    setMessages([]);
+    setInput("");
+    setVoiceMode(true);
+  };
+
+  const handleVoiceCallEnd = (voiceMessages: Message[]) => {
+    setMessages(voiceMessages);
+    setVoiceMode(false);
+    // Save the voice transcript as a new interview
+    saveMutation.mutate(voiceMessages);
+    toast.success("Voice interview saved! You can now extract insights to the Brand Twin.");
+  };
+
+  const handleVoiceCancel = () => {
+    setVoiceMode(false);
   };
 
   const handleExtract = async () => {
