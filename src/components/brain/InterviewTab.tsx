@@ -553,6 +553,7 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }
