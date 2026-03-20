@@ -1,21 +1,60 @@
 
 
-# Fix Google Sign-In Blocked Issue
+# Debug Voice Agent Silence + Create Client AI Pages
 
-## Diagnosis
+## Issue: Voice Agent Not Speaking
 
-The error message is generic — it catches everything and says "blocked." The actual error from the OAuth flow is being swallowed. Two likely causes:
+The edge function works — it returns a valid ElevenLabs conversation token (confirmed just now). The WebRTC connection establishes successfully (UI shows "Listening..."). But the agent never speaks.
 
-1. **Popup blocked by browser** — common on preview URLs
-2. **Redirect URI mismatch** — the code sends `window.location.origin + "/dashboard"` but the Lovable Cloud OAuth config may not have this preview domain whitelisted
+Since the ElevenLabs dashboard config hasn't changed, the issue is likely one of:
+1. **No event data reaching `onMessage`** — the callback may not be firing
+2. **Browser autoplay policy** blocking WebRTC audio output
+3. **Agent first message** not triggering despite being configured
 
-## Fix
+**The fix is diagnostic first**: Add `console.log` statements to every callback in `VoiceCallPanel.tsx` (`onConnect`, `onDisconnect`, `onMessage`, `onError`) so we can see exactly what events arrive. Also log the raw `message` object in `onMessage` to see if events come through with unexpected structure.
 
-**Step 1: Surface the actual error** — Update `handleGoogleSignIn` to log `result.error` so we can see what ElevenLabs/OAuth is actually returning. Show the real error message in the toast instead of the generic one.
+### Changes to `src/components/brain/VoiceCallPanel.tsx`
+- Add `console.log("EL onConnect")` in `onConnect`
+- Add `console.log("EL onMessage", JSON.stringify(message))` in `onMessage`
+- Add `console.log("EL onError", error)` in `onError`
+- Add `console.log("EL onDisconnect")` in `onDisconnect`
 
-**Step 2: Fix redirect_uri** — Change from `window.location.origin + "/dashboard"` to just `window.location.origin`. The OAuth redirect should go to the origin, and the `AuthRoute` component already handles redirecting authenticated users to `/dashboard`.
+This will let us test and see exactly what's happening in the console.
 
-**File:** `src/pages/Auth.tsx`
+---
 
-These are small, quick changes that should resolve or at least diagnose the issue.
+## New Client-Facing AI Tool Pages
+
+Three new routes for client users to access AI tools directly.
+
+### `src/pages/client/AIInterview.tsx` — Create
+- Wraps existing `InterviewTab` component
+- Fetches logged-in user's `client_id` from their profile
+- Shows error if no client linked
+
+### `src/pages/client/ContentGenerator.tsx` — Create
+- "Coming Soon" placeholder page
+- Brief description of what it will do
+
+### `src/pages/client/BrandTwin.tsx` — Create
+- Read-only view of the client's Brand Twin data from `brand_twin` table
+- Shows 5 sections: Brand Basics, Voice, Audience, Offers, Content Rules
+- Card-based layout
+
+### `src/App.tsx` — Add 3 routes
+- `/client/ai-interview` → AIInterview
+- `/client/generate` → ContentGenerator
+- `/client/brand-twin` → BrandTwin
+
+---
+
+## Files Summary
+
+| File | Action |
+|---|---|
+| `src/components/brain/VoiceCallPanel.tsx` | Add console logging to all callbacks |
+| `src/pages/client/AIInterview.tsx` | Create |
+| `src/pages/client/ContentGenerator.tsx` | Create |
+| `src/pages/client/BrandTwin.tsx` | Create |
+| `src/App.tsx` | Add 3 client routes |
 
