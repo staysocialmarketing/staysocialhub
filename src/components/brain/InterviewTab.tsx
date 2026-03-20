@@ -6,9 +6,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Brain, Send, Sparkles, Plus, Loader2, CheckCircle2 } from "lucide-react";
+import { Brain, Send, Sparkles, Plus, Loader2, CheckCircle2, Phone } from "lucide-react";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
+import VoiceCallPanel from "./VoiceCallPanel";
 
 type Message = { role: "user" | "assistant"; content: string; timestamp?: string };
 
