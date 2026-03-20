@@ -30,15 +30,18 @@ export default function VoiceCallPanel({
 
   const conversation = useConversation({
     onConnect: () => {
+      console.log("EL onConnect — session established");
       setHasStarted(true);
       setIsConnecting(false);
     },
     onDisconnect: () => {
+      console.log("EL onDisconnect — hasStarted:", hasStarted, "transcript length:", transcriptRef.current.length);
       if (hasStarted && transcriptRef.current.length > 0) {
         onCallEnd(transcriptRef.current);
       }
     },
     onMessage: (message: any) => {
+      console.log("EL onMessage", JSON.stringify(message));
       if (message.type === "user_transcript") {
         const userText = message.user_transcription_event?.user_transcript;
         if (userText?.trim()) {
@@ -64,7 +67,7 @@ export default function VoiceCallPanel({
       }
     },
     onError: (error: any) => {
-      console.error("Voice conversation error:", error);
+      console.error("EL onError", error);
       toast.error("Voice connection error. Please try again.");
       setIsConnecting(false);
     },
