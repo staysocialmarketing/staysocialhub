@@ -31,7 +31,7 @@ export default function VoiceCallPanel({
   const conversation = useConversation({
     onConnect: () => {
       console.log("EL onConnect — session established");
-      setHasStarted(true);
+      hasStartedRef.current = true;
       setIsConnecting(false);
     },
     onDisconnect: () => {
