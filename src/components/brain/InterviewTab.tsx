@@ -442,9 +442,32 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
                       {interview.status}
                     </Badge>
                   </div>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(interview.created_at).toLocaleDateString()}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(interview.created_at).toLocaleDateString()}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!confirm("Delete this interview?")) return;
+                        supabase
+                          .from("brain_interviews" as any)
+                          .delete()
+                          .eq("id", interview.id)
+                          .then(({ error }) => {
+                            if (error) {
+                              toast.error("Failed to delete interview");
+                            } else {
+                              toast.success("Interview deleted");
+                              queryClient.invalidateQueries({ queryKey: ["brain-interviews", clientId] });
+                            }
+                          });
+                      }}
+                      className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   {(interview.messages || []).length} messages
