@@ -6,9 +6,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Brain, Send, Sparkles, Plus, Loader2, CheckCircle2 } from "lucide-react";
+import { Brain, Send, Sparkles, Plus, Loader2, CheckCircle2, Phone } from "lucide-react";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
+import VoiceCallPanel from "./VoiceCallPanel";
 
 type Message = { role: "user" | "assistant"; content: string; timestamp?: string };
 
@@ -39,6 +40,7 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [template, setTemplate] = useState("full_onboarding");
+  const [voiceMode, setVoiceMode] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -247,8 +249,28 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
     setActiveInterviewId(null);
     setMessages([]);
     setInput("");
+    setVoiceMode(false);
     // Start with AI's first question
     streamChat([]);
+  };
+
+  const startVoiceCall = () => {
+    setActiveInterviewId(null);
+    setMessages([]);
+    setInput("");
+    setVoiceMode(true);
+  };
+
+  const handleVoiceCallEnd = (voiceMessages: Message[]) => {
+    setMessages(voiceMessages);
+    setVoiceMode(false);
+    // Save the voice transcript as a new interview
+    saveMutation.mutate(voiceMessages);
+    toast.success("Voice interview saved! You can now extract insights to the Brand Twin.");
+  };
+
+  const handleVoiceCancel = () => {
+    setVoiceMode(false);
   };
 
   const handleExtract = async () => {
@@ -435,7 +457,20 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
         </div>
       )}
 
+      {/* Voice call mode */}
+      {voiceMode && (
+        <div className="border rounded-lg bg-muted/30 flex flex-col" style={{ height: "min(500px, 60vh)" }}>
+          <VoiceCallPanel
+            clientId={clientId}
+            template={template}
+            onCallEnd={handleVoiceCallEnd}
+            onCancel={handleVoiceCancel}
+          />
+        </div>
+      )}
+
       {/* Chat area */}
+      {!voiceMode && (
       <div className="border rounded-lg bg-muted/30 flex flex-col" style={{ height: "min(500px, 60vh)" }}>
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.length === 0 && (
@@ -447,10 +482,16 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
                   Start a conversation to build the Brand Twin through natural dialogue
                 </p>
               </div>
-              <Button onClick={startNew} size="sm" className="gap-1.5 mt-2">
-                <Sparkles className="h-3.5 w-3.5" />
-                Start Interview
-              </Button>
+              <div className="flex gap-2 mt-2">
+                <Button onClick={startNew} size="sm" className="gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Text Interview
+                </Button>
+                <Button onClick={startVoiceCall} size="sm" variant="outline" className="gap-1.5">
+                  <Phone className="h-3.5 w-3.5" />
+                  Voice Call
+                </Button>
+              </div>
             </div>
           )}
 
@@ -512,6 +553,7 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }
