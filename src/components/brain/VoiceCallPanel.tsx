@@ -12,6 +12,7 @@ type Message = { role: "user" | "assistant"; content: string; timestamp?: string
 interface VoiceCallPanelProps {
   clientId: string;
   template: string;
+  existingMessages?: Message[];
   onCallEnd: (messages: Message[]) => void;
   onCancel: () => void;
 }
@@ -19,6 +20,7 @@ interface VoiceCallPanelProps {
 export default function VoiceCallPanel({
   clientId,
   template,
+  existingMessages = [],
   onCallEnd,
   onCancel,
 }: VoiceCallPanelProps) {
@@ -132,6 +134,9 @@ export default function VoiceCallPanel({
   const isConnected = conversation.status === "connected";
   const isSpeaking = conversation.isSpeaking;
 
+  // Show prior context count if resuming
+  const contextCount = existingMessages.length;
+
   // Pre-call screen
   if (!hasStartedRef.current && !isConnecting) {
     return (
@@ -142,12 +147,14 @@ export default function VoiceCallPanel({
         <div>
           <p className="text-sm font-medium">Voice Interview</p>
           <p className="text-xs text-muted-foreground mt-1 max-w-[260px]">
-            Have a natural conversation with the AI brand strategist. Your microphone will be used.
+            {contextCount > 0
+              ? `Continuing interview with ${contextCount} prior messages for context.`
+              : "Have a natural conversation with the AI brand strategist. Your microphone will be used."}
           </p>
         </div>
         <Button onClick={startCall} size="sm" className="gap-1.5 mt-2">
           <Phone className="h-3.5 w-3.5" />
-          Start Voice Call
+          {contextCount > 0 ? "Continue with Voice" : "Start Voice Call"}
         </Button>
         <Button variant="ghost" size="sm" onClick={onCancel} className="text-muted-foreground">
           Cancel
