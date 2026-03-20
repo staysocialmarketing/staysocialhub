@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Brain, Send, Sparkles, Plus, Loader2, CheckCircle2, Phone } from "lucide-react";
+import { Brain, Send, Sparkles, Plus, Loader2, CheckCircle2, Phone, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import VoiceCallPanel from "./VoiceCallPanel";
@@ -250,8 +250,6 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
     setMessages([]);
     setInput("");
     setVoiceMode(false);
-    // Start with AI's first question
-    streamChat([]);
   };
 
   const startVoiceCall = () => {
@@ -444,9 +442,32 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
                       {interview.status}
                     </Badge>
                   </div>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(interview.created_at).toLocaleDateString()}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(interview.created_at).toLocaleDateString()}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!confirm("Delete this interview?")) return;
+                        supabase
+                          .from("brain_interviews" as any)
+                          .delete()
+                          .eq("id", interview.id)
+                          .then(({ error }) => {
+                            if (error) {
+                              toast.error("Failed to delete interview");
+                            } else {
+                              toast.success("Interview deleted");
+                              queryClient.invalidateQueries({ queryKey: ["brain-interviews", clientId] });
+                            }
+                          });
+                      }}
+                      className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   {(interview.messages || []).length} messages
@@ -483,7 +504,7 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
                 </p>
               </div>
               <div className="flex gap-2 mt-2">
-                <Button onClick={startNew} size="sm" className="gap-1.5">
+                <Button onClick={() => streamChat([])} size="sm" className="gap-1.5">
                   <Sparkles className="h-3.5 w-3.5" />
                   Text Interview
                 </Button>
