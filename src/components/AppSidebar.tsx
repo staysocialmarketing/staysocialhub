@@ -251,9 +251,25 @@ export function AppSidebar() {
             </SidebarGroup>
           </>
         ) : (
-          <SidebarGroup>
-            <SidebarGroupContent>{renderMenuItems(clientItems)}</SidebarGroupContent>
-          </SidebarGroup>
+          <>
+            <SidebarGroup>
+              <SidebarGroupContent>{renderMenuItems(clientContentSection)}</SidebarGroupContent>
+            </SidebarGroup>
+
+            <SidebarSeparator className="opacity-30" />
+
+            <SidebarGroup>
+              {!collapsed && <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40">AI Tools</SidebarGroupLabel>}
+              <SidebarGroupContent>{renderMenuItems(clientAISection)}</SidebarGroupContent>
+            </SidebarGroup>
+
+            <SidebarSeparator className="opacity-30" />
+
+            <SidebarGroup>
+              {!collapsed && <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40">Account</SidebarGroupLabel>}
+              <SidebarGroupContent>{renderMenuItems(clientAccountSection)}</SidebarGroupContent>
+            </SidebarGroup>
+          </>
         )}
       </SidebarContent>
 
