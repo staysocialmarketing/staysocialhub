@@ -1,60 +1,47 @@
 
 
-# Debug Voice Agent Silence + Create Client AI Pages
+# Fix Voice Agent Silent / Immediate Disconnect
 
-## Issue: Voice Agent Not Speaking
+## Root Cause
 
-The edge function works — it returns a valid ElevenLabs conversation token (confirmed just now). The WebRTC connection establishes successfully (UI shows "Listening..."). But the agent never speaks.
+Console logs reveal the exact failure sequence:
+1. WebSocket connects then closes immediately (code 1006)
+2. LiveKit warns: "v1 RTC path not found" — WebRTC handshake fails
+3. SDK retries, `onConnect` fires, then `onDisconnect` fires immediately
+4. `hasStarted` is still `false` (React setState is async) so the transcript is never saved
+5. The agent's first message falls through to the text chat instead of voice
 
-Since the ElevenLabs dashboard config hasn't changed, the issue is likely one of:
-1. **No event data reaching `onMessage`** — the callback may not be firing
-2. **Browser autoplay policy** blocking WebRTC audio output
-3. **Agent first message** not triggering despite being configured
+Two problems to fix:
+- **WebRTC connection failing** — switch to WebSocket (signed URL) which is more compatible with preview environments
+- **`hasStarted` race condition** — `onDisconnect` reads stale state because `setHasStarted(true)` hasn't committed yet
 
-**The fix is diagnostic first**: Add `console.log` statements to every callback in `VoiceCallPanel.tsx` (`onConnect`, `onDisconnect`, `onMessage`, `onError`) so we can see exactly what events arrive. Also log the raw `message` object in `onMessage` to see if events come through with unexpected structure.
+## Changes
 
-### Changes to `src/components/brain/VoiceCallPanel.tsx`
-- Add `console.log("EL onConnect")` in `onConnect`
-- Add `console.log("EL onMessage", JSON.stringify(message))` in `onMessage`
-- Add `console.log("EL onError", error)` in `onError`
-- Add `console.log("EL onDisconnect")` in `onDisconnect`
+### 1. Edge function: return signed URL instead of conversation token
 
-This will let us test and see exactly what's happening in the console.
+**File:** `supabase/functions/elevenlabs-conversation-token/index.ts`
 
----
+Change the ElevenLabs API call from:
+- `GET /v1/convai/conversation/token?agent_id=...` → returns `{ token }`
 
-## New Client-Facing AI Tool Pages
+To:
+- `GET /v1/convai/conversation/get-signed-url?agent_id=...` → returns `{ signed_url }`
 
-Three new routes for client users to access AI tools directly.
+Return `{ signed_url }` to the client.
 
-### `src/pages/client/AIInterview.tsx` — Create
-- Wraps existing `InterviewTab` component
-- Fetches logged-in user's `client_id` from their profile
-- Shows error if no client linked
+### 2. VoiceCallPanel: use WebSocket + fix state race
 
-### `src/pages/client/ContentGenerator.tsx` — Create
-- "Coming Soon" placeholder page
-- Brief description of what it will do
+**File:** `src/components/brain/VoiceCallPanel.tsx`
 
-### `src/pages/client/BrandTwin.tsx` — Create
-- Read-only view of the client's Brand Twin data from `brand_twin` table
-- Shows 5 sections: Brand Basics, Voice, Audience, Offers, Content Rules
-- Card-based layout
+- Change `startSession({ conversationToken, connectionType: "webrtc" })` to `startSession({ signedUrl, connectionType: "websocket" })`
+- Update `startCall` to fetch `signed_url` instead of `token`
+- Replace `hasStarted` state with a ref (`hasStartedRef`) so `onDisconnect` reads the current value immediately without waiting for React re-render
+- Keep all existing diagnostic logging
 
-### `src/App.tsx` — Add 3 routes
-- `/client/ai-interview` → AIInterview
-- `/client/generate` → ContentGenerator
-- `/client/brand-twin` → BrandTwin
+### Files Summary
 
----
-
-## Files Summary
-
-| File | Action |
+| File | Change |
 |---|---|
-| `src/components/brain/VoiceCallPanel.tsx` | Add console logging to all callbacks |
-| `src/pages/client/AIInterview.tsx` | Create |
-| `src/pages/client/ContentGenerator.tsx` | Create |
-| `src/pages/client/BrandTwin.tsx` | Create |
-| `src/App.tsx` | Add 3 client routes |
+| `supabase/functions/elevenlabs-conversation-token/index.ts` | Switch to signed URL endpoint |
+| `src/components/brain/VoiceCallPanel.tsx` | Use WebSocket connection + fix hasStarted race with ref |
 
