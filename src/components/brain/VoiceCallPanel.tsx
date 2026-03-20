@@ -133,7 +133,7 @@ export default function VoiceCallPanel({
   const isSpeaking = conversation.isSpeaking;
 
   // Pre-call screen
-  if (!hasStarted && !isConnecting) {
+  if (!hasStartedRef.current && !isConnecting) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center gap-4 p-6">
         <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
