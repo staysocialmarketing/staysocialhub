@@ -47,9 +47,9 @@ Deno.serve(async (req) => {
       throw new Error("ELEVENLABS_AGENT_ID is not configured");
     }
 
-    // Generate conversation token
+    // Generate signed URL for WebSocket connection
     const response = await fetch(
-      `https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=${ELEVENLABS_AGENT_ID}`,
+      `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${ELEVENLABS_AGENT_ID}`,
       {
         headers: {
           "xi-api-key": ELEVENLABS_API_KEY,
@@ -60,13 +60,13 @@ Deno.serve(async (req) => {
     if (!response.ok) {
       const errBody = await response.text();
       throw new Error(
-        `ElevenLabs token request failed [${response.status}]: ${errBody}`
+        `ElevenLabs signed URL request failed [${response.status}]: ${errBody}`
       );
     }
 
-    const { token: conversationToken } = await response.json();
+    const { signed_url } = await response.json();
 
-    return new Response(JSON.stringify({ token: conversationToken }), {
+    return new Response(JSON.stringify({ signed_url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

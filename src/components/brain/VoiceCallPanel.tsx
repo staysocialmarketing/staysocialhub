@@ -23,7 +23,7 @@ export default function VoiceCallPanel({
   onCancel,
 }: VoiceCallPanelProps) {
   const [isConnecting, setIsConnecting] = useState(false);
-  const [hasStarted, setHasStarted] = useState(false);
+  const hasStartedRef = useRef(false);
   const transcriptRef = useRef<Message[]>([]);
   const [transcript, setTranscript] = useState<Message[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -31,12 +31,12 @@ export default function VoiceCallPanel({
   const conversation = useConversation({
     onConnect: () => {
       console.log("EL onConnect — session established");
-      setHasStarted(true);
+      hasStartedRef.current = true;
       setIsConnecting(false);
     },
     onDisconnect: () => {
-      console.log("EL onDisconnect — hasStarted:", hasStarted, "transcript length:", transcriptRef.current.length);
-      if (hasStarted && transcriptRef.current.length > 0) {
+      console.log("EL onDisconnect — hasStarted:", hasStartedRef.current, "transcript length:", transcriptRef.current.length);
+      if (hasStartedRef.current && transcriptRef.current.length > 0) {
         onCallEnd(transcriptRef.current);
       }
     },
@@ -99,15 +99,15 @@ export default function VoiceCallPanel({
 
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({ error: "Token request failed" }));
-        throw new Error(err.error || "Failed to get conversation token");
+        throw new Error(err.error || "Failed to get signed URL");
       }
 
-      const { token: conversationToken } = await resp.json();
-      if (!conversationToken) throw new Error("No token received");
+      const { signed_url } = await resp.json();
+      if (!signed_url) throw new Error("No signed URL received");
 
       await conversation.startSession({
-        conversationToken,
-        connectionType: "webrtc",
+        signedUrl: signed_url,
+        connectionType: "websocket",
       });
     } catch (error: any) {
       console.error("Failed to start voice call:", error);
@@ -133,7 +133,7 @@ export default function VoiceCallPanel({
   const isSpeaking = conversation.isSpeaking;
 
   // Pre-call screen
-  if (!hasStarted && !isConnecting) {
+  if (!hasStartedRef.current && !isConnecting) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center gap-4 p-6">
         <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
