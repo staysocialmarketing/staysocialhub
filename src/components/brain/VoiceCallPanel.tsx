@@ -161,8 +161,8 @@ export default function VoiceCallPanel({
           <div
             className={cn(
               "h-2.5 w-2.5 rounded-full",
-              isConnecting && "bg-yellow-500 animate-pulse",
-              isConnected && !isSpeaking && "bg-green-500",
+              isConnecting && "bg-accent animate-pulse",
+              isConnected && !isSpeaking && "bg-primary",
               isConnected && isSpeaking && "bg-primary animate-pulse"
             )}
           />
