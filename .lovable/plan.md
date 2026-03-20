@@ -1,123 +1,72 @@
 
 
-# Phase 5: AI-Powered Features — The Stay Social Brain Engine
+# Fix AI Interview + Restructure Client Navigation
 
-This is the big one. We're adding the AI capabilities that transform the HUB from a project management tool into an intelligent content operating system — comparable to Pressmaster but built for your 3-layer model (Internal OS, Client Portal, DIY).
+## Issue 1: AI Interview Not Working
 
----
+**Root cause**: The `ai-interview` edge function is missing from `supabase/config.toml`. Without `verify_jwt = false`, the function either isn't deployed or rejects requests at the infrastructure level (no logs at all confirms this).
 
-## What Pressmaster Does (and how we'll match/exceed it)
-
-| Pressmaster Feature | HUB Equivalent (exists) | What We Need to Build |
-|---|---|---|
-| AI Twin (persona model) | Brand Twin (manual forms) | **AI Interview** that auto-populates the Brand Twin |
-| AI Interview | Capture (voice/text) | **Chat-based AI interviewer** that extracts insights |
-| Content Suite | Workflow + Strategy Brief | **AI Content Generator** — turn ideas into platform-ready drafts |
-| Trendmaster | None | Future phase (requires external APIs) |
-| AI Agent (autonomous) | Run Strategy button | **AI Draft Pipeline** — auto-generate drafts from captures |
-| Image Generation | None | Future phase (Gemini image models) |
-| Calendar + Auto-publish | Marketing Calendar | Future phase (social API integrations) |
-| Agency white-label | Multi-client architecture | Already built (Layer 1 + 2) |
-
----
-
-## Implementation Plan (3 Batches)
-
-### Batch A: AI Interview Chat
-
-A conversational AI that interviews the user (or client) to build their Brand Twin profile. Like speaking to a journalist — it asks smart follow-up questions, then extracts structured data back into the Brand Twin fields.
-
-**New edge function: `ai-interview`**
-- Accepts conversation history + client's current Brand Twin data
-- System prompt: "You are a brand strategist interviewing a client. Ask focused questions about their business, voice, audience, offers, and content preferences. Extract actionable insights."
-- Uses Lovable AI (Gemini) with streaming
-- After the interview, a "Save to Brain" action extracts structured data and writes it back to `brand_twin` table
-
-**New UI: Interview tab in Client Brain**
-- Third tab alongside Brand Twin and Capture: "AI Interview"
-- Chat interface with streaming responses
-- Pre-built interview templates: "Brand Voice Discovery", "Audience Deep Dive", "Content Strategy Session"
-- "Extract to Brand Twin" button that processes the conversation and auto-fills Brand Twin fields
-
-**Database**: New `brain_interviews` table to store conversation history per client
-
-```text
-brain_interviews
-├── id (uuid)
-├── client_id (uuid)
-├── started_by_user_id (uuid)
-├── template (text) — e.g. 'brand_voice', 'audience', 'full_onboarding'
-├── messages (jsonb) — array of {role, content, timestamp}
-├── extracted_data (jsonb) — structured output after extraction
-├── status (text) — 'active', 'completed', 'extracted'
-├── created_at, updated_at
+**Fix**: Add the function config entry:
+```toml
+[functions.ai-interview]
+verify_jwt = false
 ```
 
-**Files**:
-- `supabase/functions/ai-interview/index.ts` — streaming chat + extraction
-- `src/components/brain/InterviewTab.tsx` — chat UI
-- `src/pages/admin/ClientBrain.tsx` — add third tab
-- Database migration for `brain_interviews`
+That single change should make the AI Interview functional.
 
 ---
 
-### Batch B: AI Content Generator
+## Issue 2: Client Menu Architecture for 3 Layers
 
-Turn any capture, idea, or interview insight into platform-ready content drafts — using the Brand Twin as context for voice matching.
+The client menu currently has 9 items and will grow as we add AI features (Content Generator, AI Interview for DIY users, etc.). The best pattern for your 3-layer model is a **tabbed hub** approach — keep the bottom tab bar lean (4 tabs + More), but reorganize what's inside.
 
-**New edge function: `generate-content`**
-- Accepts: source text (capture, idea, interview excerpt), target platform(s), content type, client_id
-- Pulls Brand Twin + Strategy data as context
-- Returns: structured draft(s) with caption, hashtags, CTA, formatted per platform
-- Supports multi-platform output (LinkedIn post, Instagram caption, X thread) from one input
+### Proposed Structure
 
-**New UI: "Generate Content" action**
-- Available from: Capture cards, Think Tank items, Request details, Interview excerpts
-- Opens a panel: select platform(s), content type, tone adjustments
-- Shows generated draft(s) with inline editing
-- "Send to Workflow" creates a post in the production pipeline (status: `ai_draft`)
+```text
+Bottom Tab Bar (all layers):
+  Home | Approvals | Requests | Calendar | More
 
-**Files**:
-- `supabase/functions/generate-content/index.ts`
-- `src/components/brain/GenerateContentPanel.tsx`
-- Update `CaptureTab.tsx`, `ThinkTank.tsx` with generate action
+"More" Sheet — reorganized by section:
+  ┌─────────────────────────────┐
+  │  My Content                 │
+  │    Success Center           │
+  │    My Media                 │
+  │    My Plan                  │
+  │                             │
+  │  AI Tools (Layer 3 / DIY)   │
+  │    AI Interview             │
+  │    Content Generator        │
+  │    Brand Twin               │
+  │                             │
+  │  Account                    │
+  │    My Profile               │
+  │    What's New               │
+  │    Sign Out                 │
+  └─────────────────────────────┘
+```
 
----
+For **Layer 2 (managed clients)**, the AI Tools section is hidden — they don't need self-serve AI. For **Layer 3 (DIY)**, it's fully visible. This is controlled by the existing role system (`client_admin` vs a future `diy` role or a flag on the client record).
 
-### Batch C: AI Draft Pipeline (Auto-triage + Draft)
+### Desktop Sidebar
 
-Connect the full loop: Capture → Inbox → AI Processing → Draft in Workflow.
+Same grouping applies — add section headers to `clientItems` in `AppSidebar.tsx` matching the mobile menu structure.
 
-**Enhanced edge function: `ai-triage`**
-- Processes new Universal Inbox items automatically
-- Suggests: client, priority, content type, assignee
-- Optionally auto-generates a draft post using Brand Twin context
-- Writes suggestions back to `universal_inbox` AI fields
+### Changes
 
-**New UI: "AI Process" button in Universal Inbox**
-- One-click AI triage for individual items or batch
-- Shows AI suggestions with accept/edit/reject controls
-- "Generate Draft" creates an `ai_draft` post directly
+**Files to modify:**
+- `supabase/config.toml` — add `ai-interview` function config
+- `src/components/MobileMenu.tsx` — group client items into labeled sections
+- `src/components/AppSidebar.tsx` — mirror the grouped structure for desktop
 
-**Files**:
-- `supabase/functions/ai-triage/index.ts`
-- Update `src/pages/team/UniversalInbox.tsx`
-
----
-
-## Layer 3 Consideration (DIY / Self-Serve)
-
-For the future productized version, the AI Interview becomes the onboarding flow — new users complete an interview instead of filling forms, and the system builds their Brand Twin automatically. The Content Generator becomes their primary creation tool. This batch lays the infrastructure for that.
+This keeps the navigation clean now and scalable as we add Batch B (Content Generator) and Batch C (AI Pipeline) features.
 
 ---
 
 ## Summary
 
-| Batch | Scope | Key Deliverables |
-|---|---|---|
-| **A** | AI Interview | Edge function, chat UI, brain_interviews table, extraction |
-| **B** | Content Generator | Edge function, generate panel, multi-platform drafts |
-| **C** | AI Draft Pipeline | Auto-triage, inbox AI processing, draft creation |
-
-Batch A is the highest-impact starting point — it's the feature Pressmaster users rave about most ("the interview functionality is actually quite useful"), and it directly feeds your existing Brand Twin with richer data.
+| Change | Impact |
+|---|---|
+| Add `ai-interview` to config.toml | Fixes the AI interview function |
+| Restructure client menu into sections | Cleaner nav, ready for AI tools |
+| Mirror sections in desktop sidebar | Consistent experience across devices |
 
