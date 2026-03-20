@@ -1,29 +1,62 @@
 
 
-# Delete Interviews + Fix Auto-Start
+# Improve AI Interview: Resume, Mode Switching, Auto-Extract & Template Tracking
 
-## Changes
+## What Changes
 
-### 1. Fix auto-start in `startNew()`
+### 1. Resume Previous Interviews (text or voice)
+Currently clicking a previous interview loads it read-only. After this change:
+- Opening a previous interview loads its messages AND shows the input bar so you can continue typing
+- A "Voice Call" button appears in the active interview header so you can switch to voice mid-conversation
+- Voice transcripts append to the existing messages array (same interview record) rather than creating a new one
 
-**File:** `src/components/brain/InterviewTab.tsx` (line 248-255)
+### 2. Switch Between Text ↔ Voice Within an Interview
+- Add a `Phone` icon button next to the text input area — click it to switch to voice mode *within the same interview*
+- When voice call ends, its transcript appends to the existing messages and you're back in text mode
+- `VoiceCallPanel` receives existing messages so context carries over
 
-Remove `streamChat([])` from `startNew()`. This stops it from immediately creating a new AI conversation thread. Instead, the user returns to the empty state and explicitly clicks "Text Interview" or "Voice Call."
+### 3. Auto-Extract to Brand Twin After Each Session
+- After a voice call ends or after 6+ messages in text chat, automatically trigger the extraction flow (the same `handleExtract` logic)
+- Show a subtle toast: "Brand Twin auto-updated with new insights"
+- No manual "Extract to Brain" click needed (button stays for manual re-extraction)
 
-### 2. Add delete button to interview cards
+### 4. Track & Display Interview Template/Category
+- Show the template badge on interview cards (already partially there)
+- When resuming an interview, lock the template selector to the interview's saved template
+- Show template category as a colored badge: Full Onboarding (purple), Brand Voice (blue), Audience (green), Content Strategy (orange)
 
-**File:** `src/components/brain/InterviewTab.tsx`
+### 5. Suggested Improvements (bonus)
+- **Interview message count on cards** — already exists, but add a "last active" timestamp
+- **"Continue" label** on interview cards instead of just clicking — clearer UX
 
-- Import `Trash2` from lucide-react
-- Add a delete mutation: `supabase.from("brain_interviews").delete().eq("id", id)`
-- Render a `Trash2` icon button on each interview card in the "Previous Interviews" list
-- Use `e.stopPropagation()` so clicking delete doesn't open the interview
-- Show a toast on success and invalidate the query cache
-- RLS already allows SS roles to delete (`SS can manage brain interviews` ALL policy)
+---
 
-### 3. Add a dedicated "Start Text Interview" action
+## Technical Details
 
-Update the empty-state "Text Interview" button's `onClick` to call `streamChat([])` directly (moving the auto-start logic to the explicit button click instead of `startNew`).
+### File: `src/components/brain/InterviewTab.tsx`
+
+**Resume interviews:**
+- Remove the condition that hides input bar when viewing a previous interview (currently `messages.length > 0` gates the input, which works, but `startNew()` resets `activeInterviewId` — we need to keep it set when clicking a card)
+- When clicking a card, set `activeInterviewId` and let existing `useEffect` load messages — input bar already shows since `messages.length > 0`
+
+**Mode switching within interview:**
+- Move the Voice Call button from empty-state-only to also appear in the input bar area (as an icon button)
+- Update `startVoiceCall` to NOT reset `activeInterviewId` or messages
+- Update `handleVoiceCallEnd` to append voice messages to existing `messages` state instead of replacing, then save
+
+**Auto-extract:**
+- After `saveMutation.mutate(finalMessages)` completes (in `onSuccess`), check if message count ≥ 6 and auto-call `handleExtract()`
+- Same for `handleVoiceCallEnd` — after save, trigger extraction
+- Add a flag to prevent double-extraction
+
+**Template tracking:**
+- Template selector already saves to `brain_interviews.template`
+- Disable template selector when `activeInterviewId` is set (interview already has a template)
+- Add color-coded badge mapping for the 4 templates on interview cards
+
+### File: `src/components/brain/VoiceCallPanel.tsx`
+- Accept optional `existingMessages` prop so voice context includes prior text conversation
+- Append voice transcript to existing messages on call end
 
 ---
 
@@ -31,11 +64,8 @@ Update the empty-state "Text Interview" button's `onClick` to call `streamChat([
 
 | File | Change |
 |---|---|
-| `src/components/brain/InterviewTab.tsx` | Remove auto-start from `startNew`, add delete mutation + trash button on cards |
+| `src/components/brain/InterviewTab.tsx` | Resume flow, mode switching, auto-extract, template badges |
+| `src/components/brain/VoiceCallPanel.tsx` | Accept existing messages, append instead of replace |
 
----
-
-## Suggested Next Update
-
-After this, the highest-impact next step would be **adding the 3 new client pages (AI Interview, Brand Twin, Content Generator) to the client sidebar navigation** so client users can actually access them. Currently the routes exist but there are no nav links.
+No database changes needed — existing schema supports everything.
 
