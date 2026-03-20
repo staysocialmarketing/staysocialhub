@@ -35,8 +35,8 @@ export default function VoiceCallPanel({
       setIsConnecting(false);
     },
     onDisconnect: () => {
-      console.log("EL onDisconnect — hasStarted:", hasStarted, "transcript length:", transcriptRef.current.length);
-      if (hasStarted && transcriptRef.current.length > 0) {
+      console.log("EL onDisconnect — hasStarted:", hasStartedRef.current, "transcript length:", transcriptRef.current.length);
+      if (hasStartedRef.current && transcriptRef.current.length > 0) {
         onCallEnd(transcriptRef.current);
       }
     },
