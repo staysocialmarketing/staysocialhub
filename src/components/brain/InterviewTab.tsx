@@ -40,6 +40,7 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [template, setTemplate] = useState("full_onboarding");
+  const [voiceMode, setVoiceMode] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
