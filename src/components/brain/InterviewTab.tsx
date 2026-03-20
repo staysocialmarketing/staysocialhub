@@ -21,13 +21,14 @@ type Interview = {
   extracted_data: any;
   status: string;
   created_at: string;
+  updated_at: string;
 };
 
 const TEMPLATES = [
-  { value: "full_onboarding", label: "Full Onboarding", desc: "Comprehensive brand discovery" },
-  { value: "brand_voice", label: "Brand Voice", desc: "Define communication style" },
-  { value: "audience", label: "Audience Deep Dive", desc: "Understand target customers" },
-  { value: "content_strategy", label: "Content Strategy", desc: "Platforms & content planning" },
+  { value: "full_onboarding", label: "Full Onboarding", desc: "Comprehensive brand discovery", color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300" },
+  { value: "brand_voice", label: "Brand Voice", desc: "Define communication style", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
+  { value: "audience", label: "Audience Deep Dive", desc: "Understand target customers", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" },
+  { value: "content_strategy", label: "Content Strategy", desc: "Platforms & content planning", color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" },
 ];
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-interview`;
@@ -41,6 +42,7 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
   const [isExtracting, setIsExtracting] = useState(false);
   const [template, setTemplate] = useState("full_onboarding");
   const [voiceMode, setVoiceMode] = useState(false);
+  const autoExtractedRef = useRef<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -52,7 +54,7 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
         .from("brain_interviews" as any)
         .select("*")
         .eq("client_id", clientId)
-        .order("created_at", { ascending: false });
+        .order("updated_at", { ascending: false });
       if (error) throw error;
       return (data || []) as unknown as Interview[];
     },
@@ -74,15 +76,90 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Auto-extract helper
+  const triggerAutoExtract = useCallback(async (msgs: Message[], interviewId: string | null) => {
+    if (!interviewId || msgs.length < 6) return;
+    if (autoExtractedRef.current === interviewId) return;
+    autoExtractedRef.current = interviewId;
+
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session?.session?.access_token;
+      if (!token) return;
+
+      const resp = await fetch(CHAT_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action: "extract", client_id: clientId, messages: msgs }),
+      });
+
+      if (!resp.ok) return;
+
+      const { extracted_data } = await resp.json();
+
+      await supabase
+        .from("brain_interviews" as any)
+        .update({ extracted_data, status: "extracted" } as any)
+        .eq("id", interviewId);
+
+      const { data: existing } = await supabase
+        .from("brand_twin" as any)
+        .select("*")
+        .eq("client_id", clientId)
+        .maybeSingle();
+
+      const mergeSection = (existing: any, extracted: any) => {
+        if (!extracted) return existing || {};
+        const merged = { ...(existing || {}) };
+        for (const [key, value] of Object.entries(extracted)) {
+          if (value !== null && value !== undefined && value !== "") {
+            if (Array.isArray(value) && value.length > 0) {
+              const existingArr = Array.isArray(merged[key]) ? merged[key] : [];
+              merged[key] = [...new Set([...existingArr, ...value])];
+            } else if (typeof value === "string" && value.trim()) {
+              merged[key] = value;
+            }
+          }
+        }
+        return merged;
+      };
+
+      const payload = {
+        client_id: clientId,
+        brand_basics_json: mergeSection((existing as any)?.brand_basics_json, extracted_data.brand_basics),
+        brand_voice_json: mergeSection((existing as any)?.brand_voice_json, extracted_data.brand_voice),
+        audience_json: mergeSection((existing as any)?.audience_json, extracted_data.audience),
+        offers_json: mergeSection((existing as any)?.offers_json, extracted_data.offers),
+        content_rules_json: mergeSection((existing as any)?.content_rules_json, extracted_data.content_rules),
+      };
+
+      if (existing) {
+        await supabase.from("brand_twin" as any).update(payload).eq("client_id", clientId);
+      } else {
+        await supabase.from("brand_twin" as any).insert(payload);
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["brand-twin", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["brain-interviews", clientId] });
+      toast.success("Brand Twin auto-updated with new insights");
+    } catch (err) {
+      console.error("Auto-extract error:", err);
+    }
+  }, [clientId, queryClient]);
+
   // Save interview to DB
   const saveMutation = useMutation({
     mutationFn: async (msgs: Message[]) => {
       if (activeInterviewId) {
         const { error } = await supabase
           .from("brain_interviews" as any)
-          .update({ messages: msgs as any } as any)
+          .update({ messages: msgs as any, updated_at: new Date().toISOString() } as any)
           .eq("id", activeInterviewId);
         if (error) throw error;
+        return activeInterviewId;
       } else {
         const { data: session } = await supabase.auth.getSession();
         const userId = session?.session?.user?.id;
@@ -100,9 +177,17 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
           .select("id")
           .single();
         if (error) throw error;
-        setActiveInterviewId((data as any).id);
+        const newId = (data as any).id;
+        setActiveInterviewId(newId);
+        return newId;
       }
+    },
+    onSuccess: (interviewId, msgs) => {
       queryClient.invalidateQueries({ queryKey: ["brain-interviews", clientId] });
+      // Auto-extract after 6+ messages
+      if (msgs.length >= 6) {
+        triggerAutoExtract(msgs, interviewId);
+      }
     },
   });
 
@@ -250,21 +335,21 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
     setMessages([]);
     setInput("");
     setVoiceMode(false);
+    autoExtractedRef.current = null;
   };
 
   const startVoiceCall = () => {
-    setActiveInterviewId(null);
-    setMessages([]);
-    setInput("");
+    // Don't reset activeInterviewId or messages — voice appends to current session
     setVoiceMode(true);
   };
 
   const handleVoiceCallEnd = (voiceMessages: Message[]) => {
-    setMessages(voiceMessages);
+    // Append voice messages to existing conversation
+    const combined = [...messages, ...voiceMessages];
+    setMessages(combined);
     setVoiceMode(false);
-    // Save the voice transcript as a new interview
-    saveMutation.mutate(voiceMessages);
-    toast.success("Voice interview saved! You can now extract insights to the Brand Twin.");
+    saveMutation.mutate(combined);
+    toast.success("Voice transcript added to interview");
   };
 
   const handleVoiceCancel = () => {
@@ -303,7 +388,6 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
 
       const { extracted_data } = await resp.json();
 
-      // Save extracted data to interview
       if (activeInterviewId) {
         await supabase
           .from("brain_interviews" as any)
@@ -311,7 +395,6 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
           .eq("id", activeInterviewId);
       }
 
-      // Merge into Brand Twin
       const { data: existing } = await supabase
         .from("brand_twin" as any)
         .select("*")
@@ -367,15 +450,40 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
     }
   };
 
+  const getTemplateBadge = (templateValue: string) => {
+    const t = TEMPLATES.find((t) => t.value === templateValue);
+    if (!t) return null;
+    return (
+      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${t.color}`}>
+        {t.label}
+      </span>
+    );
+  };
+
+  const formatRelativeTime = (dateStr: string) => {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return "just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return d.toLocaleDateString();
+  };
+
   const activeInterview = interviews?.find((i) => i.id === activeInterviewId);
   const hasExtracted = activeInterview?.status === "extracted";
+  const isResuming = !!activeInterviewId && messages.length > 0;
 
   return (
     <div className="space-y-4">
       {/* Header with template select and controls */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          <Select value={template} onValueChange={setTemplate} disabled={messages.length > 0}>
+          <Select value={template} onValueChange={setTemplate} disabled={!!activeInterviewId}>
             <SelectTrigger className="w-[200px]">
               <SelectValue />
             </SelectTrigger>
@@ -427,14 +535,15 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
               <Card
                 key={interview.id}
                 className="p-3 cursor-pointer hover:bg-accent/50 transition-colors"
-                onClick={() => setActiveInterviewId(interview.id)}
+                onClick={() => {
+                  setActiveInterviewId(interview.id);
+                  autoExtractedRef.current = null;
+                }}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Brain className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-medium">
-                      {TEMPLATES.find((t) => t.value === interview.template)?.label || interview.template}
-                    </span>
+                    {getTemplateBadge(interview.template)}
                     <Badge
                       variant={interview.status === "extracted" ? "default" : "secondary"}
                       className="text-[10px]"
@@ -444,7 +553,7 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground">
-                      {new Date(interview.created_at).toLocaleDateString()}
+                      {formatRelativeTime(interview.updated_at || interview.created_at)}
                     </span>
                     <button
                       onClick={(e) => {
@@ -469,9 +578,12 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
                     </button>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {(interview.messages || []).length} messages
-                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-xs text-muted-foreground">
+                    {(interview.messages || []).length} messages
+                  </p>
+                  <span className="text-xs text-primary font-medium">Continue →</span>
+                </div>
               </Card>
             ))}
           </div>
@@ -484,6 +596,7 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
           <VoiceCallPanel
             clientId={clientId}
             template={template}
+            existingMessages={messages}
             onCallEnd={handleVoiceCallEnd}
             onCancel={handleVoiceCancel}
           />
@@ -508,7 +621,7 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
                   <Sparkles className="h-3.5 w-3.5" />
                   Text Interview
                 </Button>
-                <Button onClick={startVoiceCall} size="sm" variant="outline" className="gap-1.5">
+                <Button onClick={() => { setVoiceMode(true); }} size="sm" variant="outline" className="gap-1.5">
                   <Phone className="h-3.5 w-3.5" />
                   Voice Call
                 </Button>
@@ -550,7 +663,7 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
           <div ref={chatEndRef} />
         </div>
 
-        {/* Input */}
+        {/* Input — always show when there are messages (enables resume) */}
         {messages.length > 0 && (
           <div className="border-t p-3 flex gap-2">
             <Textarea
@@ -563,6 +676,16 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
               rows={1}
               disabled={isStreaming}
             />
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={startVoiceCall}
+              disabled={isStreaming}
+              className="shrink-0 self-end"
+              title="Switch to voice"
+            >
+              <Phone className="h-4 w-4" />
+            </Button>
             <Button
               size="icon"
               onClick={handleSend}
