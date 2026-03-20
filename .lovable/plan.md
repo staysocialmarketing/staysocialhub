@@ -1,47 +1,41 @@
 
 
-# Fix Voice Agent Silent / Immediate Disconnect
-
-## Root Cause
-
-Console logs reveal the exact failure sequence:
-1. WebSocket connects then closes immediately (code 1006)
-2. LiveKit warns: "v1 RTC path not found" — WebRTC handshake fails
-3. SDK retries, `onConnect` fires, then `onDisconnect` fires immediately
-4. `hasStarted` is still `false` (React setState is async) so the transcript is never saved
-5. The agent's first message falls through to the text chat instead of voice
-
-Two problems to fix:
-- **WebRTC connection failing** — switch to WebSocket (signed URL) which is more compatible with preview environments
-- **`hasStarted` race condition** — `onDisconnect` reads stale state because `setHasStarted(true)` hasn't committed yet
+# Delete Interviews + Fix Auto-Start
 
 ## Changes
 
-### 1. Edge function: return signed URL instead of conversation token
+### 1. Fix auto-start in `startNew()`
 
-**File:** `supabase/functions/elevenlabs-conversation-token/index.ts`
+**File:** `src/components/brain/InterviewTab.tsx` (line 248-255)
 
-Change the ElevenLabs API call from:
-- `GET /v1/convai/conversation/token?agent_id=...` → returns `{ token }`
+Remove `streamChat([])` from `startNew()`. This stops it from immediately creating a new AI conversation thread. Instead, the user returns to the empty state and explicitly clicks "Text Interview" or "Voice Call."
 
-To:
-- `GET /v1/convai/conversation/get-signed-url?agent_id=...` → returns `{ signed_url }`
+### 2. Add delete button to interview cards
 
-Return `{ signed_url }` to the client.
+**File:** `src/components/brain/InterviewTab.tsx`
 
-### 2. VoiceCallPanel: use WebSocket + fix state race
+- Import `Trash2` from lucide-react
+- Add a delete mutation: `supabase.from("brain_interviews").delete().eq("id", id)`
+- Render a `Trash2` icon button on each interview card in the "Previous Interviews" list
+- Use `e.stopPropagation()` so clicking delete doesn't open the interview
+- Show a toast on success and invalidate the query cache
+- RLS already allows SS roles to delete (`SS can manage brain interviews` ALL policy)
 
-**File:** `src/components/brain/VoiceCallPanel.tsx`
+### 3. Add a dedicated "Start Text Interview" action
 
-- Change `startSession({ conversationToken, connectionType: "webrtc" })` to `startSession({ signedUrl, connectionType: "websocket" })`
-- Update `startCall` to fetch `signed_url` instead of `token`
-- Replace `hasStarted` state with a ref (`hasStartedRef`) so `onDisconnect` reads the current value immediately without waiting for React re-render
-- Keep all existing diagnostic logging
+Update the empty-state "Text Interview" button's `onClick` to call `streamChat([])` directly (moving the auto-start logic to the explicit button click instead of `startNew`).
 
-### Files Summary
+---
+
+## Files Summary
 
 | File | Change |
 |---|---|
-| `supabase/functions/elevenlabs-conversation-token/index.ts` | Switch to signed URL endpoint |
-| `src/components/brain/VoiceCallPanel.tsx` | Use WebSocket connection + fix hasStarted race with ref |
+| `src/components/brain/InterviewTab.tsx` | Remove auto-start from `startNew`, add delete mutation + trash button on cards |
+
+---
+
+## Suggested Next Update
+
+After this, the highest-impact next step would be **adding the 3 new client pages (AI Interview, Brand Twin, Content Generator) to the client sidebar navigation** so client users can actually access them. Currently the routes exist but there are no nav links.
 
