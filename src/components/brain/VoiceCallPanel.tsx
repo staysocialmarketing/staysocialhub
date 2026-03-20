@@ -23,7 +23,7 @@ export default function VoiceCallPanel({
   onCancel,
 }: VoiceCallPanelProps) {
   const [isConnecting, setIsConnecting] = useState(false);
-  const [hasStarted, setHasStarted] = useState(false);
+  const hasStartedRef = useRef(false);
   const transcriptRef = useRef<Message[]>([]);
   const [transcript, setTranscript] = useState<Message[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
