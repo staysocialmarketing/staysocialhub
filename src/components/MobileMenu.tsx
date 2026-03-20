@@ -2,7 +2,7 @@ import {
   LayoutDashboard, ClipboardList, CalendarDays, CheckSquare,
   MessageSquarePlus, FolderOpen, UserCircle, Sparkles, Eye,
   Inbox, FolderKanban, ListTodo, Lightbulb, Building2,
-  ShoppingCart, Users, Tag, LogOut,
+  ShoppingCart, Users, Tag, LogOut, Brain, Wand2, Palette,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -44,16 +44,30 @@ const ssMenuSections = [
   },
 ];
 
-const clientMenuItems = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Success Center", url: "/client/success", icon: Sparkles },
-  { title: "Approvals", url: "/approvals", icon: CheckSquare },
-  { title: "Calendar", url: "/calendar", icon: CalendarDays },
-  { title: "Requests", url: "/requests", icon: MessageSquarePlus },
-  { title: "My Media", url: "/content-library", icon: FolderOpen },
-  { title: "My Profile", url: "/profile", icon: UserCircle },
-  { title: "My Plan", url: "/plan", icon: Eye },
-  { title: "What's New", url: "/whats-new", icon: Eye },
+const clientMenuSections = [
+  {
+    label: "My Content",
+    items: [
+      { title: "Success Center", url: "/client/success", icon: Sparkles },
+      { title: "My Media", url: "/content-library", icon: FolderOpen },
+      { title: "My Plan", url: "/plan", icon: Eye },
+    ],
+  },
+  {
+    label: "AI Tools",
+    items: [
+      { title: "AI Interview", url: "/client/ai-interview", icon: Brain },
+      { title: "Content Generator", url: "/client/generate", icon: Wand2 },
+      { title: "Brand Twin", url: "/client/brand-twin", icon: Palette },
+    ],
+  },
+  {
+    label: "Account",
+    items: [
+      { title: "My Profile", url: "/profile", icon: UserCircle },
+      { title: "What's New", url: "/whats-new", icon: Eye },
+    ],
+  },
 ];
 
 export function MobileMenu({ onNavigate }: MobileMenuProps) {
@@ -80,12 +94,20 @@ export function MobileMenu({ onNavigate }: MobileMenuProps) {
     );
   };
 
+  const renderSection = (section: { label: string; items: any[] }) => (
+    <div key={section.label}>
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-1">
+        {section.label}
+      </p>
+      <div className="space-y-0.5">{section.items.map(renderItem)}</div>
+    </div>
+  );
+
   return (
     <div className="overflow-y-auto max-h-[65vh] overscroll-contain -webkit-overflow-scrolling-touch">
       <div className="space-y-4 pb-4">
         {isInternalUser ? (
           ssMenuSections.map((section) => {
-            // Filter admin items for non-admin team
             let items = section.items;
             if (section.label === "Admin" && !isSSAdmin) {
               items = items.filter(i => i.title !== "Users" && i.title !== "Versions");
@@ -93,17 +115,14 @@ export function MobileMenu({ onNavigate }: MobileMenuProps) {
             if (section.label === "Menu" && isSSTeam && !isSSAdmin) {
               items = items.filter(i => i.title !== "Approvals");
             }
-            return (
-              <div key={section.label}>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-1">
-                  {section.label}
-                </p>
-                <div className="space-y-0.5">{items.map(renderItem)}</div>
-              </div>
-            );
+            return renderSection({ ...section, items });
           })
         ) : (
-          <div className="space-y-0.5">{clientMenuItems.map(renderItem)}</div>
+          clientMenuSections.map((section) => {
+            // Hide AI Tools for managed clients (Layer 2) — show for all for now
+            // TODO: gate on DIY flag when Layer 3 roles are added
+            return renderSection(section);
+          })
         )}
 
         {/* User info + sign out */}

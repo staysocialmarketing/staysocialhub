@@ -21,6 +21,9 @@ import {
   ListTodo,
   Tag,
   Inbox,
+  Brain,
+  Wand2,
+  Palette,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -74,15 +77,24 @@ const adminSection = [
   { title: "Versions", url: "/admin/versions", icon: Tag },
 ];
 
-const clientItems = [
+const clientContentSection = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Success Center", url: "/client/success", icon: Sparkles },
   { title: "Approvals", url: "/approvals", icon: CheckSquare },
   { title: "Calendar", url: "/calendar", icon: CalendarDays },
   { title: "Requests", url: "/requests", icon: MessageSquarePlus },
   { title: "My Media", url: "/content-library", icon: FolderOpen },
-  { title: "My Profile", url: "/profile", icon: UserCircle },
   { title: "My Plan", url: "/plan", icon: ClipboardList },
+];
+
+const clientAISection = [
+  { title: "AI Interview", url: "/client/ai-interview", icon: Brain },
+  { title: "Content Generator", url: "/client/generate", icon: Wand2 },
+  { title: "Brand Twin", url: "/client/brand-twin", icon: Palette },
+];
+
+const clientAccountSection = [
+  { title: "My Profile", url: "/profile", icon: UserCircle },
   { title: "What's New", url: "/whats-new", icon: Eye },
 ];
 
