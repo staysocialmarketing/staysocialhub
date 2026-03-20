@@ -99,15 +99,15 @@ export default function VoiceCallPanel({
 
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({ error: "Token request failed" }));
-        throw new Error(err.error || "Failed to get conversation token");
+        throw new Error(err.error || "Failed to get signed URL");
       }
 
-      const { token: conversationToken } = await resp.json();
-      if (!conversationToken) throw new Error("No token received");
+      const { signed_url } = await resp.json();
+      if (!signed_url) throw new Error("No signed URL received");
 
       await conversation.startSession({
-        conversationToken,
-        connectionType: "webrtc",
+        signedUrl: signed_url,
+        connectionType: "websocket",
       });
     } catch (error: any) {
       console.error("Failed to start voice call:", error);
