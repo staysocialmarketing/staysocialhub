@@ -91,6 +91,9 @@ const App = () => (
               <Route path="/requests" element={<Requests />} />
               <Route path="/content-library" element={<ContentLibrary />} />
               <Route path="/client/success" element={<SuccessCenter />} />
+              <Route path="/client/ai-interview" element={<AIInterview />} />
+              <Route path="/client/generate" element={<ContentGenerator />} />
+              <Route path="/client/brand-twin" element={<BrandTwinPage />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/plan" element={<Plan />} />
               <Route path="/whats-new" element={<WhatsNew />} />
