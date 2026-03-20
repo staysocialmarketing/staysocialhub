@@ -194,7 +194,7 @@ export default function VoiceCallPanel({
             className={cn(
               "h-24 w-24 rounded-full flex items-center justify-center transition-all duration-300",
               isConnecting && "bg-muted",
-              isConnected && !isSpeaking && "bg-green-500/10",
+              isConnected && !isSpeaking && "bg-accent",
               isConnected && isSpeaking && "bg-primary/20 scale-110"
             )}
           >
@@ -204,7 +204,7 @@ export default function VoiceCallPanel({
               <Mic
                 className={cn(
                   "h-8 w-8 transition-colors",
-                  isSpeaking ? "text-primary" : "text-green-600"
+                  isSpeaking ? "text-primary" : "text-foreground"
                 )}
               />
             )}
