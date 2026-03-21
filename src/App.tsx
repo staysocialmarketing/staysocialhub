@@ -37,6 +37,7 @@ import TeamGrowth from "./pages/admin/TeamGrowth";
 import TeamWins from "./pages/admin/TeamWins";
 import ThinkTank from "./pages/team/ThinkTank";
 import AdminAutomations from "./pages/admin/AdminAutomations";
+import MeetingNotes from "./pages/admin/MeetingNotes";
 import Projects from "./pages/team/Projects";
 import Tasks from "./pages/team/Tasks";
 import UniversalInbox from "./pages/team/UniversalInbox";
