@@ -22,6 +22,8 @@ const baseTools = [
           type: { type: "string", enum: REQUEST_TYPES, description: "The type of request" },
           notes: { type: "string", description: "Additional details or notes" },
           priority: { type: "string", enum: ["low", "normal", "high", "urgent"], description: "Priority level. Default to normal." },
+          client_name: { type: "string", description: "Name of the client this request is for. Required if the user specifies a client by name." },
+          assigned_to_name: { type: "string", description: "Name of the person to assign the request to, if mentioned." },
         },
         required: ["topic", "type"],
         additionalProperties: false,
@@ -39,6 +41,7 @@ const baseTools = [
           content: { type: "string", description: "The idea or note content" },
           type: { type: "string", enum: CAPTURE_TYPES, description: "Type of capture. Default to note." },
           link_url: { type: "string", description: "Optional URL if the capture includes a link" },
+          client_name: { type: "string", description: "Name of the client to save this for. Required if the user specifies a client by name." },
         },
         required: ["content", "type"],
         additionalProperties: false,
@@ -170,6 +173,23 @@ ENDING THE CALL:
   }
 }
 
+// Resolve a client name to a client ID
+async function resolveClientByName(serviceClient: any, name: string): Promise<string | null> {
+  const { data } = await serviceClient.from("clients").select("id, name").ilike("name", `%${name}%`).limit(5);
+  if (!data || data.length === 0) return null;
+  // Prefer exact match (case-insensitive)
+  const exact = data.find((c: any) => c.name.toLowerCase() === name.toLowerCase());
+  return exact ? exact.id : data[0].id;
+}
+
+// Resolve a user name to a user ID
+async function resolveUserByName(serviceClient: any, name: string): Promise<string | null> {
+  const { data } = await serviceClient.from("users").select("id, name").ilike("name", `%${name}%`).limit(5);
+  if (!data || data.length === 0) return null;
+  const exact = data.find((u: any) => u.name?.toLowerCase() === name.toLowerCase());
+  return exact ? exact.id : data[0].id;
+}
+
 // Execute a single tool call and return the result
 async function executeTool(
   fnName: string,
@@ -180,13 +200,27 @@ async function executeTool(
   isSSRole: boolean
 ): Promise<any> {
   if (fnName === "create_request") {
-    const targetClientId = clientId;
+    // Resolve client: use profile clientId, or look up by name for SS users
+    let targetClientId = clientId;
+    if (!targetClientId && args.client_name && isSSRole) {
+      targetClientId = await resolveClientByName(serviceClient, args.client_name);
+      if (!targetClientId) {
+        return { error: `No client found matching "${args.client_name}". Please check the name.` };
+      }
+    }
     if (!targetClientId) {
-      return { error: "No client selected. Please ask which client this request is for." };
+      return { error: "No client selected. Please specify which client this request is for." };
     }
     if (!isSSRole && targetClientId !== clientId) {
       return { error: "You can only create requests for your own account." };
     }
+
+    // Resolve assignee by name if provided
+    let assigneeId: string | null = null;
+    if (args.assigned_to_name && isSSRole) {
+      assigneeId = await resolveUserByName(serviceClient, args.assigned_to_name);
+    }
+
     const { data, error } = await serviceClient.from("requests").insert({
       topic: args.topic,
       type: args.type || "general",
@@ -194,6 +228,7 @@ async function executeTool(
       priority: args.priority || "normal",
       client_id: targetClientId,
       created_by_user_id: userId,
+      assigned_to_user_id: assigneeId,
       source_type: "hub_assistant",
       raw_input_text: `${args.topic}${args.notes ? "\n" + args.notes : ""}`,
     }).select("id, topic, type").single();
@@ -202,13 +237,25 @@ async function executeTool(
       console.error("create_request error:", error);
       return { error: "Failed to create request. Please try again." };
     }
-    return { success: true, request_id: data.id, topic: data.topic, type: data.type };
+    // Look up client name for the response
+    let resolvedClientName = args.client_name || null;
+    if (!resolvedClientName && targetClientId) {
+      const { data: c } = await serviceClient.from("clients").select("name").eq("id", targetClientId).single();
+      resolvedClientName = c?.name || null;
+    }
+    return { success: true, request_id: data.id, topic: data.topic, type: data.type, client_name: resolvedClientName, assigned_to: args.assigned_to_name || null };
   }
 
   if (fnName === "capture_idea") {
-    const targetClientId = clientId;
+    let targetClientId = clientId;
+    if (!targetClientId && args.client_name && isSSRole) {
+      targetClientId = await resolveClientByName(serviceClient, args.client_name);
+      if (!targetClientId) {
+        return { error: `No client found matching "${args.client_name}". Please check the name.` };
+      }
+    }
     if (!targetClientId) {
-      return { error: "No client selected. Please ask which client to save this for." };
+      return { error: "No client selected. Please specify which client to save this for." };
     }
     if (!isSSRole && targetClientId !== clientId) {
       return { error: "You can only capture ideas for your own account." };
@@ -427,7 +474,7 @@ If no actionable items are found, do not call any tools.`;
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: "google/gemini-2.5-flash-lite",
           messages: [
             { role: "system", content: extractionPrompt },
             { role: "user", content: `Here is the voice conversation transcript:\n\n${transcript}` },
