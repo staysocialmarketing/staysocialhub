@@ -590,17 +590,25 @@ export function GlobalCaptureButton() {
 
       const data = await resp.json();
       const results = data.results || [];
-      const successCount = results.filter((r: any) => r.success).length;
-      const failCount = results.filter((r: any) => r.error).length;
+      const successes = results.filter((r: any) => r.success);
+      const failures = results.filter((r: any) => r.error);
 
-      if (successCount > 0) {
-        toast.success(`${successCount} action${successCount > 1 ? "s" : ""} completed!`);
+      if (successes.length > 0) {
+        const details = successes.map((r: any) => {
+          if (r.topic) {
+            return `"${r.topic}"${r.client_name ? ` for ${r.client_name}` : ""}${r.assigned_to ? ` (assigned to ${r.assigned_to})` : ""}`;
+          }
+          return r.tool === "capture_idea" ? "Idea captured" : "Action completed";
+        }).join(", ");
+        toast.success(`Created: ${details}`);
         queryClient.invalidateQueries({ queryKey: ["requests"] });
         queryClient.invalidateQueries({ queryKey: ["brain-captures"] });
         queryClient.invalidateQueries({ queryKey: ["tasks"] });
       }
-      if (failCount > 0) {
-        toast.error(`${failCount} action${failCount > 1 ? "s" : ""} failed`);
+      if (failures.length > 0) {
+        failures.forEach((f: any) => {
+          toast.error(f.error || "Action failed");
+        });
       }
 
       handleOpen(false);
