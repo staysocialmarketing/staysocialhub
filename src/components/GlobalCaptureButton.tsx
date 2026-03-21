@@ -167,7 +167,13 @@ export function GlobalCaptureButton() {
     setChatMessages([]); setChatInput(""); setChatLoading(false);
     setAssistantView("chat");
     setProposedActions([]); setExtracting(false); setExecuting(false);
+    setConfirmClientId("");
     voiceTranscriptRef.current = [];
+    setConnectingElapsed(0);
+    if (connectingTimerRef.current) {
+      clearInterval(connectingTimerRef.current);
+      connectingTimerRef.current = null;
+    }
   };
 
   const handleOpen = async (isOpen: boolean) => {
