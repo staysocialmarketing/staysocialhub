@@ -91,6 +91,36 @@ export default function SuccessCenter() {
     enabled: !!clientId,
   });
 
+  // Onboarding wizard detection
+  const { data: hasBrandTwin } = useQuery({
+    queryKey: ["has-brand-twin", clientId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("brand_twin")
+        .select("client_id")
+        .eq("client_id", clientId!)
+        .maybeSingle();
+      return !!data;
+    },
+    enabled: !!clientId && !isSSRole,
+  });
+
+  const { data: captureCount } = useQuery({
+    queryKey: ["capture-count", clientId],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from("brain_captures")
+        .select("id", { count: "exact", head: true })
+        .eq("client_id", clientId!);
+      return count || 0;
+    },
+    enabled: !!clientId && !isSSRole,
+  });
+
+  const showWizard = !isSSRole && hasBrandTwin === false && captureCount === 0;
+  const [wizardDismissed, setWizardDismissed] = useState(false);
+
+  const [activeTab, setActiveTab] = useState("overview");
   const [activityLimit, setActivityLimit] = useState(10);
   const { data: activities = [] } = useQuery({
     queryKey: ["client-activity", clientId, activityLimit],
