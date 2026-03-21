@@ -640,9 +640,11 @@ If no actionable items are found, do not call any tools.`;
         const toolName = tc.function.name;
         let summary = "";
         if (toolName === "create_request") {
-          summary = `Create ${args.type || "general"} request: "${args.topic || "Untitled"}"`;
+          summary = `Create ${args.type || "general"} request: "${args.topic || "Untitled"}"${args.assigned_to_name ? ` (assigned to ${args.assigned_to_name})` : ""}`;
         } else if (toolName === "capture_idea") {
           summary = `Capture ${args.type || "note"}: "${(args.content || "").slice(0, 80)}"`;
+        } else if (toolName === "create_task") {
+          summary = `Create task: "${args.title || "Untitled"}"${args.assigned_to_name ? ` (assigned to ${args.assigned_to_name})` : ""}${args.description ? ` — ${args.description.slice(0, 60)}` : ""}`;
         }
         return { tool: toolName, args, summary };
       });
