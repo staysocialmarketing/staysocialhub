@@ -56,6 +56,28 @@ const ssOnlyTools = [
   {
     type: "function" as const,
     function: {
+      name: "create_task",
+      description: "Create a new task/to-do item. Use when the user wants to create a task, add something to the board, or assign work to someone. Tasks are internal work items for the Stay Social team.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "The task title — a short summary of what needs to be done" },
+          description: { type: "string", description: "Detailed description of the task, including any requirements, context, or deliverables" },
+          client_name: { type: "string", description: "Name of the client this task is for, if mentioned" },
+          assigned_to_name: { type: "string", description: "Name of the team member to assign the task to, if mentioned" },
+          project_name: { type: "string", description: "Name of the project to link this task to, if mentioned" },
+          priority: { type: "string", enum: TASK_PRIORITIES, description: "Priority level. Default to normal." },
+          due_date: { type: "string", description: "Due date in ISO format (YYYY-MM-DD), if mentioned" },
+          status: { type: "string", enum: TASK_STATUSES, description: "Initial status. Default to todo." },
+        },
+        required: ["title"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
       name: "query_tasks",
       description: "Search and list tasks. Use when the user asks about tasks, to-dos, or work items. Returns up to 20 results.",
       parameters: {
