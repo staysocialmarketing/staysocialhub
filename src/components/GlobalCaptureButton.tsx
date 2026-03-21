@@ -1172,7 +1172,10 @@ export function GlobalCaptureButton() {
                     </div>
                   )}
 
-                  {proposedActions.map((action, i) => (
+                  {proposedActions.map((action, i) => {
+                    const destination = action.tool === "create_task" ? "Tasks" : action.tool === "create_request" ? "Requests" : action.tool === "capture_idea" ? "Brain" : "Hub";
+                    const isTaskOnRequestPage = action.tool === "create_request" && location.pathname.startsWith("/team/tasks");
+                    return (
                     <div key={i} className="border rounded-xl p-3 space-y-2 bg-card">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2 text-sm font-medium">
@@ -1188,17 +1191,30 @@ export function GlobalCaptureButton() {
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
-                      {action.args.client_name && (
-                        <p className="text-xs text-muted-foreground pl-9">Client: {action.args.client_name}</p>
+                      <div className="pl-9 flex flex-wrap items-center gap-1.5">
+                        <span className="text-[10px] font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full">→ {destination}</span>
+                        {action.args.client_name && (
+                          <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full">Client: {action.args.client_name}</span>
+                        )}
+                        {action.args.priority && action.args.priority !== "normal" && (
+                          <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full">{action.args.priority}</span>
+                        )}
+                        {action.args.assigned_to_name && (
+                          <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full">→ {action.args.assigned_to_name}</span>
+                        )}
+                      </div>
+                      {isTaskOnRequestPage && (
+                        <p className="text-[10px] text-amber-500 pl-9">⚠ This will create a Request, not a Task</p>
                       )}
                       {action.args.notes && (
-                        <p className="text-xs text-muted-foreground pl-9">{action.args.notes}</p>
+                        <p className="text-xs text-muted-foreground pl-9 line-clamp-2">{action.args.notes}</p>
                       )}
-                      {action.args.priority && action.args.priority !== "normal" && (
-                        <span className="text-xs bg-muted px-2 py-0.5 rounded-full ml-9">{action.args.priority}</span>
+                      {action.args.description && (
+                        <p className="text-xs text-muted-foreground pl-9 line-clamp-2">{action.args.description}</p>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
 
                   <div className="flex gap-2 pt-2">
                     <Button
