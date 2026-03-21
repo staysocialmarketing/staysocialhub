@@ -1,70 +1,57 @@
 
-Goal: make voice flow as reliable/fast as text flow, clearly show progress, and ensure voice-created “task” intents actually produce tasks.
+Observed from live data and code (so we’re aligned):
+- Yes — one Hub Assistant item was created in **Requests** (`topic: "test"`, `type: social_post`, `source_type: hub_assistant`, created at `2026-03-21 03:21:57 UTC`).
+- No Hub Assistant-created rows were found in **Tasks** in recent runs.
+- No `Hub Assistant completed` notifications were inserted, which means voice likely did not reach `execute_actions` in those runs.
+- In `GlobalCaptureButton`, voice finalization is still gated by transcript presence (`voiceTranscriptRef.length > 0`). If transcript events are empty/missing, the run can stay in a pseudo-connecting state and never finalize.
 
-What I found from current code/data:
-1) Voice finalize is fragile:
-- `onDisconnect` only processes transcript when `assistantView === "voice-call"`.
-- Closing/back navigation can reset state before processing, so transcript/action extraction never runs.
-- This matches your “keeps connecting / not sure if it went through” symptom.
+Plan to fix this (fast + reliable + explicit status):
 
-2) Voice often doesn’t create tasks:
-- Voice extraction currently doesn’t receive route context in `extract_actions`.
-- In practice, task-like intents can still map to `create_request`.
-- DB confirms recent `hub_assistant` writes were requests, with no corresponding task rows.
-
-3) No reliable completion signal:
-- Notification is only inserted after successful `execute_actions`.
-- If extraction/finalization never starts, no notification/toast confirms outcome.
-
-Implementation plan
-
-1) Make voice completion deterministic (no more stuck “connecting”)
+1) Make voice finalization unconditional (remove “silent hang”)
 - File: `src/components/GlobalCaptureButton.tsx`
-- Add a voice run state machine (`idle → connecting → live → ending → extracting → ready → executing → done/error`).
-- Remove dependency on `assistantView` inside `onDisconnect`; use an explicit `activeVoiceRunRef`.
-- Add a forced finalize fallback (e.g. 1.5–2s after End Call) so extraction starts even if disconnect callback is delayed/missed.
-- Prevent `resetAll()` from clearing transcript while run is ending/extracting.
+- Always call finalize flow on disconnect/end timeout (do not require transcript length first).
+- Move “empty transcript” handling inside finalizer as a terminal state:
+  - show clear toast: “Call ended, but no transcript was received.”
+  - reset assistant view to chat (no stuck “Connecting…” state).
+- Add a hard connection timeout (e.g., 12s) and fail with actionable message.
 
-2) Keep processing alive after drawer close and show clear status
+2) Improve connection reliability and visibility
 - File: `src/components/GlobalCaptureButton.tsx`
-- Move extract/execute flow into a ref-stable async runner that is not canceled by UI close.
-- Persistent toasts with explicit phases:
-  - “Call ended. Processing…”
-  - “Extracting actions… (Ns)”
-  - “Ready for confirmation” / “Created X items” / detailed failure reason.
-- Add expected timing copy: “Usually 3–8s after call end.”
+- Start ElevenLabs session with explicit `connectionType: "websocket"` (same stable pattern used in `VoiceCallPanel`).
+- Add `onConnect` handling for definitive state transition to `live`.
+- Keep persistent phase toasts through entire lifecycle:
+  - Connecting…
+  - Call ended, processing…
+  - Extracting actions…(Ns)
+  - Ready for confirmation / Created X items / Failed with reason.
+- Ensure close/navigation does not cancel processing (run tracked in ref + persistent toast).
 
-3) Improve task intent mapping for voice (team/admin contexts)
+3) Force task-first behavior on `/team/tasks`
 - File: `supabase/functions/hub-assistant/index.ts`
-- Pass `current_route` from client for `extract_actions`.
-- Update extraction prompt rules:
-  - On `/team/tasks`, default task/to-do wording to `create_task` unless user explicitly asks for a request.
-  - Extract full task fields when spoken: title, description, assignee, priority, due date, project, client.
-- Keep role restrictions intact (client users cannot create internal tasks/projects).
+- Tighten extraction rules:
+  - On `/team/tasks`, default ambiguous creation intents to `create_task`.
+  - Use `create_request` only when user explicitly says request-type intent (“submit request”, “create content request”, etc.).
+- Include full task field extraction priority (title, description, assignee, priority, due date, project, client).
 
-4) Add pre-execution validation + clearer confirmation UX
-- Files: `src/components/GlobalCaptureButton.tsx`, `supabase/functions/hub-assistant/index.ts`
-- Validate each proposed action before execute; surface inline errors (missing client, unresolved assignee, invalid date).
-- Keep “Require client pick” behavior, but show explicit blocking label: “Client required before confirm.”
-- Return per-action diagnostic codes from edge function for clean UI error messages.
+4) Make destination explicit before and after confirmation
+- File: `src/components/GlobalCaptureButton.tsx`
+- In confirmation cards, show destination badge per action:
+  - “Will create in Tasks” vs “Will create in Requests”.
+- If on `/team/tasks` and any action is `create_request`, show warning copy before confirm:
+  - “This will create a Request, not a Task.”
 
-5) Reliable completion notifications
-- File: `supabase/functions/hub-assistant/index.ts`
-- Create notifications for both:
-  - success (`Hub Assistant completed`)
-  - failure (`Hub Assistant needs review`) with top error.
-- Include links by action type (`/team/tasks` for task-heavy runs, `/requests` for request-heavy runs).
+5) Guarantee user-visible completion signal
+- Files: `supabase/functions/hub-assistant/index.ts`, `src/components/GlobalCaptureButton.tsx`
+- In `execute_actions`, return structured per-action result metadata (`destination`, `id`, `title`, `client_name`, `error_code`).
+- Insert notification for:
+  - success (including destination link),
+  - partial failure,
+  - full failure.
+- UI shows detailed completion toast and deep-link CTA (`/team/tasks` or `/requests`).
 
-Technical detail (state flow)
-```text
-End Call clicked
-→ mark run as ending
-→ endSession()
-→ onDisconnect OR fallback timer (whichever first)
-→ extract_actions(current_route, transcript)
-→ confirmation ready (or error)
-→ execute_actions
-→ toast + notification + query invalidation
-```
+6) Quick verification checklist after implementation
+- Voice on `/team/tasks`: “Create a test post assigned to Tristan…” → confirmation should propose `create_task`.
+- End call with no transcript events → should not hang; should show explicit “no transcript received.”
+- Successful voice run → task/request row appears + notification appears + status toast remains visible even if drawer closes.
 
-No database schema changes required for this fix.
+No database schema changes required.
