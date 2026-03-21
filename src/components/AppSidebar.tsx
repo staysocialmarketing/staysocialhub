@@ -24,6 +24,7 @@ import {
   Brain,
   Wand2,
   Palette,
+  ChevronDown,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -41,6 +42,7 @@ import {
   SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -111,6 +113,23 @@ export function AppSidebar() {
   const { profile, isSSAdmin, isSSTeam, actualIsSSAdmin, isViewingAs, viewAsUserId, setViewAs, signOut } = useAuth();
   const navigate = useNavigate();
   const [allUsers, setAllUsers] = useState<UserWithRole[]>([]);
+
+  // Collapsible section state with localStorage persistence
+  const [sectionState, setSectionState] = useState<Record<string, boolean>>(() => {
+    try {
+      const stored = localStorage.getItem("sidebar-sections");
+      return stored ? JSON.parse(stored) : {};
+    } catch { return {}; }
+  });
+
+  const isSectionOpen = (key: string) => sectionState[key] !== false; // default open
+  const toggleSection = (key: string) => {
+    setSectionState(prev => {
+      const next = { ...prev, [key]: !isSectionOpen(key) };
+      localStorage.setItem("sidebar-sections", JSON.stringify(next));
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!actualIsSSAdmin) return;
@@ -227,28 +246,61 @@ export function AppSidebar() {
       <SidebarContent>
         {isInternalUser ? (
           <>
-            <SidebarGroup>
-              {!collapsed && <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40">Menu</SidebarGroupLabel>}
-              <SidebarGroupContent>{renderMenuItems(
-                isSSTeam && !isSSAdmin
-                  ? menuSection.filter(i => i.title !== "Approvals")
-                  : menuSection
-              )}</SidebarGroupContent>
-            </SidebarGroup>
+            <Collapsible open={isSectionOpen("menu")} onOpenChange={() => toggleSection("menu")}>
+              <SidebarGroup>
+                {!collapsed && (
+                  <CollapsibleTrigger asChild>
+                    <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40 cursor-pointer flex items-center justify-between w-full">
+                      Menu
+                      <ChevronDown className={cn("h-3 w-3 transition-transform", isSectionOpen("menu") && "rotate-180")} />
+                    </SidebarGroupLabel>
+                  </CollapsibleTrigger>
+                )}
+                <CollapsibleContent>
+                  <SidebarGroupContent>{renderMenuItems(
+                    isSSTeam && !isSSAdmin
+                      ? menuSection.filter(i => i.title !== "Approvals")
+                      : menuSection
+                  )}</SidebarGroupContent>
+                </CollapsibleContent>
+              </SidebarGroup>
+            </Collapsible>
 
             <SidebarSeparator className="opacity-30" />
 
-            <SidebarGroup>
-              {!collapsed && <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40">Team</SidebarGroupLabel>}
-              <SidebarGroupContent>{renderMenuItems(teamSection)}</SidebarGroupContent>
-            </SidebarGroup>
+            <Collapsible open={isSectionOpen("team")} onOpenChange={() => toggleSection("team")}>
+              <SidebarGroup>
+                {!collapsed && (
+                  <CollapsibleTrigger asChild>
+                    <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40 cursor-pointer flex items-center justify-between w-full">
+                      Team
+                      <ChevronDown className={cn("h-3 w-3 transition-transform", isSectionOpen("team") && "rotate-180")} />
+                    </SidebarGroupLabel>
+                  </CollapsibleTrigger>
+                )}
+                <CollapsibleContent>
+                  <SidebarGroupContent>{renderMenuItems(teamSection)}</SidebarGroupContent>
+                </CollapsibleContent>
+              </SidebarGroup>
+            </Collapsible>
 
             <SidebarSeparator className="opacity-30" />
 
-            <SidebarGroup>
-              {!collapsed && <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40">Admin</SidebarGroupLabel>}
-              <SidebarGroupContent>{renderMenuItems(visibleAdminItems)}</SidebarGroupContent>
-            </SidebarGroup>
+            <Collapsible open={isSectionOpen("admin")} onOpenChange={() => toggleSection("admin")}>
+              <SidebarGroup>
+                {!collapsed && (
+                  <CollapsibleTrigger asChild>
+                    <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40 cursor-pointer flex items-center justify-between w-full">
+                      Admin
+                      <ChevronDown className={cn("h-3 w-3 transition-transform", isSectionOpen("admin") && "rotate-180")} />
+                    </SidebarGroupLabel>
+                  </CollapsibleTrigger>
+                )}
+                <CollapsibleContent>
+                  <SidebarGroupContent>{renderMenuItems(visibleAdminItems)}</SidebarGroupContent>
+                </CollapsibleContent>
+              </SidebarGroup>
+            </Collapsible>
           </>
         ) : (
           <>
@@ -258,17 +310,39 @@ export function AppSidebar() {
 
             <SidebarSeparator className="opacity-30" />
 
-            <SidebarGroup>
-              {!collapsed && <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40">AI Tools</SidebarGroupLabel>}
-              <SidebarGroupContent>{renderMenuItems(clientAISection)}</SidebarGroupContent>
-            </SidebarGroup>
+            <Collapsible open={isSectionOpen("ai-tools")} onOpenChange={() => toggleSection("ai-tools")}>
+              <SidebarGroup>
+                {!collapsed && (
+                  <CollapsibleTrigger asChild>
+                    <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40 cursor-pointer flex items-center justify-between w-full">
+                      AI Tools
+                      <ChevronDown className={cn("h-3 w-3 transition-transform", isSectionOpen("ai-tools") && "rotate-180")} />
+                    </SidebarGroupLabel>
+                  </CollapsibleTrigger>
+                )}
+                <CollapsibleContent>
+                  <SidebarGroupContent>{renderMenuItems(clientAISection)}</SidebarGroupContent>
+                </CollapsibleContent>
+              </SidebarGroup>
+            </Collapsible>
 
             <SidebarSeparator className="opacity-30" />
 
-            <SidebarGroup>
-              {!collapsed && <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40">Account</SidebarGroupLabel>}
-              <SidebarGroupContent>{renderMenuItems(clientAccountSection)}</SidebarGroupContent>
-            </SidebarGroup>
+            <Collapsible open={isSectionOpen("account")} onOpenChange={() => toggleSection("account")}>
+              <SidebarGroup>
+                {!collapsed && (
+                  <CollapsibleTrigger asChild>
+                    <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40 cursor-pointer flex items-center justify-between w-full">
+                      Account
+                      <ChevronDown className={cn("h-3 w-3 transition-transform", isSectionOpen("account") && "rotate-180")} />
+                    </SidebarGroupLabel>
+                  </CollapsibleTrigger>
+                )}
+                <CollapsibleContent>
+                  <SidebarGroupContent>{renderMenuItems(clientAccountSection)}</SidebarGroupContent>
+                </CollapsibleContent>
+              </SidebarGroup>
+            </Collapsible>
           </>
         )}
       </SidebarContent>

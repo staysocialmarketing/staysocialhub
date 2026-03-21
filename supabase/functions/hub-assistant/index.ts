@@ -9,7 +9,7 @@ const corsHeaders = {
 const REQUEST_TYPES = ["social_post", "email_campaign", "design", "video", "automation", "strategy", "general"];
 const CAPTURE_TYPES = ["note", "link", "voice", "file"];
 
-const tools = [
+const baseTools = [
   {
     type: "function" as const,
     function: {
@@ -47,12 +47,44 @@ const tools = [
   },
 ];
 
+const ssOnlyTools = [
+  {
+    type: "function" as const,
+    function: {
+      name: "query_tasks",
+      description: "Search and list tasks. Use when the user asks about tasks, to-dos, or work items. Returns up to 20 results.",
+      parameters: {
+        type: "object",
+        properties: {
+          client_name: { type: "string", description: "Filter by client name (partial match)" },
+          status: { type: "string", enum: ["todo", "in_progress", "done", "blocked"], description: "Filter by status" },
+          assignee_name: { type: "string", description: "Filter by assignee name (partial match)" },
+          search: { type: "string", description: "Search in task title" },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "query_projects",
+      description: "Search and list projects. Use when the user asks about projects or wants to see what projects exist.",
+      parameters: {
+        type: "object",
+        properties: {
+          client_name: { type: "string", description: "Filter by client name (partial match)" },
+          status: { type: "string", enum: ["active", "completed", "archived"], description: "Filter by status" },
+          search: { type: "string", description: "Search in project name" },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+];
+
 function buildSystemPrompt(isSSRole: boolean, clientName: string | null): string {
   const base = `You are Hub Assistant, a helpful AI assistant for the Stay Social HUB — a social media marketing management platform.
-
-You can help users:
-1. **Create content requests** — social posts, email campaigns, designs, videos, automation tasks, strategy work, or general requests
-2. **Capture ideas** — quick notes, links, or thoughts to save to the client's brain
 
 Guidelines:
 - Be conversational, friendly, and concise
@@ -62,10 +94,18 @@ Guidelines:
 - Keep responses short — 1-3 sentences max unless explaining options`;
 
   if (isSSRole) {
-    return base + `\n\nYou are assisting an internal Stay Social team member.` +
+    return base + `\n\nYou are assisting an internal Stay Social team member. You can help them:
+1. **Create content requests** — social posts, email campaigns, designs, videos, automation tasks, strategy work, or general requests
+2. **Capture ideas** — quick notes, links, or thoughts to save to a client's brain
+3. **Query tasks** — search and list tasks by client, status, or assignee
+4. **Query projects** — search and list projects by client or status` +
       (clientName ? `\nThey are currently working with client: "${clientName}". Use this client for all actions unless they specify otherwise.` : `\nNo client is currently selected. Ask which client they want to work with before creating requests or captures.`);
   } else {
-    return base + `\n\nYou are assisting a client user.` +
+    return base + `\n\nYou are assisting a client user. You can help them:
+1. **Create content requests** — social posts, email campaigns, designs, videos, or general requests
+2. **Capture ideas** — quick notes, links, or thoughts to save to their brain
+
+You do NOT have access to internal tasks, projects, team data, or any information beyond this client's own account.` +
       (clientName ? `\nTheir business is "${clientName}".` : "") +
       `\nAll actions are scoped to their own account. They cannot specify a different client.`;
   }
@@ -77,7 +117,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Auth
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -108,8 +147,6 @@ Deno.serve(async (req) => {
     }
 
     const userId = claimsData.claims.sub as string;
-
-    // Fetch user profile + roles using service role (bypasses RLS)
     const serviceClient = createClient(supabaseUrl, serviceRoleKey);
 
     const [profileRes, rolesRes] = await Promise.all([
@@ -121,7 +158,6 @@ Deno.serve(async (req) => {
     const roles = (rolesRes.data || []).map((r: any) => r.role);
     const isSSRole = roles.some((r: string) => ["ss_admin", "ss_producer", "ss_ops", "ss_team"].includes(r));
 
-    // Resolve client name
     let clientName: string | null = null;
     if (clientId) {
       const { data: client } = await serviceClient.from("clients").select("name").eq("id", clientId).single();
@@ -135,7 +171,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Validate message length
     const totalChars = messages.reduce((sum: number, m: any) => sum + (m.content?.length || 0), 0);
     if (totalChars > 50000) {
       return new Response(JSON.stringify({ error: "Conversation too long" }), {
@@ -143,9 +178,10 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Role-based tool selection
+    const tools = isSSRole ? [...baseTools, ...ssOnlyTools] : [...baseTools];
     const systemPrompt = buildSystemPrompt(isSSRole, clientName);
 
-    // AI call with tool-calling loop
     let aiMessages: any[] = [
       { role: "system", content: systemPrompt },
       ...messages.map((m: any) => ({ role: m.role, content: m.content })),
@@ -188,13 +224,11 @@ Deno.serve(async (req) => {
 
       const result = await aiResponse.json();
       const choice = result.choices?.[0];
-
       if (!choice) throw new Error("No AI response");
 
       const assistantMsg = choice.message;
       aiMessages.push(assistantMsg);
 
-      // If no tool calls, we have the final response — stream it back
       if (!assistantMsg.tool_calls || assistantMsg.tool_calls.length === 0) {
         const content = assistantMsg.content || "";
         return new Response(JSON.stringify({ response: content }), {
@@ -202,7 +236,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Execute tool calls
       for (const toolCall of assistantMsg.tool_calls) {
         const fnName = toolCall.function.name;
         let args: any;
@@ -220,14 +253,10 @@ Deno.serve(async (req) => {
         let toolResult: any;
 
         if (fnName === "create_request") {
-          // Determine which client_id to use
           let targetClientId = clientId;
-
-          // For SS roles, if no client is set, we can't proceed
           if (!targetClientId) {
             toolResult = { error: "No client selected. Please ask which client this request is for." };
           } else {
-            // Security: non-SS users can only create for their own client
             if (!isSSRole && targetClientId !== clientId) {
               toolResult = { error: "You can only create requests for your own account." };
             } else {
@@ -252,7 +281,6 @@ Deno.serve(async (req) => {
           }
         } else if (fnName === "capture_idea") {
           let targetClientId = clientId;
-
           if (!targetClientId) {
             toolResult = { error: "No client selected. Please ask which client to save this for." };
           } else {
@@ -275,8 +303,111 @@ Deno.serve(async (req) => {
               }
             }
           }
+        } else if (fnName === "query_tasks" && isSSRole) {
+          let query = serviceClient.from("tasks").select("id, title, status, priority, due_at, client_id, assigned_to_user_id").order("created_at", { ascending: false }).limit(20);
+
+          if (args.status) query = query.eq("status", args.status);
+          if (args.search) query = query.ilike("title", `%${args.search}%`);
+
+          // Client name filter — resolve client_id from name
+          if (args.client_name) {
+            const { data: clients } = await serviceClient.from("clients").select("id").ilike("name", `%${args.client_name}%`);
+            const clientIds = (clients || []).map((c: any) => c.id);
+            if (clientIds.length > 0) {
+              query = query.in("client_id", clientIds);
+            } else {
+              toolResult = { tasks: [], message: `No clients found matching "${args.client_name}"` };
+            }
+          }
+
+          // Assignee name filter
+          if (args.assignee_name && !toolResult) {
+            const { data: users } = await serviceClient.from("users").select("id").ilike("name", `%${args.assignee_name}%`);
+            const userIds = (users || []).map((u: any) => u.id);
+            if (userIds.length > 0) {
+              query = query.in("assigned_to_user_id", userIds);
+            } else {
+              toolResult = { tasks: [], message: `No users found matching "${args.assignee_name}"` };
+            }
+          }
+
+          if (!toolResult) {
+            const { data, error } = await query;
+            if (error) {
+              console.error("query_tasks error:", error);
+              toolResult = { error: "Failed to query tasks." };
+            } else {
+              // Enrich with client and assignee names
+              const clientIds = [...new Set((data || []).map((t: any) => t.client_id).filter(Boolean))];
+              const assigneeIds = [...new Set((data || []).map((t: any) => t.assigned_to_user_id).filter(Boolean))];
+
+              const [clientsRes, usersRes] = await Promise.all([
+                clientIds.length > 0 ? serviceClient.from("clients").select("id, name").in("id", clientIds) : { data: [] },
+                assigneeIds.length > 0 ? serviceClient.from("users").select("id, name").in("id", assigneeIds) : { data: [] },
+              ]);
+
+              const clientMap: Record<string, string> = {};
+              (clientsRes.data || []).forEach((c: any) => { clientMap[c.id] = c.name; });
+              const userMap: Record<string, string> = {};
+              (usersRes.data || []).forEach((u: any) => { userMap[u.id] = u.name; });
+
+              toolResult = {
+                tasks: (data || []).map((t: any) => ({
+                  id: t.id,
+                  title: t.title,
+                  status: t.status,
+                  priority: t.priority,
+                  due_at: t.due_at,
+                  client: clientMap[t.client_id] || null,
+                  assignee: userMap[t.assigned_to_user_id] || null,
+                })),
+                count: (data || []).length,
+              };
+            }
+          }
+        } else if (fnName === "query_projects" && isSSRole) {
+          let query = serviceClient.from("projects").select("id, name, status, description, client_id").order("created_at", { ascending: false }).limit(20);
+
+          if (args.status) query = query.eq("status", args.status);
+          if (args.search) query = query.ilike("name", `%${args.search}%`);
+
+          if (args.client_name) {
+            const { data: clients } = await serviceClient.from("clients").select("id").ilike("name", `%${args.client_name}%`);
+            const clientIds = (clients || []).map((c: any) => c.id);
+            if (clientIds.length > 0) {
+              query = query.in("client_id", clientIds);
+            } else {
+              toolResult = { projects: [], message: `No clients found matching "${args.client_name}"` };
+            }
+          }
+
+          if (!toolResult) {
+            const { data, error } = await query;
+            if (error) {
+              console.error("query_projects error:", error);
+              toolResult = { error: "Failed to query projects." };
+            } else {
+              const clientIds = [...new Set((data || []).map((p: any) => p.client_id).filter(Boolean))];
+              const clientsRes = clientIds.length > 0
+                ? await serviceClient.from("clients").select("id, name").in("id", clientIds)
+                : { data: [] };
+              const clientMap: Record<string, string> = {};
+              (clientsRes.data || []).forEach((c: any) => { clientMap[c.id] = c.name; });
+
+              toolResult = {
+                projects: (data || []).map((p: any) => ({
+                  id: p.id,
+                  name: p.name,
+                  status: p.status,
+                  description: p.description,
+                  client: clientMap[p.client_id] || null,
+                })),
+                count: (data || []).length,
+              };
+            }
+          }
         } else {
-          toolResult = { error: `Unknown tool: ${fnName}` };
+          toolResult = { error: `Unknown or unauthorized tool: ${fnName}` };
         }
 
         aiMessages.push({
@@ -289,7 +420,6 @@ Deno.serve(async (req) => {
       round++;
     }
 
-    // Fallback if we exhaust rounds
     return new Response(JSON.stringify({ response: "I completed the actions. Is there anything else you need?" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

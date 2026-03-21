@@ -80,6 +80,12 @@ export function GlobalCaptureButton() {
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
 
+  // Assistant voice input state
+  const [voiceRecordingAssistant, setVoiceRecordingAssistant] = useState(false);
+  const [voiceTranscribingAssistant, setVoiceTranscribingAssistant] = useState(false);
+  const assistantMediaRef = useRef<MediaRecorder | null>(null);
+  const assistantChunksRef = useRef<Blob[]>([]);
+
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-scroll chat
@@ -104,6 +110,7 @@ export function GlobalCaptureButton() {
     setRecording(false); setTranscribing(false);
     setSaving(false);
     setChatMessages([]); setChatInput(""); setChatLoading(false);
+    setVoiceRecordingAssistant(false); setVoiceTranscribingAssistant(false);
   };
 
   const handleOpen = async (isOpen: boolean) => {
@@ -319,6 +326,54 @@ export function GlobalCaptureButton() {
       sendChatMessage();
     }
   };
+
+  // ─── Assistant Voice Input ───
+  const startAssistantVoice = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      assistantChunksRef.current = [];
+      mr.ondataavailable = (e) => { if (e.data.size > 0) assistantChunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(assistantChunksRef.current, { type: "audio/webm" });
+        setVoiceTranscribingAssistant(true);
+        try {
+          // Upload to storage temporarily
+          const path = `assistant-voice/${Date.now()}-voice.webm`;
+          const { error: uploadErr } = await supabase.storage.from("voice-notes").upload(path, blob);
+          if (uploadErr) throw uploadErr;
+          const { data: urlData } = supabase.storage.from("voice-notes").getPublicUrl(path);
+          // Use a signed URL for private bucket
+          const { data: signedData } = await supabase.storage.from("voice-notes").createSignedUrl(path, 300);
+          const audioUrl = signedData?.signedUrl || urlData.publicUrl;
+
+          const { data, error: fnError } = await supabase.functions.invoke("transcribe-capture", { body: { audioUrl } });
+          if (fnError) throw fnError;
+          const transcript = data?.transcript || "";
+          if (transcript.trim()) {
+            setChatInput(transcript.trim());
+          } else {
+            toast.error("Couldn't transcribe audio");
+          }
+        } catch (err) {
+          console.error("Voice transcription failed:", err);
+          toast.error("Voice transcription failed");
+        }
+        setVoiceTranscribingAssistant(false);
+      };
+      assistantMediaRef.current = mr;
+      mr.start();
+      setVoiceRecordingAssistant(true);
+    } catch {
+      toast.error("Microphone access denied");
+    }
+  }, []);
+
+  const stopAssistantVoice = useCallback(() => {
+    assistantMediaRef.current?.stop();
+    setVoiceRecordingAssistant(false);
+  }, []);
 
   if (!isSSRole && !isClient) return null;
 
@@ -592,24 +647,58 @@ export function GlobalCaptureButton() {
           </div>
 
           <div className="border-t p-3 flex gap-2 items-end">
-            <Textarea
-              ref={chatInputRef}
-              value={chatInput}
-              onChange={e => setChatInput(e.target.value)}
-              onKeyDown={handleChatKeyDown}
-              placeholder="Ask me anything..."
-              className="min-h-[40px] max-h-[120px] resize-none rounded-xl text-sm"
-              rows={1}
-              disabled={chatLoading}
-            />
-            <Button
-              size="icon"
-              onClick={sendChatMessage}
-              disabled={!chatInput.trim() || chatLoading}
-              className="rounded-xl shrink-0 h-10 w-10"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
+            {voiceRecordingAssistant ? (
+              <div className="flex-1 flex items-center justify-center gap-3 py-1">
+                <div className="flex items-center gap-2 text-destructive text-sm font-medium">
+                  <div className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
+                  Recording...
+                </div>
+                <Button
+                  size="icon"
+                  variant="destructive"
+                  onClick={stopAssistantVoice}
+                  className="rounded-xl shrink-0 h-10 w-10"
+                >
+                  <Square className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : voiceTranscribingAssistant ? (
+              <div className="flex-1 flex items-center justify-center gap-2 text-muted-foreground text-sm py-1">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Transcribing...
+              </div>
+            ) : (
+              <>
+                <Textarea
+                  ref={chatInputRef}
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  onKeyDown={handleChatKeyDown}
+                  placeholder="Ask me anything..."
+                  className="min-h-[40px] max-h-[120px] resize-none rounded-xl text-sm"
+                  rows={1}
+                  disabled={chatLoading}
+                />
+                <Button
+                  size="icon"
+                  variant="outline"
+                  onClick={startAssistantVoice}
+                  disabled={chatLoading}
+                  className="rounded-xl shrink-0 h-10 w-10"
+                  title="Voice input"
+                >
+                  <Mic className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  onClick={sendChatMessage}
+                  disabled={!chatInput.trim() || chatLoading}
+                  className="rounded-xl shrink-0 h-10 w-10"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </>
+            )}
           </div>
         </div>
       )}
