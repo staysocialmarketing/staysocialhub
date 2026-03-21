@@ -301,7 +301,7 @@ async function executeTool(
       const { data: c } = await serviceClient.from("clients").select("name").eq("id", targetClientId).single();
       resolvedClientName = c?.name || null;
     }
-    return { success: true, request_id: data.id, topic: data.topic, type: data.type, client_name: resolvedClientName, assigned_to: args.assigned_to_name || null };
+    return { success: true, request_id: data.id, topic: data.topic, type: data.type, client_name: resolvedClientName, assigned_to: args.assigned_to_name || null, destination: "requests" };
   }
 
   if (fnName === "capture_idea") {
@@ -330,7 +330,7 @@ async function executeTool(
       console.error("capture_idea error:", error);
       return { error: "Failed to save idea. Please try again." };
     }
-    return { success: true, capture_id: data.id };
+    return { success: true, capture_id: data.id, destination: "brain" };
   }
 
   if (fnName === "query_tasks" && isSSRole) {
@@ -497,6 +497,7 @@ async function executeTool(
       topic: data.title,
       client_name: resolvedClientName,
       assigned_to: args.assigned_to_name || null,
+      destination: "tasks",
     };
   }
 
@@ -594,22 +595,27 @@ Deno.serve(async (req) => {
       // Route-aware extraction rules
       let routeHint = "";
       if (currentRoute.startsWith("/team/tasks")) {
-        routeHint = "\n\nIMPORTANT: The user is on the Tasks page. When they mention creating a task, to-do, or work item, use create_task (not create_request). Include all details they mention: title, description, assignee, priority, due date, project, client.";
+        routeHint = `\n\nCRITICAL ROUTING RULE: The user is on the Tasks page. You MUST use create_task (NOT create_request) for any creation intent — whether they say "task", "to-do", "post", "thing", or any ambiguous creation language. Only use create_request if the user explicitly says "submit a request" or "create a content request". Always extract full task fields: title, description, assigned_to_name, priority, due_date, project_name, client_name.`;
       } else if (currentRoute.startsWith("/requests")) {
-        routeHint = "\n\nThe user is on the Requests page. Default to create_request unless they explicitly say 'task'.";
+        routeHint = "\n\nThe user is on the Requests page. Default to create_request unless they explicitly say 'task' or 'to-do'.";
       }
 
-      const extractionPrompt = `You are an action extraction assistant. Analyze this voice conversation transcript and identify ALL actionable items the user wants to create.
+      const extractionPrompt = `You are an action extraction assistant for Stay Social HUB. Analyze this voice conversation transcript and identify ALL actionable items the user wants to create.
 
-For each action, call the appropriate tool. Only extract actions that the user clearly expressed intent to create. Do NOT extract queries or questions — only creation actions (create_request, capture_idea${isSSRole ? ", create_task" : ""}).
+For each action, call the appropriate tool with ALL details mentioned. Only extract actions that the user clearly expressed intent to create. Do NOT extract queries or questions — only creation actions (create_request, capture_idea${isSSRole ? ", create_task" : ""}).
 
-If the user said "task", "to-do", or "add to the board", use create_task (not create_request).
-If the user said "request", "post", "email", "design", or "video", use create_request.
+TOOL SELECTION RULES:
+- "task", "to-do", "add to the board", "assign to", or any work item → create_task
+- "request", "post", "email campaign", "design", "video" → create_request
+- "note", "idea", "save this", "remember" → capture_idea
+- When in doubt on /team/tasks, default to create_task
 
-If the user changed their mind during the conversation (e.g., said "actually make that a video instead"), use the FINAL version of what they wanted.
-If the user mentions assigning something to someone, include the assigned_to_name parameter.
-If the user mentions a client, include the client_name parameter.
-If the user provides a description or details, include them in the description parameter.
+IMPORTANT:
+- If the user changed their mind during the conversation (e.g., "actually make that a video instead"), use the FINAL version
+- If the user mentions assigning to someone, include assigned_to_name
+- If the user mentions a client, include client_name
+- If the user provides a description or details, include them in the description parameter
+- Include ALL mentioned fields: priority, due date, project, etc.
 
 If no actionable items are found, do not call any tools.${routeHint}`;
 

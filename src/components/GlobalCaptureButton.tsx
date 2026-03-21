@@ -135,9 +135,10 @@ export function GlobalCaptureButton() {
 
     if (!transcript.trim()) {
       console.log("[HubAssistant] Empty transcript — no actions to extract");
-      toast("No conversation detected — try speaking clearly next time");
+      toast.warning("Call ended but no speech was detected. Make sure your microphone is working and speak clearly.", { duration: 6000 });
       voiceRunStateRef.current = "idle";
       setAssistantView("chat");
+      setVoiceConnecting(false);
       return;
     }
 
@@ -241,6 +242,16 @@ export function GlobalCaptureButton() {
       toast.error("Voice connection error");
       voiceRunStateRef.current = "error";
     },
+    onConnect: () => {
+      console.log("[HubAssistant] onConnect — session established");
+      voiceRunStateRef.current = "live";
+      setVoiceConnecting(false);
+      setConnectingElapsed(0);
+      if (connectingTimerRef.current) {
+        clearInterval(connectingTimerRef.current);
+        connectingTimerRef.current = null;
+      }
+    },
     onDisconnect: () => {
       console.log("[HubAssistant] onDisconnect — voiceRunState:", voiceRunStateRef.current, "transcript length:", voiceTranscriptRef.current.length);
       // Clear idle timer
@@ -248,8 +259,8 @@ export function GlobalCaptureButton() {
         clearInterval(idleTimerRef.current);
         idleTimerRef.current = null;
       }
-      // Finalize if we have transcript and haven't already started finalizing
-      if (voiceTranscriptRef.current.length > 0 && !voiceRunFinalizedRef.current) {
+      // Always finalize — even with empty transcript (handled inside finalizer)
+      if (!voiceRunFinalizedRef.current) {
         finalizeVoiceRun();
       }
     },
@@ -312,10 +323,11 @@ export function GlobalCaptureButton() {
       // If voice run is active, end the session but let background processing continue
       if (conversation.status === "connected") {
         voiceRunStateRef.current = "ending";
+        toast.loading("Call ended. Processing...", { id: "voice-processing", duration: Infinity });
         try { await conversation.endSession(); } catch {}
-        // Fallback finalize
+        // Fallback finalize unconditionally
         setTimeout(() => {
-          if (!voiceRunFinalizedRef.current && voiceTranscriptRef.current.length > 0) {
+          if (!voiceRunFinalizedRef.current) {
             finalizeVoiceRun();
           }
         }, 2000);
@@ -596,10 +608,11 @@ export function GlobalCaptureButton() {
             idleTimerRef.current = null;
           }
           voiceRunStateRef.current = "ending";
+          toast.loading("Call ended. Processing...", { id: "voice-processing", duration: Infinity });
           conversation.endSession().catch(() => {});
           // Fallback: if onDisconnect doesn't fire within 2s, finalize anyway
           setTimeout(() => {
-            if (!voiceRunFinalizedRef.current && voiceTranscriptRef.current.length > 0) {
+            if (!voiceRunFinalizedRef.current) {
               console.log("[HubAssistant] Fallback finalize after idle timeout");
               finalizeVoiceRun();
             }
@@ -607,8 +620,22 @@ export function GlobalCaptureButton() {
         }
       }, 3000);
 
+      // Hard connection timeout — fail after 12s if onConnect never fires
+      const connectionTimeout = setTimeout(() => {
+        if (voiceRunStateRef.current === "connecting") {
+          console.log("[HubAssistant] Connection timeout — 12s elapsed");
+          toast.error("Voice connection timed out. Please try again.");
+          voiceRunStateRef.current = "idle";
+          setAssistantView("chat");
+          setVoiceConnecting(false);
+          if (idleTimerRef.current) { clearInterval(idleTimerRef.current); idleTimerRef.current = null; }
+          try { conversation.endSession().catch(() => {}); } catch {}
+        }
+      }, 12000);
+
       await conversation.startSession({
         signedUrl: signed_url,
+        connectionType: "websocket",
         overrides: {
           agent: {
             prompt: {
@@ -618,7 +645,8 @@ export function GlobalCaptureButton() {
           },
         },
       });
-      voiceRunStateRef.current = "live";
+      clearTimeout(connectionTimeout);
+      // onConnect callback sets state to "live" and clears connecting UI
     } catch (err) {
       console.error("Voice call failed:", err);
       toast.error("Failed to start voice call. Please check microphone access.");
@@ -641,6 +669,7 @@ export function GlobalCaptureButton() {
   const endVoiceCall = useCallback(async () => {
     console.log("[HubAssistant] endVoiceCall called — transcript length:", voiceTranscriptRef.current.length);
     voiceRunStateRef.current = "ending";
+    toast.loading("Call ended. Processing...", { id: "voice-processing", duration: Infinity });
     if (idleTimerRef.current) {
       clearInterval(idleTimerRef.current);
       idleTimerRef.current = null;
@@ -648,9 +677,9 @@ export function GlobalCaptureButton() {
     try {
       await conversation.endSession();
     } catch {}
-    // Fallback: if onDisconnect doesn't fire within 2s, force finalize
+    // Fallback: if onDisconnect doesn't fire within 2s, force finalize unconditionally
     setTimeout(() => {
-      if (!voiceRunFinalizedRef.current && voiceTranscriptRef.current.length > 0) {
+      if (!voiceRunFinalizedRef.current) {
         console.log("[HubAssistant] Fallback finalize after endVoiceCall");
         finalizeVoiceRun();
       }
@@ -1143,7 +1172,10 @@ export function GlobalCaptureButton() {
                     </div>
                   )}
 
-                  {proposedActions.map((action, i) => (
+                  {proposedActions.map((action, i) => {
+                    const destination = action.tool === "create_task" ? "Tasks" : action.tool === "create_request" ? "Requests" : action.tool === "capture_idea" ? "Brain" : "Hub";
+                    const isTaskOnRequestPage = action.tool === "create_request" && location.pathname.startsWith("/team/tasks");
+                    return (
                     <div key={i} className="border rounded-xl p-3 space-y-2 bg-card">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2 text-sm font-medium">
@@ -1159,17 +1191,30 @@ export function GlobalCaptureButton() {
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
-                      {action.args.client_name && (
-                        <p className="text-xs text-muted-foreground pl-9">Client: {action.args.client_name}</p>
+                      <div className="pl-9 flex flex-wrap items-center gap-1.5">
+                        <span className="text-[10px] font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full">→ {destination}</span>
+                        {action.args.client_name && (
+                          <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full">Client: {action.args.client_name}</span>
+                        )}
+                        {action.args.priority && action.args.priority !== "normal" && (
+                          <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full">{action.args.priority}</span>
+                        )}
+                        {action.args.assigned_to_name && (
+                          <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full">→ {action.args.assigned_to_name}</span>
+                        )}
+                      </div>
+                      {isTaskOnRequestPage && (
+                        <p className="text-[10px] text-amber-500 pl-9">⚠ This will create a Request, not a Task</p>
                       )}
                       {action.args.notes && (
-                        <p className="text-xs text-muted-foreground pl-9">{action.args.notes}</p>
+                        <p className="text-xs text-muted-foreground pl-9 line-clamp-2">{action.args.notes}</p>
                       )}
-                      {action.args.priority && action.args.priority !== "normal" && (
-                        <span className="text-xs bg-muted px-2 py-0.5 rounded-full ml-9">{action.args.priority}</span>
+                      {action.args.description && (
+                        <p className="text-xs text-muted-foreground pl-9 line-clamp-2">{action.args.description}</p>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
 
                   <div className="flex gap-2 pt-2">
                     <Button
