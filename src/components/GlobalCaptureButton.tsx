@@ -474,6 +474,10 @@ export function GlobalCaptureButton() {
   }, [conversation, location.pathname]);
 
   const endVoiceCall = useCallback(async () => {
+    if (idleTimerRef.current) {
+      clearInterval(idleTimerRef.current);
+      idleTimerRef.current = null;
+    }
     try {
       await conversation.endSession();
     } catch {}
