@@ -182,7 +182,10 @@ export default function AdminAutomations() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <SectionHeader title="Automation Rules" subtitle="Define automatic actions triggered by events in the Hub" />
+        <div>
+          <h2 className="text-lg font-semibold">Automation Rules</h2>
+          <p className="text-sm text-muted-foreground">Define automatic actions triggered by events in the Hub</p>
+        </div>
         <Button onClick={openCreate} size="sm">
           <Plus className="h-4 w-4 mr-1" /> New Rule
         </Button>
