@@ -263,7 +263,7 @@ export function GlobalCaptureButton() {
       }
     },
     onDisconnect: () => {
-      console.log("[HubAssistant] onDisconnect — voiceRunState:", voiceRunStateRef.current, "transcript length:", voiceTranscriptRef.current.length);
+      console.log("[HubAssistant] onDisconnect — voiceRunState:", voiceRunStateRef.current, "transcript items:", voiceTranscriptRef.current.length, "transcripts:", voiceTranscriptRef.current.slice(0, 3));
       // Clear idle timer
       if (idleTimerRef.current) {
         clearInterval(idleTimerRef.current);
