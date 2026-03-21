@@ -568,9 +568,21 @@ export function GlobalCaptureButton() {
   const needsClient = ["note", "voice", "link", "file"].includes(mode || "");
   const hasClient = !!getClientId();
 
-  const welcomeMessage = isSSRole
-    ? "Hey! I can help you **create requests**, **capture ideas**, or **look up tasks & projects**. What do you need?"
-    : "Hey! I can help you **submit content requests** or **save ideas**. What's on your mind?";
+  const welcomeMessage = useMemo(() => {
+    const path = location.pathname;
+    if (isSSRole) {
+      if (path.startsWith("/requests")) return "Hey! Need to **create a new request** or discuss existing ones?";
+      if (path.startsWith("/team/tasks")) return "Hey! Want to **create a task** or look up what's on the board?";
+      if (path.startsWith("/team/projects")) return "Hey! Need help with a **project**?";
+      if (path.startsWith("/workflow")) return "Hey! Questions about the **content pipeline**?";
+      if (path.startsWith("/approvals")) return "Hey! Questions about **approvals** or reviews?";
+      return "Hey! I can help you **create requests**, **capture ideas**, or **look up tasks & projects**. What do you need?";
+    }
+    if (path.startsWith("/client/success")) return "Hi! Want to **submit a content idea** or have a question about your plan?";
+    if (path.startsWith("/requests")) return "Hi! Want to **submit a new content request**?";
+    if (path.startsWith("/client/brand-twin")) return "Hi! Need help **updating your brand profile**?";
+    return "Hey! I can help you **submit content requests** or **save ideas**. What's on your mind?";
+  }, [isSSRole, location.pathname]);
 
   // Tool icon mapping for confirmation cards
   const toolIcon = (tool: string) => {
