@@ -707,23 +707,41 @@ If no actionable items are found, do not call any tools.${routeHint}`;
         results.push({ tool, ...result });
       }
 
-      // Insert notification for the user on success
+      // Insert notification for the user on success or failure
       const successes = results.filter((r: any) => r.success);
+      const failures = results.filter((r: any) => r.error);
+      
       if (successes.length > 0) {
         const summaryParts = successes.map((r: any) => {
-          if (r.topic) return `"${r.topic}"${r.client_name ? ` for ${r.client_name}` : ""}`;
+          if (r.topic || r.title) return `"${r.topic || r.title}"${r.client_name ? ` for ${r.client_name}` : ""}`;
           return r.tool === "capture_idea" ? "Idea captured" : "Action completed";
         });
         const notifBody = `Created: ${summaryParts.join(", ")}`;
+        // Determine best link based on action types
+        const hasTask = successes.some((r: any) => r.task_id);
+        const link = hasTask ? "/team/tasks" : "/requests";
         try {
           await serviceClient.from("notifications").insert({
             user_id: userId,
-            title: "Hub Assistant completed your request",
+            title: "Hub Assistant completed",
             body: notifBody,
-            link: "/requests",
+            link,
           });
         } catch (e) {
           console.error("Failed to insert notification:", e);
+        }
+      }
+
+      if (failures.length > 0 && successes.length === 0) {
+        try {
+          await serviceClient.from("notifications").insert({
+            user_id: userId,
+            title: "Hub Assistant needs review",
+            body: failures[0].error || "One or more actions failed",
+            link: "/dashboard",
+          });
+        } catch (e) {
+          console.error("Failed to insert failure notification:", e);
         }
       }
 
