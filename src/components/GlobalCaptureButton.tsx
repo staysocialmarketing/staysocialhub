@@ -1047,7 +1047,7 @@ export function GlobalCaptureButton() {
                 <div className="flex flex-col items-center justify-center gap-3 py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   <p className="text-sm font-medium text-foreground">{processingStep || "Processing..."}</p>
-                  <p className="text-xs text-muted-foreground">Please don't close this — almost done!</p>
+                  <p className="text-xs text-muted-foreground">You can close this — processing will continue in the background</p>
                 </div>
               ) : proposedActions.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-3 py-12">
