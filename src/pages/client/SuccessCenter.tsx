@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
   Sparkles,
@@ -28,11 +29,14 @@ import {
   Pencil,
   Activity,
   Columns3,
+  BarChart3,
 } from "lucide-react";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { AddActivityDialog } from "@/components/activity/AddActivityDialog";
 import { OnboardingTracker } from "@/components/OnboardingTracker";
 import { getWaveEmoji } from "@/lib/waveEmoji";
+import ClientResults from "@/components/ClientResults";
+import ClientOnboardingWizard from "@/components/ClientOnboardingWizard";
 
 export default function SuccessCenter() {
   const navigate = useNavigate();
@@ -87,6 +91,36 @@ export default function SuccessCenter() {
     enabled: !!clientId,
   });
 
+  // Onboarding wizard detection
+  const { data: hasBrandTwin } = useQuery({
+    queryKey: ["has-brand-twin", clientId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("brand_twin")
+        .select("client_id")
+        .eq("client_id", clientId!)
+        .maybeSingle();
+      return !!data;
+    },
+    enabled: !!clientId && !isSSRole,
+  });
+
+  const { data: captureCount } = useQuery({
+    queryKey: ["capture-count", clientId],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from("brain_captures")
+        .select("id", { count: "exact", head: true })
+        .eq("client_id", clientId!);
+      return count || 0;
+    },
+    enabled: !!clientId && !isSSRole,
+  });
+
+  const showWizard = !isSSRole && hasBrandTwin === false && captureCount === 0;
+  const [wizardDismissed, setWizardDismissed] = useState(false);
+
+  const [activeTab, setActiveTab] = useState("overview");
   const [activityLimit, setActivityLimit] = useState(10);
   const { data: activities = [] } = useQuery({
     queryKey: ["client-activity", clientId, activityLimit],
@@ -198,6 +232,17 @@ export default function SuccessCenter() {
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
+      {/* Onboarding Wizard */}
+      {showWizard && !wizardDismissed && clientId && (
+        <ClientOnboardingWizard
+          open={true}
+          onClose={() => setWizardDismissed(true)}
+          clientId={clientId}
+          clientName={clientData?.name || profile?.name || "there"}
+          userId={profile!.id}
+        />
+      )}
+
       {/* 1. HERO — warm, borderless */}
       <div className="rounded-2xl bg-gradient-to-br from-primary/8 via-background to-accent/5 p-6 md:p-8">
         <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight mb-1">
@@ -219,6 +264,21 @@ export default function SuccessCenter() {
           )}
         </div>
       </div>
+
+      {/* Tab navigation */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="w-full grid grid-cols-2">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="results" className="gap-1.5">
+            <BarChart3 className="h-3.5 w-3.5" /> Results
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="results" className="mt-4">
+          {clientId ? <ClientResults clientId={clientId} /> : <p className="text-sm text-muted-foreground">No client linked.</p>}
+        </TabsContent>
+
+        <TabsContent value="overview" className="mt-4 space-y-6">
 
       {/* ONBOARDING PROGRESS */}
       {clientId && (
@@ -512,6 +572,9 @@ export default function SuccessCenter() {
           View Updates <ArrowRight className="h-3 w-3" />
         </Button>
       </div>
+
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -12,12 +12,51 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Download, Send, Pencil, Save, X, Loader2, Trash2 } from "lucide-react";
+import { Download, Send, Pencil, Save, X, Loader2, Trash2, Clock } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { compressImage } from "@/lib/imageUtils";
 import AIFieldsPanel from "@/components/AIFieldsPanel";
 import StrategyEditPanel from "@/components/StrategyEditPanel";
 import { REQUEST_TYPE_OPTIONS } from "@/lib/workflowUtils";
+import { formatDistanceToNow } from "date-fns";
+
+function RequestActivityTimeline({ taskId }: { taskId: string }) {
+  const { data: logs = [], isLoading } = useQuery({
+    queryKey: ["task-activity-log", taskId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("task_activity_log")
+        .select("*")
+        .eq("task_id", taskId)
+        .order("created_at", { ascending: true });
+      return data || [];
+    },
+    enabled: !!taskId,
+  });
+
+  if (isLoading) return <p className="text-xs text-muted-foreground">Loading timeline...</p>;
+  if (logs.length === 0) return null;
+
+  return (
+    <div>
+      <h4 className="font-medium text-sm mb-2 flex items-center gap-1.5">
+        <Clock className="h-3.5 w-3.5 text-muted-foreground" /> Activity
+      </h4>
+      <div className="space-y-2">
+        {logs.map((log: any) => (
+          <div key={log.id} className="flex gap-2 items-start text-xs">
+            <div className="mt-1 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+            <div className="flex-1">
+              <span className="font-medium capitalize">{log.action.replace("_", " ")}</span>
+              {log.details && <span className="text-muted-foreground ml-1">— {log.details}</span>}
+              <span className="text-muted-foreground ml-2">{formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 type RequestStatus = Database["public"]["Enums"]["request_status"];
 type RequestType = Database["public"]["Enums"]["request_type"];
@@ -371,9 +410,7 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
 
           {/* Linked Task */}
           {request?.task_id && (
-            <div className="text-xs text-muted-foreground">
-              Linked Task ID: <span className="font-mono">{request.task_id}</span>
-            </div>
+            <RequestActivityTimeline taskId={request.task_id} />
           )}
 
           <Separator />
