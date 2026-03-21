@@ -17,6 +17,13 @@
 - `process-automation-rules` edge function for rule evaluation + execution
 - Admin UI at `/admin/automations` with rule builder
 
+### ✅ Phase B: Google OAuth Meeting Notes Sync
+- `google_integrations` + `meeting_notes` tables with RLS
+- `google-oauth-callback` edge function (OAuth code exchange)
+- `sync-meeting-notes` edge function (Drive API sync)
+- `extract-meeting-data` edge function (AI extraction → tasks/captures/strategy)
+- Admin UI at `/admin/meeting-notes` (restricted to corey@staysocial.ca)
+
 ### 6. Social Platform Connections
 - New `social_accounts` table linking clients to platform credentials
 - Publish-to-platform action from the Workflow board
@@ -28,15 +35,6 @@
 ---
 
 ## Phase 8: DIY / Self-Serve Platform
-
-### 9. Self-Serve Signup + Plan Selection
-- Public landing page with plan tiers
-- Stripe integration for subscription billing
-
-### 10. DIY Content Calendar
-- Simplified workflow (no internal review stages)
-- AI-generated content suggestions
-
-### 11. Marketplace Expansion
-- Browse and purchase add-on services
-- Stripe payment integration
+- Self-Serve Signup + Stripe billing
+- DIY Content Calendar
+- Marketplace Expansion
