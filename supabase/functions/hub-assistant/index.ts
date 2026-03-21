@@ -237,6 +237,14 @@ async function resolveUserByName(serviceClient: any, name: string): Promise<stri
   return exact ? exact.id : data[0].id;
 }
 
+// Resolve a project name to a project ID
+async function resolveProjectByName(serviceClient: any, name: string): Promise<string | null> {
+  const { data } = await serviceClient.from("projects").select("id, name").ilike("name", `%${name}%`).eq("status", "active").limit(5);
+  if (!data || data.length === 0) return null;
+  const exact = data.find((p: any) => p.name.toLowerCase() === name.toLowerCase());
+  return exact ? exact.id : data[0].id;
+}
+
 // Execute a single tool call and return the result
 async function executeTool(
   fnName: string,
