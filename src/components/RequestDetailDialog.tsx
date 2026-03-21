@@ -175,14 +175,9 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
     }
   };
 
-  if (!request) return null;
-
-  const canEdit = isSSRole || request.created_by_user_id === profile?.id;
-  const assignedUserName = ssUsers.find((u: any) => u.id === request.assigned_to_user_id);
-
   const deleteRequest = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("requests").delete().eq("id", request.id);
+      const { error } = await supabase.from("requests").delete().eq("id", request!.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -192,6 +187,11 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
     },
     onError: () => toast.error("Failed to delete request"),
   });
+
+  if (!request) return null;
+
+  const canEdit = isSSRole || request.created_by_user_id === profile?.id;
+  const assignedUserName = ssUsers.find((u: any) => u.id === request.assigned_to_user_id);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
