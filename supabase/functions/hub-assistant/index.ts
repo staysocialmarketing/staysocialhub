@@ -711,6 +711,7 @@ If no actionable items are found, do not call any tools.${routeHint}`;
     if (body.mode === "execute_actions") {
       const actions = body.actions;
       console.log("[hub-assistant] execute_actions — actions count:", actions?.length, "override client_id:", body.client_id || "none");
+      if (!Array.isArray(actions) || actions.length === 0) {
         return new Response(JSON.stringify({ error: "No actions to execute" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
