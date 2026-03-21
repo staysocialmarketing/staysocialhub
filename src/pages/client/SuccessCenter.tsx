@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
   Sparkles,
@@ -28,11 +29,14 @@ import {
   Pencil,
   Activity,
   Columns3,
+  BarChart3,
 } from "lucide-react";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { AddActivityDialog } from "@/components/activity/AddActivityDialog";
 import { OnboardingTracker } from "@/components/OnboardingTracker";
 import { getWaveEmoji } from "@/lib/waveEmoji";
+import ClientResults from "@/components/ClientResults";
+import ClientOnboardingWizard from "@/components/ClientOnboardingWizard";
 
 export default function SuccessCenter() {
   const navigate = useNavigate();
