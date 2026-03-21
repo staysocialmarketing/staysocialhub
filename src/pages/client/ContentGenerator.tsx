@@ -164,7 +164,7 @@ export default function ContentGenerator() {
           {isSSRole && (
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Client</Label>
-              <ClientSelectWithCreate value={clientId} onChange={setClientId} />
+              <ClientSelectWithCreate value={clientId} onValueChange={setClientId} />
             </div>
           )}
 
