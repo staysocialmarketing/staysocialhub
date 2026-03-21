@@ -177,11 +177,6 @@ export function GlobalCaptureButton() {
   };
 
   const handleOpen = async (isOpen: boolean) => {
-    // Block closing during processing
-    if (!isOpen && (extracting || executing)) {
-      toast("Please wait — your request is still being processed", { icon: "⏳" });
-      return;
-    }
     setOpen(isOpen);
     if (isOpen && isSSRole) {
       const [usersRes, projectsRes] = await Promise.all([
@@ -202,7 +197,14 @@ export function GlobalCaptureButton() {
         clearInterval(idleTimerRef.current);
         idleTimerRef.current = null;
       }
-      resetAll();
+      if (connectingTimerRef.current) {
+        clearInterval(connectingTimerRef.current);
+        connectingTimerRef.current = null;
+      }
+      // Don't reset if still extracting/executing — let background toast handle it
+      if (!extracting && !executing) {
+        resetAll();
+      }
     }
   };
 
