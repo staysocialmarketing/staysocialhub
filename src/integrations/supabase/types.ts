@@ -675,6 +675,57 @@ export type Database = {
           },
         ]
       }
+      generated_content: {
+        Row: {
+          client_id: string
+          content_type: string
+          created_at: string
+          id: string
+          output: string
+          prompt: string
+          saved_to_capture_id: string | null
+          tone_override: string | null
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          content_type?: string
+          created_at?: string
+          id?: string
+          output?: string
+          prompt?: string
+          saved_to_capture_id?: string | null
+          tone_override?: string | null
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          content_type?: string
+          created_at?: string
+          id?: string
+          output?: string
+          prompt?: string
+          saved_to_capture_id?: string | null
+          tone_override?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generated_content_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generated_content_saved_to_capture_id_fkey"
+            columns: ["saved_to_capture_id"]
+            isOneToOne: false
+            referencedRelation: "brain_captures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       marketplace_items: {
         Row: {
           billing_type: string | null

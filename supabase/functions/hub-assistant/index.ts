@@ -564,6 +564,31 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
 
+    // ─── Mode: test ───
+    // Creates a test task to verify the DB write path independently
+    if (body.mode === "test" && isSSRole) {
+      console.log("[hub-assistant] Test mode — creating test task");
+      const { data, error } = await serviceClient.from("tasks").insert({
+        title: "Hub Assistant Test Task — " + new Date().toISOString(),
+        description: "This is a test task created to verify the Hub Assistant pipeline.",
+        status: "todo",
+        priority: "low",
+        created_by_user_id: userId,
+        source_type: "hub_assistant",
+      }).select("id, title").single();
+
+      if (error) {
+        console.error("[hub-assistant] Test task creation failed:", error);
+        return new Response(JSON.stringify({ error: "Test task creation failed: " + error.message }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      console.log("[hub-assistant] Test task created:", data.id);
+      return new Response(JSON.stringify({ success: true, task_id: data.id, title: data.title }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // ─── Mode: get_voice_prompt ───
     // Returns the voice system prompt for ElevenLabs agent overrides
     if (body.mode === "get_voice_prompt") {
@@ -578,7 +603,9 @@ Deno.serve(async (req) => {
     if (body.mode === "extract_actions") {
       const transcript = body.transcript;
       const currentRoute = body.current_route || "";
+      console.log("[hub-assistant] extract_actions — transcript length:", transcript?.length, "route:", currentRoute, "isSSRole:", isSSRole);
       if (!transcript || typeof transcript !== "string" || transcript.trim().length === 0) {
+        console.log("[hub-assistant] extract_actions — empty transcript rejected");
         return new Response(JSON.stringify({ error: "Transcript required" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -656,10 +683,12 @@ If no actionable items are found, do not call any tools.${routeHint}`;
       if (!choice) throw new Error("No AI response");
 
       const toolCalls = choice.message?.tool_calls || [];
+      console.log("[hub-assistant] extract_actions — tool calls found:", toolCalls.length);
       const actions = toolCalls.map((tc: any) => {
         let args: any = {};
         try { args = JSON.parse(tc.function.arguments); } catch {}
         const toolName = tc.function.name;
+        console.log("[hub-assistant] extracted tool:", toolName, "args:", JSON.stringify(args).slice(0, 200));
         let summary = "";
         if (toolName === "create_request") {
           summary = `Create ${args.type || "general"} request: "${args.topic || "Untitled"}"${args.assigned_to_name ? ` (assigned to ${args.assigned_to_name})` : ""}`;
@@ -670,6 +699,7 @@ If no actionable items are found, do not call any tools.${routeHint}`;
         }
         return { tool: toolName, args, summary };
       });
+      console.log("[hub-assistant] extract_actions — returning", actions.length, "actions");
 
       return new Response(JSON.stringify({ actions }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -680,6 +710,7 @@ If no actionable items are found, do not call any tools.${routeHint}`;
     // Executes a list of pre-approved actions
     if (body.mode === "execute_actions") {
       const actions = body.actions;
+      console.log("[hub-assistant] execute_actions — actions count:", actions?.length, "override client_id:", body.client_id || "none");
       if (!Array.isArray(actions) || actions.length === 0) {
         return new Response(JSON.stringify({ error: "No actions to execute" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
