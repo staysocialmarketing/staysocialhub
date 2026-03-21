@@ -1017,8 +1017,11 @@ export function GlobalCaptureButton() {
 
               <div className="text-center space-y-1">
                 <p className="text-sm font-medium text-foreground">
-                  {conversation.isSpeaking ? "Assistant is speaking..." : conversation.status === "connected" ? "Listening..." : "Connecting..."}
+                  {conversation.isSpeaking ? "Assistant is speaking..." : conversation.status === "connected" ? "Listening..." : `Connecting...${connectingElapsed > 0 ? ` (${connectingElapsed}s)` : ""}`}
                 </p>
+                {conversation.status !== "connected" && connectingElapsed > 10 && (
+                  <p className="text-xs text-amber-500">Taking longer than usual — try closing and reopening</p>
+                )}
                 <p className="text-xs text-muted-foreground">
                   Speak naturally — I'll summarize your requests when you're done
                 </p>
