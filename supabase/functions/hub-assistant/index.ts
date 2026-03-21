@@ -388,7 +388,7 @@ Deno.serve(async (req) => {
     // ─── Mode: get_voice_prompt ───
     // Returns the voice system prompt for ElevenLabs agent overrides
     if (body.mode === "get_voice_prompt") {
-      const prompt = buildVoiceSystemPrompt(isSSRole, clientName);
+      const prompt = buildVoiceSystemPrompt(isSSRole, clientName, body.current_route);
       return new Response(JSON.stringify({ prompt }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
