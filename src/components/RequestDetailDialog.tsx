@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Download, Send, Pencil, Save, X, Loader2, Trash2 } from "lucide-react";
+import { Download, Send, Pencil, Save, X, Loader2, Trash2, Clock } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { compressImage } from "@/lib/imageUtils";
 import AIFieldsPanel from "@/components/AIFieldsPanel";
