@@ -555,6 +555,7 @@ export function GlobalCaptureButton() {
       toast.error("Failed to process conversation");
       setAssistantView("chat");
     } finally {
+      clearInterval(stepTimer);
       setExtracting(false);
     }
   }, []);
