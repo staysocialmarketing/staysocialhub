@@ -589,9 +589,11 @@ Deno.serve(async (req) => {
 
       const extractionPrompt = `You are an action extraction assistant. Analyze this voice conversation transcript and identify ALL actionable items the user wants to create.
 
-For each action, call the appropriate tool. Only extract actions that the user clearly expressed intent to create. Do NOT extract queries or questions — only creation actions (create_request, capture_idea).
+For each action, call the appropriate tool. Only extract actions that the user clearly expressed intent to create. Do NOT extract queries or questions — only creation actions (create_request, capture_idea${isSSRole ? ", create_task" : ""}).
 
 If the user changed their mind during the conversation (e.g., said "actually make that a video instead"), use the FINAL version of what they wanted.
+If the user mentions assigning something to someone, include the assigned_to_name parameter.
+If the user mentions a client, include the client_name parameter.
 
 If no actionable items are found, do not call any tools.`;
 
