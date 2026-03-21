@@ -558,16 +558,6 @@ export function GlobalCaptureButton() {
     setProposedActions(prev => prev.filter((_, i) => i !== index));
   };
 
-  if (!isSSRole && !isClient) return null;
-
-  // Build options based on role
-  const ssOptions: (keyof typeof ACTION_CONFIG)[] = ["note", "voice", "link", "file", "task", "request", "assistant"];
-  const clientOptions: (keyof typeof ACTION_CONFIG)[] = ["note", "voice", "file", "request", "assistant"];
-  const options = isSSRole ? ssOptions : clientOptions;
-
-  const needsClient = ["note", "voice", "link", "file"].includes(mode || "");
-  const hasClient = !!getClientId();
-
   const welcomeMessage = useMemo(() => {
     const path = location.pathname;
     if (isSSRole) {
@@ -578,11 +568,24 @@ export function GlobalCaptureButton() {
       if (path.startsWith("/approvals")) return "Hey! Questions about **approvals** or reviews?";
       return "Hey! I can help you **create requests**, **capture ideas**, or **look up tasks & projects**. What do you need?";
     }
-    if (path.startsWith("/client/success")) return "Hi! Want to **submit a content idea** or have a question about your plan?";
-    if (path.startsWith("/requests")) return "Hi! Want to **submit a new content request**?";
-    if (path.startsWith("/client/brand-twin")) return "Hi! Need help **updating your brand profile**?";
-    return "Hey! I can help you **submit content requests** or **save ideas**. What's on your mind?";
-  }, [isSSRole, location.pathname]);
+    if (isClientAdmin || isClientAssistant) {
+      if (path.startsWith("/client/success")) return "Hi! Want to **submit a content idea** or have a question about your plan?";
+      if (path.startsWith("/requests")) return "Hi! Want to **submit a new content request**?";
+      if (path.startsWith("/client/brand-twin")) return "Hi! Need help **updating your brand profile**?";
+      return "Hey! I can help you **submit content requests** or **save ideas**. What's on your mind?";
+    }
+    return "Hey! What can I help you with?";
+  }, [isSSRole, isClientAdmin, isClientAssistant, location.pathname]);
+
+  if (!isSSRole && !isClient) return null;
+
+  // Build options based on role
+  const ssOptions: (keyof typeof ACTION_CONFIG)[] = ["note", "voice", "link", "file", "task", "request", "assistant"];
+  const clientOptions: (keyof typeof ACTION_CONFIG)[] = ["note", "voice", "file", "request", "assistant"];
+  const options = isSSRole ? ssOptions : clientOptions;
+
+  const needsClient = ["note", "voice", "link", "file"].includes(mode || "");
+  const hasClient = !!getClientId();
 
   // Tool icon mapping for confirmation cards
   const toolIcon = (tool: string) => {
