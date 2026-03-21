@@ -532,6 +532,8 @@ export function GlobalCaptureButton() {
     setVoiceConnecting(true);
     setConnectingElapsed(0);
     voiceTranscriptRef.current = [];
+    voiceRunStateRef.current = "connecting";
+    voiceRunFinalizedRef.current = false;
 
     // Start connecting elapsed timer
     const connTimer = setInterval(() => {
@@ -546,6 +548,7 @@ export function GlobalCaptureButton() {
       if (!session) {
         toast.error("Please sign in");
         setVoiceConnecting(false);
+        voiceRunStateRef.current = "idle";
         return;
       }
 
@@ -583,7 +586,15 @@ export function GlobalCaptureButton() {
             clearInterval(idleTimerRef.current);
             idleTimerRef.current = null;
           }
+          voiceRunStateRef.current = "ending";
           conversation.endSession().catch(() => {});
+          // Fallback: if onDisconnect doesn't fire within 2s, finalize anyway
+          setTimeout(() => {
+            if (!voiceRunFinalizedRef.current && voiceTranscriptRef.current.length > 0) {
+              console.log("[HubAssistant] Fallback finalize after idle timeout");
+              finalizeVoiceRun();
+            }
+          }, 2000);
         }
       }, 3000);
 
@@ -598,10 +609,12 @@ export function GlobalCaptureButton() {
           },
         },
       });
+      voiceRunStateRef.current = "live";
     } catch (err) {
       console.error("Voice call failed:", err);
       toast.error("Failed to start voice call. Please check microphone access.");
       setAssistantView("chat");
+      voiceRunStateRef.current = "idle";
       if (idleTimerRef.current) {
         clearInterval(idleTimerRef.current);
         idleTimerRef.current = null;
@@ -614,9 +627,11 @@ export function GlobalCaptureButton() {
       }
       setConnectingElapsed(0);
     }
-  }, [conversation, location.pathname]);
+  }, [conversation, location.pathname, finalizeVoiceRun]);
 
   const endVoiceCall = useCallback(async () => {
+    console.log("[HubAssistant] endVoiceCall called — transcript length:", voiceTranscriptRef.current.length);
+    voiceRunStateRef.current = "ending";
     if (idleTimerRef.current) {
       clearInterval(idleTimerRef.current);
       idleTimerRef.current = null;
@@ -624,101 +639,14 @@ export function GlobalCaptureButton() {
     try {
       await conversation.endSession();
     } catch {}
-    // onDisconnect callback will trigger handleVoiceCallEnd
-  }, [conversation]);
-
-  const handleVoiceCallEnd = useCallback(async () => {
-    const transcript = voiceTranscriptRef.current.join("\n");
-    voiceTranscriptRef.current = [];
-
-    console.log("[HubAssistant] Voice call ended. Transcript length:", transcript.length);
-    console.log("[HubAssistant] Transcript preview:", transcript.slice(0, 200));
-
-    if (!transcript.trim()) {
-      console.log("[HubAssistant] Empty transcript — no actions to extract");
-      toast("No conversation detected — try speaking clearly next time");
-      setAssistantView("chat");
-      return;
-    }
-
-    // Show persistent loading toast
-    const toastId = toast.loading("Processing your conversation...");
-
-    // Extract actions from transcript
-    setExtracting(true);
-    setProcessingStep("Analyzing your conversation...");
-    const extractionStart = Date.now();
-    setAssistantView("confirm");
-
-    // Update processing step with elapsed time
-    const stepTimer = setInterval(() => {
-      const elapsed = Math.round((Date.now() - extractionStart) / 1000);
-      if (elapsed < 5) {
-        setProcessingStep("Analyzing your conversation...");
-        toast.loading("Analyzing your conversation...", { id: toastId });
-      } else if (elapsed < 10) {
-        setProcessingStep(`Extracting actions... (${elapsed}s)`);
-        toast.loading(`Extracting actions... (${elapsed}s)`, { id: toastId });
-      } else {
-        setProcessingStep(`Almost done... (${elapsed}s)`);
-        toast.loading(`Almost done... (${elapsed}s)`, { id: toastId });
+    // Fallback: if onDisconnect doesn't fire within 2s, force finalize
+    setTimeout(() => {
+      if (!voiceRunFinalizedRef.current && voiceTranscriptRef.current.length > 0) {
+        console.log("[HubAssistant] Fallback finalize after endVoiceCall");
+        finalizeVoiceRun();
       }
-    }, 1000);
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not authenticated");
-
-      console.log("[HubAssistant] Sending extract_actions request...");
-      const resp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/hub-assistant`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ mode: "extract_actions", transcript }),
-        }
-      );
-
-      console.log("[HubAssistant] extract_actions response status:", resp.status);
-
-      if (!resp.ok) {
-        const errData = await resp.json().catch(() => ({}));
-        console.error("[HubAssistant] extract_actions error:", errData);
-        toast.error(errData.error || "Failed to process conversation", { id: toastId });
-        setAssistantView("chat");
-        setExtracting(false);
-        return;
-      }
-
-      const data = await resp.json();
-      console.log("[HubAssistant] Extracted actions:", JSON.stringify(data.actions));
-      const actions = data.actions || [];
-
-      if (actions.length === 0) {
-        toast.dismiss(toastId);
-        toast("No actions detected from conversation");
-        setChatMessages(prev => [...prev, {
-          role: "assistant",
-          content: "I didn't catch any specific actions from our conversation. You can tell me what you need via text!"
-        }]);
-        setAssistantView("chat");
-      } else {
-        toast.success(`Found ${actions.length} action${actions.length > 1 ? "s" : ""} — review & confirm below`, { id: toastId });
-        setProposedActions(actions);
-      }
-    } catch (err) {
-      console.error("[HubAssistant] Extract actions error:", err);
-      toast.error("Failed to process conversation. Please try again via text.", { id: toastId });
-      setAssistantView("chat");
-    } finally {
-      clearInterval(stepTimer);
-      setExtracting(false);
-    }
-  }, []);
-
+    }, 2000);
+  }, [conversation, finalizeVoiceRun]);
   // ─── Execute confirmed actions ───
   const executeActions = async () => {
     if (proposedActions.length === 0) return;
