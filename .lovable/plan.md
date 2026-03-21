@@ -1,48 +1,64 @@
 
 
-# Fix Voice Agent: Request Not Created + Slow Processing
+# Fix Voice Agent: Actions Not Created + Personalized Greeting + Background Processing
 
-## Root Cause Analysis
+## Root Causes
 
-**Why the request wasn't created:** When you (SS role) use the voice agent, the `execute_actions` mode calls `executeTool("create_request", ...)` with `clientId` pulled from your user profile. SS users don't have a `client_id` on their profile — it's `null`. The function checks `if (!targetClientId)` and returns `{ error: "No client selected" }`. The error gets swallowed into the results array but the UI just shows "1 action completed" vs "1 action failed" without enough detail.
+### 1. Requests never created
+The `execute_actions` mode works (verified via curl), but the voice transcript doesn't include a client name, and Corey (SS user) has no `client_id` on their profile. The extraction AI returns `client_name` only if the user mentions it by name during the call. Without it, `executeTool` returns `"No client selected"` — and this error gets swallowed in the results. The confirmation card doesn't show which client the action is for, and there's no way to add one before confirming.
 
-The voice agent likely extracted the right intent ("create a test post for Tristan") but had no way to resolve a client name to a `client_id` during execution. The `create_request` tool also has no `assigned_to` parameter, so "assigned to Tristan" was lost.
+### 2. No feedback after closing
+The `handleOpen` blocks closure during extraction, but if the user navigates away or the drawer closes for any reason, the extraction promise is lost. No toast or notification is sent on completion.
 
-**Why it was slow:** The `extract_actions` call sends the full transcript to Lovable AI for tool-calling extraction — a cold Gemini call that can take 5-10s. Combined with the ElevenLabs disconnect handshake, total processing is 8-15s.
+### 3. Generic greeting
+The `first_message` and `welcomeMessage` say "Hey!" with no personalization. The user's name is available in `profile.name` on the client and can be resolved server-side.
 
 ## Plan
 
-### 1. Fix: Resolve Client by Name for SS Users (the actual bug)
-
-**File:** `supabase/functions/hub-assistant/index.ts` — `executeTool()`
-
-- When `clientId` is null (SS user) and the tool is `create_request` or `capture_idea`, check if `args` contains a `client_name` field
-- If so, look up `clients` table by `ilike("name", ...)` and resolve to an ID
-- Add `client_name` as an optional parameter to the `create_request` and `capture_idea` tool definitions so the AI can pass it
-
-Also add `assigned_to_name` as an optional param on `create_request` so the AI can capture assignment intent. Resolve name → user ID in `executeTool`.
-
-### 2. Fix: Better Error Visibility on Confirmation Card
+### 1. Require Client Selection on Confirmation Card
 
 **File:** `src/components/GlobalCaptureButton.tsx`
 
-- After `executeActions`, if any result has `.error`, show the specific error message in a toast (not just "X actions failed")
-- On the confirmation card, show resolved client name if available, or a warning if no client was specified
+- Add a `confirmClientId` state that defaults to the capture button's `clientId` (if SS had one selected) or the profile's `client_id` (if client user)
+- On the confirmation view, if any proposed action lacks a `client_name` and the user is SS role, show a `ClientSelectWithCreate` picker at the top of the card with label "Which client is this for?"
+- Disable "Confirm All" until a client is selected
+- When executing, pass the selected `confirmClientId` as `client_name` override in each action's args (or better: pass a separate `client_id` field that `execute_actions` uses directly)
 
-### 3. Speed: Use Faster Model for Extraction
+**File:** `supabase/functions/hub-assistant/index.ts`
+- In `execute_actions` mode, accept an optional top-level `client_id` override that applies to all actions missing a `client_name`
+- This avoids needing the AI to resolve names again
 
-**File:** `supabase/functions/hub-assistant/index.ts` — `extract_actions` mode
+### 2. Personalized Greeting
 
-- Switch from `google/gemini-3-flash-preview` to `google/gemini-2.5-flash-lite` for the extraction call — it's a simple structured extraction task that doesn't need the heavier model
-- This should cut extraction time roughly in half
+**File:** `supabase/functions/elevenlabs-conversation-token/index.ts`
+- After resolving user profile, also fetch `name` from the `users` table
+- Extract first name: `name.split(" ")[0]`
+- Update `buildFirstMessage` to accept `userName` and use it: `"Hey Corey! Want to create a task or look up what's on the board?"`
+- Update `buildVoiceSystemPrompt` to include: `"The user's name is ${firstName}. Address them by name occasionally to keep things personal."`
+- Add personality note: `"Be warm, relaxed, and slightly casual — like a friendly coworker."`
 
-### 4. UX: Better Processing Feedback
+**File:** `src/components/GlobalCaptureButton.tsx`
+- Update `welcomeMessage` to use `profile?.name`: `"Hey ${firstName}! I can help you **create requests**..."`
+- For client users, optionally fetch brand voice tone from `brand_twin` to match their brand personality (Phase 2 — skip for now, just use first name)
+
+### 3. Background Processing with Persistent Toast + Notification
 
 **File:** `src/components/GlobalCaptureButton.tsx`
 
-- Add a third processing step message: "Almost done..." after 5 seconds of extraction
-- Show elapsed time indicator (e.g., "Extracting actions... (8s)") so the user knows it's still working
-- After execution completes, show a detailed toast: "Created request: 'Test post' for [Client]" instead of generic "1 action completed"
+- Move the `handleVoiceCallEnd` extraction logic into a ref-stable function that doesn't depend on component mount state
+- Use `toast.loading()` (Sonner supports persistent loading toasts) that updates to `toast.success/error` on completion — this persists even if the drawer closes
+- After successful execution, insert a notification into the `notifications` table via the `hub-assistant` edge function (server-side, using service role)
+- Allow the drawer to close during extraction (remove the block) but show the persistent toast
+
+**File:** `supabase/functions/hub-assistant/index.ts`
+- In `execute_actions` response, if all succeeded, also insert a notification for the user: `"Hub Assistant created: [summary]"` with link to `/requests`
+
+### 4. "Connecting" State Improvement
+
+**File:** `src/components/GlobalCaptureButton.tsx`
+- The voice call view currently shows "Connecting..." with no timeout feedback
+- Add elapsed time to connecting state: `"Connecting... (3s)"`
+- If connecting takes >10s, show a fallback message: `"Taking longer than usual — try closing and reopening"`
 
 ---
 
@@ -50,8 +66,9 @@ Also add `assigned_to_name` as an optional param on `create_request` so the AI c
 
 | File | Change |
 |---|---|
-| `supabase/functions/hub-assistant/index.ts` | Add `client_name` + `assigned_to_name` params to tools, resolve in `executeTool`, use faster model for extraction |
-| `src/components/GlobalCaptureButton.tsx` | Better error toasts, elapsed time indicator, detailed success messages |
+| `supabase/functions/elevenlabs-conversation-token/index.ts` | Personalized first message + greeting with user's name |
+| `supabase/functions/hub-assistant/index.ts` | Accept `client_id` override in `execute_actions`, insert notification on success |
+| `src/components/GlobalCaptureButton.tsx` | Client picker on confirmation, persistent toast, personalized welcome, connecting timeout |
 
 No database changes needed.
 
