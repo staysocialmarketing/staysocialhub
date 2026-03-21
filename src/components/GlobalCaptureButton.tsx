@@ -618,8 +618,22 @@ export function GlobalCaptureButton() {
         }
       }, 3000);
 
+      // Hard connection timeout — fail after 12s if onConnect never fires
+      const connectionTimeout = setTimeout(() => {
+        if (voiceRunStateRef.current === "connecting") {
+          console.log("[HubAssistant] Connection timeout — 12s elapsed");
+          toast.error("Voice connection timed out. Please try again.");
+          voiceRunStateRef.current = "idle";
+          setAssistantView("chat");
+          setVoiceConnecting(false);
+          if (idleTimerRef.current) { clearInterval(idleTimerRef.current); idleTimerRef.current = null; }
+          try { conversation.endSession().catch(() => {}); } catch {}
+        }
+      }, 12000);
+
       await conversation.startSession({
         signedUrl: signed_url,
+        connectionType: "websocket",
         overrides: {
           agent: {
             prompt: {
@@ -629,7 +643,8 @@ export function GlobalCaptureButton() {
           },
         },
       });
-      voiceRunStateRef.current = "live";
+      clearTimeout(connectionTimeout);
+      // onConnect callback sets state to "live" and clears connecting UI
     } catch (err) {
       console.error("Voice call failed:", err);
       toast.error("Failed to start voice call. Please check microphone access.");
