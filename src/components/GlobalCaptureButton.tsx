@@ -436,6 +436,19 @@ export function GlobalCaptureButton() {
 
       setAssistantView("voice-call");
 
+      // Start idle auto-end timer (15s of no messages)
+      lastMessageTimeRef.current = Date.now();
+      idleTimerRef.current = setInterval(() => {
+        if (conversation.status === "connected" && Date.now() - lastMessageTimeRef.current > 15000) {
+          console.log("Idle timeout — auto-ending voice call");
+          if (idleTimerRef.current) {
+            clearInterval(idleTimerRef.current);
+            idleTimerRef.current = null;
+          }
+          conversation.endSession().catch(() => {});
+        }
+      }, 3000);
+
       await conversation.startSession({
         signedUrl: signed_url,
         overrides: {
@@ -451,6 +464,10 @@ export function GlobalCaptureButton() {
       console.error("Voice call failed:", err);
       toast.error("Failed to start voice call. Please check microphone access.");
       setAssistantView("chat");
+      if (idleTimerRef.current) {
+        clearInterval(idleTimerRef.current);
+        idleTimerRef.current = null;
+      }
     } finally {
       setVoiceConnecting(false);
     }
