@@ -270,6 +270,12 @@ export function GlobalCaptureButton() {
   }, [mode, assistantView]);
 
   const resetAll = () => {
+    // Don't reset if voice run is in progress (ending/extracting/executing)
+    const runState = voiceRunStateRef.current;
+    if (runState === "ending" || runState === "extracting" || runState === "executing") {
+      console.log("[HubAssistant] resetAll blocked — voice run state:", runState);
+      return;
+    }
     setMode(null);
     setInput(""); setLinkInput(""); setClientId("");
     setTaskTitle(""); setTaskProject(""); setTaskPriority("normal");
@@ -281,6 +287,8 @@ export function GlobalCaptureButton() {
     setProposedActions([]); setExtracting(false); setExecuting(false);
     setConfirmClientId("");
     voiceTranscriptRef.current = [];
+    voiceRunStateRef.current = "idle";
+    voiceRunFinalizedRef.current = false;
     setConnectingElapsed(0);
     if (connectingTimerRef.current) {
       clearInterval(connectingTimerRef.current);
