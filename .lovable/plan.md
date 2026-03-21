@@ -1,71 +1,79 @@
 
 
-# Improve AI Interview: Resume, Mode Switching, Auto-Extract & Template Tracking
+# Hub Assistant — Phase 1 Implementation
 
-## What Changes
+## Overview
 
-### 1. Resume Previous Interviews (text or voice)
-Currently clicking a previous interview loads it read-only. After this change:
-- Opening a previous interview loads its messages AND shows the input bar so you can continue typing
-- A "Voice Call" button appears in the active interview header so you can switch to voice mid-conversation
-- Voice transcripts append to the existing messages array (same interview record) rather than creating a new one
+Add a floating AI assistant alongside the existing capture button. Users chat in natural language to create content requests or capture ideas. The assistant uses Lovable AI (Gemini) with tool-calling to execute actions server-side.
 
-### 2. Switch Between Text ↔ Voice Within an Interview
-- Add a `Phone` icon button next to the text input area — click it to switch to voice mode *within the same interview*
-- When voice call ends, its transcript appends to the existing messages and you're back in text mode
-- `VoiceCallPanel` receives existing messages so context carries over
+## Architecture
 
-### 3. Auto-Extract to Brand Twin After Each Session
-- After a voice call ends or after 6+ messages in text chat, automatically trigger the extraction flow (the same `handleExtract` logic)
-- Show a subtle toast: "Brand Twin auto-updated with new insights"
-- No manual "Extract to Brain" click needed (button stays for manual re-extraction)
+```text
+User → HubAssistant.tsx (floating chat UI)
+     → hub-assistant edge function (JWT-authenticated)
+     → Lovable AI Gateway (tool-calling)
+     → Supabase DB (requests, brain_captures)
+```
 
-### 4. Track & Display Interview Template/Category
-- Show the template badge on interview cards (already partially there)
-- When resuming an interview, lock the template selector to the interview's saved template
-- Show template category as a colored badge: Full Onboarding (purple), Brand Voice (blue), Audience (green), Content Strategy (orange)
+## Security Model
 
-### 5. Suggested Improvements (bonus)
-- **Interview message count on cards** — already exists, but add a "last active" timestamp
-- **"Continue" label** on interview cards instead of just clicking — clearer UX
+- JWT validated via `getClaims()` in edge function — no anonymous access
+- User role and client_id resolved server-side from the `users` and `user_roles` tables using service role client
+- Client users can only create requests/captures for their own client (enforced server-side)
+- SS users must specify a client — resolved by name lookup server-side
+- LOVABLE_API_KEY already available as a secret
+- No sensitive data exposed to client
 
----
+## Changes
 
-## Technical Details
+### 1. Edge Function: `supabase/functions/hub-assistant/index.ts`
 
-### File: `src/components/brain/InterviewTab.tsx`
+- Validate JWT via `getClaims()`, extract `user_id`
+- Fetch user profile (role, client_id) using service role client
+- Build role-aware system prompt:
+  - **Clients**: "You help this client capture ideas and submit content requests. Always confirm before creating."
+  - **SS Team**: "You help the team create requests and captures for any client. Ask which client if not specified."
+- Two tools via function-calling:
+  - `create_request(topic, type, notes, priority)` — inserts into `requests` table
+  - `capture_idea(content, type)` — inserts into `brain_captures` table
+- Tool execution loop: AI calls tool → function executes with service role → result fed back → AI responds
+- Stream response via SSE
+- Handle 429/402 errors with clear messages passed to client
+- Config: `verify_jwt = false` (validate in code per project pattern)
 
-**Resume interviews:**
-- Remove the condition that hides input bar when viewing a previous interview (currently `messages.length > 0` gates the input, which works, but `startNew()` resets `activeInterviewId` — we need to keep it set when clicking a card)
-- When clicking a card, set `activeInterviewId` and let existing `useEffect` load messages — input bar already shows since `messages.length > 0`
+### 2. Component: `src/components/HubAssistant.tsx`
 
-**Mode switching within interview:**
-- Move the Voice Call button from empty-state-only to also appear in the input bar area (as an icon button)
-- Update `startVoiceCall` to NOT reset `activeInterviewId` or messages
-- Update `handleVoiceCallEnd` to append voice messages to existing `messages` state instead of replacing, then save
+- Floating sparkles button positioned above the capture FAB (bottom-right)
+- Opens a Drawer (mobile) or Dialog (desktop) with chat interface
+- Messages rendered with `react-markdown`
+- SSE streaming with token-by-token rendering (same pattern as InterviewTab)
+- Conversation state in local memory — resets on close
+- Role-appropriate welcome message
+- Input validation: trim whitespace, max length check
+- Error toasts for 429/402 with user-friendly messages
 
-**Auto-extract:**
-- After `saveMutation.mutate(finalMessages)` completes (in `onSuccess`), check if message count ≥ 6 and auto-call `handleExtract()`
-- Same for `handleVoiceCallEnd` — after save, trigger extraction
-- Add a flag to prevent double-extraction
+### 3. Layout: `src/components/AppLayout.tsx`
 
-**Template tracking:**
-- Template selector already saves to `brain_interviews.template`
-- Disable template selector when `activeInterviewId` is set (interview already has a template)
-- Add color-coded badge mapping for the 4 templates on interview cards
+- Import and render `<HubAssistant />` alongside `<GlobalCaptureButton />`
 
-### File: `src/components/brain/VoiceCallPanel.tsx`
-- Accept optional `existingMessages` prop so voice context includes prior text conversation
-- Append voice transcript to existing messages on call end
+### 4. Config: `supabase/config.toml`
 
----
+- Add `[functions.hub-assistant]` with `verify_jwt = false`
 
 ## Files Summary
 
-| File | Change |
+| File | Action |
 |---|---|
-| `src/components/brain/InterviewTab.tsx` | Resume flow, mode switching, auto-extract, template badges |
-| `src/components/brain/VoiceCallPanel.tsx` | Accept existing messages, append instead of replace |
+| `supabase/functions/hub-assistant/index.ts` | Create — AI agent with tool-calling |
+| `supabase/config.toml` | Add hub-assistant function config |
+| `src/components/HubAssistant.tsx` | Create — floating chat UI |
+| `src/components/AppLayout.tsx` | Add HubAssistant component |
 
-No database changes needed — existing schema supports everything.
+## What's NOT in Phase 1
+
+- Navigation tools, search, profile updates, voice input
+- Conversation persistence
+- Brand Twin context in system prompt
+
+These are natural Phase 2 additions once the core create + capture loop works.
 
