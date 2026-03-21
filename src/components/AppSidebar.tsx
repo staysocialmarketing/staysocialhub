@@ -26,6 +26,7 @@ import {
   Palette,
   ChevronDown,
   Zap,
+  FileText,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
