@@ -564,6 +564,31 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
 
+    // ─── Mode: test ───
+    // Creates a test task to verify the DB write path independently
+    if (body.mode === "test" && isSSRole) {
+      console.log("[hub-assistant] Test mode — creating test task");
+      const { data, error } = await serviceClient.from("tasks").insert({
+        title: "Hub Assistant Test Task — " + new Date().toISOString(),
+        description: "This is a test task created to verify the Hub Assistant pipeline.",
+        status: "todo",
+        priority: "low",
+        created_by_user_id: userId,
+        source_type: "hub_assistant",
+      }).select("id, title").single();
+
+      if (error) {
+        console.error("[hub-assistant] Test task creation failed:", error);
+        return new Response(JSON.stringify({ error: "Test task creation failed: " + error.message }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      console.log("[hub-assistant] Test task created:", data.id);
+      return new Response(JSON.stringify({ success: true, task_id: data.id, title: data.title }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // ─── Mode: get_voice_prompt ───
     // Returns the voice system prompt for ElevenLabs agent overrides
     if (body.mode === "get_voice_prompt") {
