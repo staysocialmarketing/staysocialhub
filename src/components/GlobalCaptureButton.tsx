@@ -497,7 +497,20 @@ export function GlobalCaptureButton() {
     // Extract actions from transcript
     setExtracting(true);
     setProcessingStep("Analyzing your conversation...");
+    const extractionStart = Date.now();
     setAssistantView("confirm");
+
+    // Update processing step with elapsed time
+    const stepTimer = setInterval(() => {
+      const elapsed = Math.round((Date.now() - extractionStart) / 1000);
+      if (elapsed < 5) {
+        setProcessingStep("Analyzing your conversation...");
+      } else if (elapsed < 10) {
+        setProcessingStep(`Extracting actions... (${elapsed}s)`);
+      } else {
+        setProcessingStep(`Almost done... (${elapsed}s)`);
+      }
+    }, 1000);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
