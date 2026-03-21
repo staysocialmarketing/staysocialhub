@@ -576,6 +576,7 @@ Deno.serve(async (req) => {
     // Takes a voice transcript and extracts proposed actions WITHOUT executing them
     if (body.mode === "extract_actions") {
       const transcript = body.transcript;
+      const currentRoute = body.current_route || "";
       if (!transcript || typeof transcript !== "string" || transcript.trim().length === 0) {
         return new Response(JSON.stringify({ error: "Transcript required" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -590,15 +591,27 @@ Deno.serve(async (req) => {
 
       const tools = isSSRole ? [...baseTools, ...ssOnlyTools] : [...baseTools];
 
+      // Route-aware extraction rules
+      let routeHint = "";
+      if (currentRoute.startsWith("/team/tasks")) {
+        routeHint = "\n\nIMPORTANT: The user is on the Tasks page. When they mention creating a task, to-do, or work item, use create_task (not create_request). Include all details they mention: title, description, assignee, priority, due date, project, client.";
+      } else if (currentRoute.startsWith("/requests")) {
+        routeHint = "\n\nThe user is on the Requests page. Default to create_request unless they explicitly say 'task'.";
+      }
+
       const extractionPrompt = `You are an action extraction assistant. Analyze this voice conversation transcript and identify ALL actionable items the user wants to create.
 
 For each action, call the appropriate tool. Only extract actions that the user clearly expressed intent to create. Do NOT extract queries or questions — only creation actions (create_request, capture_idea${isSSRole ? ", create_task" : ""}).
 
+If the user said "task", "to-do", or "add to the board", use create_task (not create_request).
+If the user said "request", "post", "email", "design", or "video", use create_request.
+
 If the user changed their mind during the conversation (e.g., said "actually make that a video instead"), use the FINAL version of what they wanted.
 If the user mentions assigning something to someone, include the assigned_to_name parameter.
 If the user mentions a client, include the client_name parameter.
+If the user provides a description or details, include them in the description parameter.
 
-If no actionable items are found, do not call any tools.`;
+If no actionable items are found, do not call any tools.${routeHint}`;
 
       const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -694,23 +707,41 @@ If no actionable items are found, do not call any tools.`;
         results.push({ tool, ...result });
       }
 
-      // Insert notification for the user on success
+      // Insert notification for the user on success or failure
       const successes = results.filter((r: any) => r.success);
+      const failures = results.filter((r: any) => r.error);
+      
       if (successes.length > 0) {
         const summaryParts = successes.map((r: any) => {
-          if (r.topic) return `"${r.topic}"${r.client_name ? ` for ${r.client_name}` : ""}`;
+          if (r.topic || r.title) return `"${r.topic || r.title}"${r.client_name ? ` for ${r.client_name}` : ""}`;
           return r.tool === "capture_idea" ? "Idea captured" : "Action completed";
         });
         const notifBody = `Created: ${summaryParts.join(", ")}`;
+        // Determine best link based on action types
+        const hasTask = successes.some((r: any) => r.task_id);
+        const link = hasTask ? "/team/tasks" : "/requests";
         try {
           await serviceClient.from("notifications").insert({
             user_id: userId,
-            title: "Hub Assistant completed your request",
+            title: "Hub Assistant completed",
             body: notifBody,
-            link: "/requests",
+            link,
           });
         } catch (e) {
           console.error("Failed to insert notification:", e);
+        }
+      }
+
+      if (failures.length > 0 && successes.length === 0) {
+        try {
+          await serviceClient.from("notifications").insert({
+            user_id: userId,
+            title: "Hub Assistant needs review",
+            body: failures[0].error || "One or more actions failed",
+            link: "/dashboard",
+          });
+        } catch (e) {
+          console.error("Failed to insert failure notification:", e);
         }
       }
 
