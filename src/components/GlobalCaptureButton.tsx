@@ -98,6 +98,8 @@ export function GlobalCaptureButton() {
 
   // Voice call state
   const [voiceConnecting, setVoiceConnecting] = useState(false);
+  const [connectingElapsed, setConnectingElapsed] = useState(0);
+  const connectingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const voiceTranscriptRef = useRef<string[]>([]);
 
   // Confirmation card state
@@ -105,6 +107,7 @@ export function GlobalCaptureButton() {
   const [extracting, setExtracting] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [processingStep, setProcessingStep] = useState("");
+  const [confirmClientId, setConfirmClientId] = useState("");
 
   // Idle auto-end timer
   const lastMessageTimeRef = useRef<number>(Date.now());
