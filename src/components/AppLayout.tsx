@@ -7,6 +7,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { useAuth } from "@/contexts/AuthContext";
 import { X } from "lucide-react";
 import { GlobalCaptureButton } from "@/components/GlobalCaptureButton";
+import { HubAssistant } from "@/components/HubAssistant";
 import { CommandPalette } from "@/components/CommandPalette";
 import { VersionHistoryDialog } from "@/components/VersionHistoryDialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -104,9 +105,9 @@ export function AppLayout() {
           </main>
           
           <GlobalCaptureButton />
+          <HubAssistant />
         </div>
       </div>
-      
       {/* Mobile bottom tab bar */}
       {isMobile && <BottomTabBar />}
       
