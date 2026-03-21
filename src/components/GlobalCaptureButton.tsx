@@ -327,6 +327,54 @@ export function GlobalCaptureButton() {
     }
   };
 
+  // ─── Assistant Voice Input ───
+  const startAssistantVoice = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      assistantChunksRef.current = [];
+      mr.ondataavailable = (e) => { if (e.data.size > 0) assistantChunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(assistantChunksRef.current, { type: "audio/webm" });
+        setVoiceTranscribingAssistant(true);
+        try {
+          // Upload to storage temporarily
+          const path = `assistant-voice/${Date.now()}-voice.webm`;
+          const { error: uploadErr } = await supabase.storage.from("voice-notes").upload(path, blob);
+          if (uploadErr) throw uploadErr;
+          const { data: urlData } = supabase.storage.from("voice-notes").getPublicUrl(path);
+          // Use a signed URL for private bucket
+          const { data: signedData } = await supabase.storage.from("voice-notes").createSignedUrl(path, 300);
+          const audioUrl = signedData?.signedUrl || urlData.publicUrl;
+
+          const { data, error: fnError } = await supabase.functions.invoke("transcribe-capture", { body: { audioUrl } });
+          if (fnError) throw fnError;
+          const transcript = data?.transcript || "";
+          if (transcript.trim()) {
+            setChatInput(transcript.trim());
+          } else {
+            toast.error("Couldn't transcribe audio");
+          }
+        } catch (err) {
+          console.error("Voice transcription failed:", err);
+          toast.error("Voice transcription failed");
+        }
+        setVoiceTranscribingAssistant(false);
+      };
+      assistantMediaRef.current = mr;
+      mr.start();
+      setVoiceRecordingAssistant(true);
+    } catch {
+      toast.error("Microphone access denied");
+    }
+  }, []);
+
+  const stopAssistantVoice = useCallback(() => {
+    assistantMediaRef.current?.stop();
+    setVoiceRecordingAssistant(false);
+  }, []);
+
   if (!isSSRole && !isClient) return null;
 
   // Build options based on role
