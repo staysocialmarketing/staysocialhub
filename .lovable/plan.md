@@ -1,62 +1,45 @@
 
 
-# Optimize Voice Startup + Page-Aware Assistant Context
+# Fix Voice Agent: Hub Knowledge, Auto-End, and Post-Call UX
 
-## Three Changes
+## Three Problems Identified
 
-### 1. Combine Signed URL + Voice Prompt Into One Call
+1. **Agent doesn't know enough about the Hub** — The voice system prompt (`buildVoiceSystemPrompt`) is minimal. It tells the agent to "collect info" but gives zero context about what Stay Social HUB is, what types of requests exist, what plans/services are offered, etc. The text chat prompt (`buildSystemPrompt`) is slightly better but also thin.
 
-Currently `startVoiceCall()` makes two sequential requests (token + prompt), causing 2-4s delay. Merge them by having the `elevenlabs-conversation-token` edge function also accept an optional `include_prompt` flag and return the voice prompt alongside the signed URL.
+2. **No auto-end mechanism** — If the user is done talking, the call keeps running, burning ElevenLabs credits. There's no instruction for the agent to signal "we're done" and no client-side idle timeout.
 
-**File:** `supabase/functions/elevenlabs-conversation-token/index.ts`
-- Accept optional `{ include_prompt: true, current_route: "/requests" }` in request body
-- When `include_prompt` is true: look up user profile/role (same pattern as hub-assistant), call `buildVoiceSystemPrompt()` (extracted to a shared inline function), and return `{ signed_url, prompt, first_message }` in one response
-- This cuts startup from 2 sequential calls to 1
+3. **Post-call UX is poor** — After ending the call, it jumps to "confirm" view with a spinner ("Processing your conversation...") but if you close the drawer, you lose everything. No indication it's still working, no persistence, no fallback.
 
-**File:** `src/components/GlobalCaptureButton.tsx`
-- Update `startVoiceCall()` to send `{ include_prompt: true, current_route: location.pathname }` to the token endpoint
-- Remove the second fetch to `hub-assistant` with `mode: "get_voice_prompt"`
-- Use `useLocation()` from react-router-dom to get current route
+## Plan
 
-### 2. Page-Aware Context for Both Text and Voice
+### 1. Enrich Voice Agent System Prompt
 
-Pass the current route to the assistant so it adapts its greeting and capabilities.
+**File:** `supabase/functions/hub-assistant/index.ts` — `buildVoiceSystemPrompt()`
+**File:** `supabase/functions/elevenlabs-conversation-token/index.ts` — `buildVoiceSystemPrompt()`
 
-**Route-to-context mapping** (in edge function):
+Add Hub context to both voice prompt functions:
+- What Stay Social HUB is (social media marketing management platform)
+- Available request types: social posts, email campaigns, designs, videos, automation, strategy, general
+- What "capturing an idea" means (saving a note/link/thought to the client's brain for later use)
+- Route-aware context (reuse existing `getRouteContext` in the token function, add it to hub-assistant's voice prompt too)
 
-| Route pattern | Context hint added to system prompt |
-|---|---|
-| `/requests` | "The user is viewing content requests. You can help create new ones or discuss existing ones." |
-| `/approvals` | "The user is viewing the approvals board. Help with content review questions." |
-| `/workflow` | "The user is on the workflow board. Help with content pipeline questions." |
-| `/team/tasks` | "The user is viewing tasks. Help query or create tasks." |
-| `/team/projects` | "The user is viewing projects." |
-| `/dashboard` | "The user is on the dashboard." |
-| `/client/success` | "The user is on their Success Center." |
-| default | (no extra context) |
+### 2. Auto-End Voice Call
 
-**Dynamic first message examples:**
-- SS on `/requests`: "Hey! Need to create a new request or check on existing ones?"
-- Client on `/client/success`: "Hi! Want to submit a content idea or have a question about your plan?"
-- Default: "Hey! What can I help you with?"
-
-**File:** `supabase/functions/hub-assistant/index.ts`
-- Accept optional `current_route` in the chat mode request body
-- Append route context to system prompt
-- Update `get_voice_prompt` mode to also accept and use `current_route`
-
-**File:** `supabase/functions/elevenlabs-conversation-token/index.ts`
-- When building the prompt, use the `current_route` to pick contextual first message and prompt additions
+**File:** `supabase/functions/elevenlabs-conversation-token/index.ts` — voice prompt
+- Add instruction: "When you have gathered all the information and summarized the actions, say goodbye and end the conversation naturally. Say something like 'Great, I've got everything! I'll have your items ready for review. Talk soon!'"
 
 **File:** `src/components/GlobalCaptureButton.tsx`
-- Pass `current_route: location.pathname` in both text chat requests and voice call setup
-- Use route-aware `first_message` from server response (fall back to generic greeting)
+- Add an idle timeout: if no `onMessage` events for 15 seconds while connected, auto-end the call
+- Track last message timestamp in a ref, check with `setInterval`
 
-### 3. Page-Aware Welcome in Text Chat
+### 3. Improve Post-Call Processing UX
 
 **File:** `src/components/GlobalCaptureButton.tsx`
-- Update the static welcome message in the assistant chat to also reflect the current page
-- Fetch a short welcome hint based on route (client-side mapping is fine here since it's just UI copy, not security)
+
+- **Prevent closing during processing**: When `extracting` or `executing` is true, intercept the drawer/dialog close and show a warning or simply block it
+- **Better loading state**: Replace generic "Processing your conversation..." with a stepped progress indicator: "Analyzing conversation..." → "Extracting actions..." → "Almost ready..."
+- **Toast on background completion**: If somehow the drawer closes, still run the extraction and show a toast with results (this requires keeping the extraction in a ref-based promise that doesn't depend on component mount)
+- **Keep drawer open during extraction**: The simplest fix — disable the close button / prevent `handleOpen(false)` while extracting
 
 ---
 
@@ -64,9 +47,9 @@ Pass the current route to the assistant so it adapts its greeting and capabiliti
 
 | File | Change |
 |---|---|
-| `supabase/functions/elevenlabs-conversation-token/index.ts` | Add prompt generation, accept `include_prompt` + `current_route` |
-| `supabase/functions/hub-assistant/index.ts` | Accept `current_route`, append page context to system prompt |
-| `src/components/GlobalCaptureButton.tsx` | Single call for voice setup, pass route context, dynamic welcome |
+| `supabase/functions/elevenlabs-conversation-token/index.ts` | Enrich voice prompt with Hub knowledge + auto-end instruction |
+| `supabase/functions/hub-assistant/index.ts` | Enrich `buildVoiceSystemPrompt` with Hub context and route awareness |
+| `src/components/GlobalCaptureButton.tsx` | Add idle auto-end timer, block close during processing, better loading states |
 
 No database changes needed.
 
