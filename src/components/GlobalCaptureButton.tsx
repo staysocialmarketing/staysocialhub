@@ -230,11 +230,21 @@ export function GlobalCaptureButton() {
   const conversation = useConversation({
     onMessage: (message: any) => {
       lastMessageTimeRef.current = Date.now();
+      console.log("[HubAssistant] onMessage type:", message.type, JSON.stringify(message).slice(0, 200));
+      // Capture all possible transcript formats from ElevenLabs
       if (message.type === "user_transcript" && message.user_transcription_event?.user_transcript) {
         voiceTranscriptRef.current.push(`User: ${message.user_transcription_event.user_transcript}`);
+      } else if (message.type === "transcript" && message.transcript) {
+        // Alternative transcript event format
+        const role = message.role === "agent" ? "Assistant" : "User";
+        voiceTranscriptRef.current.push(`${role}: ${message.transcript}`);
       }
       if (message.type === "agent_response" && message.agent_response_event?.agent_response) {
         voiceTranscriptRef.current.push(`Assistant: ${message.agent_response_event.agent_response}`);
+      }
+      // Catch-all: log any message with text content for debugging
+      if (message.message || message.text) {
+        console.log("[HubAssistant] Additional message content:", message.message || message.text);
       }
     },
     onError: (error: any) => {
