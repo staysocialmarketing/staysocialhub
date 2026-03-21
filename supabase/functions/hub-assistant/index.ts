@@ -681,7 +681,7 @@ If no actionable items are found, do not call any tools.`;
           continue;
         }
         // Only allow creation tools in execute mode
-        if (!["create_request", "capture_idea"].includes(tool)) {
+        if (!["create_request", "capture_idea", "create_task"].includes(tool)) {
           results.push({ tool, success: false, error: "Tool not allowed in execute mode" });
           continue;
         }
