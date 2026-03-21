@@ -1,4 +1,5 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -52,6 +53,7 @@ export function GlobalCaptureButton() {
   const isClient = isClientAdmin || isClientAssistant;
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
+  const location = useLocation();
 
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<CaptureMode>(null);
@@ -336,6 +338,7 @@ export function GlobalCaptureButton() {
           },
           body: JSON.stringify({
             messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+            current_route: location.pathname,
           }),
         }
       );
@@ -387,7 +390,7 @@ export function GlobalCaptureButton() {
         return;
       }
 
-      // Get signed URL for ElevenLabs
+      // Combined call: get signed URL + prompt in one request
       const tokenResp = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-conversation-token`,
         {
@@ -396,7 +399,10 @@ export function GlobalCaptureButton() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({}),
+          body: JSON.stringify({
+            include_prompt: true,
+            current_route: location.pathname,
+          }),
         }
       );
 
@@ -404,27 +410,8 @@ export function GlobalCaptureButton() {
         throw new Error("Failed to get voice token");
       }
 
-      const { signed_url } = await tokenResp.json();
+      const { signed_url, prompt: voicePrompt, first_message } = await tokenResp.json();
       if (!signed_url) throw new Error("No signed URL received");
-
-      // Get dynamic voice prompt from hub-assistant
-      const promptResp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/hub-assistant`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ mode: "get_voice_prompt" }),
-        }
-      );
-
-      let voicePrompt = "You are the Hub Assistant. Have a natural conversation to understand what the user needs.";
-      if (promptResp.ok) {
-        const promptData = await promptResp.json();
-        voicePrompt = promptData.prompt || voicePrompt;
-      }
 
       setAssistantView("voice-call");
 
@@ -433,9 +420,9 @@ export function GlobalCaptureButton() {
         overrides: {
           agent: {
             prompt: {
-              prompt: voicePrompt,
+              prompt: voicePrompt || "You are the Hub Assistant. Have a natural conversation to understand what the user needs.",
             },
-            firstMessage: "Hey! I'm your Hub Assistant. What can I help you with today?",
+            firstMessage: first_message || "Hey! I'm your Hub Assistant. What can I help you with today?",
           },
         },
       });
@@ -446,7 +433,7 @@ export function GlobalCaptureButton() {
     } finally {
       setVoiceConnecting(false);
     }
-  }, [conversation]);
+  }, [conversation, location.pathname]);
 
   const endVoiceCall = useCallback(async () => {
     try {
@@ -571,6 +558,25 @@ export function GlobalCaptureButton() {
     setProposedActions(prev => prev.filter((_, i) => i !== index));
   };
 
+  const welcomeMessage = useMemo(() => {
+    const path = location.pathname;
+    if (isSSRole) {
+      if (path.startsWith("/requests")) return "Hey! Need to **create a new request** or discuss existing ones?";
+      if (path.startsWith("/team/tasks")) return "Hey! Want to **create a task** or look up what's on the board?";
+      if (path.startsWith("/team/projects")) return "Hey! Need help with a **project**?";
+      if (path.startsWith("/workflow")) return "Hey! Questions about the **content pipeline**?";
+      if (path.startsWith("/approvals")) return "Hey! Questions about **approvals** or reviews?";
+      return "Hey! I can help you **create requests**, **capture ideas**, or **look up tasks & projects**. What do you need?";
+    }
+    if (isClientAdmin || isClientAssistant) {
+      if (path.startsWith("/client/success")) return "Hi! Want to **submit a content idea** or have a question about your plan?";
+      if (path.startsWith("/requests")) return "Hi! Want to **submit a new content request**?";
+      if (path.startsWith("/client/brand-twin")) return "Hi! Need help **updating your brand profile**?";
+      return "Hey! I can help you **submit content requests** or **save ideas**. What's on your mind?";
+    }
+    return "Hey! What can I help you with?";
+  }, [isSSRole, isClientAdmin, isClientAssistant, location.pathname]);
+
   if (!isSSRole && !isClient) return null;
 
   // Build options based on role
@@ -580,10 +586,6 @@ export function GlobalCaptureButton() {
 
   const needsClient = ["note", "voice", "link", "file"].includes(mode || "");
   const hasClient = !!getClientId();
-
-  const welcomeMessage = isSSRole
-    ? "Hey! I can help you **create requests**, **capture ideas**, or **look up tasks & projects**. What do you need?"
-    : "Hey! I can help you **submit content requests** or **save ideas**. What's on your mind?";
 
   // Tool icon mapping for confirmation cards
   const toolIcon = (tool: string) => {
