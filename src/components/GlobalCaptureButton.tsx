@@ -710,6 +710,7 @@ export function GlobalCaptureButton() {
   const toolIcon = (tool: string) => {
     if (tool === "create_request") return <MessageSquarePlus className="h-4 w-4" />;
     if (tool === "capture_idea") return <PenLine className="h-4 w-4" />;
+    if (tool === "create_task") return <ListTodo className="h-4 w-4" />;
     return <Sparkles className="h-4 w-4" />;
   };
 
