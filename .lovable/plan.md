@@ -1,36 +1,57 @@
 
 
-# Merge Hub Assistant Into Global Capture Button
+# Hub Assistant Enhancements + Sidebar Dropdown Menus
 
-## What Changes
+## Three Issues to Address
 
-Remove the separate HubAssistant floating button. Instead, add "Hub Assistant" as an option in the existing capture button's action grid — same tile style as the other options. Below the grid, add a larger full-width "Voice Guidance" button that activates the assistant in a voice-first mode.
+### 1. Hub Assistant: Role-Based Tool Filtering
 
-When the user taps "Hub Assistant," the capture drawer/dialog switches to the existing chat interface (text input + streaming AI responses). Same functionality, just accessed from within the capture menu instead of a separate button.
+The edge function currently gives all users the same two tools (`create_request`, `capture_idea`). Need to differentiate:
 
-## Implementation
+**SS Admin/Team tools** (Phase 1 additions):
+- `create_request` — existing
+- `capture_idea` — existing  
+- `query_tasks` — search/list tasks by client, status, assignee
+- `query_projects` — search/list projects by client, status
 
-### 1. `src/components/GlobalCaptureButton.tsx`
+**Client tools** (restricted):
+- `create_request` — scoped to their client only
+- `capture_idea` — scoped to their client only
+- No access to tasks, projects, or internal data
 
-- Add `"assistant"` to `CaptureMode` type
-- Add assistant entry to `ACTION_CONFIG`: `{ label: "Hub Assistant", icon: Sparkles, bg: "bg-gradient-to-br from-primary/10 to-primary/5", text: "text-primary", desc: "Ask me anything" }`
-- Add `"assistant"` to both `ssOptions` and `clientOptions` arrays
-- Import and inline the chat UI from HubAssistant when `mode === "assistant"` (messages state, sendMessage logic, markdown rendering, SSE streaming)
-- Add a full-width "Voice Guidance" button below the action grid (larger, gradient style, sparkles icon) — tapping it sets mode to `"assistant"` (text chat for now, voice can be Phase 2)
-- Import `Sparkles`, `ReactMarkdown`, `ScrollArea`
+**File:** `supabase/functions/hub-assistant/index.ts`
+- Add `query_tasks` and `query_projects` tools (SELECT only, read-safe)
+- Conditionally include tools based on `isSSRole`
+- Update system prompt to reflect available capabilities per role
+- Client system prompt explicitly states: "You do NOT have access to internal tasks, projects, or team data"
 
-### 2. `src/components/AppLayout.tsx`
+### 2. Hub Assistant: No Voice Option
 
-- Remove `<HubAssistant />` import and render
+Currently the assistant mode only shows a text input. Add a mic button next to the send button that records audio, transcribes it (reusing the existing `transcribe-capture` edge function), and sends the transcript as a text message to the assistant.
 
-### 3. `src/components/HubAssistant.tsx`
+**File:** `src/components/GlobalCaptureButton.tsx`
+- Add a `Mic` icon button next to the `Send` button in the assistant chat input area
+- On click: record audio → stop → transcribe via `transcribe-capture` → insert transcript as user message → send to hub-assistant
+- Reuse existing `startRecording`/`stopRecording` pattern but adapted for assistant mode
+- Show recording indicator (pulsing mic) and transcribing state
 
-- Keep file (the chat logic will be reused/inlined into GlobalCaptureButton), but it will no longer render its own floating button
+### 3. Sidebar: Collapsible Section Menus
+
+The sidebar currently shows flat lists under "Menu", "Team", "Admin" labels with no expand/collapse. Add collapsible dropdown behavior to these section groups.
+
+**File:** `src/components/AppSidebar.tsx`
+- Use the existing shadcn `Collapsible` component (already in the project)
+- Wrap each `SidebarGroup` (Menu, Team, Admin for SS; main sections for clients) in a `Collapsible` with `ChevronDown` toggle on the group label
+- Default all sections to expanded
+- Persist collapsed state in localStorage per section
+
+---
 
 ## Files Summary
 
 | File | Change |
 |---|---|
-| `src/components/GlobalCaptureButton.tsx` | Add assistant mode with chat UI + voice guidance button |
-| `src/components/AppLayout.tsx` | Remove HubAssistant |
+| `supabase/functions/hub-assistant/index.ts` | Role-based tool filtering, add query_tasks/query_projects for SS only |
+| `src/components/GlobalCaptureButton.tsx` | Add voice input (mic button) to assistant chat |
+| `src/components/AppSidebar.tsx` | Add collapsible section dropdowns |
 
