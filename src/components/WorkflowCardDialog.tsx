@@ -505,6 +505,11 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
                 </div>
               )}
 
+              {/* Metrics Entry for SS */}
+              {isSSRole && post.client_id && (
+                <MetricsEntryPanel postId={post.id} clientId={post.client_id} />
+              )}
+
               <div className="flex gap-2 pt-2">
                 {isSSRole && (
                   <Button variant="outline" onClick={() => setEditing(true)}>

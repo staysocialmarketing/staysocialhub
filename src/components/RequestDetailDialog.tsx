@@ -371,9 +371,7 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
 
           {/* Linked Task */}
           {request?.task_id && (
-            <div className="text-xs text-muted-foreground">
-              Linked Task ID: <span className="font-mono">{request.task_id}</span>
-            </div>
+            <RequestActivityTimeline taskId={request.task_id} />
           )}
 
           <Separator />
