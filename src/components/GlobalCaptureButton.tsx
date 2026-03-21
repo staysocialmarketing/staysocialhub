@@ -511,8 +511,12 @@ export function GlobalCaptureButton() {
     const transcript = voiceTranscriptRef.current.join("\n");
     voiceTranscriptRef.current = [];
 
+    console.log("[HubAssistant] Voice call ended. Transcript length:", transcript.length);
+    console.log("[HubAssistant] Transcript preview:", transcript.slice(0, 200));
+
     if (!transcript.trim()) {
-      toast("No conversation detected");
+      console.log("[HubAssistant] Empty transcript — no actions to extract");
+      toast("No conversation detected — try speaking clearly next time");
       setAssistantView("chat");
       return;
     }
@@ -545,6 +549,7 @@ export function GlobalCaptureButton() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated");
 
+      console.log("[HubAssistant] Sending extract_actions request...");
       const resp = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/hub-assistant`,
         {
@@ -557,8 +562,11 @@ export function GlobalCaptureButton() {
         }
       );
 
+      console.log("[HubAssistant] extract_actions response status:", resp.status);
+
       if (!resp.ok) {
         const errData = await resp.json().catch(() => ({}));
+        console.error("[HubAssistant] extract_actions error:", errData);
         toast.error(errData.error || "Failed to process conversation", { id: toastId });
         setAssistantView("chat");
         setExtracting(false);
@@ -566,6 +574,7 @@ export function GlobalCaptureButton() {
       }
 
       const data = await resp.json();
+      console.log("[HubAssistant] Extracted actions:", JSON.stringify(data.actions));
       const actions = data.actions || [];
 
       if (actions.length === 0) {
@@ -581,8 +590,8 @@ export function GlobalCaptureButton() {
         setProposedActions(actions);
       }
     } catch (err) {
-      console.error("Extract actions error:", err);
-      toast.error("Failed to process conversation", { id: toastId });
+      console.error("[HubAssistant] Extract actions error:", err);
+      toast.error("Failed to process conversation. Please try again via text.", { id: toastId });
       setAssistantView("chat");
     } finally {
       clearInterval(stepTimer);
@@ -701,6 +710,7 @@ export function GlobalCaptureButton() {
   const toolIcon = (tool: string) => {
     if (tool === "create_request") return <MessageSquarePlus className="h-4 w-4" />;
     if (tool === "capture_idea") return <PenLine className="h-4 w-4" />;
+    if (tool === "create_task") return <ListTodo className="h-4 w-4" />;
     return <Sparkles className="h-4 w-4" />;
   };
 

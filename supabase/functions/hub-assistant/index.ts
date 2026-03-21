@@ -8,6 +8,8 @@ const corsHeaders = {
 
 const REQUEST_TYPES = ["social_post", "email_campaign", "design", "video", "automation", "strategy", "general"];
 const CAPTURE_TYPES = ["note", "link", "voice", "file"];
+const TASK_STATUSES = ["backlog", "todo", "in_progress", "waiting", "review"];
+const TASK_PRIORITIES = ["low", "normal", "high", "urgent"];
 
 const baseTools = [
   {
@@ -51,6 +53,28 @@ const baseTools = [
 ];
 
 const ssOnlyTools = [
+  {
+    type: "function" as const,
+    function: {
+      name: "create_task",
+      description: "Create a new task/to-do item. Use when the user wants to create a task, add something to the board, or assign work to someone. Tasks are internal work items for the Stay Social team.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "The task title — a short summary of what needs to be done" },
+          description: { type: "string", description: "Detailed description of the task, including any requirements, context, or deliverables" },
+          client_name: { type: "string", description: "Name of the client this task is for, if mentioned" },
+          assigned_to_name: { type: "string", description: "Name of the team member to assign the task to, if mentioned" },
+          project_name: { type: "string", description: "Name of the project to link this task to, if mentioned" },
+          priority: { type: "string", enum: TASK_PRIORITIES, description: "Priority level. Default to normal." },
+          due_date: { type: "string", description: "Due date in ISO format (YYYY-MM-DD), if mentioned" },
+          status: { type: "string", enum: TASK_STATUSES, description: "Initial status. Default to todo." },
+        },
+        required: ["title"],
+        additionalProperties: false,
+      },
+    },
+  },
   {
     type: "function" as const,
     function: {
@@ -101,7 +125,27 @@ function getRouteContext(route: string): string {
 }
 
 function buildSystemPrompt(isSSRole: boolean, clientName: string | null, currentRoute?: string): string {
-  const base = `You are Hub Assistant, a helpful AI assistant for the Stay Social HUB — a social media marketing management platform.
+  const base = `You are Hub Assistant, a helpful AI assistant for the Stay Social HUB — a social media marketing management platform that helps agencies manage content creation, approvals, and publishing for their clients.
+
+PLATFORM PAGES:
+- Dashboard — overview stats and activity
+- Requests — content requests from clients (social posts, emails, designs, videos, etc.)
+- Approvals — content review and approval workflow board
+- Workflow — content pipeline/kanban board
+- Calendar — marketing content calendar
+- Tasks — team task board (backlog, todo, in progress, waiting, review, complete)
+- Projects — project management (each project has tasks)
+- Think Tank — brainstorming and idea space
+- Universal Inbox — incoming items from all sources
+- Client Brain — client's intelligence repository (captures, notes, links)
+- Client Strategy — goals, pillars, campaigns for each client
+- Brand Twin — client's brand profile (voice, audience, offers)
+- Content Library — published and archived content
+- Users — team and client user management (admin only)
+- Media — creative asset management
+
+TASK FIELDS: title, description, client, project, assignee (team member name), priority (low/normal/high/urgent), due date, status (backlog/todo/in_progress/waiting/review)
+REQUEST FIELDS: topic, type (social_post/email_campaign/design/video/automation/strategy/general), notes, priority, client, assignee
 
 Guidelines:
 - Be conversational, friendly, and concise
@@ -115,9 +159,12 @@ Guidelines:
   if (isSSRole) {
     return base + `\n\nYou are assisting an internal Stay Social team member. You can help them:
 1. **Create content requests** — social posts, email campaigns, designs, videos, automation tasks, strategy work, or general requests
-2. **Capture ideas** — quick notes, links, or thoughts to save to a client's brain
-3. **Query tasks** — search and list tasks by client, status, or assignee
-4. **Query projects** — search and list projects by client or status` +
+2. **Create tasks** — internal work items with full details (title, description, assignee, project, priority, due date, status)
+3. **Capture ideas** — quick notes, links, or thoughts to save to a client's brain
+4. **Query tasks** — search and list tasks by client, status, or assignee
+5. **Query projects** — search and list projects by client or status
+
+When creating a task, always ask for a description if the user doesn't provide one. Resolve team member names and client names from what the user says.` +
       (clientName ? `\nThey are currently working with client: "${clientName}". Use this client for all actions unless they specify otherwise.` : `\nNo client is currently selected. Ask which client they want to work with before creating requests or captures.`) +
       routeHint;
   } else {
@@ -160,8 +207,11 @@ ENDING THE CALL:
   if (isSSRole) {
     return base + `\n\nThe user is an internal Stay Social team member. They may want to:
 - Create content requests (social posts, email campaigns, designs, videos, etc.)
+- Create tasks (with title, description, assignee, project, priority, due date)
 - Capture ideas or notes for a client's brain
-- Discuss tasks or projects` +
+- Discuss tasks or projects
+
+Make sure to gather: what they want to create, for which client, any assignee, priority, and description. If they say "task" or "to-do", treat it as a task not a request.` +
       (clientName ? `\nThey are currently working with client: "${clientName}".` : `\nAsk which client they're working with.`) +
       routeHint;
   } else {
@@ -187,6 +237,14 @@ async function resolveUserByName(serviceClient: any, name: string): Promise<stri
   const { data } = await serviceClient.from("users").select("id, name").ilike("name", `%${name}%`).limit(5);
   if (!data || data.length === 0) return null;
   const exact = data.find((u: any) => u.name?.toLowerCase() === name.toLowerCase());
+  return exact ? exact.id : data[0].id;
+}
+
+// Resolve a project name to a project ID
+async function resolveProjectByName(serviceClient: any, name: string): Promise<string | null> {
+  const { data } = await serviceClient.from("projects").select("id, name").ilike("name", `%${name}%`).eq("status", "active").limit(5);
+  if (!data || data.length === 0) return null;
+  const exact = data.find((p: any) => p.name.toLowerCase() === name.toLowerCase());
   return exact ? exact.id : data[0].id;
 }
 
@@ -369,6 +427,79 @@ async function executeTool(
     return result;
   }
 
+  if (fnName === "create_task" && isSSRole) {
+    // Resolve client by name
+    let targetClientId: string | null = clientId;
+    if (!targetClientId && args.client_name) {
+      targetClientId = await resolveClientByName(serviceClient, args.client_name);
+      if (!targetClientId) {
+        return { error: `No client found matching "${args.client_name}". Please check the name.` };
+      }
+    }
+
+    // Resolve assignee by name
+    let assigneeId: string | null = null;
+    if (args.assigned_to_name) {
+      assigneeId = await resolveUserByName(serviceClient, args.assigned_to_name);
+      if (!assigneeId) {
+        return { error: `No team member found matching "${args.assigned_to_name}".` };
+      }
+    }
+
+    // Resolve project by name
+    let projectId: string | null = null;
+    if (args.project_name) {
+      projectId = await resolveProjectByName(serviceClient, args.project_name);
+    }
+
+    const { data, error } = await serviceClient.from("tasks").insert({
+      title: args.title,
+      description: args.description || null,
+      client_id: targetClientId || null,
+      assigned_to_user_id: assigneeId,
+      project_id: projectId,
+      priority: args.priority || "normal",
+      due_at: args.due_date || null,
+      status: args.status || "todo",
+      created_by_user_id: userId,
+      source_type: "hub_assistant",
+      raw_input_text: [args.title, args.description].filter(Boolean).join("\n"),
+    }).select("id, title").single();
+
+    if (error) {
+      console.error("create_task error:", error);
+      return { error: "Failed to create task. Please try again." };
+    }
+
+    // Log activity
+    try {
+      await serviceClient.from("task_activity_log").insert({
+        task_id: data.id,
+        user_id: userId,
+        action: "created",
+        details: `Created via Hub Assistant: ${args.title}`,
+      });
+    } catch (e) {
+      console.error("Failed to log task activity:", e);
+    }
+
+    // Resolve client name for response
+    let resolvedClientName = args.client_name || null;
+    if (!resolvedClientName && targetClientId) {
+      const { data: c } = await serviceClient.from("clients").select("name").eq("id", targetClientId).single();
+      resolvedClientName = c?.name || null;
+    }
+
+    return {
+      success: true,
+      task_id: data.id,
+      title: data.title,
+      topic: data.title,
+      client_name: resolvedClientName,
+      assigned_to: args.assigned_to_name || null,
+    };
+  }
+
   return { error: `Unknown or unauthorized tool: ${fnName}` };
 }
 
@@ -461,9 +592,11 @@ Deno.serve(async (req) => {
 
       const extractionPrompt = `You are an action extraction assistant. Analyze this voice conversation transcript and identify ALL actionable items the user wants to create.
 
-For each action, call the appropriate tool. Only extract actions that the user clearly expressed intent to create. Do NOT extract queries or questions — only creation actions (create_request, capture_idea).
+For each action, call the appropriate tool. Only extract actions that the user clearly expressed intent to create. Do NOT extract queries or questions — only creation actions (create_request, capture_idea${isSSRole ? ", create_task" : ""}).
 
 If the user changed their mind during the conversation (e.g., said "actually make that a video instead"), use the FINAL version of what they wanted.
+If the user mentions assigning something to someone, include the assigned_to_name parameter.
+If the user mentions a client, include the client_name parameter.
 
 If no actionable items are found, do not call any tools.`;
 
@@ -479,7 +612,7 @@ If no actionable items are found, do not call any tools.`;
             { role: "system", content: extractionPrompt },
             { role: "user", content: `Here is the voice conversation transcript:\n\n${transcript}` },
           ],
-          tools: tools.filter(t => ["create_request", "capture_idea"].includes(t.function.name)),
+          tools: tools.filter(t => ["create_request", "capture_idea", "create_task"].includes(t.function.name)),
           stream: false,
         }),
       });
@@ -510,9 +643,11 @@ If no actionable items are found, do not call any tools.`;
         const toolName = tc.function.name;
         let summary = "";
         if (toolName === "create_request") {
-          summary = `Create ${args.type || "general"} request: "${args.topic || "Untitled"}"`;
+          summary = `Create ${args.type || "general"} request: "${args.topic || "Untitled"}"${args.assigned_to_name ? ` (assigned to ${args.assigned_to_name})` : ""}`;
         } else if (toolName === "capture_idea") {
           summary = `Capture ${args.type || "note"}: "${(args.content || "").slice(0, 80)}"`;
+        } else if (toolName === "create_task") {
+          summary = `Create task: "${args.title || "Untitled"}"${args.assigned_to_name ? ` (assigned to ${args.assigned_to_name})` : ""}${args.description ? ` — ${args.description.slice(0, 60)}` : ""}`;
         }
         return { tool: toolName, args, summary };
       });
@@ -549,7 +684,7 @@ If no actionable items are found, do not call any tools.`;
           continue;
         }
         // Only allow creation tools in execute mode
-        if (!["create_request", "capture_idea"].includes(tool)) {
+        if (!["create_request", "capture_idea", "create_task"].includes(tool)) {
           results.push({ tool, success: false, error: "Tool not allowed in execute mode" });
           continue;
         }
