@@ -592,24 +592,58 @@ export function GlobalCaptureButton() {
           </div>
 
           <div className="border-t p-3 flex gap-2 items-end">
-            <Textarea
-              ref={chatInputRef}
-              value={chatInput}
-              onChange={e => setChatInput(e.target.value)}
-              onKeyDown={handleChatKeyDown}
-              placeholder="Ask me anything..."
-              className="min-h-[40px] max-h-[120px] resize-none rounded-xl text-sm"
-              rows={1}
-              disabled={chatLoading}
-            />
-            <Button
-              size="icon"
-              onClick={sendChatMessage}
-              disabled={!chatInput.trim() || chatLoading}
-              className="rounded-xl shrink-0 h-10 w-10"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
+            {voiceRecordingAssistant ? (
+              <div className="flex-1 flex items-center justify-center gap-3 py-1">
+                <div className="flex items-center gap-2 text-destructive text-sm font-medium">
+                  <div className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
+                  Recording...
+                </div>
+                <Button
+                  size="icon"
+                  variant="destructive"
+                  onClick={stopAssistantVoice}
+                  className="rounded-xl shrink-0 h-10 w-10"
+                >
+                  <Square className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : voiceTranscribingAssistant ? (
+              <div className="flex-1 flex items-center justify-center gap-2 text-muted-foreground text-sm py-1">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Transcribing...
+              </div>
+            ) : (
+              <>
+                <Textarea
+                  ref={chatInputRef}
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  onKeyDown={handleChatKeyDown}
+                  placeholder="Ask me anything..."
+                  className="min-h-[40px] max-h-[120px] resize-none rounded-xl text-sm"
+                  rows={1}
+                  disabled={chatLoading}
+                />
+                <Button
+                  size="icon"
+                  variant="outline"
+                  onClick={startAssistantVoice}
+                  disabled={chatLoading}
+                  className="rounded-xl shrink-0 h-10 w-10"
+                  title="Voice input"
+                >
+                  <Mic className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  onClick={sendChatMessage}
+                  disabled={!chatInput.trim() || chatLoading}
+                  className="rounded-xl shrink-0 h-10 w-10"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </>
+            )}
           </div>
         </div>
       )}
