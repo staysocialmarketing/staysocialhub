@@ -53,6 +53,7 @@ export function GlobalCaptureButton() {
   const isClient = isClientAdmin || isClientAssistant;
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
+  const location = useLocation();
 
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<CaptureMode>(null);
