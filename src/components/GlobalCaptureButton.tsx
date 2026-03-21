@@ -308,9 +308,17 @@ export function GlobalCaptureButton() {
       setSsUsers(usersRes.data?.map(u => ({ id: u.id, name: u.name || "Unnamed" })) || []);
       setProjects(projectsRes.data?.map(p => ({ id: p.id, name: p.name })) || []);
     } else if (!isOpen) {
-      // End voice call if active
+      const runState = voiceRunStateRef.current;
+      // If voice run is active, end the session but let background processing continue
       if (conversation.status === "connected") {
+        voiceRunStateRef.current = "ending";
         try { await conversation.endSession(); } catch {}
+        // Fallback finalize
+        setTimeout(() => {
+          if (!voiceRunFinalizedRef.current && voiceTranscriptRef.current.length > 0) {
+            finalizeVoiceRun();
+          }
+        }, 2000);
       }
       // Clear idle timer
       if (idleTimerRef.current) {
@@ -321,8 +329,9 @@ export function GlobalCaptureButton() {
         clearInterval(connectingTimerRef.current);
         connectingTimerRef.current = null;
       }
-      // Don't reset if still extracting/executing — let background toast handle it
-      if (!extracting && !executing) {
+      // Allow close — processing continues via persistent toasts
+      // Only reset if voice run is idle/done/ready
+      if (runState === "idle" || runState === "done" || runState === "error") {
         resetAll();
       }
     }
