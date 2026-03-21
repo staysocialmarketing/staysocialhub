@@ -21,7 +21,9 @@ function getRouteContext(route: string): { hint: string; pageLabel: string } {
   return { hint: "", pageLabel: "" };
 }
 
-function buildVoiceSystemPrompt(isSSRole: boolean, clientName: string | null, routeHint: string): string {
+function buildVoiceSystemPrompt(isSSRole: boolean, clientName: string | null, routeHint: string, userName?: string | null): string {
+  const firstName = userName ? userName.split(" ")[0] : null;
+
   const base = `You are the Hub Assistant for Stay Social HUB — a social media marketing management platform that helps agencies and their clients manage content creation, approvals, and publishing.
 
 PLATFORM CONTEXT:
@@ -30,14 +32,17 @@ PLATFORM CONTEXT:
 - "Capturing an idea" means saving a note, link, or thought to the client's Brain — a centralized intelligence repository used for content strategy
 - Each client has a Brand Twin (brand profile), Strategy, and Brain in the system
 
+YOUR PERSONALITY:
+- Be warm, relaxed, and slightly casual — like a friendly coworker
+- Keep responses short (1-2 sentences) so the conversation flows naturally
+${firstName ? `- The user's name is ${firstName}. Address them by name occasionally to keep things personal.` : ""}
+
 YOUR ROLE:
 - You are having a natural voice conversation with the user
 - Your job is to understand what they need and gather ALL relevant details
 - Do NOT execute any actions — just collect information through natural conversation
 - Ask clarifying questions if details are missing (type of request, priority, specific details, which client)
 - When you have enough information, summarize what you'll create and let them know it will be ready for their review after the call
-- Be warm, conversational, and concise — this is a voice call, not a text chat
-- Keep responses short (1-2 sentences) so the conversation flows naturally
 
 ENDING THE CALL:
 - When you have gathered all the information and confirmed the details, wrap up naturally
@@ -63,19 +68,23 @@ ENDING THE CALL:
   return base + roleContext + routeSection;
 }
 
-function buildFirstMessage(isSSRole: boolean, routeHint: string, pageLabel: string): string {
+function buildFirstMessage(isSSRole: boolean, routeHint: string, pageLabel: string, userName?: string | null): string {
+  const firstName = userName ? userName.split(" ")[0] : null;
+  const hi = firstName ? `Hey ${firstName}!` : "Hey!";
+  const hiClient = firstName ? `Hi ${firstName}!` : "Hi!";
+
   if (isSSRole) {
-    if (pageLabel === "Requests") return "Hey! Need to create a new request or check on existing ones?";
-    if (pageLabel === "Tasks") return "Hey! Want to create a task or look up what's on the board?";
-    if (pageLabel === "Projects") return "Hey! Need help with a project?";
-    if (pageLabel === "Workflow") return "Hey! Need help with the content pipeline?";
-    if (pageLabel === "Approvals") return "Hey! Questions about approvals or reviews?";
-    return "Hey! I'm your Hub Assistant. What can I help you with today?";
+    if (pageLabel === "Requests") return `${hi} Need to create a new request or check on existing ones?`;
+    if (pageLabel === "Tasks") return `${hi} Want to create a task or look up what's on the board?`;
+    if (pageLabel === "Projects") return `${hi} Need help with a project?`;
+    if (pageLabel === "Workflow") return `${hi} Need help with the content pipeline?`;
+    if (pageLabel === "Approvals") return `${hi} Questions about approvals or reviews?`;
+    return `${hi} I'm your Hub Assistant. What can I help you with today?`;
   } else {
-    if (pageLabel === "Success Center") return "Hi! Want to submit a content idea or have a question about your plan?";
-    if (pageLabel === "Brand Twin") return "Hi! Need help updating your brand profile?";
-    if (pageLabel === "Requests") return "Hi! Want to submit a new content request?";
-    return "Hi! I'm your Hub Assistant. What can I help you with?";
+    if (pageLabel === "Success Center") return `${hiClient} Want to submit a content idea or have a question about your plan?`;
+    if (pageLabel === "Brand Twin") return `${hiClient} Need help updating your brand profile?`;
+    if (pageLabel === "Requests") return `${hiClient} Want to submit a new content request?`;
+    return `${hiClient} I'm your Hub Assistant. What can I help you with?`;
   }
 }
 
@@ -159,11 +168,12 @@ Deno.serve(async (req) => {
       const serviceClient = createClient(supabaseUrl, serviceRoleKey);
 
       const [profileRes, rolesRes] = await Promise.all([
-        serviceClient.from("users").select("client_id").eq("id", userId).single(),
+        serviceClient.from("users").select("client_id, name").eq("id", userId).single(),
         serviceClient.from("user_roles").select("role").eq("user_id", userId),
       ]);
 
       const clientId = profileRes.data?.client_id;
+      const userName = profileRes.data?.name || null;
       const roles = (rolesRes.data || []).map((r: any) => r.role);
       const isSSRole = roles.some((r: string) => ["ss_admin", "ss_producer", "ss_ops", "ss_team"].includes(r));
 
@@ -174,8 +184,8 @@ Deno.serve(async (req) => {
       }
 
       const { hint, pageLabel } = getRouteContext(currentRoute);
-      const prompt = buildVoiceSystemPrompt(isSSRole, clientName, hint);
-      const first_message = buildFirstMessage(isSSRole, hint, pageLabel);
+      const prompt = buildVoiceSystemPrompt(isSSRole, clientName, hint, userName);
+      const first_message = buildFirstMessage(isSSRole, hint, pageLabel, userName);
 
       return new Response(JSON.stringify({ signed_url, prompt, first_message }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

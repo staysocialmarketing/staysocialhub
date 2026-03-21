@@ -98,6 +98,8 @@ export function GlobalCaptureButton() {
 
   // Voice call state
   const [voiceConnecting, setVoiceConnecting] = useState(false);
+  const [connectingElapsed, setConnectingElapsed] = useState(0);
+  const connectingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const voiceTranscriptRef = useRef<string[]>([]);
 
   // Confirmation card state
@@ -105,6 +107,7 @@ export function GlobalCaptureButton() {
   const [extracting, setExtracting] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [processingStep, setProcessingStep] = useState("");
+  const [confirmClientId, setConfirmClientId] = useState("");
 
   // Idle auto-end timer
   const lastMessageTimeRef = useRef<number>(Date.now());
@@ -164,15 +167,16 @@ export function GlobalCaptureButton() {
     setChatMessages([]); setChatInput(""); setChatLoading(false);
     setAssistantView("chat");
     setProposedActions([]); setExtracting(false); setExecuting(false);
+    setConfirmClientId("");
     voiceTranscriptRef.current = [];
+    setConnectingElapsed(0);
+    if (connectingTimerRef.current) {
+      clearInterval(connectingTimerRef.current);
+      connectingTimerRef.current = null;
+    }
   };
 
   const handleOpen = async (isOpen: boolean) => {
-    // Block closing during processing
-    if (!isOpen && (extracting || executing)) {
-      toast("Please wait — your request is still being processed", { icon: "⏳" });
-      return;
-    }
     setOpen(isOpen);
     if (isOpen && isSSRole) {
       const [usersRes, projectsRes] = await Promise.all([
@@ -193,7 +197,14 @@ export function GlobalCaptureButton() {
         clearInterval(idleTimerRef.current);
         idleTimerRef.current = null;
       }
-      resetAll();
+      if (connectingTimerRef.current) {
+        clearInterval(connectingTimerRef.current);
+        connectingTimerRef.current = null;
+      }
+      // Don't reset if still extracting/executing — let background toast handle it
+      if (!extracting && !executing) {
+        resetAll();
+      }
     }
   };
 
@@ -399,7 +410,14 @@ export function GlobalCaptureButton() {
   // ─── Voice Call (ElevenLabs) ───
   const startVoiceCall = useCallback(async () => {
     setVoiceConnecting(true);
+    setConnectingElapsed(0);
     voiceTranscriptRef.current = [];
+
+    // Start connecting elapsed timer
+    const connTimer = setInterval(() => {
+      setConnectingElapsed(prev => prev + 1);
+    }, 1000);
+    connectingTimerRef.current = connTimer;
 
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -470,6 +488,11 @@ export function GlobalCaptureButton() {
       }
     } finally {
       setVoiceConnecting(false);
+      if (connectingTimerRef.current) {
+        clearInterval(connectingTimerRef.current);
+        connectingTimerRef.current = null;
+      }
+      setConnectingElapsed(0);
     }
   }, [conversation, location.pathname]);
 
@@ -494,6 +517,9 @@ export function GlobalCaptureButton() {
       return;
     }
 
+    // Show persistent loading toast
+    const toastId = toast.loading("Processing your conversation...");
+
     // Extract actions from transcript
     setExtracting(true);
     setProcessingStep("Analyzing your conversation...");
@@ -505,10 +531,13 @@ export function GlobalCaptureButton() {
       const elapsed = Math.round((Date.now() - extractionStart) / 1000);
       if (elapsed < 5) {
         setProcessingStep("Analyzing your conversation...");
+        toast.loading("Analyzing your conversation...", { id: toastId });
       } else if (elapsed < 10) {
         setProcessingStep(`Extracting actions... (${elapsed}s)`);
+        toast.loading(`Extracting actions... (${elapsed}s)`, { id: toastId });
       } else {
         setProcessingStep(`Almost done... (${elapsed}s)`);
+        toast.loading(`Almost done... (${elapsed}s)`, { id: toastId });
       }
     }, 1000);
 
@@ -516,7 +545,6 @@ export function GlobalCaptureButton() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated");
 
-      setProcessingStep("Extracting actions...");
       const resp = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/hub-assistant`,
         {
@@ -531,7 +559,7 @@ export function GlobalCaptureButton() {
 
       if (!resp.ok) {
         const errData = await resp.json().catch(() => ({}));
-        toast.error(errData.error || "Failed to process conversation");
+        toast.error(errData.error || "Failed to process conversation", { id: toastId });
         setAssistantView("chat");
         setExtracting(false);
         return;
@@ -541,6 +569,7 @@ export function GlobalCaptureButton() {
       const actions = data.actions || [];
 
       if (actions.length === 0) {
+        toast.dismiss(toastId);
         toast("No actions detected from conversation");
         setChatMessages(prev => [...prev, {
           role: "assistant",
@@ -548,11 +577,12 @@ export function GlobalCaptureButton() {
         }]);
         setAssistantView("chat");
       } else {
+        toast.success(`Found ${actions.length} action${actions.length > 1 ? "s" : ""} — review & confirm below`, { id: toastId });
         setProposedActions(actions);
       }
     } catch (err) {
       console.error("Extract actions error:", err);
-      toast.error("Failed to process conversation");
+      toast.error("Failed to process conversation", { id: toastId });
       setAssistantView("chat");
     } finally {
       clearInterval(stepTimer);
@@ -564,10 +594,17 @@ export function GlobalCaptureButton() {
   const executeActions = async () => {
     if (proposedActions.length === 0) return;
     setExecuting(true);
+    const toastId = toast.loading("Creating your items...");
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated");
+
+      const payload: any = { mode: "execute_actions", actions: proposedActions };
+      // Pass client_id override if SS user selected one on the confirmation card
+      if (confirmClientId) {
+        payload.client_id = confirmClientId;
+      }
 
       const resp = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/hub-assistant`,
@@ -577,13 +614,13 @@ export function GlobalCaptureButton() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ mode: "execute_actions", actions: proposedActions }),
+          body: JSON.stringify(payload),
         }
       );
 
       if (!resp.ok) {
         const errData = await resp.json().catch(() => ({}));
-        toast.error(errData.error || "Failed to execute actions");
+        toast.error(errData.error || "Failed to execute actions", { id: toastId });
         setExecuting(false);
         return;
       }
@@ -600,12 +637,15 @@ export function GlobalCaptureButton() {
           }
           return r.tool === "capture_idea" ? "Idea captured" : "Action completed";
         }).join(", ");
-        toast.success(`Created: ${details}`);
+        toast.success(`Created: ${details}`, { id: toastId });
         queryClient.invalidateQueries({ queryKey: ["requests"] });
         queryClient.invalidateQueries({ queryKey: ["brain-captures"] });
         queryClient.invalidateQueries({ queryKey: ["tasks"] });
       }
       if (failures.length > 0) {
+        if (successes.length === 0) {
+          toast.error(failures[0].error || "Action failed", { id: toastId });
+        }
         failures.forEach((f: any) => {
           toast.error(f.error || "Action failed");
         });
@@ -614,7 +654,7 @@ export function GlobalCaptureButton() {
       handleOpen(false);
     } catch (err) {
       console.error("Execute actions error:", err);
-      toast.error("Failed to execute actions");
+      toast.error("Failed to execute actions", { id: toastId });
     } finally {
       setExecuting(false);
     }
@@ -626,22 +666,26 @@ export function GlobalCaptureButton() {
 
   const welcomeMessage = useMemo(() => {
     const path = location.pathname;
+    const firstName = profile?.name ? profile.name.split(" ")[0] : null;
+    const hi = firstName ? `Hey ${firstName}!` : "Hey!";
+    const hiClient = firstName ? `Hi ${firstName}!` : "Hi!";
+
     if (isSSRole) {
-      if (path.startsWith("/requests")) return "Hey! Need to **create a new request** or discuss existing ones?";
-      if (path.startsWith("/team/tasks")) return "Hey! Want to **create a task** or look up what's on the board?";
-      if (path.startsWith("/team/projects")) return "Hey! Need help with a **project**?";
-      if (path.startsWith("/workflow")) return "Hey! Questions about the **content pipeline**?";
-      if (path.startsWith("/approvals")) return "Hey! Questions about **approvals** or reviews?";
-      return "Hey! I can help you **create requests**, **capture ideas**, or **look up tasks & projects**. What do you need?";
+      if (path.startsWith("/requests")) return `${hi} Need to **create a new request** or discuss existing ones?`;
+      if (path.startsWith("/team/tasks")) return `${hi} Want to **create a task** or look up what's on the board?`;
+      if (path.startsWith("/team/projects")) return `${hi} Need help with a **project**?`;
+      if (path.startsWith("/workflow")) return `${hi} Questions about the **content pipeline**?`;
+      if (path.startsWith("/approvals")) return `${hi} Questions about **approvals** or reviews?`;
+      return `${hi} I can help you **create requests**, **capture ideas**, or **look up tasks & projects**. What do you need?`;
     }
     if (isClientAdmin || isClientAssistant) {
-      if (path.startsWith("/client/success")) return "Hi! Want to **submit a content idea** or have a question about your plan?";
-      if (path.startsWith("/requests")) return "Hi! Want to **submit a new content request**?";
-      if (path.startsWith("/client/brand-twin")) return "Hi! Need help **updating your brand profile**?";
-      return "Hey! I can help you **submit content requests** or **save ideas**. What's on your mind?";
+      if (path.startsWith("/client/success")) return `${hiClient} Want to **submit a content idea** or have a question about your plan?`;
+      if (path.startsWith("/requests")) return `${hiClient} Want to **submit a new content request**?`;
+      if (path.startsWith("/client/brand-twin")) return `${hiClient} Need help **updating your brand profile**?`;
+      return `${hi} I can help you **submit content requests** or **save ideas**. What's on your mind?`;
     }
-    return "Hey! What can I help you with?";
-  }, [isSSRole, isClientAdmin, isClientAssistant, location.pathname]);
+    return `${hi} What can I help you with?`;
+  }, [isSSRole, isClientAdmin, isClientAssistant, location.pathname, profile?.name]);
 
   if (!isSSRole && !isClient) return null;
 
@@ -973,8 +1017,11 @@ export function GlobalCaptureButton() {
 
               <div className="text-center space-y-1">
                 <p className="text-sm font-medium text-foreground">
-                  {conversation.isSpeaking ? "Assistant is speaking..." : conversation.status === "connected" ? "Listening..." : "Connecting..."}
+                  {conversation.isSpeaking ? "Assistant is speaking..." : conversation.status === "connected" ? "Listening..." : `Connecting...${connectingElapsed > 0 ? ` (${connectingElapsed}s)` : ""}`}
                 </p>
+                {conversation.status !== "connected" && connectingElapsed > 10 && (
+                  <p className="text-xs text-amber-500">Taking longer than usual — try closing and reopening</p>
+                )}
                 <p className="text-xs text-muted-foreground">
                   Speak naturally — I'll summarize your requests when you're done
                 </p>
@@ -1000,7 +1047,7 @@ export function GlobalCaptureButton() {
                 <div className="flex flex-col items-center justify-center gap-3 py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   <p className="text-sm font-medium text-foreground">{processingStep || "Processing..."}</p>
-                  <p className="text-xs text-muted-foreground">Please don't close this — almost done!</p>
+                  <p className="text-xs text-muted-foreground">You can close this — processing will continue in the background</p>
                 </div>
               ) : proposedActions.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-3 py-12">
@@ -1015,6 +1062,19 @@ export function GlobalCaptureButton() {
                     <p className="text-sm font-medium text-foreground">Review & Confirm</p>
                     <p className="text-xs text-muted-foreground">These actions will be created when you confirm</p>
                   </div>
+
+                  {/* Client picker for SS users if no client specified in actions */}
+                  {isSSRole && !profile?.client_id && proposedActions.some(a => !a.args.client_name) && (
+                    <div className="border rounded-xl p-3 bg-muted/30 space-y-1.5">
+                      <Label className="text-xs font-medium">Which client is this for?</Label>
+                      <ClientSelectWithCreate
+                        value={confirmClientId}
+                        onValueChange={setConfirmClientId}
+                        allowNone={false}
+                        placeholder="Select a client"
+                      />
+                    </div>
+                  )}
 
                   {proposedActions.map((action, i) => (
                     <div key={i} className="border rounded-xl p-3 space-y-2 bg-card">
@@ -1032,6 +1092,9 @@ export function GlobalCaptureButton() {
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
+                      {action.args.client_name && (
+                        <p className="text-xs text-muted-foreground pl-9">Client: {action.args.client_name}</p>
+                      )}
                       {action.args.notes && (
                         <p className="text-xs text-muted-foreground pl-9">{action.args.notes}</p>
                       )}
@@ -1046,6 +1109,7 @@ export function GlobalCaptureButton() {
                       variant="outline"
                       onClick={() => {
                         setProposedActions([]);
+                        setConfirmClientId("");
                         setAssistantView("chat");
                       }}
                       className="flex-1 rounded-xl"
@@ -1055,7 +1119,11 @@ export function GlobalCaptureButton() {
                     </Button>
                     <Button
                       onClick={executeActions}
-                      disabled={executing || proposedActions.length === 0}
+                      disabled={
+                        executing ||
+                        proposedActions.length === 0 ||
+                        (isSSRole && !profile?.client_id && proposedActions.some(a => !a.args.client_name) && !confirmClientId)
+                      }
                       className="flex-1 rounded-xl gap-2"
                     >
                       {executing ? (
