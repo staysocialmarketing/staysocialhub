@@ -1,45 +1,48 @@
 
 
-# Fix Voice Agent: Hub Knowledge, Auto-End, and Post-Call UX
+# Fix Voice Agent: Request Not Created + Slow Processing
 
-## Three Problems Identified
+## Root Cause Analysis
 
-1. **Agent doesn't know enough about the Hub** — The voice system prompt (`buildVoiceSystemPrompt`) is minimal. It tells the agent to "collect info" but gives zero context about what Stay Social HUB is, what types of requests exist, what plans/services are offered, etc. The text chat prompt (`buildSystemPrompt`) is slightly better but also thin.
+**Why the request wasn't created:** When you (SS role) use the voice agent, the `execute_actions` mode calls `executeTool("create_request", ...)` with `clientId` pulled from your user profile. SS users don't have a `client_id` on their profile — it's `null`. The function checks `if (!targetClientId)` and returns `{ error: "No client selected" }`. The error gets swallowed into the results array but the UI just shows "1 action completed" vs "1 action failed" without enough detail.
 
-2. **No auto-end mechanism** — If the user is done talking, the call keeps running, burning ElevenLabs credits. There's no instruction for the agent to signal "we're done" and no client-side idle timeout.
+The voice agent likely extracted the right intent ("create a test post for Tristan") but had no way to resolve a client name to a `client_id` during execution. The `create_request` tool also has no `assigned_to` parameter, so "assigned to Tristan" was lost.
 
-3. **Post-call UX is poor** — After ending the call, it jumps to "confirm" view with a spinner ("Processing your conversation...") but if you close the drawer, you lose everything. No indication it's still working, no persistence, no fallback.
+**Why it was slow:** The `extract_actions` call sends the full transcript to Lovable AI for tool-calling extraction — a cold Gemini call that can take 5-10s. Combined with the ElevenLabs disconnect handshake, total processing is 8-15s.
 
 ## Plan
 
-### 1. Enrich Voice Agent System Prompt
+### 1. Fix: Resolve Client by Name for SS Users (the actual bug)
 
-**File:** `supabase/functions/hub-assistant/index.ts` — `buildVoiceSystemPrompt()`
-**File:** `supabase/functions/elevenlabs-conversation-token/index.ts` — `buildVoiceSystemPrompt()`
+**File:** `supabase/functions/hub-assistant/index.ts` — `executeTool()`
 
-Add Hub context to both voice prompt functions:
-- What Stay Social HUB is (social media marketing management platform)
-- Available request types: social posts, email campaigns, designs, videos, automation, strategy, general
-- What "capturing an idea" means (saving a note/link/thought to the client's brain for later use)
-- Route-aware context (reuse existing `getRouteContext` in the token function, add it to hub-assistant's voice prompt too)
+- When `clientId` is null (SS user) and the tool is `create_request` or `capture_idea`, check if `args` contains a `client_name` field
+- If so, look up `clients` table by `ilike("name", ...)` and resolve to an ID
+- Add `client_name` as an optional parameter to the `create_request` and `capture_idea` tool definitions so the AI can pass it
 
-### 2. Auto-End Voice Call
+Also add `assigned_to_name` as an optional param on `create_request` so the AI can capture assignment intent. Resolve name → user ID in `executeTool`.
 
-**File:** `supabase/functions/elevenlabs-conversation-token/index.ts` — voice prompt
-- Add instruction: "When you have gathered all the information and summarized the actions, say goodbye and end the conversation naturally. Say something like 'Great, I've got everything! I'll have your items ready for review. Talk soon!'"
-
-**File:** `src/components/GlobalCaptureButton.tsx`
-- Add an idle timeout: if no `onMessage` events for 15 seconds while connected, auto-end the call
-- Track last message timestamp in a ref, check with `setInterval`
-
-### 3. Improve Post-Call Processing UX
+### 2. Fix: Better Error Visibility on Confirmation Card
 
 **File:** `src/components/GlobalCaptureButton.tsx`
 
-- **Prevent closing during processing**: When `extracting` or `executing` is true, intercept the drawer/dialog close and show a warning or simply block it
-- **Better loading state**: Replace generic "Processing your conversation..." with a stepped progress indicator: "Analyzing conversation..." → "Extracting actions..." → "Almost ready..."
-- **Toast on background completion**: If somehow the drawer closes, still run the extraction and show a toast with results (this requires keeping the extraction in a ref-based promise that doesn't depend on component mount)
-- **Keep drawer open during extraction**: The simplest fix — disable the close button / prevent `handleOpen(false)` while extracting
+- After `executeActions`, if any result has `.error`, show the specific error message in a toast (not just "X actions failed")
+- On the confirmation card, show resolved client name if available, or a warning if no client was specified
+
+### 3. Speed: Use Faster Model for Extraction
+
+**File:** `supabase/functions/hub-assistant/index.ts` — `extract_actions` mode
+
+- Switch from `google/gemini-3-flash-preview` to `google/gemini-2.5-flash-lite` for the extraction call — it's a simple structured extraction task that doesn't need the heavier model
+- This should cut extraction time roughly in half
+
+### 4. UX: Better Processing Feedback
+
+**File:** `src/components/GlobalCaptureButton.tsx`
+
+- Add a third processing step message: "Almost done..." after 5 seconds of extraction
+- Show elapsed time indicator (e.g., "Extracting actions... (8s)") so the user knows it's still working
+- After execution completes, show a detailed toast: "Created request: 'Test post' for [Client]" instead of generic "1 action completed"
 
 ---
 
@@ -47,9 +50,8 @@ Add Hub context to both voice prompt functions:
 
 | File | Change |
 |---|---|
-| `supabase/functions/elevenlabs-conversation-token/index.ts` | Enrich voice prompt with Hub knowledge + auto-end instruction |
-| `supabase/functions/hub-assistant/index.ts` | Enrich `buildVoiceSystemPrompt` with Hub context and route awareness |
-| `src/components/GlobalCaptureButton.tsx` | Add idle auto-end timer, block close during processing, better loading states |
+| `supabase/functions/hub-assistant/index.ts` | Add `client_name` + `assigned_to_name` params to tools, resolve in `executeTool`, use faster model for extraction |
+| `src/components/GlobalCaptureButton.tsx` | Better error toasts, elapsed time indicator, detailed success messages |
 
 No database changes needed.
 
