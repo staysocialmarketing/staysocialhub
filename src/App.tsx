@@ -114,6 +114,7 @@ const App = () => (
               <Route path="/admin/team/growth" element={<AdminRoute><TeamGrowth /></AdminRoute>} />
               <Route path="/admin/team/wins" element={<AdminRoute><TeamWins /></AdminRoute>} />
               <Route path="/admin/automations" element={<AdminRoute><AdminAutomations /></AdminRoute>} />
+              <Route path="/admin/meeting-notes" element={<SSAdminRoute><MeetingNotes /></SSAdminRoute>} />
               <Route path="/team/think-tank" element={<AdminRoute><ThinkTank /></AdminRoute>} />
               <Route path="/team/projects" element={<AdminRoute><Projects /></AdminRoute>} />
               <Route path="/team/tasks" element={<AdminRoute><Tasks /></AdminRoute>} />
