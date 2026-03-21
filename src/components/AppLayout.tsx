@@ -105,7 +105,7 @@ export function AppLayout() {
           </main>
           
           <GlobalCaptureButton />
-        </div>
+          <HubAssistant />
       </div>
       
       {/* Mobile bottom tab bar */}
