@@ -510,8 +510,8 @@ If no actionable items are found, do not call any tools.`;
       });
     }
 
-    const tools = isSSRole ? [...baseTools, ...ssOnlyTools] : [...baseTools];
-    const systemPrompt = buildSystemPrompt(isSSRole, clientName);
+    const currentRoute = body.current_route || "";
+    const systemPrompt = buildSystemPrompt(isSSRole, clientName, currentRoute);
 
     let aiMessages: any[] = [
       { role: "system", content: systemPrompt },
