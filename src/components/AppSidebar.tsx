@@ -114,6 +114,23 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const [allUsers, setAllUsers] = useState<UserWithRole[]>([]);
 
+  // Collapsible section state with localStorage persistence
+  const [sectionState, setSectionState] = useState<Record<string, boolean>>(() => {
+    try {
+      const stored = localStorage.getItem("sidebar-sections");
+      return stored ? JSON.parse(stored) : {};
+    } catch { return {}; }
+  });
+
+  const isSectionOpen = (key: string) => sectionState[key] !== false; // default open
+  const toggleSection = (key: string) => {
+    setSectionState(prev => {
+      const next = { ...prev, [key]: !isSectionOpen(key) };
+      localStorage.setItem("sidebar-sections", JSON.stringify(next));
+      return next;
+    });
+  };
+
   useEffect(() => {
     if (!actualIsSSAdmin) return;
     const fetchUsers = async () => {
