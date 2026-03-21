@@ -666,22 +666,26 @@ export function GlobalCaptureButton() {
 
   const welcomeMessage = useMemo(() => {
     const path = location.pathname;
+    const firstName = profile?.name ? profile.name.split(" ")[0] : null;
+    const hi = firstName ? `Hey ${firstName}!` : "Hey!";
+    const hiClient = firstName ? `Hi ${firstName}!` : "Hi!";
+
     if (isSSRole) {
-      if (path.startsWith("/requests")) return "Hey! Need to **create a new request** or discuss existing ones?";
-      if (path.startsWith("/team/tasks")) return "Hey! Want to **create a task** or look up what's on the board?";
-      if (path.startsWith("/team/projects")) return "Hey! Need help with a **project**?";
-      if (path.startsWith("/workflow")) return "Hey! Questions about the **content pipeline**?";
-      if (path.startsWith("/approvals")) return "Hey! Questions about **approvals** or reviews?";
-      return "Hey! I can help you **create requests**, **capture ideas**, or **look up tasks & projects**. What do you need?";
+      if (path.startsWith("/requests")) return `${hi} Need to **create a new request** or discuss existing ones?`;
+      if (path.startsWith("/team/tasks")) return `${hi} Want to **create a task** or look up what's on the board?`;
+      if (path.startsWith("/team/projects")) return `${hi} Need help with a **project**?`;
+      if (path.startsWith("/workflow")) return `${hi} Questions about the **content pipeline**?`;
+      if (path.startsWith("/approvals")) return `${hi} Questions about **approvals** or reviews?`;
+      return `${hi} I can help you **create requests**, **capture ideas**, or **look up tasks & projects**. What do you need?`;
     }
     if (isClientAdmin || isClientAssistant) {
-      if (path.startsWith("/client/success")) return "Hi! Want to **submit a content idea** or have a question about your plan?";
-      if (path.startsWith("/requests")) return "Hi! Want to **submit a new content request**?";
-      if (path.startsWith("/client/brand-twin")) return "Hi! Need help **updating your brand profile**?";
-      return "Hey! I can help you **submit content requests** or **save ideas**. What's on your mind?";
+      if (path.startsWith("/client/success")) return `${hiClient} Want to **submit a content idea** or have a question about your plan?`;
+      if (path.startsWith("/requests")) return `${hiClient} Want to **submit a new content request**?`;
+      if (path.startsWith("/client/brand-twin")) return `${hiClient} Need help **updating your brand profile**?`;
+      return `${hi} I can help you **submit content requests** or **save ideas**. What's on your mind?`;
     }
-    return "Hey! What can I help you with?";
-  }, [isSSRole, isClientAdmin, isClientAssistant, location.pathname]);
+    return `${hi} What can I help you with?`;
+  }, [isSSRole, isClientAdmin, isClientAssistant, location.pathname, profile?.name]);
 
   if (!isSSRole && !isClient) return null;
 
