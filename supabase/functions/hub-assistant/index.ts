@@ -538,6 +538,9 @@ If no actionable items are found, do not call any tools.`;
         });
       }
 
+      // Accept optional top-level client_id override for actions missing a client
+      const overrideClientId = body.client_id || null;
+
       const results = [];
       for (const action of actions) {
         const { tool, args } = action;
@@ -550,8 +553,30 @@ If no actionable items are found, do not call any tools.`;
           results.push({ tool, success: false, error: "Tool not allowed in execute mode" });
           continue;
         }
-        const result = await executeTool(tool, args, serviceClient, userId, clientId, isSSRole);
+        // Apply client_id override if the action has no client_name and user has no profile client
+        const effectiveClientId = clientId || (overrideClientId ? overrideClientId : null);
+        const result = await executeTool(tool, args, serviceClient, userId, effectiveClientId, isSSRole);
         results.push({ tool, ...result });
+      }
+
+      // Insert notification for the user on success
+      const successes = results.filter((r: any) => r.success);
+      if (successes.length > 0) {
+        const summaryParts = successes.map((r: any) => {
+          if (r.topic) return `"${r.topic}"${r.client_name ? ` for ${r.client_name}` : ""}`;
+          return r.tool === "capture_idea" ? "Idea captured" : "Action completed";
+        });
+        const notifBody = `Created: ${summaryParts.join(", ")}`;
+        try {
+          await serviceClient.from("notifications").insert({
+            user_id: userId,
+            title: "Hub Assistant completed your request",
+            body: notifBody,
+            link: "/requests",
+          });
+        } catch (e) {
+          console.error("Failed to insert notification:", e);
+        }
       }
 
       return new Response(JSON.stringify({ results }), {
