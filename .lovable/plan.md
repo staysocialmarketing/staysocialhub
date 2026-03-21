@@ -1,29 +1,40 @@
 
+# Stay Social HUB — Roadmap
 
-# Store Google OAuth Credentials + Build Meeting Notes Feature
+## ✅ Phase 6A: Content Generator + Voice Reliability (Complete)
+- AI Content Generator with Brand Twin integration
+- Voice agent logging and test endpoint
 
-## Step 1: Store Secrets (first action when switching to build mode)
+## ✅ Phase 6B: Client Experience Polish (Complete)
+- Client Reporting Dashboard (content_metrics table + charts in Success Center)
+- Client Onboarding Wizard (multi-step modal for first-time clients)
+- Request Status Tracking (activity timeline + notification trigger on status change)
 
-Two secrets to add via the `add_secret` tool:
-- `GOOGLE_CLIENT_ID` → `508191597658-jkqgk7e36u69d3t3i36mn70el1apff60.apps.googleusercontent.com`
-- `GOOGLE_CLIENT_SECRET` → `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`
+## 🔨 Phase 7: Integrations + Automation (In Progress)
 
-These are stored encrypted in the backend and only accessible from edge functions. They never appear in frontend code.
+### ✅ 8. Automation Rules Engine
+- `automation_rules` table (trigger_event, conditions_json, action_type, action_config_json)
+- `process-automation-rules` edge function for rule evaluation + execution
+- Admin UI at `/admin/automations` with rule builder
 
-## Step 2: Build the Full Meeting Notes Feature (as previously approved)
+### ✅ Phase B: Google OAuth Meeting Notes Sync
+- `google_integrations` + `meeting_notes` tables with RLS
+- `google-oauth-callback` edge function (OAuth code exchange)
+- `sync-meeting-notes` edge function (Drive API sync)
+- `extract-meeting-data` edge function (AI extraction → tasks/captures/strategy)
+- Admin UI at `/admin/meeting-notes` (restricted to corey@staysocial.ca)
 
-Once secrets are stored, proceed with the approved Phase B plan:
+### 6. Social Platform Connections
+- New `social_accounts` table linking clients to platform credentials
+- Publish-to-platform action from the Workflow board
 
-1. **Database migration**: Create `google_integrations` and `meeting_notes` tables with ss_admin-only RLS
-2. **Edge functions**:
-   - `google-oauth-callback` — exchanges auth code for tokens, stores in `google_integrations`
-   - `sync-meeting-notes` — polls Google Drive for Gemini/Meet notes, fetches via Docs API
-   - `extract-meeting-data` — AI extraction pipeline routing to tasks/requests/strategy/captures
-3. **Admin UI**: `/admin/meeting-notes` page (restricted to corey@staysocial.ca)
-4. **Client Brain integration**: Meeting Notes tab on Client Brain page
-5. **Navigation**: Sidebar link + route, admin-only visibility
+### 7. Email Platform Integration
+- "Send" action for email-type posts from Workflow
+- Template rendering with client branding
 
-## Security Note
+---
 
-After implementation, consider regenerating your Google Client Secret in Google Cloud Console since it appeared in chat. You would then update the stored secret with the new value.
-
+## Phase 8: DIY / Self-Serve Platform
+- Self-Serve Signup + Stripe billing
+- DIY Content Calendar
+- Marketplace Expansion

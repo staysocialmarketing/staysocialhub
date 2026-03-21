@@ -37,6 +37,7 @@ import TeamGrowth from "./pages/admin/TeamGrowth";
 import TeamWins from "./pages/admin/TeamWins";
 import ThinkTank from "./pages/team/ThinkTank";
 import AdminAutomations from "./pages/admin/AdminAutomations";
+import MeetingNotes from "./pages/admin/MeetingNotes";
 import Projects from "./pages/team/Projects";
 import Tasks from "./pages/team/Tasks";
 import UniversalInbox from "./pages/team/UniversalInbox";
@@ -113,6 +114,7 @@ const App = () => (
               <Route path="/admin/team/growth" element={<AdminRoute><TeamGrowth /></AdminRoute>} />
               <Route path="/admin/team/wins" element={<AdminRoute><TeamWins /></AdminRoute>} />
               <Route path="/admin/automations" element={<AdminRoute><AdminAutomations /></AdminRoute>} />
+              <Route path="/admin/meeting-notes" element={<SSAdminRoute><MeetingNotes /></SSAdminRoute>} />
               <Route path="/team/think-tank" element={<AdminRoute><ThinkTank /></AdminRoute>} />
               <Route path="/team/projects" element={<AdminRoute><Projects /></AdminRoute>} />
               <Route path="/team/tasks" element={<AdminRoute><Tasks /></AdminRoute>} />

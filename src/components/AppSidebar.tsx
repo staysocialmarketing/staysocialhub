@@ -26,6 +26,7 @@ import {
   Palette,
   ChevronDown,
   Zap,
+  FileText,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -78,6 +79,7 @@ const adminSection = [
   { title: "Users", url: "/admin/users", icon: Users },
   { title: "Team", url: "/admin/team", icon: Users },
   { title: "Automations", url: "/admin/automations", icon: Zap },
+  { title: "Meeting Notes", url: "/admin/meeting-notes", icon: FileText },
   { title: "Versions", url: "/admin/versions", icon: Tag },
 ];
 
@@ -153,7 +155,7 @@ export function AppSidebar() {
   const isInternalUser = isSSAdmin || isSSTeam;
   const visibleAdminItems = isSSAdmin
     ? adminSection
-    : adminSection.filter((i) => i.title !== "Users" && i.title !== "Versions");
+    : adminSection.filter((i) => i.title !== "Users" && i.title !== "Versions" && i.title !== "Meeting Notes");
 
   const ssUsers = allUsers.filter((u) => u.roles.some((r) => ["ss_admin", "ss_producer", "ss_ops", "ss_team"].includes(r)));
   const clientUsers = allUsers.filter((u) => u.roles.some((r) => ["client_admin", "client_assistant"].includes(r)));
