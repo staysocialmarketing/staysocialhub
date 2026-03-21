@@ -207,8 +207,11 @@ ENDING THE CALL:
   if (isSSRole) {
     return base + `\n\nThe user is an internal Stay Social team member. They may want to:
 - Create content requests (social posts, email campaigns, designs, videos, etc.)
+- Create tasks (with title, description, assignee, project, priority, due date)
 - Capture ideas or notes for a client's brain
-- Discuss tasks or projects` +
+- Discuss tasks or projects
+
+Make sure to gather: what they want to create, for which client, any assignee, priority, and description. If they say "task" or "to-do", treat it as a task not a request.` +
       (clientName ? `\nThey are currently working with client: "${clientName}".` : `\nAsk which client they're working with.`) +
       routeHint;
   } else {
