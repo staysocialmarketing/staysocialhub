@@ -675,6 +675,57 @@ export type Database = {
           },
         ]
       }
+      content_metrics: {
+        Row: {
+          clicks: number
+          client_id: string
+          created_at: string
+          engagement: number
+          id: string
+          impressions: number
+          post_id: string
+          reach: number
+          reported_at: string
+        }
+        Insert: {
+          clicks?: number
+          client_id: string
+          created_at?: string
+          engagement?: number
+          id?: string
+          impressions?: number
+          post_id: string
+          reach?: number
+          reported_at?: string
+        }
+        Update: {
+          clicks?: number
+          client_id?: string
+          created_at?: string
+          engagement?: number
+          id?: string
+          impressions?: number
+          post_id?: string
+          reach?: number
+          reported_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_metrics_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_metrics_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       generated_content: {
         Row: {
           client_id: string
