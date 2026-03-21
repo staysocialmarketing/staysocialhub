@@ -104,12 +104,18 @@ export function GlobalCaptureButton() {
   const [proposedActions, setProposedActions] = useState<ProposedAction[]>([]);
   const [extracting, setExtracting] = useState(false);
   const [executing, setExecuting] = useState(false);
+  const [processingStep, setProcessingStep] = useState("");
+
+  // Idle auto-end timer
+  const lastMessageTimeRef = useRef<number>(Date.now());
+  const idleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // ElevenLabs conversation hook
   const conversation = useConversation({
     onMessage: (message: any) => {
+      lastMessageTimeRef.current = Date.now();
       if (message.type === "user_transcript" && message.user_transcription_event?.user_transcript) {
         voiceTranscriptRef.current.push(`User: ${message.user_transcription_event.user_transcript}`);
       }
@@ -122,6 +128,11 @@ export function GlobalCaptureButton() {
       toast.error("Voice connection error");
     },
     onDisconnect: () => {
+      // Clear idle timer
+      if (idleTimerRef.current) {
+        clearInterval(idleTimerRef.current);
+        idleTimerRef.current = null;
+      }
       // When call ends naturally or disconnects, process transcript
       if (voiceTranscriptRef.current.length > 0 && assistantView === "voice-call") {
         handleVoiceCallEnd();
