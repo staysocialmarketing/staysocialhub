@@ -104,12 +104,18 @@ export function GlobalCaptureButton() {
   const [proposedActions, setProposedActions] = useState<ProposedAction[]>([]);
   const [extracting, setExtracting] = useState(false);
   const [executing, setExecuting] = useState(false);
+  const [processingStep, setProcessingStep] = useState("");
+
+  // Idle auto-end timer
+  const lastMessageTimeRef = useRef<number>(Date.now());
+  const idleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // ElevenLabs conversation hook
   const conversation = useConversation({
     onMessage: (message: any) => {
+      lastMessageTimeRef.current = Date.now();
       if (message.type === "user_transcript" && message.user_transcription_event?.user_transcript) {
         voiceTranscriptRef.current.push(`User: ${message.user_transcription_event.user_transcript}`);
       }
@@ -122,6 +128,11 @@ export function GlobalCaptureButton() {
       toast.error("Voice connection error");
     },
     onDisconnect: () => {
+      // Clear idle timer
+      if (idleTimerRef.current) {
+        clearInterval(idleTimerRef.current);
+        idleTimerRef.current = null;
+      }
       // When call ends naturally or disconnects, process transcript
       if (voiceTranscriptRef.current.length > 0 && assistantView === "voice-call") {
         handleVoiceCallEnd();
@@ -157,6 +168,11 @@ export function GlobalCaptureButton() {
   };
 
   const handleOpen = async (isOpen: boolean) => {
+    // Block closing during processing
+    if (!isOpen && (extracting || executing)) {
+      toast("Please wait — your request is still being processed", { icon: "⏳" });
+      return;
+    }
     setOpen(isOpen);
     if (isOpen && isSSRole) {
       const [usersRes, projectsRes] = await Promise.all([
@@ -171,6 +187,11 @@ export function GlobalCaptureButton() {
       // End voice call if active
       if (conversation.status === "connected") {
         try { await conversation.endSession(); } catch {}
+      }
+      // Clear idle timer
+      if (idleTimerRef.current) {
+        clearInterval(idleTimerRef.current);
+        idleTimerRef.current = null;
       }
       resetAll();
     }
@@ -415,6 +436,19 @@ export function GlobalCaptureButton() {
 
       setAssistantView("voice-call");
 
+      // Start idle auto-end timer (15s of no messages)
+      lastMessageTimeRef.current = Date.now();
+      idleTimerRef.current = setInterval(() => {
+        if (conversation.status === "connected" && Date.now() - lastMessageTimeRef.current > 15000) {
+          console.log("Idle timeout — auto-ending voice call");
+          if (idleTimerRef.current) {
+            clearInterval(idleTimerRef.current);
+            idleTimerRef.current = null;
+          }
+          conversation.endSession().catch(() => {});
+        }
+      }, 3000);
+
       await conversation.startSession({
         signedUrl: signed_url,
         overrides: {
@@ -430,12 +464,20 @@ export function GlobalCaptureButton() {
       console.error("Voice call failed:", err);
       toast.error("Failed to start voice call. Please check microphone access.");
       setAssistantView("chat");
+      if (idleTimerRef.current) {
+        clearInterval(idleTimerRef.current);
+        idleTimerRef.current = null;
+      }
     } finally {
       setVoiceConnecting(false);
     }
   }, [conversation, location.pathname]);
 
   const endVoiceCall = useCallback(async () => {
+    if (idleTimerRef.current) {
+      clearInterval(idleTimerRef.current);
+      idleTimerRef.current = null;
+    }
     try {
       await conversation.endSession();
     } catch {}
@@ -454,12 +496,14 @@ export function GlobalCaptureButton() {
 
     // Extract actions from transcript
     setExtracting(true);
+    setProcessingStep("Analyzing your conversation...");
     setAssistantView("confirm");
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated");
 
+      setProcessingStep("Extracting actions...");
       const resp = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/hub-assistant`,
         {
@@ -933,7 +977,8 @@ export function GlobalCaptureButton() {
               {extracting ? (
                 <div className="flex flex-col items-center justify-center gap-3 py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <p className="text-sm text-muted-foreground">Processing your conversation...</p>
+                  <p className="text-sm font-medium text-foreground">{processingStep || "Processing..."}</p>
+                  <p className="text-xs text-muted-foreground">Please don't close this — almost done!</p>
                 </div>
               ) : proposedActions.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-3 py-12">
