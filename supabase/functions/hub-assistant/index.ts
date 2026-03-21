@@ -683,10 +683,12 @@ If no actionable items are found, do not call any tools.${routeHint}`;
       if (!choice) throw new Error("No AI response");
 
       const toolCalls = choice.message?.tool_calls || [];
+      console.log("[hub-assistant] extract_actions — tool calls found:", toolCalls.length);
       const actions = toolCalls.map((tc: any) => {
         let args: any = {};
         try { args = JSON.parse(tc.function.arguments); } catch {}
         const toolName = tc.function.name;
+        console.log("[hub-assistant] extracted tool:", toolName, "args:", JSON.stringify(args).slice(0, 200));
         let summary = "";
         if (toolName === "create_request") {
           summary = `Create ${args.type || "general"} request: "${args.topic || "Untitled"}"${args.assigned_to_name ? ` (assigned to ${args.assigned_to_name})` : ""}`;
@@ -697,6 +699,7 @@ If no actionable items are found, do not call any tools.${routeHint}`;
         }
         return { tool: toolName, args, summary };
       });
+      console.log("[hub-assistant] extract_actions — returning", actions.length, "actions");
 
       return new Response(JSON.stringify({ actions }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
