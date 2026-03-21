@@ -1063,6 +1063,19 @@ export function GlobalCaptureButton() {
                     <p className="text-xs text-muted-foreground">These actions will be created when you confirm</p>
                   </div>
 
+                  {/* Client picker for SS users if no client specified in actions */}
+                  {isSSRole && !profile?.client_id && proposedActions.some(a => !a.args.client_name) && (
+                    <div className="border rounded-xl p-3 bg-muted/30 space-y-1.5">
+                      <Label className="text-xs font-medium">Which client is this for?</Label>
+                      <ClientSelectWithCreate
+                        value={confirmClientId}
+                        onValueChange={setConfirmClientId}
+                        allowNone={false}
+                        placeholder="Select a client"
+                      />
+                    </div>
+                  )}
+
                   {proposedActions.map((action, i) => (
                     <div key={i} className="border rounded-xl p-3 space-y-2 bg-card">
                       <div className="flex items-start justify-between gap-2">
@@ -1079,6 +1092,9 @@ export function GlobalCaptureButton() {
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
+                      {action.args.client_name && (
+                        <p className="text-xs text-muted-foreground pl-9">Client: {action.args.client_name}</p>
+                      )}
                       {action.args.notes && (
                         <p className="text-xs text-muted-foreground pl-9">{action.args.notes}</p>
                       )}
@@ -1093,6 +1109,7 @@ export function GlobalCaptureButton() {
                       variant="outline"
                       onClick={() => {
                         setProposedActions([]);
+                        setConfirmClientId("");
                         setAssistantView("chat");
                       }}
                       className="flex-1 rounded-xl"
@@ -1102,7 +1119,11 @@ export function GlobalCaptureButton() {
                     </Button>
                     <Button
                       onClick={executeActions}
-                      disabled={executing || proposedActions.length === 0}
+                      disabled={
+                        executing ||
+                        proposedActions.length === 0 ||
+                        (isSSRole && !profile?.client_id && proposedActions.some(a => !a.args.client_name) && !confirmClientId)
+                      }
                       className="flex-1 rounded-xl gap-2"
                     >
                       {executing ? (
