@@ -126,9 +126,9 @@ export function HubAssistant() {
         {/* Welcome */}
         {messages.length === 0 && (
           <div className="bg-muted/50 rounded-xl p-3 text-sm">
-            <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0">
-              {welcomeMessage}
-            </ReactMarkdown>
+            <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0">
+              <ReactMarkdown>{welcomeMessage}</ReactMarkdown>
+            </div>
           </div>
         )}
 
