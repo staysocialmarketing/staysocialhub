@@ -1,10 +1,10 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Plus, PenLine, Mic, Link2, Paperclip, ListTodo, MessageSquarePlus,
-  Send, Square, X, ArrowLeft, Loader2
+  Send, Square, X, ArrowLeft, Loader2, Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,8 +20,11 @@ import { cn } from "@/lib/utils";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useIsMobile } from "@/hooks/use-mobile";
+import ReactMarkdown from "react-markdown";
 
-type CaptureMode = null | "note" | "voice" | "link" | "file" | "task" | "request";
+type CaptureMode = null | "note" | "voice" | "link" | "file" | "task" | "request" | "assistant";
+
+type ChatMsg = { role: "user" | "assistant"; content: string };
 
 const ACTION_CONFIG = {
   note: { label: "Pin a Thought", icon: PenLine, bg: "bg-primary/10", text: "text-primary", desc: "Jot down an idea" },
@@ -30,6 +33,7 @@ const ACTION_CONFIG = {
   file: { label: "Upload File", icon: Paperclip, bg: "bg-green-500/10", text: "text-green-500", desc: "Attach a document" },
   task: { label: "Create Task", icon: ListTodo, bg: "bg-amber-500/10", text: "text-amber-500", desc: "Add to your queue" },
   request: { label: "Make Request", icon: MessageSquarePlus, bg: "bg-purple-500/10", text: "text-purple-500", desc: "New client request" },
+  assistant: { label: "Hub Assistant", icon: Sparkles, bg: "bg-gradient-to-br from-primary/10 to-primary/5", text: "text-primary", desc: "Ask me anything" },
 } as const;
 
 export function GlobalCaptureButton() {
@@ -69,7 +73,28 @@ export function GlobalCaptureButton() {
   const [ssUsers, setSsUsers] = useState<{ id: string; name: string }[]>([]);
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
 
+  // Assistant chat state
+  const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const chatInputRef = useRef<HTMLTextAreaElement>(null);
+
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-scroll chat
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
+
+  // Focus chat input when entering assistant mode
+  useEffect(() => {
+    if (mode === "assistant" && chatInputRef.current) {
+      setTimeout(() => chatInputRef.current?.focus(), 300);
+    }
+  }, [mode]);
 
   const resetAll = () => {
     setMode(null);
@@ -78,6 +103,7 @@ export function GlobalCaptureButton() {
     setTaskAssign(""); setTaskDue(""); setTaskDesc("");
     setRecording(false); setTranscribing(false);
     setSaving(false);
+    setChatMessages([]); setChatInput(""); setChatLoading(false);
   };
 
   const handleOpen = async (isOpen: boolean) => {
@@ -225,15 +251,88 @@ export function GlobalCaptureButton() {
     handleOpen(false);
   };
 
+  // ─── Assistant Chat ───
+  const sendChatMessage = async () => {
+    const trimmed = chatInput.trim();
+    if (!trimmed || chatLoading) return;
+    if (trimmed.length > 2000) {
+      toast.error("Message too long (max 2000 characters)");
+      return;
+    }
+
+    const userMsg: ChatMsg = { role: "user", content: trimmed };
+    const newMessages = [...chatMessages, userMsg];
+    setChatMessages(newMessages);
+    setChatInput("");
+    setChatLoading(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Please sign in to use the assistant");
+        setChatLoading(false);
+        return;
+      }
+
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/hub-assistant`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+          }),
+        }
+      );
+
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        const errMsg = errData.error || "Something went wrong";
+        if (resp.status === 429) {
+          toast.error("Rate limited — please try again in a moment");
+        } else if (resp.status === 402) {
+          toast.error("AI credits exhausted");
+        } else {
+          toast.error(errMsg);
+        }
+        setChatLoading(false);
+        return;
+      }
+
+      const data = await resp.json();
+      const assistantContent = data.response || "I'm not sure how to help with that.";
+      setChatMessages(prev => [...prev, { role: "assistant", content: assistantContent }]);
+    } catch (err) {
+      console.error("Hub assistant error:", err);
+      toast.error("Failed to reach assistant");
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const handleChatKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendChatMessage();
+    }
+  };
+
   if (!isSSRole && !isClient) return null;
 
   // Build options based on role
-  const ssOptions: (keyof typeof ACTION_CONFIG)[] = ["note", "voice", "link", "file", "task", "request"];
-  const clientOptions: (keyof typeof ACTION_CONFIG)[] = ["note", "voice", "file", "request"];
+  const ssOptions: (keyof typeof ACTION_CONFIG)[] = ["note", "voice", "link", "file", "task", "request", "assistant"];
+  const clientOptions: (keyof typeof ACTION_CONFIG)[] = ["note", "voice", "file", "request", "assistant"];
   const options = isSSRole ? ssOptions : clientOptions;
 
   const needsClient = ["note", "voice", "link", "file"].includes(mode || "");
   const hasClient = !!getClientId();
+
+  const welcomeMessage = isSSRole
+    ? "Hey! I can help you **create requests** or **capture ideas** for any client. What do you need?"
+    : "Hey! I can help you **submit content requests** or **save ideas**. What's on your mind?";
 
   // ─── Content ───
   const captureContent = (
@@ -247,8 +346,23 @@ export function GlobalCaptureButton() {
               <ClientSelectWithCreate value={clientId} onValueChange={setClientId} />
             </div>
           )}
+
+          {/* Voice Guidance / Assistant CTA */}
+          <button
+            onClick={() => setMode("assistant")}
+            className="w-full flex items-center gap-3 rounded-xl p-4 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 hover:border-primary/40 hover:shadow-md transition-all active:scale-[0.98]"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shrink-0">
+              <Sparkles className="h-6 w-6" />
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-semibold text-foreground">Hub Assistant</p>
+              <p className="text-xs text-muted-foreground">Create requests, capture ideas — just ask</p>
+            </div>
+          </button>
+
           <div className="grid grid-cols-2 gap-3">
-            {options.map((key) => {
+            {options.filter(k => k !== "assistant").map((key) => {
               const cfg = ACTION_CONFIG[key];
               const Icon = cfg.icon;
               return (
@@ -437,6 +551,69 @@ export function GlobalCaptureButton() {
         </div>
       )}
 
+      {/* Assistant mode */}
+      {mode === "assistant" && (
+        <div className="flex flex-col -mx-4 -mb-4" style={{ height: "60vh", maxHeight: "60vh" }}>
+          <div ref={chatScrollRef} className="flex-1 overflow-y-auto px-4 py-2 space-y-3">
+            {chatMessages.length === 0 && (
+              <div className="bg-muted/50 rounded-xl p-3 text-sm">
+                <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0">
+                  <ReactMarkdown>{welcomeMessage}</ReactMarkdown>
+                </div>
+              </div>
+            )}
+
+            {chatMessages.map((msg, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "rounded-xl p-3 text-sm max-w-[85%]",
+                  msg.role === "user"
+                    ? "ml-auto bg-primary text-primary-foreground"
+                    : "bg-muted/50"
+                )}
+              >
+                {msg.role === "assistant" ? (
+                  <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0 [&>ul]:m-0 [&>ol]:m-0">
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  </div>
+                ) : (
+                  <p className="m-0 whitespace-pre-wrap">{msg.content}</p>
+                )}
+              </div>
+            ))}
+
+            {chatLoading && (
+              <div className="flex items-center gap-2 text-muted-foreground text-sm p-3">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Thinking...
+              </div>
+            )}
+          </div>
+
+          <div className="border-t p-3 flex gap-2 items-end">
+            <Textarea
+              ref={chatInputRef}
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              onKeyDown={handleChatKeyDown}
+              placeholder="Ask me anything..."
+              className="min-h-[40px] max-h-[120px] resize-none rounded-xl text-sm"
+              rows={1}
+              disabled={chatLoading}
+            />
+            <Button
+              size="icon"
+              onClick={sendChatMessage}
+              disabled={!chatInput.trim() || chatLoading}
+              className="rounded-xl shrink-0 h-10 w-10"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
       <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileUpload} />
     </div>
   );
@@ -448,7 +625,9 @@ export function GlobalCaptureButton() {
           <ArrowLeft className="h-4 w-4" />
         </button>
       )}
-      {mode === null ? "Quick Capture" : ACTION_CONFIG[mode]?.label || "Capture"}
+      {mode === null ? "Quick Capture" : mode === "assistant" ? (
+        <span className="flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-primary" /> Hub Assistant</span>
+      ) : ACTION_CONFIG[mode]?.label || "Capture"}
     </div>
   );
 
@@ -470,15 +649,15 @@ export function GlobalCaptureButton() {
             <DrawerHeader>
               <DrawerTitle>{headerContent}</DrawerTitle>
             </DrawerHeader>
-            <div className="overflow-y-auto pb-6">
+            <div className={cn("overflow-y-auto", mode !== "assistant" && "pb-6")}>
               {captureContent}
             </div>
           </DrawerContent>
         </Drawer>
       ) : (
         <Dialog open={open} onOpenChange={handleOpen}>
-          <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
-            <DialogHeader>
+          <DialogContent className={cn("sm:max-w-md", mode === "assistant" ? "p-0 gap-0 overflow-hidden" : "max-h-[85vh] overflow-y-auto")}>
+            <DialogHeader className={mode === "assistant" ? "p-4 pb-0" : ""}>
               <DialogTitle>{headerContent}</DialogTitle>
             </DialogHeader>
             {captureContent}
