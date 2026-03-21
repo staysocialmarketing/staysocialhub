@@ -135,9 +135,10 @@ export function GlobalCaptureButton() {
 
     if (!transcript.trim()) {
       console.log("[HubAssistant] Empty transcript — no actions to extract");
-      toast("No conversation detected — try speaking clearly next time");
+      toast.warning("Call ended but no speech was detected. Make sure your microphone is working and speak clearly.", { duration: 6000 });
       voiceRunStateRef.current = "idle";
       setAssistantView("chat");
+      setVoiceConnecting(false);
       return;
     }
 
