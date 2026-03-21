@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarWidget } from "@/components/ui/calendar";
 import { Clock, ExternalLink, FileText, Pencil, Send, Calendar } from "lucide-react";
+import MetricsEntryPanel from "@/components/MetricsEntryPanel";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import ApprovalActions from "@/components/ApprovalActions";
