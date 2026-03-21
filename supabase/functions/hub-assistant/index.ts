@@ -330,7 +330,7 @@ async function executeTool(
       console.error("capture_idea error:", error);
       return { error: "Failed to save idea. Please try again." };
     }
-    return { success: true, capture_id: data.id };
+    return { success: true, capture_id: data.id, destination: "brain" };
   }
 
   if (fnName === "query_tasks" && isSSRole) {
