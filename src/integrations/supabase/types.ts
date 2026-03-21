@@ -214,6 +214,45 @@ export type Database = {
           },
         ]
       }
+      automation_rules: {
+        Row: {
+          action_config_json: Json
+          action_type: string
+          conditions_json: Json
+          created_at: string
+          created_by_user_id: string
+          id: string
+          is_active: boolean
+          name: string
+          trigger_event: string
+          updated_at: string
+        }
+        Insert: {
+          action_config_json?: Json
+          action_type: string
+          conditions_json?: Json
+          created_at?: string
+          created_by_user_id: string
+          id?: string
+          is_active?: boolean
+          name: string
+          trigger_event: string
+          updated_at?: string
+        }
+        Update: {
+          action_config_json?: Json
+          action_type?: string
+          conditions_json?: Json
+          created_at?: string
+          created_by_user_id?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          trigger_event?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       brain_captures: {
         Row: {
           attachment_name: string | null
