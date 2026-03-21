@@ -517,6 +517,9 @@ export function GlobalCaptureButton() {
       return;
     }
 
+    // Show persistent loading toast
+    const toastId = toast.loading("Processing your conversation...");
+
     // Extract actions from transcript
     setExtracting(true);
     setProcessingStep("Analyzing your conversation...");
@@ -528,10 +531,13 @@ export function GlobalCaptureButton() {
       const elapsed = Math.round((Date.now() - extractionStart) / 1000);
       if (elapsed < 5) {
         setProcessingStep("Analyzing your conversation...");
+        toast.loading("Analyzing your conversation...", { id: toastId });
       } else if (elapsed < 10) {
         setProcessingStep(`Extracting actions... (${elapsed}s)`);
+        toast.loading(`Extracting actions... (${elapsed}s)`, { id: toastId });
       } else {
         setProcessingStep(`Almost done... (${elapsed}s)`);
+        toast.loading(`Almost done... (${elapsed}s)`, { id: toastId });
       }
     }, 1000);
 
@@ -539,7 +545,6 @@ export function GlobalCaptureButton() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated");
 
-      setProcessingStep("Extracting actions...");
       const resp = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/hub-assistant`,
         {
@@ -554,7 +559,7 @@ export function GlobalCaptureButton() {
 
       if (!resp.ok) {
         const errData = await resp.json().catch(() => ({}));
-        toast.error(errData.error || "Failed to process conversation");
+        toast.error(errData.error || "Failed to process conversation", { id: toastId });
         setAssistantView("chat");
         setExtracting(false);
         return;
@@ -564,6 +569,7 @@ export function GlobalCaptureButton() {
       const actions = data.actions || [];
 
       if (actions.length === 0) {
+        toast.dismiss(toastId);
         toast("No actions detected from conversation");
         setChatMessages(prev => [...prev, {
           role: "assistant",
@@ -571,11 +577,12 @@ export function GlobalCaptureButton() {
         }]);
         setAssistantView("chat");
       } else {
+        toast.success(`Found ${actions.length} action${actions.length > 1 ? "s" : ""} — review & confirm below`, { id: toastId });
         setProposedActions(actions);
       }
     } catch (err) {
       console.error("Extract actions error:", err);
-      toast.error("Failed to process conversation");
+      toast.error("Failed to process conversation", { id: toastId });
       setAssistantView("chat");
     } finally {
       clearInterval(stepTimer);
@@ -587,10 +594,17 @@ export function GlobalCaptureButton() {
   const executeActions = async () => {
     if (proposedActions.length === 0) return;
     setExecuting(true);
+    const toastId = toast.loading("Creating your items...");
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated");
+
+      const payload: any = { mode: "execute_actions", actions: proposedActions };
+      // Pass client_id override if SS user selected one on the confirmation card
+      if (confirmClientId) {
+        payload.client_id = confirmClientId;
+      }
 
       const resp = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/hub-assistant`,
@@ -600,13 +614,13 @@ export function GlobalCaptureButton() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ mode: "execute_actions", actions: proposedActions }),
+          body: JSON.stringify(payload),
         }
       );
 
       if (!resp.ok) {
         const errData = await resp.json().catch(() => ({}));
-        toast.error(errData.error || "Failed to execute actions");
+        toast.error(errData.error || "Failed to execute actions", { id: toastId });
         setExecuting(false);
         return;
       }
@@ -623,12 +637,15 @@ export function GlobalCaptureButton() {
           }
           return r.tool === "capture_idea" ? "Idea captured" : "Action completed";
         }).join(", ");
-        toast.success(`Created: ${details}`);
+        toast.success(`Created: ${details}`, { id: toastId });
         queryClient.invalidateQueries({ queryKey: ["requests"] });
         queryClient.invalidateQueries({ queryKey: ["brain-captures"] });
         queryClient.invalidateQueries({ queryKey: ["tasks"] });
       }
       if (failures.length > 0) {
+        if (successes.length === 0) {
+          toast.error(failures[0].error || "Action failed", { id: toastId });
+        }
         failures.forEach((f: any) => {
           toast.error(f.error || "Action failed");
         });
@@ -637,7 +654,7 @@ export function GlobalCaptureButton() {
       handleOpen(false);
     } catch (err) {
       console.error("Execute actions error:", err);
-      toast.error("Failed to execute actions");
+      toast.error("Failed to execute actions", { id: toastId });
     } finally {
       setExecuting(false);
     }
