@@ -667,6 +667,7 @@ export function GlobalCaptureButton() {
   const endVoiceCall = useCallback(async () => {
     console.log("[HubAssistant] endVoiceCall called — transcript length:", voiceTranscriptRef.current.length);
     voiceRunStateRef.current = "ending";
+    toast.loading("Call ended. Processing...", { id: "voice-processing", duration: Infinity });
     if (idleTimerRef.current) {
       clearInterval(idleTimerRef.current);
       idleTimerRef.current = null;
@@ -674,9 +675,9 @@ export function GlobalCaptureButton() {
     try {
       await conversation.endSession();
     } catch {}
-    // Fallback: if onDisconnect doesn't fire within 2s, force finalize
+    // Fallback: if onDisconnect doesn't fire within 2s, force finalize unconditionally
     setTimeout(() => {
-      if (!voiceRunFinalizedRef.current && voiceTranscriptRef.current.length > 0) {
+      if (!voiceRunFinalizedRef.current) {
         console.log("[HubAssistant] Fallback finalize after endVoiceCall");
         finalizeVoiceRun();
       }
