@@ -410,7 +410,14 @@ export function GlobalCaptureButton() {
   // ─── Voice Call (ElevenLabs) ───
   const startVoiceCall = useCallback(async () => {
     setVoiceConnecting(true);
+    setConnectingElapsed(0);
     voiceTranscriptRef.current = [];
+
+    // Start connecting elapsed timer
+    const connTimer = setInterval(() => {
+      setConnectingElapsed(prev => prev + 1);
+    }, 1000);
+    connectingTimerRef.current = connTimer;
 
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -481,6 +488,11 @@ export function GlobalCaptureButton() {
       }
     } finally {
       setVoiceConnecting(false);
+      if (connectingTimerRef.current) {
+        clearInterval(connectingTimerRef.current);
+        connectingTimerRef.current = null;
+      }
+      setConnectingElapsed(0);
     }
   }, [conversation, location.pathname]);
 
