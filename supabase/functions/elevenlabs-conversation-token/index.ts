@@ -68,19 +68,23 @@ ENDING THE CALL:
   return base + roleContext + routeSection;
 }
 
-function buildFirstMessage(isSSRole: boolean, routeHint: string, pageLabel: string): string {
+function buildFirstMessage(isSSRole: boolean, routeHint: string, pageLabel: string, userName?: string | null): string {
+  const firstName = userName ? userName.split(" ")[0] : null;
+  const hi = firstName ? `Hey ${firstName}!` : "Hey!";
+  const hiClient = firstName ? `Hi ${firstName}!` : "Hi!";
+
   if (isSSRole) {
-    if (pageLabel === "Requests") return "Hey! Need to create a new request or check on existing ones?";
-    if (pageLabel === "Tasks") return "Hey! Want to create a task or look up what's on the board?";
-    if (pageLabel === "Projects") return "Hey! Need help with a project?";
-    if (pageLabel === "Workflow") return "Hey! Need help with the content pipeline?";
-    if (pageLabel === "Approvals") return "Hey! Questions about approvals or reviews?";
-    return "Hey! I'm your Hub Assistant. What can I help you with today?";
+    if (pageLabel === "Requests") return `${hi} Need to create a new request or check on existing ones?`;
+    if (pageLabel === "Tasks") return `${hi} Want to create a task or look up what's on the board?`;
+    if (pageLabel === "Projects") return `${hi} Need help with a project?`;
+    if (pageLabel === "Workflow") return `${hi} Need help with the content pipeline?`;
+    if (pageLabel === "Approvals") return `${hi} Questions about approvals or reviews?`;
+    return `${hi} I'm your Hub Assistant. What can I help you with today?`;
   } else {
-    if (pageLabel === "Success Center") return "Hi! Want to submit a content idea or have a question about your plan?";
-    if (pageLabel === "Brand Twin") return "Hi! Need help updating your brand profile?";
-    if (pageLabel === "Requests") return "Hi! Want to submit a new content request?";
-    return "Hi! I'm your Hub Assistant. What can I help you with?";
+    if (pageLabel === "Success Center") return `${hiClient} Want to submit a content idea or have a question about your plan?`;
+    if (pageLabel === "Brand Twin") return `${hiClient} Need help updating your brand profile?`;
+    if (pageLabel === "Requests") return `${hiClient} Want to submit a new content request?`;
+    return `${hiClient} I'm your Hub Assistant. What can I help you with?`;
   }
 }
 
