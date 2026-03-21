@@ -390,7 +390,7 @@ export function GlobalCaptureButton() {
         return;
       }
 
-      // Get signed URL for ElevenLabs
+      // Combined call: get signed URL + prompt in one request
       const tokenResp = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-conversation-token`,
         {
@@ -399,7 +399,10 @@ export function GlobalCaptureButton() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({}),
+          body: JSON.stringify({
+            include_prompt: true,
+            current_route: location.pathname,
+          }),
         }
       );
 
@@ -407,27 +410,8 @@ export function GlobalCaptureButton() {
         throw new Error("Failed to get voice token");
       }
 
-      const { signed_url } = await tokenResp.json();
+      const { signed_url, prompt: voicePrompt, first_message } = await tokenResp.json();
       if (!signed_url) throw new Error("No signed URL received");
-
-      // Get dynamic voice prompt from hub-assistant
-      const promptResp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/hub-assistant`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ mode: "get_voice_prompt" }),
-        }
-      );
-
-      let voicePrompt = "You are the Hub Assistant. Have a natural conversation to understand what the user needs.";
-      if (promptResp.ok) {
-        const promptData = await promptResp.json();
-        voicePrompt = promptData.prompt || voicePrompt;
-      }
 
       setAssistantView("voice-call");
 
@@ -436,9 +420,9 @@ export function GlobalCaptureButton() {
         overrides: {
           agent: {
             prompt: {
-              prompt: voicePrompt,
+              prompt: voicePrompt || "You are the Hub Assistant. Have a natural conversation to understand what the user needs.",
             },
-            firstMessage: "Hey! I'm your Hub Assistant. What can I help you with today?",
+            firstMessage: first_message || "Hey! I'm your Hub Assistant. What can I help you with today?",
           },
         },
       });
@@ -449,7 +433,7 @@ export function GlobalCaptureButton() {
     } finally {
       setVoiceConnecting(false);
     }
-  }, [conversation]);
+  }, [conversation, location.pathname]);
 
   const endVoiceCall = useCallback(async () => {
     try {
