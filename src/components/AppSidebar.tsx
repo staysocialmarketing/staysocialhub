@@ -76,6 +76,7 @@ const adminSection = [
   { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
   { title: "Users", url: "/admin/users", icon: Users },
   { title: "Team", url: "/admin/team", icon: Users },
+  { title: "Automations", url: "/admin/automations", icon: Zap },
   { title: "Versions", url: "/admin/versions", icon: Tag },
 ];
 
