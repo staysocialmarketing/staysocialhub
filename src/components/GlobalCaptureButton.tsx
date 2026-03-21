@@ -338,6 +338,7 @@ export function GlobalCaptureButton() {
           },
           body: JSON.stringify({
             messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+            current_route: location.pathname,
           }),
         }
       );
