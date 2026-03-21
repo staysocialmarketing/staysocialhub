@@ -572,6 +572,9 @@ export default function SuccessCenter() {
           View Updates <ArrowRight className="h-3 w-3" />
         </Button>
       </div>
+
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
