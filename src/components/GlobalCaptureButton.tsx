@@ -323,10 +323,11 @@ export function GlobalCaptureButton() {
       // If voice run is active, end the session but let background processing continue
       if (conversation.status === "connected") {
         voiceRunStateRef.current = "ending";
+        toast.loading("Call ended. Processing...", { id: "voice-processing", duration: Infinity });
         try { await conversation.endSession(); } catch {}
-        // Fallback finalize
+        // Fallback finalize unconditionally
         setTimeout(() => {
-          if (!voiceRunFinalizedRef.current && voiceTranscriptRef.current.length > 0) {
+          if (!voiceRunFinalizedRef.current) {
             finalizeVoiceRun();
           }
         }, 2000);
