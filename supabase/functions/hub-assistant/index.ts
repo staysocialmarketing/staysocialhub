@@ -474,7 +474,7 @@ If no actionable items are found, do not call any tools.`;
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: "google/gemini-2.5-flash-lite",
           messages: [
             { role: "system", content: extractionPrompt },
             { role: "user", content: `Here is the voice conversation transcript:\n\n${transcript}` },
