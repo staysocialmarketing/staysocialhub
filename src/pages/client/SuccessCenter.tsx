@@ -265,6 +265,21 @@ export default function SuccessCenter() {
         </div>
       </div>
 
+      {/* Tab navigation */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="w-full grid grid-cols-2">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="results" className="gap-1.5">
+            <BarChart3 className="h-3.5 w-3.5" /> Results
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="results" className="mt-4">
+          {clientId ? <ClientResults clientId={clientId} /> : <p className="text-sm text-muted-foreground">No client linked.</p>}
+        </TabsContent>
+
+        <TabsContent value="overview" className="mt-4 space-y-6">
+
       {/* ONBOARDING PROGRESS */}
       {clientId && (
         <div className="card-elevated p-5">
