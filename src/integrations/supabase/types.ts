@@ -816,6 +816,39 @@ export type Database = {
           },
         ]
       }
+      google_integrations: {
+        Row: {
+          access_token: string
+          created_at: string
+          id: string
+          refresh_token: string
+          scopes: string
+          token_expires_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          id?: string
+          refresh_token: string
+          scopes?: string
+          token_expires_at: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          id?: string
+          refresh_token?: string
+          scopes?: string
+          token_expires_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       marketplace_items: {
         Row: {
           billing_type: string | null
@@ -857,6 +890,56 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      meeting_notes: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          extracted_data: Json | null
+          extraction_status: string
+          google_doc_id: string
+          id: string
+          meeting_date: string | null
+          raw_content: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          extracted_data?: Json | null
+          extraction_status?: string
+          google_doc_id: string
+          id?: string
+          meeting_date?: string | null
+          raw_content?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          extracted_data?: Json | null
+          extraction_status?: string
+          google_doc_id?: string
+          id?: string
+          meeting_date?: string | null
+          raw_content?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_notes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notification_preferences: {
         Row: {
