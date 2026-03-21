@@ -301,7 +301,7 @@ async function executeTool(
       const { data: c } = await serviceClient.from("clients").select("name").eq("id", targetClientId).single();
       resolvedClientName = c?.name || null;
     }
-    return { success: true, request_id: data.id, topic: data.topic, type: data.type, client_name: resolvedClientName, assigned_to: args.assigned_to_name || null };
+    return { success: true, request_id: data.id, topic: data.topic, type: data.type, client_name: resolvedClientName, assigned_to: args.assigned_to_name || null, destination: "requests" };
   }
 
   if (fnName === "capture_idea") {
