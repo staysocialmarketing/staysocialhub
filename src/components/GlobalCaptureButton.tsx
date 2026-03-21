@@ -496,6 +496,7 @@ export function GlobalCaptureButton() {
 
     // Extract actions from transcript
     setExtracting(true);
+    setProcessingStep("Analyzing your conversation...");
     setAssistantView("confirm");
 
     try {
