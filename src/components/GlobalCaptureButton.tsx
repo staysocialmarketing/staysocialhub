@@ -2,9 +2,11 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { useConversation } from "@elevenlabs/react";
 import {
   Plus, PenLine, Mic, Link2, Paperclip, ListTodo, MessageSquarePlus,
-  Send, Square, X, ArrowLeft, Loader2, Sparkles
+  Send, Square, X, ArrowLeft, Loader2, Sparkles, Phone, PhoneOff,
+  Check, Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +28,12 @@ type CaptureMode = null | "note" | "voice" | "link" | "file" | "task" | "request
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
+type ProposedAction = {
+  tool: string;
+  args: Record<string, any>;
+  summary: string;
+};
+
 const ACTION_CONFIG = {
   note: { label: "Pin a Thought", icon: PenLine, bg: "bg-primary/10", text: "text-primary", desc: "Jot down an idea" },
   voice: { label: "Record Voice", icon: Mic, bg: "bg-destructive/10", text: "text-destructive", desc: "Speak your mind" },
@@ -35,6 +43,9 @@ const ACTION_CONFIG = {
   request: { label: "Make Request", icon: MessageSquarePlus, bg: "bg-purple-500/10", text: "text-purple-500", desc: "New client request" },
   assistant: { label: "Hub Assistant", icon: Sparkles, bg: "bg-gradient-to-br from-primary/10 to-primary/5", text: "text-primary", desc: "Ask me anything" },
 } as const;
+
+// Sub-mode within assistant
+type AssistantView = "chat" | "voice-call" | "confirm";
 
 export function GlobalCaptureButton() {
   const { isSSRole, isClientAdmin, isClientAssistant, profile } = useAuth();
@@ -80,13 +91,41 @@ export function GlobalCaptureButton() {
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Assistant voice input state
-  const [voiceRecordingAssistant, setVoiceRecordingAssistant] = useState(false);
-  const [voiceTranscribingAssistant, setVoiceTranscribingAssistant] = useState(false);
-  const assistantMediaRef = useRef<MediaRecorder | null>(null);
-  const assistantChunksRef = useRef<Blob[]>([]);
+  // Assistant sub-mode (text chat, voice call, confirmation)
+  const [assistantView, setAssistantView] = useState<AssistantView>("chat");
+
+  // Voice call state
+  const [voiceConnecting, setVoiceConnecting] = useState(false);
+  const voiceTranscriptRef = useRef<string[]>([]);
+
+  // Confirmation card state
+  const [proposedActions, setProposedActions] = useState<ProposedAction[]>([]);
+  const [extracting, setExtracting] = useState(false);
+  const [executing, setExecuting] = useState(false);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // ElevenLabs conversation hook
+  const conversation = useConversation({
+    onMessage: (message: any) => {
+      if (message.type === "user_transcript" && message.user_transcription_event?.user_transcript) {
+        voiceTranscriptRef.current.push(`User: ${message.user_transcription_event.user_transcript}`);
+      }
+      if (message.type === "agent_response" && message.agent_response_event?.agent_response) {
+        voiceTranscriptRef.current.push(`Assistant: ${message.agent_response_event.agent_response}`);
+      }
+    },
+    onError: (error: any) => {
+      console.error("Voice agent error:", error);
+      toast.error("Voice connection error");
+    },
+    onDisconnect: () => {
+      // When call ends naturally or disconnects, process transcript
+      if (voiceTranscriptRef.current.length > 0 && assistantView === "voice-call") {
+        handleVoiceCallEnd();
+      }
+    },
+  });
 
   // Auto-scroll chat
   useEffect(() => {
@@ -97,10 +136,10 @@ export function GlobalCaptureButton() {
 
   // Focus chat input when entering assistant mode
   useEffect(() => {
-    if (mode === "assistant" && chatInputRef.current) {
+    if (mode === "assistant" && assistantView === "chat" && chatInputRef.current) {
       setTimeout(() => chatInputRef.current?.focus(), 300);
     }
-  }, [mode]);
+  }, [mode, assistantView]);
 
   const resetAll = () => {
     setMode(null);
@@ -110,7 +149,9 @@ export function GlobalCaptureButton() {
     setRecording(false); setTranscribing(false);
     setSaving(false);
     setChatMessages([]); setChatInput(""); setChatLoading(false);
-    setVoiceRecordingAssistant(false); setVoiceTranscribingAssistant(false);
+    setAssistantView("chat");
+    setProposedActions([]); setExtracting(false); setExecuting(false);
+    voiceTranscriptRef.current = [];
   };
 
   const handleOpen = async (isOpen: boolean) => {
@@ -125,6 +166,10 @@ export function GlobalCaptureButton() {
       setSsUsers(usersRes.data?.map(u => ({ id: u.id, name: u.name || "Unnamed" })) || []);
       setProjects(projectsRes.data?.map(p => ({ id: p.id, name: p.name })) || []);
     } else if (!isOpen) {
+      // End voice call if active
+      if (conversation.status === "connected") {
+        try { await conversation.endSession(); } catch {}
+      }
       resetAll();
     }
   };
@@ -327,53 +372,204 @@ export function GlobalCaptureButton() {
     }
   };
 
-  // ─── Assistant Voice Input ───
-  const startAssistantVoice = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream, { mimeType: "audio/webm" });
-      assistantChunksRef.current = [];
-      mr.ondataavailable = (e) => { if (e.data.size > 0) assistantChunksRef.current.push(e.data); };
-      mr.onstop = async () => {
-        stream.getTracks().forEach(t => t.stop());
-        const blob = new Blob(assistantChunksRef.current, { type: "audio/webm" });
-        setVoiceTranscribingAssistant(true);
-        try {
-          // Upload to storage temporarily
-          const path = `assistant-voice/${Date.now()}-voice.webm`;
-          const { error: uploadErr } = await supabase.storage.from("voice-notes").upload(path, blob);
-          if (uploadErr) throw uploadErr;
-          const { data: urlData } = supabase.storage.from("voice-notes").getPublicUrl(path);
-          // Use a signed URL for private bucket
-          const { data: signedData } = await supabase.storage.from("voice-notes").createSignedUrl(path, 300);
-          const audioUrl = signedData?.signedUrl || urlData.publicUrl;
+  // ─── Voice Call (ElevenLabs) ───
+  const startVoiceCall = useCallback(async () => {
+    setVoiceConnecting(true);
+    voiceTranscriptRef.current = [];
 
-          const { data, error: fnError } = await supabase.functions.invoke("transcribe-capture", { body: { audioUrl } });
-          if (fnError) throw fnError;
-          const transcript = data?.transcript || "";
-          if (transcript.trim()) {
-            setChatInput(transcript.trim());
-          } else {
-            toast.error("Couldn't transcribe audio");
-          }
-        } catch (err) {
-          console.error("Voice transcription failed:", err);
-          toast.error("Voice transcription failed");
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Please sign in");
+        setVoiceConnecting(false);
+        return;
+      }
+
+      // Get signed URL for ElevenLabs
+      const tokenResp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-conversation-token`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({}),
         }
-        setVoiceTranscribingAssistant(false);
-      };
-      assistantMediaRef.current = mr;
-      mr.start();
-      setVoiceRecordingAssistant(true);
-    } catch {
-      toast.error("Microphone access denied");
+      );
+
+      if (!tokenResp.ok) {
+        throw new Error("Failed to get voice token");
+      }
+
+      const { signed_url } = await tokenResp.json();
+      if (!signed_url) throw new Error("No signed URL received");
+
+      // Get dynamic voice prompt from hub-assistant
+      const promptResp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/hub-assistant`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ mode: "get_voice_prompt" }),
+        }
+      );
+
+      let voicePrompt = "You are the Hub Assistant. Have a natural conversation to understand what the user needs.";
+      if (promptResp.ok) {
+        const promptData = await promptResp.json();
+        voicePrompt = promptData.prompt || voicePrompt;
+      }
+
+      setAssistantView("voice-call");
+
+      await conversation.startSession({
+        signedUrl: signed_url,
+        overrides: {
+          agent: {
+            prompt: {
+              prompt: voicePrompt,
+            },
+            firstMessage: "Hey! I'm your Hub Assistant. What can I help you with today?",
+          },
+        },
+      });
+    } catch (err) {
+      console.error("Voice call failed:", err);
+      toast.error("Failed to start voice call. Please check microphone access.");
+      setAssistantView("chat");
+    } finally {
+      setVoiceConnecting(false);
+    }
+  }, [conversation]);
+
+  const endVoiceCall = useCallback(async () => {
+    try {
+      await conversation.endSession();
+    } catch {}
+    // onDisconnect callback will trigger handleVoiceCallEnd
+  }, [conversation]);
+
+  const handleVoiceCallEnd = useCallback(async () => {
+    const transcript = voiceTranscriptRef.current.join("\n");
+    voiceTranscriptRef.current = [];
+
+    if (!transcript.trim()) {
+      toast("No conversation detected");
+      setAssistantView("chat");
+      return;
+    }
+
+    // Extract actions from transcript
+    setExtracting(true);
+    setAssistantView("confirm");
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/hub-assistant`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ mode: "extract_actions", transcript }),
+        }
+      );
+
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        toast.error(errData.error || "Failed to process conversation");
+        setAssistantView("chat");
+        setExtracting(false);
+        return;
+      }
+
+      const data = await resp.json();
+      const actions = data.actions || [];
+
+      if (actions.length === 0) {
+        toast("No actions detected from conversation");
+        setChatMessages(prev => [...prev, {
+          role: "assistant",
+          content: "I didn't catch any specific actions from our conversation. You can tell me what you need via text!"
+        }]);
+        setAssistantView("chat");
+      } else {
+        setProposedActions(actions);
+      }
+    } catch (err) {
+      console.error("Extract actions error:", err);
+      toast.error("Failed to process conversation");
+      setAssistantView("chat");
+    } finally {
+      setExtracting(false);
     }
   }, []);
 
-  const stopAssistantVoice = useCallback(() => {
-    assistantMediaRef.current?.stop();
-    setVoiceRecordingAssistant(false);
-  }, []);
+  // ─── Execute confirmed actions ───
+  const executeActions = async () => {
+    if (proposedActions.length === 0) return;
+    setExecuting(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/hub-assistant`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ mode: "execute_actions", actions: proposedActions }),
+        }
+      );
+
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        toast.error(errData.error || "Failed to execute actions");
+        setExecuting(false);
+        return;
+      }
+
+      const data = await resp.json();
+      const results = data.results || [];
+      const successCount = results.filter((r: any) => r.success).length;
+      const failCount = results.filter((r: any) => r.error).length;
+
+      if (successCount > 0) {
+        toast.success(`${successCount} action${successCount > 1 ? "s" : ""} completed!`);
+        queryClient.invalidateQueries({ queryKey: ["requests"] });
+        queryClient.invalidateQueries({ queryKey: ["brain-captures"] });
+        queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      }
+      if (failCount > 0) {
+        toast.error(`${failCount} action${failCount > 1 ? "s" : ""} failed`);
+      }
+
+      handleOpen(false);
+    } catch (err) {
+      console.error("Execute actions error:", err);
+      toast.error("Failed to execute actions");
+    } finally {
+      setExecuting(false);
+    }
+  };
+
+  const removeAction = (index: number) => {
+    setProposedActions(prev => prev.filter((_, i) => i !== index));
+  };
 
   if (!isSSRole && !isClient) return null;
 
@@ -386,8 +582,15 @@ export function GlobalCaptureButton() {
   const hasClient = !!getClientId();
 
   const welcomeMessage = isSSRole
-    ? "Hey! I can help you **create requests** or **capture ideas** for any client. What do you need?"
+    ? "Hey! I can help you **create requests**, **capture ideas**, or **look up tasks & projects**. What do you need?"
     : "Hey! I can help you **submit content requests** or **save ideas**. What's on your mind?";
+
+  // Tool icon mapping for confirmation cards
+  const toolIcon = (tool: string) => {
+    if (tool === "create_request") return <MessageSquarePlus className="h-4 w-4" />;
+    if (tool === "capture_idea") return <PenLine className="h-4 w-4" />;
+    return <Sparkles className="h-4 w-4" />;
+  };
 
   // ─── Content ───
   const captureContent = (
@@ -609,66 +812,48 @@ export function GlobalCaptureButton() {
       {/* Assistant mode */}
       {mode === "assistant" && (
         <div className="flex flex-col -mx-4 -mb-4" style={{ height: "60vh", maxHeight: "60vh" }}>
-          <div ref={chatScrollRef} className="flex-1 overflow-y-auto px-4 py-2 space-y-3">
-            {chatMessages.length === 0 && (
-              <div className="bg-muted/50 rounded-xl p-3 text-sm">
-                <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0">
-                  <ReactMarkdown>{welcomeMessage}</ReactMarkdown>
-                </div>
-              </div>
-            )}
 
-            {chatMessages.map((msg, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "rounded-xl p-3 text-sm max-w-[85%]",
-                  msg.role === "user"
-                    ? "ml-auto bg-primary text-primary-foreground"
-                    : "bg-muted/50"
-                )}
-              >
-                {msg.role === "assistant" ? (
-                  <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0 [&>ul]:m-0 [&>ol]:m-0">
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+          {/* ── Text Chat View ── */}
+          {assistantView === "chat" && (
+            <>
+              <div ref={chatScrollRef} className="flex-1 overflow-y-auto px-4 py-2 space-y-3">
+                {chatMessages.length === 0 && (
+                  <div className="bg-muted/50 rounded-xl p-3 text-sm">
+                    <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0">
+                      <ReactMarkdown>{welcomeMessage}</ReactMarkdown>
+                    </div>
                   </div>
-                ) : (
-                  <p className="m-0 whitespace-pre-wrap">{msg.content}</p>
+                )}
+
+                {chatMessages.map((msg, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "rounded-xl p-3 text-sm max-w-[85%]",
+                      msg.role === "user"
+                        ? "ml-auto bg-primary text-primary-foreground"
+                        : "bg-muted/50"
+                    )}
+                  >
+                    {msg.role === "assistant" ? (
+                      <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0 [&>ul]:m-0 [&>ol]:m-0">
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      </div>
+                    ) : (
+                      <p className="m-0 whitespace-pre-wrap">{msg.content}</p>
+                    )}
+                  </div>
+                ))}
+
+                {chatLoading && (
+                  <div className="flex items-center gap-2 text-muted-foreground text-sm p-3">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Thinking...
+                  </div>
                 )}
               </div>
-            ))}
 
-            {chatLoading && (
-              <div className="flex items-center gap-2 text-muted-foreground text-sm p-3">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Thinking...
-              </div>
-            )}
-          </div>
-
-          <div className="border-t p-3 flex gap-2 items-end">
-            {voiceRecordingAssistant ? (
-              <div className="flex-1 flex items-center justify-center gap-3 py-1">
-                <div className="flex items-center gap-2 text-destructive text-sm font-medium">
-                  <div className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
-                  Recording...
-                </div>
-                <Button
-                  size="icon"
-                  variant="destructive"
-                  onClick={stopAssistantVoice}
-                  className="rounded-xl shrink-0 h-10 w-10"
-                >
-                  <Square className="h-4 w-4" />
-                </Button>
-              </div>
-            ) : voiceTranscribingAssistant ? (
-              <div className="flex-1 flex items-center justify-center gap-2 text-muted-foreground text-sm py-1">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Transcribing...
-              </div>
-            ) : (
-              <>
+              <div className="border-t p-3 flex gap-2 items-end">
                 <Textarea
                   ref={chatInputRef}
                   value={chatInput}
@@ -682,12 +867,12 @@ export function GlobalCaptureButton() {
                 <Button
                   size="icon"
                   variant="outline"
-                  onClick={startAssistantVoice}
-                  disabled={chatLoading}
+                  onClick={startVoiceCall}
+                  disabled={chatLoading || voiceConnecting}
                   className="rounded-xl shrink-0 h-10 w-10"
-                  title="Voice input"
+                  title="Start voice call"
                 >
-                  <Mic className="h-4 w-4" />
+                  {voiceConnecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Phone className="h-4 w-4" />}
                 </Button>
                 <Button
                   size="icon"
@@ -697,9 +882,125 @@ export function GlobalCaptureButton() {
                 >
                   <Send className="h-4 w-4" />
                 </Button>
-              </>
-            )}
-          </div>
+              </div>
+            </>
+          )}
+
+          {/* ── Voice Call View ── */}
+          {assistantView === "voice-call" && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-6 px-4">
+              {/* Orb visualization */}
+              <div className="relative">
+                <div className={cn(
+                  "h-32 w-32 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center transition-all",
+                  conversation.isSpeaking && "scale-110 shadow-[0_0_60px_hsl(var(--primary)/0.4)]",
+                  !conversation.isSpeaking && conversation.status === "connected" && "animate-pulse"
+                )}>
+                  <Sparkles className="h-12 w-12 text-primary-foreground" />
+                </div>
+                {conversation.status === "connected" && (
+                  <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-green-500 border-2 border-background" />
+                )}
+              </div>
+
+              <div className="text-center space-y-1">
+                <p className="text-sm font-medium text-foreground">
+                  {conversation.isSpeaking ? "Assistant is speaking..." : conversation.status === "connected" ? "Listening..." : "Connecting..."}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Speak naturally — I'll summarize your requests when you're done
+                </p>
+              </div>
+
+              <Button
+                onClick={endVoiceCall}
+                variant="destructive"
+                size="lg"
+                className="rounded-full px-8 gap-2"
+                disabled={conversation.status !== "connected"}
+              >
+                <PhoneOff className="h-5 w-5" />
+                End Call
+              </Button>
+            </div>
+          )}
+
+          {/* ── Confirmation View ── */}
+          {assistantView === "confirm" && (
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+              {extracting ? (
+                <div className="flex flex-col items-center justify-center gap-3 py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="text-sm text-muted-foreground">Processing your conversation...</p>
+                </div>
+              ) : proposedActions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-3 py-12">
+                  <p className="text-sm text-muted-foreground">No actions found</p>
+                  <Button variant="outline" onClick={() => setAssistantView("chat")} className="rounded-xl">
+                    Back to Chat
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <div className="text-center pb-2">
+                    <p className="text-sm font-medium text-foreground">Review & Confirm</p>
+                    <p className="text-xs text-muted-foreground">These actions will be created when you confirm</p>
+                  </div>
+
+                  {proposedActions.map((action, i) => (
+                    <div key={i} className="border rounded-xl p-3 space-y-2 bg-card">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary shrink-0">
+                            {toolIcon(action.tool)}
+                          </div>
+                          <span>{action.summary}</span>
+                        </div>
+                        <button
+                          onClick={() => removeAction(i)}
+                          className="text-muted-foreground hover:text-destructive shrink-0 p-1"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                      {action.args.notes && (
+                        <p className="text-xs text-muted-foreground pl-9">{action.args.notes}</p>
+                      )}
+                      {action.args.priority && action.args.priority !== "normal" && (
+                        <span className="text-xs bg-muted px-2 py-0.5 rounded-full ml-9">{action.args.priority}</span>
+                      )}
+                    </div>
+                  ))}
+
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setProposedActions([]);
+                        setAssistantView("chat");
+                      }}
+                      className="flex-1 rounded-xl"
+                      disabled={executing}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={executeActions}
+                      disabled={executing || proposedActions.length === 0}
+                      className="flex-1 rounded-xl gap-2"
+                    >
+                      {executing ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Check className="h-4 w-4" />
+                      )}
+                      Confirm All ({proposedActions.length})
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -710,12 +1011,27 @@ export function GlobalCaptureButton() {
   const headerContent = (
     <div className="flex items-center gap-2">
       {mode && (
-        <button onClick={() => setMode(null)} className="text-muted-foreground hover:text-foreground">
+        <button
+          onClick={() => {
+            if (mode === "assistant" && assistantView !== "chat") {
+              if (assistantView === "voice-call") {
+                endVoiceCall();
+              }
+              setAssistantView("chat");
+            } else {
+              setMode(null);
+            }
+          }}
+          className="text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="h-4 w-4" />
         </button>
       )}
       {mode === null ? "Quick Capture" : mode === "assistant" ? (
-        <span className="flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-primary" /> Hub Assistant</span>
+        <span className="flex items-center gap-1.5">
+          <Sparkles className="h-4 w-4 text-primary" />
+          {assistantView === "voice-call" ? "Voice Call" : assistantView === "confirm" ? "Review Actions" : "Hub Assistant"}
+        </span>
       ) : ACTION_CONFIG[mode]?.label || "Capture"}
     </div>
   );
