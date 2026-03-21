@@ -608,10 +608,11 @@ export function GlobalCaptureButton() {
             idleTimerRef.current = null;
           }
           voiceRunStateRef.current = "ending";
+          toast.loading("Call ended. Processing...", { id: "voice-processing", duration: Infinity });
           conversation.endSession().catch(() => {});
           // Fallback: if onDisconnect doesn't fire within 2s, finalize anyway
           setTimeout(() => {
-            if (!voiceRunFinalizedRef.current && voiceTranscriptRef.current.length > 0) {
+            if (!voiceRunFinalizedRef.current) {
               console.log("[HubAssistant] Fallback finalize after idle timeout");
               finalizeVoiceRun();
             }
