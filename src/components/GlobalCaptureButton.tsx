@@ -80,6 +80,12 @@ export function GlobalCaptureButton() {
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
 
+  // Assistant voice input state
+  const [voiceRecordingAssistant, setVoiceRecordingAssistant] = useState(false);
+  const [voiceTranscribingAssistant, setVoiceTranscribingAssistant] = useState(false);
+  const assistantMediaRef = useRef<MediaRecorder | null>(null);
+  const assistantChunksRef = useRef<Blob[]>([]);
+
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-scroll chat
