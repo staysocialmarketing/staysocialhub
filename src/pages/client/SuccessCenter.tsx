@@ -232,6 +232,17 @@ export default function SuccessCenter() {
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
+      {/* Onboarding Wizard */}
+      {showWizard && !wizardDismissed && clientId && (
+        <ClientOnboardingWizard
+          open={true}
+          onClose={() => setWizardDismissed(true)}
+          clientId={clientId}
+          clientName={clientData?.name || profile?.name || "there"}
+          userId={profile!.id}
+        />
+      )}
+
       {/* 1. HERO — warm, borderless */}
       <div className="rounded-2xl bg-gradient-to-br from-primary/8 via-background to-accent/5 p-6 md:p-8">
         <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight mb-1">
