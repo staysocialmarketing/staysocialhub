@@ -83,7 +83,21 @@ const ssOnlyTools = [
   },
 ];
 
-function buildSystemPrompt(isSSRole: boolean, clientName: string | null): string {
+function getRouteContext(route: string): string {
+  if (!route) return "";
+  if (route.startsWith("/requests")) return "\nThe user is currently viewing content requests. You can help create new ones or discuss existing ones.";
+  if (route.startsWith("/approvals")) return "\nThe user is viewing the approvals board. Help with content review questions.";
+  if (route.startsWith("/workflow")) return "\nThe user is on the workflow board. Help with content pipeline questions.";
+  if (route.startsWith("/team/tasks")) return "\nThe user is viewing tasks. Help query or create tasks.";
+  if (route.startsWith("/team/projects")) return "\nThe user is viewing projects.";
+  if (route.startsWith("/team/think-tank")) return "\nThe user is viewing the Think Tank — a brainstorming space.";
+  if (route.startsWith("/dashboard")) return "\nThe user is on the dashboard.";
+  if (route.startsWith("/client/success")) return "\nThe user is on their Success Center.";
+  if (route.startsWith("/client/brand-twin")) return "\nThe user is on the Brand Twin page.";
+  return "";
+}
+
+function buildSystemPrompt(isSSRole: boolean, clientName: string | null, currentRoute?: string): string {
   const base = `You are Hub Assistant, a helpful AI assistant for the Stay Social HUB — a social media marketing management platform.
 
 Guidelines:
@@ -93,13 +107,16 @@ Guidelines:
 - After creating something, confirm it was created successfully
 - Keep responses short — 1-3 sentences max unless explaining options`;
 
+  const routeHint = getRouteContext(currentRoute || "");
+
   if (isSSRole) {
     return base + `\n\nYou are assisting an internal Stay Social team member. You can help them:
 1. **Create content requests** — social posts, email campaigns, designs, videos, automation tasks, strategy work, or general requests
 2. **Capture ideas** — quick notes, links, or thoughts to save to a client's brain
 3. **Query tasks** — search and list tasks by client, status, or assignee
 4. **Query projects** — search and list projects by client or status` +
-      (clientName ? `\nThey are currently working with client: "${clientName}". Use this client for all actions unless they specify otherwise.` : `\nNo client is currently selected. Ask which client they want to work with before creating requests or captures.`);
+      (clientName ? `\nThey are currently working with client: "${clientName}". Use this client for all actions unless they specify otherwise.` : `\nNo client is currently selected. Ask which client they want to work with before creating requests or captures.`) +
+      routeHint;
   } else {
     return base + `\n\nYou are assisting a client user. You can help them:
 1. **Create content requests** — social posts, email campaigns, designs, videos, or general requests
@@ -107,7 +124,8 @@ Guidelines:
 
 You do NOT have access to internal tasks, projects, team data, or any information beyond this client's own account.` +
       (clientName ? `\nTheir business is "${clientName}".` : "") +
-      `\nAll actions are scoped to their own account. They cannot specify a different client.`;
+      `\nAll actions are scoped to their own account. They cannot specify a different client.` +
+      routeHint;
   }
 }
 

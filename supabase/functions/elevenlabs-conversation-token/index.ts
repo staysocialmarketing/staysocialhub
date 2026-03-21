@@ -6,6 +6,66 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Route-to-context mapping for page-aware prompts
+function getRouteContext(route: string): { hint: string; pageLabel: string } {
+  if (route.startsWith("/requests")) return { hint: "The user is viewing content requests. You can help create new ones or discuss existing ones.", pageLabel: "Requests" };
+  if (route.startsWith("/approvals")) return { hint: "The user is viewing the approvals board. Help with content review questions.", pageLabel: "Approvals" };
+  if (route.startsWith("/workflow")) return { hint: "The user is on the workflow board. Help with content pipeline questions.", pageLabel: "Workflow" };
+  if (route.startsWith("/team/tasks")) return { hint: "The user is viewing tasks. Help query or create tasks.", pageLabel: "Tasks" };
+  if (route.startsWith("/team/projects")) return { hint: "The user is viewing projects.", pageLabel: "Projects" };
+  if (route.startsWith("/team/think-tank")) return { hint: "The user is viewing the Think Tank — a brainstorming space.", pageLabel: "Think Tank" };
+  if (route.startsWith("/dashboard")) return { hint: "The user is on the dashboard.", pageLabel: "Dashboard" };
+  if (route.startsWith("/client/success")) return { hint: "The user is on their Success Center.", pageLabel: "Success Center" };
+  if (route.startsWith("/client/brand-twin")) return { hint: "The user is on the Brand Twin page, managing their brand profile.", pageLabel: "Brand Twin" };
+  if (route.startsWith("/client/content-generator")) return { hint: "The user is on the Content Generator page.", pageLabel: "Content Generator" };
+  return { hint: "", pageLabel: "" };
+}
+
+function buildVoiceSystemPrompt(isSSRole: boolean, clientName: string | null, routeHint: string): string {
+  const base = `You are the Hub Assistant for Stay Social HUB. You are having a natural voice conversation with the user. Your job is to understand what they need and gather all relevant details.
+
+IMPORTANT RULES:
+- Do NOT execute any actions — just collect information through natural conversation
+- Ask clarifying questions if details are missing (type of request, priority, specific details)
+- When you have enough information, summarize what you'll create and let them know it will be ready for their review after the call
+- Be warm, conversational, and concise — this is a voice call, not a text chat
+- Keep responses short (1-2 sentences) so the conversation flows naturally`;
+
+  let roleContext: string;
+  if (isSSRole) {
+    roleContext = `\n\nThe user is an internal Stay Social team member. They may want to:
+- Create content requests (social posts, email campaigns, designs, videos, etc.)
+- Capture ideas or notes for a client's brain
+- Discuss tasks or projects` +
+      (clientName ? `\nThey are currently working with client: "${clientName}".` : `\nAsk which client they're working with.`);
+  } else {
+    roleContext = `\n\nThe user is a client. They may want to:
+- Submit content requests
+- Share ideas or notes` +
+      (clientName ? `\nTheir business is "${clientName}".` : "");
+  }
+
+  const routeSection = routeHint ? `\n\nCurrent context: ${routeHint}` : "";
+
+  return base + roleContext + routeSection;
+}
+
+function buildFirstMessage(isSSRole: boolean, routeHint: string, pageLabel: string): string {
+  if (isSSRole) {
+    if (pageLabel === "Requests") return "Hey! Need to create a new request or check on existing ones?";
+    if (pageLabel === "Tasks") return "Hey! Want to create a task or look up what's on the board?";
+    if (pageLabel === "Projects") return "Hey! Need help with a project?";
+    if (pageLabel === "Workflow") return "Hey! Need help with the content pipeline?";
+    if (pageLabel === "Approvals") return "Hey! Questions about approvals or reviews?";
+    return "Hey! I'm your Hub Assistant. What can I help you with today?";
+  } else {
+    if (pageLabel === "Success Center") return "Hi! Want to submit a content idea or have a question about your plan?";
+    if (pageLabel === "Brand Twin") return "Hi! Need help updating your brand profile?";
+    if (pageLabel === "Requests") return "Hi! Want to submit a new content request?";
+    return "Hi! I'm your Hub Assistant. What can I help you with?";
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -21,11 +81,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
 
     const token = authHeader.replace("Bearer ", "");
     const { data, error } = await supabase.auth.getClaims(token);
@@ -36,6 +97,8 @@ Deno.serve(async (req) => {
       });
     }
 
+    const userId = data.claims.sub as string;
+
     // Get secrets
     const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY");
     if (!ELEVENLABS_API_KEY) {
@@ -45,6 +108,17 @@ Deno.serve(async (req) => {
     const ELEVENLABS_AGENT_ID = Deno.env.get("ELEVENLABS_AGENT_ID");
     if (!ELEVENLABS_AGENT_ID) {
       throw new Error("ELEVENLABS_AGENT_ID is not configured");
+    }
+
+    // Parse optional body
+    let includePrompt = false;
+    let currentRoute = "";
+    try {
+      const body = await req.json();
+      includePrompt = body.include_prompt === true;
+      currentRoute = typeof body.current_route === "string" ? body.current_route : "";
+    } catch {
+      // No body or invalid JSON — that's fine, just get signed URL
     }
 
     // Generate signed URL for WebSocket connection
@@ -65,6 +139,35 @@ Deno.serve(async (req) => {
     }
 
     const { signed_url } = await response.json();
+
+    // If prompt is requested, resolve user role and build it
+    if (includePrompt) {
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const serviceClient = createClient(supabaseUrl, serviceRoleKey);
+
+      const [profileRes, rolesRes] = await Promise.all([
+        serviceClient.from("users").select("client_id").eq("id", userId).single(),
+        serviceClient.from("user_roles").select("role").eq("user_id", userId),
+      ]);
+
+      const clientId = profileRes.data?.client_id;
+      const roles = (rolesRes.data || []).map((r: any) => r.role);
+      const isSSRole = roles.some((r: string) => ["ss_admin", "ss_producer", "ss_ops", "ss_team"].includes(r));
+
+      let clientName: string | null = null;
+      if (clientId) {
+        const { data: client } = await serviceClient.from("clients").select("name").eq("id", clientId).single();
+        clientName = client?.name || null;
+      }
+
+      const { hint, pageLabel } = getRouteContext(currentRoute);
+      const prompt = buildVoiceSystemPrompt(isSSRole, clientName, hint);
+      const first_message = buildFirstMessage(isSSRole, hint, pageLabel);
+
+      return new Response(JSON.stringify({ signed_url, prompt, first_message }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     return new Response(JSON.stringify({ signed_url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
