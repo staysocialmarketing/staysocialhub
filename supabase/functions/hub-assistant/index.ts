@@ -8,6 +8,8 @@ const corsHeaders = {
 
 const REQUEST_TYPES = ["social_post", "email_campaign", "design", "video", "automation", "strategy", "general"];
 const CAPTURE_TYPES = ["note", "link", "voice", "file"];
+const TASK_STATUSES = ["backlog", "todo", "in_progress", "waiting", "review"];
+const TASK_PRIORITIES = ["low", "normal", "high", "urgent"];
 
 const baseTools = [
   {
