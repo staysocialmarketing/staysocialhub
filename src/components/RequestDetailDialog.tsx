@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Download, Send, Pencil, Save, X, Loader2 } from "lucide-react";
+import { Download, Send, Pencil, Save, X, Loader2, Trash2 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { compressImage } from "@/lib/imageUtils";
 import AIFieldsPanel from "@/components/AIFieldsPanel";
@@ -179,12 +180,46 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
   const canEdit = isSSRole || request.created_by_user_id === profile?.id;
   const assignedUserName = ssUsers.find((u: any) => u.id === request.assigned_to_user_id);
 
+  const deleteRequest = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("requests").delete().eq("id", request.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["requests"] });
+      toast.success("Request deleted");
+      onOpenChange(false);
+    },
+    onError: () => toast.error("Failed to delete request"),
+  });
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-2">
             <DialogTitle className="text-xl">{request.topic}</DialogTitle>
+            {isSSAdmin && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10 shrink-0">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete request?</AlertDialogTitle>
+                    <AlertDialogDescription>This will permanently delete "{request.topic}" and cannot be undone.</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => deleteRequest.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      {deleteRequest.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <Badge variant="outline" className="text-[11px]">{REQUEST_TYPE_OPTIONS.find((o) => o.value === request.type)?.label || request.type.replace("_", " ")}</Badge>
