@@ -168,11 +168,12 @@ Deno.serve(async (req) => {
       const serviceClient = createClient(supabaseUrl, serviceRoleKey);
 
       const [profileRes, rolesRes] = await Promise.all([
-        serviceClient.from("users").select("client_id").eq("id", userId).single(),
+        serviceClient.from("users").select("client_id, name").eq("id", userId).single(),
         serviceClient.from("user_roles").select("role").eq("user_id", userId),
       ]);
 
       const clientId = profileRes.data?.client_id;
+      const userName = profileRes.data?.name || null;
       const roles = (rolesRes.data || []).map((r: any) => r.role);
       const isSSRole = roles.some((r: string) => ["ss_admin", "ss_producer", "ss_ops", "ss_team"].includes(r));
 
@@ -183,8 +184,8 @@ Deno.serve(async (req) => {
       }
 
       const { hint, pageLabel } = getRouteContext(currentRoute);
-      const prompt = buildVoiceSystemPrompt(isSSRole, clientName, hint);
-      const first_message = buildFirstMessage(isSSRole, hint, pageLabel);
+      const prompt = buildVoiceSystemPrompt(isSSRole, clientName, hint, userName);
+      const first_message = buildFirstMessage(isSSRole, hint, pageLabel, userName);
 
       return new Response(JSON.stringify({ signed_url, prompt, first_message }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
