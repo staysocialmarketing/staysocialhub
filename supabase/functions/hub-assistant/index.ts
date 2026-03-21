@@ -603,7 +603,9 @@ Deno.serve(async (req) => {
     if (body.mode === "extract_actions") {
       const transcript = body.transcript;
       const currentRoute = body.current_route || "";
+      console.log("[hub-assistant] extract_actions — transcript length:", transcript?.length, "route:", currentRoute, "isSSRole:", isSSRole);
       if (!transcript || typeof transcript !== "string" || transcript.trim().length === 0) {
+        console.log("[hub-assistant] extract_actions — empty transcript rejected");
         return new Response(JSON.stringify({ error: "Transcript required" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
