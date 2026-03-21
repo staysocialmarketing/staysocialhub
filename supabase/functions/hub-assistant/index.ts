@@ -424,6 +424,79 @@ async function executeTool(
     return result;
   }
 
+  if (fnName === "create_task" && isSSRole) {
+    // Resolve client by name
+    let targetClientId: string | null = clientId;
+    if (!targetClientId && args.client_name) {
+      targetClientId = await resolveClientByName(serviceClient, args.client_name);
+      if (!targetClientId) {
+        return { error: `No client found matching "${args.client_name}". Please check the name.` };
+      }
+    }
+
+    // Resolve assignee by name
+    let assigneeId: string | null = null;
+    if (args.assigned_to_name) {
+      assigneeId = await resolveUserByName(serviceClient, args.assigned_to_name);
+      if (!assigneeId) {
+        return { error: `No team member found matching "${args.assigned_to_name}".` };
+      }
+    }
+
+    // Resolve project by name
+    let projectId: string | null = null;
+    if (args.project_name) {
+      projectId = await resolveProjectByName(serviceClient, args.project_name);
+    }
+
+    const { data, error } = await serviceClient.from("tasks").insert({
+      title: args.title,
+      description: args.description || null,
+      client_id: targetClientId || null,
+      assigned_to_user_id: assigneeId,
+      project_id: projectId,
+      priority: args.priority || "normal",
+      due_at: args.due_date || null,
+      status: args.status || "todo",
+      created_by_user_id: userId,
+      source_type: "hub_assistant",
+      raw_input_text: [args.title, args.description].filter(Boolean).join("\n"),
+    }).select("id, title").single();
+
+    if (error) {
+      console.error("create_task error:", error);
+      return { error: "Failed to create task. Please try again." };
+    }
+
+    // Log activity
+    try {
+      await serviceClient.from("task_activity_log").insert({
+        task_id: data.id,
+        user_id: userId,
+        action: "created",
+        details: `Created via Hub Assistant: ${args.title}`,
+      });
+    } catch (e) {
+      console.error("Failed to log task activity:", e);
+    }
+
+    // Resolve client name for response
+    let resolvedClientName = args.client_name || null;
+    if (!resolvedClientName && targetClientId) {
+      const { data: c } = await serviceClient.from("clients").select("name").eq("id", targetClientId).single();
+      resolvedClientName = c?.name || null;
+    }
+
+    return {
+      success: true,
+      task_id: data.id,
+      title: data.title,
+      topic: data.title,
+      client_name: resolvedClientName,
+      assigned_to: args.assigned_to_name || null,
+    };
+  }
+
   return { error: `Unknown or unauthorized tool: ${fnName}` };
 }
 
