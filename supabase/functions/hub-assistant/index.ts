@@ -497,6 +497,7 @@ async function executeTool(
       topic: data.title,
       client_name: resolvedClientName,
       assigned_to: args.assigned_to_name || null,
+      destination: "tasks",
     };
   }
 
