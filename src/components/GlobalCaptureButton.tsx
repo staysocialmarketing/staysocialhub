@@ -110,6 +110,7 @@ export function GlobalCaptureButton() {
     setRecording(false); setTranscribing(false);
     setSaving(false);
     setChatMessages([]); setChatInput(""); setChatLoading(false);
+    setVoiceRecordingAssistant(false); setVoiceTranscribingAssistant(false);
   };
 
   const handleOpen = async (isOpen: boolean) => {
