@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard, ClipboardList, CalendarDays, CheckSquare,
   MessageSquarePlus, FolderOpen, UserCircle, Sparkles, Eye,
@@ -7,6 +8,17 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { useLocation } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface MobileMenuProps {
   onNavigate: (path: string) => void;
@@ -71,9 +83,31 @@ const clientMenuSections = [
 ];
 
 export function MobileMenu({ onNavigate }: MobileMenuProps) {
-  const { isSSAdmin, isSSTeam, isSSRole, profile, signOut } = useAuth();
+  const { isSSAdmin, isSSTeam, isSSRole, profile, signOut, actualIsSSAdmin, isViewingAs, viewAsUserId, setViewAs } = useAuth();
   const location = useLocation();
   const isInternalUser = isSSAdmin || isSSTeam;
+
+  const [allUsers, setAllUsers] = useState<Array<{ id: string; name: string | null; email: string; roles: string[] }>>([]);
+
+  useEffect(() => {
+    if (!actualIsSSAdmin) return;
+    const fetchUsers = async () => {
+      const { data: users } = await supabase.from("users").select("id, name, email");
+      const { data: roles } = await supabase.from("user_roles").select("user_id, role");
+      if (users && roles) {
+        const roleMap: Record<string, string[]> = {};
+        roles.forEach((r) => {
+          if (!roleMap[r.user_id]) roleMap[r.user_id] = [];
+          roleMap[r.user_id].push(r.role);
+        });
+        setAllUsers(users.map((u) => ({ ...u, roles: roleMap[u.id] || [] })));
+      }
+    };
+    fetchUsers();
+  }, [actualIsSSAdmin]);
+
+  const ssUsers = allUsers.filter((u) => u.roles.some((r) => ["ss_admin", "ss_producer", "ss_ops", "ss_team"].includes(r)));
+  const clientUsers = allUsers.filter((u) => u.roles.some((r) => ["client_admin", "client_assistant"].includes(r)));
 
   const renderItem = (item: { title: string; url: string; icon: any }) => {
     const active = location.pathname === item.url;
@@ -106,6 +140,50 @@ export function MobileMenu({ onNavigate }: MobileMenuProps) {
   return (
     <div className="overflow-y-auto max-h-[65vh] overscroll-contain -webkit-overflow-scrolling-touch">
       <div className="space-y-4 pb-4">
+        {/* View As picker for Super Admin */}
+        {actualIsSSAdmin && (
+          <div className="px-3 pb-1">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">View As</span>
+              {isViewingAs && (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 ml-auto">Active</Badge>
+              )}
+            </div>
+            <Select
+              value={viewAsUserId || "__self__"}
+              onValueChange={(val) => setViewAs(val === "__self__" ? null : val)}
+            >
+              <SelectTrigger className="h-9 text-xs rounded-xl">
+                <SelectValue placeholder="My View" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__self__">My View (Super Admin)</SelectItem>
+                {ssUsers.length > 0 && (
+                  <SelectGroup>
+                    <SelectLabel className="text-xs">Team</SelectLabel>
+                    {ssUsers.map((u) => (
+                      <SelectItem key={u.id} value={u.id} className="text-xs">
+                        {u.name || u.email}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                )}
+                {clientUsers.length > 0 && (
+                  <SelectGroup>
+                    <SelectLabel className="text-xs">Clients</SelectLabel>
+                    {clientUsers.map((u) => (
+                      <SelectItem key={u.id} value={u.id} className="text-xs">
+                        {u.name || u.email}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         {isInternalUser ? (
           ssMenuSections.map((section) => {
             let items = section.items;
@@ -119,8 +197,6 @@ export function MobileMenu({ onNavigate }: MobileMenuProps) {
           })
         ) : (
           clientMenuSections.map((section) => {
-            // Hide AI Tools for managed clients (Layer 2) — show for all for now
-            // TODO: gate on DIY flag when Layer 3 roles are added
             return renderSection(section);
           })
         )}
