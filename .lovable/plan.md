@@ -1,85 +1,72 @@
 
 
-# Unified Voice Agent Architecture: Full Conversation → Confirm → Execute
+# Optimize Voice Startup + Page-Aware Assistant Context
 
-## Overview
+## Three Changes
 
-Replace the current record-and-transcribe voice input with a real-time ElevenLabs conversational agent inside the Hub Assistant. The agent has a natural voice conversation with the user, collecting intent. When the call ends, the transcript is sent to Lovable AI to extract structured actions, which are presented as a confirmation card before any database writes happen.
+### 1. Combine Signed URL + Voice Prompt Into One Call
 
-## Architecture
+Currently `startVoiceCall()` makes two sequential requests (token + prompt), causing 2-4s delay. Merge them by having the `elevenlabs-conversation-token` edge function also accept an optional `include_prompt` flag and return the voice prompt alongside the signed URL.
 
-```text
-User speaks → ElevenLabs Agent (WebSocket, signed URL)
-            → Natural voice conversation (no DB writes during call)
-            → Call ends → transcript captured
+**File:** `supabase/functions/elevenlabs-conversation-token/index.ts`
+- Accept optional `{ include_prompt: true, current_route: "/requests" }` in request body
+- When `include_prompt` is true: look up user profile/role (same pattern as hub-assistant), call `buildVoiceSystemPrompt()` (extracted to a shared inline function), and return `{ signed_url, prompt, first_message }` in one response
+- This cuts startup from 2 sequential calls to 1
 
-Transcript → hub-assistant edge function (existing)
-           → Lovable AI extracts structured actions via tool-calling
-           → Returns action list (not executed yet)
+**File:** `src/components/GlobalCaptureButton.tsx`
+- Update `startVoiceCall()` to send `{ include_prompt: true, current_route: location.pathname }` to the token endpoint
+- Remove the second fetch to `hub-assistant` with `mode: "get_voice_prompt"`
+- Use `useLocation()` from react-router-dom to get current route
 
-Action list → UI confirmation card
-            → User reviews/edits/approves
-            → Client sends "execute" request → edge function executes tools
-```
+### 2. Page-Aware Context for Both Text and Voice
 
-## Security
+Pass the current route to the assistant so it adapts its greeting and capabilities.
 
-- ElevenLabs signed URL generated server-side (existing `elevenlabs-conversation-token` function)
-- No DB writes during the voice call — agent is purely conversational
-- Action extraction and execution happen through the existing JWT-authenticated `hub-assistant` edge function
-- Client users remain scoped to their own client_id
-- SS role checks enforced server-side for task/project queries
+**Route-to-context mapping** (in edge function):
 
-## Changes
+| Route pattern | Context hint added to system prompt |
+|---|---|
+| `/requests` | "The user is viewing content requests. You can help create new ones or discuss existing ones." |
+| `/approvals` | "The user is viewing the approvals board. Help with content review questions." |
+| `/workflow` | "The user is on the workflow board. Help with content pipeline questions." |
+| `/team/tasks` | "The user is viewing tasks. Help query or create tasks." |
+| `/team/projects` | "The user is viewing projects." |
+| `/dashboard` | "The user is on the dashboard." |
+| `/client/success` | "The user is on their Success Center." |
+| default | (no extra context) |
 
-### 1. Edge Function: `supabase/functions/hub-assistant/index.ts`
+**Dynamic first message examples:**
+- SS on `/requests`: "Hey! Need to create a new request or check on existing ones?"
+- Client on `/client/success`: "Hi! Want to submit a content idea or have a question about your plan?"
+- Default: "Hey! What can I help you with?"
 
-Add a new mode: `extract_actions`. When the client sends `{ mode: "extract_actions", transcript: [...] }`:
-- Send transcript to Lovable AI with `tool_choice: "auto"` and the existing role-based tools
-- Instead of executing tool calls, return the proposed actions as structured JSON: `{ actions: [{ tool: "create_request", args: {...}, summary: "..." }] }`
-- Add a second mode: `{ mode: "execute_actions", actions: [...] }` that actually runs the tools (reusing existing execution logic)
-- Existing text chat mode (`messages` array) continues working unchanged
+**File:** `supabase/functions/hub-assistant/index.ts`
+- Accept optional `current_route` in the chat mode request body
+- Append route context to system prompt
+- Update `get_voice_prompt` mode to also accept and use `current_route`
 
-Also add dynamic system prompt for the ElevenLabs agent:
-- New endpoint path or query param `?prompt=true` that returns the role-appropriate system prompt text (for use with ElevenLabs agent overrides)
-- The prompt instructs the voice agent to be conversational, gather details about what the user wants to create/capture, and NOT execute anything
+**File:** `supabase/functions/elevenlabs-conversation-token/index.ts`
+- When building the prompt, use the `current_route` to pick contextual first message and prompt additions
 
-### 2. Component: `src/components/GlobalCaptureButton.tsx`
+**File:** `src/components/GlobalCaptureButton.tsx`
+- Pass `current_route: location.pathname` in both text chat requests and voice call setup
+- Use route-aware `first_message` from server response (fall back to generic greeting)
 
-Add voice mode to the assistant interface:
-- Add a `Mic` icon button that toggles into a voice call UI (reusing patterns from `VoiceCallPanel`)
-- When voice mode is active: show the orb visualization (pulsing circle), "Listening..." / "AI speaking..." status, and an "End Call" button
-- Use `useConversation` from `@elevenlabs/react` with `signedUrl` + `connectionType: "websocket"`
-- Pass dynamic `overrides.agent.prompt` with role-aware instructions (fetched from edge function or constructed client-side from role context)
-- On call end: collect transcript → send to `hub-assistant` with `mode: "extract_actions"` → show confirmation card
+### 3. Page-Aware Welcome in Text Chat
 
-**Confirmation card UI:**
-- Replaces chat area after extraction
-- Lists each proposed action as a card: icon + summary + editable fields (topic, type, priority)
-- "Confirm All" button → sends `mode: "execute_actions"` to hub-assistant
-- "Cancel" button → discards and returns to menu
-- Individual action "Remove" button to skip specific items
+**File:** `src/components/GlobalCaptureButton.tsx`
+- Update the static welcome message in the assistant chat to also reflect the current page
+- Fetch a short welcome hint based on route (client-side mapping is fine here since it's just UI copy, not security)
 
-### 3. ElevenLabs Agent Configuration Note
-
-The ElevenLabs agent (already configured with `ELEVENLABS_AGENT_ID`) will receive dynamic prompt overrides at session start. The override prompt tells the agent:
-- "You are the Hub Assistant for Stay Social. Have a natural conversation to understand what the user needs."
-- "Gather details: what they want to create, for which client, any specifics."
-- "Summarize what you'll do at the end of the call."
-- "Do NOT execute any actions — just collect information."
-
-No changes needed in ElevenLabs dashboard — overrides are passed via `startSession({ signedUrl, overrides })`.
+---
 
 ## Files Summary
 
 | File | Change |
 |---|---|
-| `supabase/functions/hub-assistant/index.ts` | Add `extract_actions` and `execute_actions` modes |
-| `src/components/GlobalCaptureButton.tsx` | Add voice call UI with ElevenLabs, confirmation card after call |
+| `supabase/functions/elevenlabs-conversation-token/index.ts` | Add prompt generation, accept `include_prompt` + `current_route` |
+| `supabase/functions/hub-assistant/index.ts` | Accept `current_route`, append page context to system prompt |
+| `src/components/GlobalCaptureButton.tsx` | Single call for voice setup, pass route context, dynamic welcome |
 
-## What This Enables Next
-
-- **Sub-agent contexts**: Same architecture works for interviews (different override prompt) and strategy sessions
-- **Brand Twin context**: Add client's brand twin data to the override prompt for personalized voice interactions
-- **Batch operations**: Confirmation card pattern prevents duplicate requests/tasks from mid-conversation corrections
+No database changes needed.
 
