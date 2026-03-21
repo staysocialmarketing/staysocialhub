@@ -609,7 +609,7 @@ If no actionable items are found, do not call any tools.`;
             { role: "system", content: extractionPrompt },
             { role: "user", content: `Here is the voice conversation transcript:\n\n${transcript}` },
           ],
-          tools: tools.filter(t => ["create_request", "capture_idea"].includes(t.function.name)),
+          tools: tools.filter(t => ["create_request", "capture_idea", "create_task"].includes(t.function.name)),
           stream: false,
         }),
       });
