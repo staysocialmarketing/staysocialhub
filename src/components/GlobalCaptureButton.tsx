@@ -241,6 +241,16 @@ export function GlobalCaptureButton() {
       toast.error("Voice connection error");
       voiceRunStateRef.current = "error";
     },
+    onConnect: () => {
+      console.log("[HubAssistant] onConnect — session established");
+      voiceRunStateRef.current = "live";
+      setVoiceConnecting(false);
+      setConnectingElapsed(0);
+      if (connectingTimerRef.current) {
+        clearInterval(connectingTimerRef.current);
+        connectingTimerRef.current = null;
+      }
+    },
     onDisconnect: () => {
       console.log("[HubAssistant] onDisconnect — voiceRunState:", voiceRunStateRef.current, "transcript length:", voiceTranscriptRef.current.length);
       // Clear idle timer
@@ -248,8 +258,8 @@ export function GlobalCaptureButton() {
         clearInterval(idleTimerRef.current);
         idleTimerRef.current = null;
       }
-      // Finalize if we have transcript and haven't already started finalizing
-      if (voiceTranscriptRef.current.length > 0 && !voiceRunFinalizedRef.current) {
+      // Always finalize — even with empty transcript (handled inside finalizer)
+      if (!voiceRunFinalizedRef.current) {
         finalizeVoiceRun();
       }
     },
