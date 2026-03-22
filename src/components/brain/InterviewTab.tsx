@@ -25,11 +25,11 @@ type Interview = {
 };
 
 const TEMPLATES = [
-  { value: "full_onboarding", label: "Full Onboarding", desc: "Comprehensive brand discovery", color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300" },
-  { value: "brand_voice", label: "Brand Voice", desc: "Define communication style", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
-  { value: "audience", label: "Audience Deep Dive", desc: "Understand target customers", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" },
-  { value: "content_strategy", label: "Content Strategy", desc: "Platforms & content planning", color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" },
-  { value: "website_discovery", label: "Website Discovery", desc: "Design, pages & functionality", color: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300" },
+  { value: "full_onboarding", label: "Full Onboarding", desc: "Comprehensive brand discovery — voice, audience, offers & goals", color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300", icon: Brain },
+  { value: "brand_voice", label: "Brand Voice", desc: "Define communication style, tone & messaging", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300", icon: MessageSquare },
+  { value: "audience", label: "Audience Deep Dive", desc: "Understand target customers & pain points", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300", icon: Users },
+  { value: "content_strategy", label: "Content Strategy", desc: "Platforms, content types & posting goals", color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300", icon: Megaphone },
+  { value: "website_discovery", label: "Website Discovery", desc: "Design, pages, functionality & integrations", color: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300", icon: Globe },
 ];
 
 const WEBSITE_TEMPLATES = new Set(["website_discovery"]);
