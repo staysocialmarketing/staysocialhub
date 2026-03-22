@@ -374,6 +374,7 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
     setMessages([]);
     setInput("");
     setVoiceMode(false);
+    setTemplate(null);
     autoExtractedRef.current = null;
   };
 
