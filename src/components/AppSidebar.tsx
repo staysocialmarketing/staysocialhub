@@ -312,6 +312,24 @@ export function AppSidebar() {
               </SidebarGroup>
             </Collapsible>
 
+            <SidebarSeparator className="opacity-30" />
+
+            <Collapsible open={isSectionOpen("manage")} onOpenChange={() => toggleSection("manage")}>
+              <SidebarGroup>
+                {!collapsed && (
+                  <CollapsibleTrigger asChild>
+                    <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40 cursor-pointer flex items-center justify-between w-full">
+                      Manage
+                      <ChevronDown className={cn("h-3 w-3 transition-transform", isSectionOpen("manage") && "rotate-180")} />
+                    </SidebarGroupLabel>
+                  </CollapsibleTrigger>
+                )}
+                <CollapsibleContent>
+                  <SidebarGroupContent>{renderMenuItems(manageSection)}</SidebarGroupContent>
+                </CollapsibleContent>
+              </SidebarGroup>
+            </Collapsible>
+
             {isSSAdmin && (
               <>
                 <SidebarSeparator className="opacity-30" />
