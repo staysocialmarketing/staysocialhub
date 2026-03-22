@@ -1,47 +1,42 @@
 
 
-# Improved Interview Creation Flow + Onboarding Check
+# Personalized Welcome Messages per Interview Template
 
-## Current Behavior
-- Template is selected via a dropdown at the top, then "New Interview" or "Text Interview"/"Voice Call" is clicked
-- No guidance on interview order or prerequisite checks
+## Problem
+When clicking "Text Interview", `streamChat([])` sends an empty message array to the AI. The system prompt varies per template, but the AI's opening greeting ends up sounding similar across all templates because there's no explicit instruction for **how to open the conversation**.
+
+## Solution
+Add a short opening instruction as the first user message (hidden from UI) that primes the AI to greet the client with a template-specific welcome. This gives each interview type a distinct, personalized start.
 
 ## Changes
 
-### 1. "New Interview" → Template Picker Dialog
-**File**: `src/components/brain/InterviewTab.tsx`
+### `src/components/brain/InterviewTab.tsx`
+Instead of calling `streamChat([])` with no messages, send a hidden "primer" message per template:
 
-Replace the current flow where "New Interview" resets state and the template dropdown sits in the header. Instead:
+```text
+full_onboarding → "Start the comprehensive brand onboarding interview. Introduce yourself warmly and ask about their business story."
+brand_voice     → "Start the brand voice deep dive. Introduce yourself and ask about how they naturally communicate."
+audience        → "Start the audience research session. Introduce yourself and ask who their ideal customers are."
+content_strategy → "Start the content strategy session. Introduce yourself and ask about their current platforms and content approach."
+website_discovery → "Start the website discovery session. Introduce yourself and ask about their current website situation."
+```
 
-- Click "New Interview" → opens a dialog/dropdown card showing all 5 template options as clickable cards (icon, title, description)
-- Selecting a template sets it and enters the empty-state ready to start (Text Interview / Voice Call buttons)
-- The top-bar template `<Select>` becomes read-only/display-only once an interview is active (already disabled, keep this)
-- When no interview is active and no messages exist, show the template picker cards directly in the empty state area instead of the current generic "AI Brand Interview" message
+- Define a `TEMPLATE_OPENERS` map with these primer messages
+- On "Text Interview" click, call `streamChat([{ role: "user", content: opener }])` but **do not** add this primer to the visible `messages` state — only pass it to the API call
+- Alternatively (simpler): append the opener instruction directly to the system prompt in the edge function as a "Begin by..." line
 
-### 2. Onboarding Pre-check for Non-Full Templates
-**File**: `supabase/functions/ai-interview/index.ts`
+**Recommended approach**: Add the opening instruction to the system prompts in the edge function — this is cleaner since the system prompts already exist per template and it requires no frontend changes.
 
-For templates other than `full_onboarding`, inject a pre-check into the system prompt:
+### `supabase/functions/ai-interview/index.ts`
+Append a clear opening instruction to each template's system prompt:
 
-- Before starting, check if the client has a completed `full_onboarding` interview (status = "extracted") in `brain_interviews`
-- If **no** completed onboarding exists, prepend to the system prompt an instruction: "Before starting, ask the client if they've completed the full onboarding interview. If not, ask if they'd like to do that first or continue with this focused session. If they want onboarding first, let them know they should start a Full Onboarding interview and come back. If they want to continue, proceed normally."
-- If onboarding **exists**, proceed as usual with no extra prompt
-
-This keeps it conversational — the AI asks, the user decides, no hard blocks.
-
-### 3. Frontend Template Picker UI
-**File**: `src/components/brain/InterviewTab.tsx`
-
-When `!activeInterviewId && messages.length === 0`:
-- Show a grid of template cards instead of the generic empty state
-- Each card: colored icon/badge, template name, description
-- Clicking a card sets the template and shows the "Text Interview" / "Voice Call" buttons
-- Add a small "back" link to return to template selection if they haven't started yet
-
-## Summary
+- `full_onboarding`: already has "Start with warm introductions and ask about their business story" — just make it more explicit: "Your FIRST message should warmly introduce yourself as a brand strategist from Stay Social and ask about their business story and what inspired them to start."
+- `brand_voice`: "Your FIRST message should introduce yourself as a brand voice specialist and ask how they'd describe the way they naturally talk about their business."
+- `audience`: "Your FIRST message should introduce yourself as an audience research specialist and ask them to describe their ideal customer."
+- `content_strategy`: "Your FIRST message should introduce yourself as a content strategy consultant and ask what platforms they're currently using."
+- `website_discovery`: "Your FIRST message should introduce yourself as a website strategist from Stay Social and ask about their current website situation — do they have one, what's working, what's not."
 
 | File | Change |
 |---|---|
-| `src/components/brain/InterviewTab.tsx` | Template picker cards in empty state, streamlined "New Interview" flow |
-| `supabase/functions/ai-interview/index.ts` | Check for existing onboarding interview, inject pre-check prompt for non-full templates |
+| `supabase/functions/ai-interview/index.ts` | Add explicit first-message instructions to each template prompt |
 
