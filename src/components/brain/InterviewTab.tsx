@@ -34,6 +34,14 @@ const TEMPLATES = [
 
 const WEBSITE_TEMPLATES = new Set(["website_discovery"]);
 
+const TEMPLATE_OPENERS: Record<string, string> = {
+  full_onboarding: "Start the comprehensive brand onboarding interview. Introduce yourself warmly and ask about their business story and what inspired them to start.",
+  brand_voice: "Start the brand voice deep dive. Introduce yourself as a brand voice specialist and ask how they'd describe the way they naturally talk about their business.",
+  audience: "Start the audience research session. Introduce yourself as an audience research specialist and ask them to describe their ideal customer.",
+  content_strategy: "Start the content strategy session. Introduce yourself as a content strategy consultant and ask what platforms they're currently using.",
+  website_discovery: "Start the website discovery session. Introduce yourself as a website strategist and ask about their current website situation — do they have one, what's working, what's not.",
+};
+
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-interview`;
 
 export default function InterviewTab({ clientId }: { clientId: string }) {
@@ -717,7 +725,7 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
               );
             })()}
             <div className="flex gap-2 mt-3">
-              <Button onClick={() => streamChat([])} size="sm" className="gap-1.5">
+              <Button onClick={() => streamChat([{ role: "user", content: TEMPLATE_OPENERS[template] || "Start the interview. Introduce yourself and begin." }])} size="sm" className="gap-1.5">
                 <Sparkles className="h-3.5 w-3.5" />
                 Text Interview
               </Button>

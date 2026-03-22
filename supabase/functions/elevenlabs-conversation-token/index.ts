@@ -21,6 +21,38 @@ function getRouteContext(route: string): { hint: string; pageLabel: string } {
   return { hint: "", pageLabel: "" };
 }
 
+// Interview template voice prompts
+function buildInterviewVoicePrompt(template: string, clientName: string | null, userName: string | null): { prompt: string; first_message: string } {
+  const firstName = userName ? userName.split(" ")[0] : null;
+  const hi = firstName ? `Hey ${firstName}!` : "Hey!";
+  const clientCtx = clientName ? ` for ${clientName}` : "";
+
+  const templates: Record<string, { prompt: string; first_message: string }> = {
+    full_onboarding: {
+      prompt: `You are a senior brand strategist from Stay Social conducting a comprehensive brand onboarding interview${clientCtx}. Your goal is to understand their complete brand story — business origins, values, target audience, offers, brand voice, and goals. Be warm, curious, and conversational. Ask one question at a time. Keep responses short (1-2 sentences) for natural voice flow.${firstName ? ` The client's name is ${firstName}.` : ""}`,
+      first_message: `${hi} I'm so excited to learn about your brand! Let's start at the beginning — what's the story behind your business? What inspired you to start it?`,
+    },
+    brand_voice: {
+      prompt: `You are a brand voice specialist from Stay Social conducting a focused brand voice interview${clientCtx}. Your goal is to understand how they naturally communicate — their tone, personality, phrases they use, and how they want to sound to their audience. Be friendly and conversational. Ask one question at a time. Keep responses short.${firstName ? ` The client's name is ${firstName}.` : ""}`,
+      first_message: `${hi} I'm your brand voice specialist. Let's figure out how your brand really sounds. If you were describing your business to someone at a coffee shop, how would you naturally talk about it?`,
+    },
+    audience: {
+      prompt: `You are an audience research specialist from Stay Social conducting an audience deep-dive interview${clientCtx}. Your goal is to understand their ideal customers — demographics, pain points, desires, where they hang out online, and what motivates them to buy. Be curious and insightful. Ask one question at a time. Keep responses short.${firstName ? ` The client's name is ${firstName}.` : ""}`,
+      first_message: `${hi} I'm your audience research specialist. Let's talk about your dream customer. If you could describe your absolute ideal client, who are they?`,
+    },
+    content_strategy: {
+      prompt: `You are a content strategy consultant from Stay Social conducting a content strategy session${clientCtx}. Your goal is to understand their current platforms, content approach, what's working, what's not, and their goals for content. Be strategic and encouraging. Ask one question at a time. Keep responses short.${firstName ? ` The client's name is ${firstName}.` : ""}`,
+      first_message: `${hi} I'm your content strategy consultant. Let's talk about where you're showing up right now — what platforms are you currently using, and how's that going?`,
+    },
+    website_discovery: {
+      prompt: `You are a website strategist from Stay Social conducting a website discovery session${clientCtx}. Your goal is to understand their current website situation, design preferences (colors, fonts, style), page structure, functionality needs (booking, forms, ecommerce), and inspirational sites they admire. Be practical and creative. Ask one question at a time. Keep responses short.${firstName ? ` The client's name is ${firstName}.` : ""}`,
+      first_message: `${hi} I'm your website strategist. Let's talk about your website! Do you currently have one? If so, what platform is it on and what's your biggest frustration with it?`,
+    },
+  };
+
+  return templates[template] || templates.full_onboarding;
+}
+
 function buildVoiceSystemPrompt(isSSRole: boolean, clientName: string | null, routeHint: string, userName?: string | null): string {
   const firstName = userName ? userName.split(" ")[0] : null;
 
@@ -135,10 +167,12 @@ Deno.serve(async (req) => {
     // Parse optional body
     let includePrompt = false;
     let currentRoute = "";
+    let interviewTemplate = "";
     try {
       const body = await req.json();
       includePrompt = body.include_prompt === true;
       currentRoute = typeof body.current_route === "string" ? body.current_route : "";
+      interviewTemplate = typeof body.interview_template === "string" ? body.interview_template : "";
     } catch {
       // No body or invalid JSON — that's fine, just get signed URL
     }
@@ -181,6 +215,14 @@ Deno.serve(async (req) => {
       if (clientId) {
         const { data: client } = await serviceClient.from("clients").select("name").eq("id", clientId).single();
         clientName = client?.name || null;
+      }
+
+      // If this is an interview request, use interview-specific prompts
+      if (interviewTemplate) {
+        const { prompt, first_message } = buildInterviewVoicePrompt(interviewTemplate, clientName, userName);
+        return new Response(JSON.stringify({ signed_url, prompt, first_message }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       const { hint, pageLabel } = getRouteContext(currentRoute);
