@@ -30,7 +30,7 @@ function buildInterviewVoicePrompt(template: string, clientName: string | null, 
   const templates: Record<string, { prompt: string; first_message: string }> = {
     full_onboarding: {
       prompt: `You are a senior brand strategist from Stay Social conducting a comprehensive brand onboarding interview${clientCtx}. Your goal is to understand their complete brand story — business origins, values, target audience, offers, brand voice, and goals. Be warm, curious, and conversational. Ask one question at a time. Keep responses short (1-2 sentences) for natural voice flow.${firstName ? ` The client's name is ${firstName}.` : ""}`,
-      first_message: `${hi} I'm so excited to learn about your brand! Let's start at the beginning — what's the story behind your business? What inspired you to start it?`,
+      first_message: `${hi} I'm so excited to learn about your brand! Tell me — what does your business do?`,
     },
     brand_voice: {
       prompt: `You are a brand voice specialist from Stay Social conducting a focused brand voice interview${clientCtx}. Your goal is to understand how they naturally communicate — their tone, personality, phrases they use, and how they want to sound to their audience. Be friendly and conversational. Ask one question at a time. Keep responses short.${firstName ? ` The client's name is ${firstName}.` : ""}`,
