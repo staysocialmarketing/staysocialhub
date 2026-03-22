@@ -1,29 +1,32 @@
 
 
-# Fix: Voice Call Disconnecting After ~5 Seconds
+# Dashboard Greeting: "Hey" vs "Welcome Back" Logic
 
-## Analysis
+## Concept
+- **First visit of the day**: "Hey, {firstName} 👋"
+- **Return visit within same 24-hour period**: "Welcome back, {firstName} 👋"
 
-Your ElevenLabs dashboard settings look correct — "End conversation after silence" is disabled (-1), max duration is 600s. The issue is on the connection side.
+Track the last login timestamp in `localStorage`. On dashboard load, check if a login was already recorded today. If yes → "Welcome back"; if no → "Hey" and store the current timestamp.
 
-The most likely cause is **WebSocket instability**. The current code uses `connectionType: "websocket"` with a `signed_url`. WebRTC is the recommended, more stable connection type for ElevenLabs conversational AI.
+## Changes
 
-## Solution: Switch to WebRTC + Add Keep-Alive
+### `src/pages/Dashboard.tsx`
 
-### 1. `supabase/functions/elevenlabs-conversation-token/index.ts`
-- Fetch a **WebRTC conversation token** instead of (or in addition to) a signed URL
-- Change the ElevenLabs API call from `get-signed-url` to the token endpoint: `POST https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=...`
-- Return `{ token, prompt, first_message }` instead of `{ signed_url, ... }`
+**Both dashboards** (WorkQueueDashboard line ~182, ClientDashboard line ~487):
 
-### 2. `src/components/brain/VoiceCallPanel.tsx`
-- Switch from `signedUrl` + `connectionType: "websocket"` to `conversationToken` + `connectionType: "webrtc"`
-- Add a **keep-alive interval** using `conversation.sendUserActivity()` every 10 seconds while connected — this signals to ElevenLabs that the user is still present
-- Clean up the interval on disconnect/unmount
+Add a helper that checks `localStorage` for a key like `last_dashboard_visit_{userId}`:
+- If the stored timestamp is within the last 24 hours → return `true` (returning user)
+- Otherwise → store current timestamp, return `false` (first visit today)
 
-### 3. Changes Summary
+**WorkQueueDashboard** (line 182):
+- Currently: `Hey, {firstName} 👋`
+- Change to: if returning → `Welcome back, {firstName} 👋` / if first visit → `Hey, {firstName} 👋`
+
+**ClientDashboard** (line 487-488):
+- Currently: `Welcome back, {firstName} 👋`
+- Change to: same logic — first visit → `Hey`, return visit → `Welcome back`
 
 | File | Change |
 |---|---|
-| `supabase/functions/elevenlabs-conversation-token/index.ts` | Fetch WebRTC token instead of signed URL |
-| `src/components/brain/VoiceCallPanel.tsx` | Use `conversationToken` + `webrtc`, add keep-alive heartbeat |
+| `src/pages/Dashboard.tsx` | Add localStorage-based 24h return detection; update both greeting headings |
 
