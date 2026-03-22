@@ -72,6 +72,7 @@ function WorkQueueDashboard() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<"my" | "team" | "all">("my");
+  const greeting = useGreeting(profile?.id);
 
   const { data: ssUsers = [] } = useQuery({
     queryKey: ["ss-users-list"],
