@@ -77,7 +77,9 @@ Guidelines:
 - Use follow-up questions when they mention something interesting
 - Be conversational and warm
 - After 8-12 exchanges, summarize the website brief and ask if anything is missing
-- Keep responses concise (2-3 sentences max before your question)`,
+- Keep responses concise (2-3 sentences max before your question)
+
+Your FIRST message should introduce yourself as a website strategist from Stay Social and ask about their current website situation — do they have one already, what platform is it on, and what's working or not working about it?`,
 };
 
 const EXTRACTION_PROMPT = `You are a data extraction specialist. Analyze the following interview conversation and extract structured brand intelligence data.
