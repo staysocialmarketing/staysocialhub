@@ -41,6 +41,7 @@ import MeetingNotes from "./pages/admin/MeetingNotes";
 import Projects from "./pages/team/Projects";
 import Tasks from "./pages/team/Tasks";
 import UniversalInbox from "./pages/team/UniversalInbox";
+import CorporateStrategy from "./pages/admin/CorporateStrategy";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
