@@ -41,6 +41,7 @@ import MeetingNotes from "./pages/admin/MeetingNotes";
 import Projects from "./pages/team/Projects";
 import Tasks from "./pages/team/Tasks";
 import UniversalInbox from "./pages/team/UniversalInbox";
+import CorporateStrategy from "./pages/admin/CorporateStrategy";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -119,6 +120,7 @@ const App = () => (
               <Route path="/team/projects" element={<AdminRoute><Projects /></AdminRoute>} />
               <Route path="/team/tasks" element={<AdminRoute><Tasks /></AdminRoute>} />
               <Route path="/team/inbox" element={<AdminRoute><UniversalInbox /></AdminRoute>} />
+              <Route path="/corporate/strategy" element={<AdminRoute><CorporateStrategy /></AdminRoute>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -4,6 +4,7 @@ import {
   MessageSquarePlus, FolderOpen, UserCircle, Sparkles, Eye,
   Inbox, FolderKanban, ListTodo, Lightbulb, Building2,
   ShoppingCart, Users, Tag, LogOut, Brain, Wand2, Palette,
+  BookOpen, Zap, FileText,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -45,18 +46,24 @@ const ssMenuSections = [
     ],
   },
   {
-    label: "Tools",
+    label: "Corporate",
     items: [
+      { title: "Strategy Playbook", url: "/corporate/strategy", icon: BookOpen },
       { title: "Content Generator", url: "/client/generate", icon: Wand2 },
     ],
   },
+];
+
+const ssAdminSections = [
   {
     label: "Admin",
     items: [
       { title: "Clients", url: "/admin/clients", icon: Building2 },
-      { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
+      { title: "Team Management", url: "/admin/team", icon: Users },
       { title: "Users", url: "/admin/users", icon: Users },
-      { title: "Team", url: "/admin/team", icon: Users },
+      { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
+      { title: "Meeting Notes", url: "/admin/meeting-notes", icon: FileText },
+      { title: "Automations", url: "/admin/automations", icon: Zap },
       { title: "Versions", url: "/admin/versions", icon: Tag },
     ],
   },
@@ -191,20 +198,18 @@ export function MobileMenu({ onNavigate }: MobileMenuProps) {
         )}
 
         {isInternalUser ? (
-          ssMenuSections.map((section) => {
-            let items = section.items;
-            if (section.label === "Admin" && !isSSAdmin) {
-              items = items.filter(i => i.title !== "Users" && i.title !== "Versions");
-            }
-            if (section.label === "Menu" && isSSTeam && !isSSAdmin) {
-              items = items.filter(i => i.title !== "Approvals");
-            }
-            return renderSection({ ...section, items });
-          })
+          <>
+            {ssMenuSections.map((section) => {
+              let items = section.items;
+              if (section.label === "Menu" && isSSTeam && !isSSAdmin) {
+                items = items.filter(i => i.title !== "Approvals");
+              }
+              return renderSection({ ...section, items });
+            })}
+            {isSSAdmin && ssAdminSections.map((section) => renderSection(section))}
+          </>
         ) : (
-          clientMenuSections.map((section) => {
-            return renderSection(section);
-          })
+          clientMenuSections.map((section) => renderSection(section))
         )}
 
         {/* User info + sign out */}
