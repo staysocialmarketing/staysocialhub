@@ -1,5 +1,5 @@
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientFilter } from "@/contexts/ClientFilterContext";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { compressImage } from "@/lib/imageUtils";
 
+function useGreeting(userId?: string): string {
+  return useMemo(() => {
+    if (!userId) return "Hey";
+    const key = `last_dashboard_visit_${userId}`;
+    const last = localStorage.getItem(key);
+    const now = Date.now();
+    if (last && now - parseInt(last, 10) < 24 * 60 * 60 * 1000) {
+      return "Welcome back";
+    }
+    localStorage.setItem(key, String(now));
+    return "Hey";
+  }, [userId]);
+}
+
 const TASK_STATUSES = ["backlog", "todo", "in_progress", "waiting", "review", "complete"] as const;
 const TASK_STATUS_LABELS: Record<string, string> = {
   backlog: "Backlog", todo: "To Do", in_progress: "In Progress",
@@ -58,6 +72,7 @@ function WorkQueueDashboard() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<"my" | "team" | "all">("my");
+  const greeting = useGreeting(profile?.id);
 
   const { data: ssUsers = [] } = useQuery({
     queryKey: ["ss-users-list"],
@@ -179,7 +194,7 @@ function WorkQueueDashboard() {
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground tracking-tight">
-            {profile?.name ? `Hey, ${profile.name.split(" ")[0]} ${getWaveEmoji(profile.name)}` : "Work Queue"}
+            {profile?.name ? `${greeting}, ${profile.name.split(" ")[0]} ${getWaveEmoji(profile.name)}` : "Work Queue"}
           </h1>
           <p className="text-muted-foreground mt-1">Here's what needs your attention today.</p>
         </div>
@@ -301,6 +316,7 @@ function WorkQueueDashboard() {
 function ClientDashboard() {
   const { profile, isClientAdmin } = useAuth();
   const navigate = useNavigate();
+  const clientGreeting = useGreeting(profile?.id);
 
   const { data: pendingApprovals = 0 } = useQuery({
     queryKey: ["client-pending-approvals", profile?.client_id],
@@ -485,7 +501,7 @@ function ClientDashboard() {
       {/* Hero greeting */}
       <div>
         <h1 className="text-3xl font-bold text-foreground tracking-tight">
-          Welcome back{profile?.name ? `, ${profile.name.split(" ")[0]}` : ""} {getWaveEmoji(profile?.name)}
+          {clientGreeting}{profile?.name ? `, ${profile.name.split(" ")[0]}` : ""} {getWaveEmoji(profile?.name)}
         </h1>
         <p className="text-muted-foreground mt-1">Here's what's happening with your marketing.</p>
       </div>
