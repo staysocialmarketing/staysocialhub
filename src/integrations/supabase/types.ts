@@ -2073,6 +2073,44 @@ export type Database = {
           },
         ]
       }
+      website_briefs: {
+        Row: {
+          client_id: string
+          content_json: Json
+          design_json: Json
+          functionality_json: Json
+          inspiration_json: Json
+          layout_json: Json
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          content_json?: Json
+          design_json?: Json
+          functionality_json?: Json
+          inspiration_json?: Json
+          layout_json?: Json
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          content_json?: Json
+          design_json?: Json
+          functionality_json?: Json
+          inspiration_json?: Json
+          layout_json?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "website_briefs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workflow_stage_assignments: {
         Row: {
           assigned_user_id: string | null

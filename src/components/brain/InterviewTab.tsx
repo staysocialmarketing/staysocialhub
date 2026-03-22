@@ -29,7 +29,10 @@ const TEMPLATES = [
   { value: "brand_voice", label: "Brand Voice", desc: "Define communication style", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
   { value: "audience", label: "Audience Deep Dive", desc: "Understand target customers", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" },
   { value: "content_strategy", label: "Content Strategy", desc: "Platforms & content planning", color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" },
+  { value: "website_discovery", label: "Website Discovery", desc: "Design, pages & functionality", color: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300" },
 ];
+
+const WEBSITE_TEMPLATES = new Set(["website_discovery"]);
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-interview`;
 
@@ -87,13 +90,22 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
       const token = session?.session?.access_token;
       if (!token) return;
 
+      // Determine the active template for this interview
+      const interview = (await supabase
+        .from("brain_interviews" as any)
+        .select("template")
+        .eq("id", interviewId)
+        .maybeSingle()).data as any;
+      const interviewTemplate = interview?.template || "full_onboarding";
+      const isWebsite = WEBSITE_TEMPLATES.has(interviewTemplate);
+
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ action: "extract", client_id: clientId, messages: msgs }),
+        body: JSON.stringify({ action: "extract", client_id: clientId, messages: msgs, template: interviewTemplate }),
       });
 
       if (!resp.ok) return;
@@ -104,12 +116,6 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
         .from("brain_interviews" as any)
         .update({ extracted_data, status: "extracted" } as any)
         .eq("id", interviewId);
-
-      const { data: existing } = await supabase
-        .from("brand_twin" as any)
-        .select("*")
-        .eq("client_id", clientId)
-        .maybeSingle();
 
       const mergeSection = (existing: any, extracted: any) => {
         if (!extracted) return existing || {};
@@ -127,24 +133,57 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
         return merged;
       };
 
-      const payload = {
-        client_id: clientId,
-        brand_basics_json: mergeSection((existing as any)?.brand_basics_json, extracted_data.brand_basics),
-        brand_voice_json: mergeSection((existing as any)?.brand_voice_json, extracted_data.brand_voice),
-        audience_json: mergeSection((existing as any)?.audience_json, extracted_data.audience),
-        offers_json: mergeSection((existing as any)?.offers_json, extracted_data.offers),
-        content_rules_json: mergeSection((existing as any)?.content_rules_json, extracted_data.content_rules),
-      };
+      if (isWebsite) {
+        const { data: existing } = await supabase
+          .from("website_briefs" as any)
+          .select("*")
+          .eq("client_id", clientId)
+          .maybeSingle();
 
-      if (existing) {
-        await supabase.from("brand_twin" as any).update(payload).eq("client_id", clientId);
+        const payload = {
+          client_id: clientId,
+          design_json: mergeSection((existing as any)?.design_json, extracted_data.design),
+          layout_json: mergeSection((existing as any)?.layout_json, extracted_data.layout),
+          functionality_json: mergeSection((existing as any)?.functionality_json, extracted_data.functionality),
+          content_json: mergeSection((existing as any)?.content_json, extracted_data.content),
+          inspiration_json: mergeSection((existing as any)?.inspiration_json, extracted_data.inspiration),
+        };
+
+        if (existing) {
+          await supabase.from("website_briefs" as any).update(payload).eq("client_id", clientId);
+        } else {
+          await supabase.from("website_briefs" as any).insert(payload);
+        }
+
+        queryClient.invalidateQueries({ queryKey: ["website-brief", clientId] });
+        toast.success("Website Brief auto-updated with new insights");
       } else {
-        await supabase.from("brand_twin" as any).insert(payload);
+        const { data: existing } = await supabase
+          .from("brand_twin" as any)
+          .select("*")
+          .eq("client_id", clientId)
+          .maybeSingle();
+
+        const payload = {
+          client_id: clientId,
+          brand_basics_json: mergeSection((existing as any)?.brand_basics_json, extracted_data.brand_basics),
+          brand_voice_json: mergeSection((existing as any)?.brand_voice_json, extracted_data.brand_voice),
+          audience_json: mergeSection((existing as any)?.audience_json, extracted_data.audience),
+          offers_json: mergeSection((existing as any)?.offers_json, extracted_data.offers),
+          content_rules_json: mergeSection((existing as any)?.content_rules_json, extracted_data.content_rules),
+        };
+
+        if (existing) {
+          await supabase.from("brand_twin" as any).update(payload).eq("client_id", clientId);
+        } else {
+          await supabase.from("brand_twin" as any).insert(payload);
+        }
+
+        queryClient.invalidateQueries({ queryKey: ["brand-twin", clientId] });
+        toast.success("Brand Twin auto-updated with new insights");
       }
 
-      queryClient.invalidateQueries({ queryKey: ["brand-twin", clientId] });
       queryClient.invalidateQueries({ queryKey: ["brain-interviews", clientId] });
-      toast.success("Brand Twin auto-updated with new insights");
     } catch (err) {
       console.error("Auto-extract error:", err);
     }
@@ -362,6 +401,7 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
       return;
     }
     setIsExtracting(true);
+    const isWebsite = WEBSITE_TEMPLATES.has(template);
     try {
       const { data: session } = await supabase.auth.getSession();
       const token = session?.session?.access_token;
@@ -377,6 +417,7 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
           action: "extract",
           client_id: clientId,
           messages,
+          template,
         }),
       });
 
@@ -395,12 +436,6 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
           .eq("id", activeInterviewId);
       }
 
-      const { data: existing } = await supabase
-        .from("brand_twin" as any)
-        .select("*")
-        .eq("client_id", clientId)
-        .maybeSingle();
-
       const mergeSection = (existing: any, extracted: any) => {
         if (!extracted) return existing || {};
         const merged = { ...(existing || {}) };
@@ -417,24 +452,57 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
         return merged;
       };
 
-      const payload = {
-        client_id: clientId,
-        brand_basics_json: mergeSection((existing as any)?.brand_basics_json, extracted_data.brand_basics),
-        brand_voice_json: mergeSection((existing as any)?.brand_voice_json, extracted_data.brand_voice),
-        audience_json: mergeSection((existing as any)?.audience_json, extracted_data.audience),
-        offers_json: mergeSection((existing as any)?.offers_json, extracted_data.offers),
-        content_rules_json: mergeSection((existing as any)?.content_rules_json, extracted_data.content_rules),
-      };
+      if (isWebsite) {
+        const { data: existing } = await supabase
+          .from("website_briefs" as any)
+          .select("*")
+          .eq("client_id", clientId)
+          .maybeSingle();
 
-      if (existing) {
-        await supabase.from("brand_twin" as any).update(payload).eq("client_id", clientId);
+        const payload = {
+          client_id: clientId,
+          design_json: mergeSection((existing as any)?.design_json, extracted_data.design),
+          layout_json: mergeSection((existing as any)?.layout_json, extracted_data.layout),
+          functionality_json: mergeSection((existing as any)?.functionality_json, extracted_data.functionality),
+          content_json: mergeSection((existing as any)?.content_json, extracted_data.content),
+          inspiration_json: mergeSection((existing as any)?.inspiration_json, extracted_data.inspiration),
+        };
+
+        if (existing) {
+          await supabase.from("website_briefs" as any).update(payload).eq("client_id", clientId);
+        } else {
+          await supabase.from("website_briefs" as any).insert(payload);
+        }
+
+        queryClient.invalidateQueries({ queryKey: ["website-brief", clientId] });
+        toast.success("Website Brief updated with interview insights!");
       } else {
-        await supabase.from("brand_twin" as any).insert(payload);
+        const { data: existing } = await supabase
+          .from("brand_twin" as any)
+          .select("*")
+          .eq("client_id", clientId)
+          .maybeSingle();
+
+        const payload = {
+          client_id: clientId,
+          brand_basics_json: mergeSection((existing as any)?.brand_basics_json, extracted_data.brand_basics),
+          brand_voice_json: mergeSection((existing as any)?.brand_voice_json, extracted_data.brand_voice),
+          audience_json: mergeSection((existing as any)?.audience_json, extracted_data.audience),
+          offers_json: mergeSection((existing as any)?.offers_json, extracted_data.offers),
+          content_rules_json: mergeSection((existing as any)?.content_rules_json, extracted_data.content_rules),
+        };
+
+        if (existing) {
+          await supabase.from("brand_twin" as any).update(payload).eq("client_id", clientId);
+        } else {
+          await supabase.from("brand_twin" as any).insert(payload);
+        }
+
+        queryClient.invalidateQueries({ queryKey: ["brand-twin", clientId] });
+        toast.success("Brand Twin updated with interview insights!");
       }
 
-      queryClient.invalidateQueries({ queryKey: ["brand-twin", clientId] });
       queryClient.invalidateQueries({ queryKey: ["brain-interviews", clientId] });
-      toast.success("Brand Twin updated with interview insights!");
     } catch (err) {
       console.error("Extract error:", err);
       toast.error("Failed to extract data");
@@ -516,7 +584,7 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
               ) : (
                 <Sparkles className="h-3.5 w-3.5" />
               )}
-              {hasExtracted ? "Re-extract" : "Extract to Brain"}
+              {hasExtracted ? "Re-extract" : WEBSITE_TEMPLATES.has(template) ? "Extract to Website Brief" : "Extract to Brain"}
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={startNew} className="gap-1.5">
