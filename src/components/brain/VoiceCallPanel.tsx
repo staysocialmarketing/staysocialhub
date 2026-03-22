@@ -81,6 +81,32 @@ export default function VoiceCallPanel({
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [transcript]);
 
+  // Keep-alive heartbeat to prevent premature disconnects
+  const keepAliveRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (conversation.status === "connected") {
+      keepAliveRef.current = setInterval(() => {
+        try {
+          conversation.sendUserActivity();
+        } catch (e) {
+          console.warn("Keep-alive sendUserActivity failed:", e);
+        }
+      }, 10_000);
+    } else {
+      if (keepAliveRef.current) {
+        clearInterval(keepAliveRef.current);
+        keepAliveRef.current = null;
+      }
+    }
+    return () => {
+      if (keepAliveRef.current) {
+        clearInterval(keepAliveRef.current);
+        keepAliveRef.current = null;
+      }
+    };
+  }, [conversation.status]);
+
   const startCall = useCallback(async () => {
     setIsConnecting(true);
     try {
@@ -110,12 +136,12 @@ export default function VoiceCallPanel({
         throw new Error(err.error || "Failed to get signed URL");
       }
 
-      const { signed_url, prompt: promptText, first_message } = await resp.json();
-      if (!signed_url) throw new Error("No signed URL received");
+      const { token: conversationToken, prompt: promptText, first_message } = await resp.json();
+      if (!conversationToken) throw new Error("No conversation token received");
 
       const sessionOpts: any = {
-        signedUrl: signed_url,
-        connectionType: "websocket",
+        conversationToken,
+        connectionType: "webrtc",
       };
 
       if (promptText) {

@@ -177,9 +177,9 @@ Deno.serve(async (req) => {
       // No body or invalid JSON — that's fine, just get signed URL
     }
 
-    // Generate signed URL for WebSocket connection
+    // Generate WebRTC conversation token
     const response = await fetch(
-      `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${ELEVENLABS_AGENT_ID}`,
+      `https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=${ELEVENLABS_AGENT_ID}`,
       {
         headers: {
           "xi-api-key": ELEVENLABS_API_KEY,
@@ -190,11 +190,11 @@ Deno.serve(async (req) => {
     if (!response.ok) {
       const errBody = await response.text();
       throw new Error(
-        `ElevenLabs signed URL request failed [${response.status}]: ${errBody}`
+        `ElevenLabs token request failed [${response.status}]: ${errBody}`
       );
     }
 
-    const { signed_url } = await response.json();
+    const { token: conversationToken } = await response.json();
 
     // If prompt is requested, resolve user role and build it
     if (includePrompt) {
@@ -220,21 +220,21 @@ Deno.serve(async (req) => {
       // If this is an interview request, use interview-specific prompts
       if (interviewTemplate) {
         const { prompt, first_message } = buildInterviewVoicePrompt(interviewTemplate, clientName, userName);
-        return new Response(JSON.stringify({ signed_url, prompt, first_message }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      return new Response(JSON.stringify({ token: conversationToken, prompt, first_message }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
       }
 
       const { hint, pageLabel } = getRouteContext(currentRoute);
       const prompt = buildVoiceSystemPrompt(isSSRole, clientName, hint, userName);
       const first_message = buildFirstMessage(isSSRole, hint, pageLabel, userName);
 
-      return new Response(JSON.stringify({ signed_url, prompt, first_message }), {
+      return new Response(JSON.stringify({ token: conversationToken, prompt, first_message }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(JSON.stringify({ signed_url }), {
+    return new Response(JSON.stringify({ token: conversationToken }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
