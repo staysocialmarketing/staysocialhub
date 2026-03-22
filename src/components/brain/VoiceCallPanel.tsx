@@ -3,7 +3,7 @@ import { useConversation } from "@elevenlabs/react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Phone, PhoneOff, Mic, Loader2 } from "lucide-react";
+import { Phone, PhoneOff, Mic, Loader2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -26,47 +26,66 @@ export default function VoiceCallPanel({
 }: VoiceCallPanelProps) {
   const [isConnecting, setIsConnecting] = useState(false);
   const [callEnded, setCallEnded] = useState(false);
+  const [earlyDisconnect, setEarlyDisconnect] = useState(false);
   const hasStartedRef = useRef(false);
+  const isStartingRef = useRef(false);
+  const sessionStartTimeRef = useRef<number>(0);
   const transcriptRef = useRef<Message[]>([]);
   const [transcript, setTranscript] = useState<Message[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const keepAliveRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const retryCountRef = useRef(0);
+
+  const addMessage = useCallback((msg: Message) => {
+    transcriptRef.current = [...transcriptRef.current, msg];
+    setTranscript([...transcriptRef.current]);
+  }, []);
 
   const conversation = useConversation({
     onConnect: () => {
       console.log("EL onConnect — session established");
       hasStartedRef.current = true;
+      isStartingRef.current = false;
+      sessionStartTimeRef.current = Date.now();
       setIsConnecting(false);
+      setEarlyDisconnect(false);
+      // Immediate keep-alive on connect
+      try { conversation.sendUserActivity(); } catch (_) {}
     },
     onDisconnect: () => {
-      console.log("EL onDisconnect — hasStarted:", hasStartedRef.current, "transcript length:", transcriptRef.current.length);
+      const elapsed = Date.now() - sessionStartTimeRef.current;
+      console.log("EL onDisconnect — hasStarted:", hasStartedRef.current, "transcript:", transcriptRef.current.length, "elapsed:", elapsed);
+      isStartingRef.current = false;
       if (hasStartedRef.current) {
-        setCallEnded(true);
-        toast.info("Voice call ended");
+        // Early disconnect with no user speech — offer retry
+        if (elapsed < 12000 && transcriptRef.current.filter(m => m.role === "user").length === 0 && retryCountRef.current < 1) {
+          setEarlyDisconnect(true);
+          toast.warning("Connection dropped. You can retry.");
+        } else {
+          setCallEnded(true);
+          toast.info("Voice call ended");
+        }
       }
     },
     onMessage: (message: any) => {
       console.log("EL onMessage", JSON.stringify(message));
+      // Format 1: typed events
       if (message.type === "user_transcript") {
         const userText = message.user_transcription_event?.user_transcript;
         if (userText?.trim()) {
-          const msg: Message = {
-            role: "user",
-            content: userText,
-            timestamp: new Date().toISOString(),
-          };
-          transcriptRef.current = [...transcriptRef.current, msg];
-          setTranscript([...transcriptRef.current]);
+          addMessage({ role: "user", content: userText, timestamp: new Date().toISOString() });
         }
       } else if (message.type === "agent_response") {
         const agentText = message.agent_response_event?.agent_response;
         if (agentText?.trim()) {
-          const msg: Message = {
-            role: "assistant",
-            content: agentText,
-            timestamp: new Date().toISOString(),
-          };
-          transcriptRef.current = [...transcriptRef.current, msg];
-          setTranscript([...transcriptRef.current]);
+          addMessage({ role: "assistant", content: agentText, timestamp: new Date().toISOString() });
+        }
+      }
+      // Format 2: compact { role, message }
+      else if (message.role && message.message) {
+        const role = message.role === "user" ? "user" : "assistant";
+        if (message.message.trim()) {
+          addMessage({ role, content: message.message, timestamp: new Date().toISOString() });
         }
       }
     },
@@ -74,6 +93,7 @@ export default function VoiceCallPanel({
       console.error("EL onError", error);
       toast.error("Voice connection error. Please try again.");
       setIsConnecting(false);
+      isStartingRef.current = false;
     },
   });
 
@@ -81,18 +101,14 @@ export default function VoiceCallPanel({
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [transcript]);
 
-  // Keep-alive heartbeat to prevent premature disconnects
-  const keepAliveRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
+  // Keep-alive heartbeat — 4s interval
   useEffect(() => {
     if (conversation.status === "connected") {
       keepAliveRef.current = setInterval(() => {
-        try {
-          conversation.sendUserActivity();
-        } catch (e) {
-          console.warn("Keep-alive sendUserActivity failed:", e);
+        try { conversation.sendUserActivity(); } catch (e) {
+          console.warn("Keep-alive failed:", e);
         }
-      }, 10_000);
+      }, 4000);
     } else {
       if (keepAliveRef.current) {
         clearInterval(keepAliveRef.current);
@@ -108,7 +124,14 @@ export default function VoiceCallPanel({
   }, [conversation.status]);
 
   const startCall = useCallback(async () => {
+    if (isStartingRef.current) return;
+    isStartingRef.current = true;
     setIsConnecting(true);
+    setCallEnded(false);
+    setEarlyDisconnect(false);
+    transcriptRef.current = [];
+    setTranscript([]);
+
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
 
@@ -155,6 +178,7 @@ export default function VoiceCallPanel({
       await conversation.startSession(sessionOpts);
     } catch (error: any) {
       console.error("Failed to start voice call:", error);
+      isStartingRef.current = false;
       if (error.name === "NotAllowedError") {
         toast.error("Microphone access is required for voice calls. Please enable it in your browser settings.");
       } else {
@@ -162,7 +186,13 @@ export default function VoiceCallPanel({
       }
       setIsConnecting(false);
     }
-  }, [conversation]);
+  }, [conversation, template]);
+
+  const retryCall = useCallback(() => {
+    retryCountRef.current += 1;
+    hasStartedRef.current = false;
+    startCall();
+  }, [startCall]);
 
   const endCall = useCallback(async () => {
     await conversation.endSession();
@@ -175,9 +205,31 @@ export default function VoiceCallPanel({
 
   const isConnected = conversation.status === "connected";
   const isSpeaking = conversation.isSpeaking;
-
-  // Show prior context count if resuming
   const contextCount = existingMessages.length;
+
+  // Early disconnect — offer retry
+  if (earlyDisconnect) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center gap-4 p-6">
+        <div className="h-20 w-20 rounded-full bg-destructive/10 flex items-center justify-center">
+          <PhoneOff className="h-9 w-9 text-destructive" />
+        </div>
+        <div>
+          <p className="text-sm font-medium">Connection dropped</p>
+          <p className="text-xs text-muted-foreground mt-1 max-w-[260px]">
+            The call disconnected early. This can happen with unstable connections. Try again?
+          </p>
+        </div>
+        <Button onClick={retryCall} size="sm" className="gap-1.5 mt-2">
+          <RotateCcw className="h-3.5 w-3.5" />
+          Retry Voice Call
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onCancel} className="text-muted-foreground">
+          Back to Chat
+        </Button>
+      </div>
+    );
+  }
 
   // Call ended screen
   if (callEnded) {
@@ -266,17 +318,15 @@ export default function VoiceCallPanel({
               : "Listening..."}
           </span>
         </div>
-        {(isConnected || isConnecting) && (
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={endCall}
-            className="gap-1.5 h-7 text-xs"
-          >
-            <PhoneOff className="h-3 w-3" />
-            End Call
-          </Button>
-        )}
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={endCall}
+          className="gap-1.5 h-7 text-xs"
+        >
+          <PhoneOff className="h-3 w-3" />
+          End Call
+        </Button>
       </div>
 
       {/* Voice visualization */}

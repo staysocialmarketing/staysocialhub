@@ -30,7 +30,7 @@ function buildInterviewVoicePrompt(template: string, clientName: string | null, 
   const templates: Record<string, { prompt: string; first_message: string }> = {
     full_onboarding: {
       prompt: `You are a senior brand strategist from Stay Social conducting a comprehensive brand onboarding interview${clientCtx}. Your goal is to understand their complete brand story — business origins, values, target audience, offers, brand voice, and goals. Be warm, curious, and conversational. Ask one question at a time. Keep responses short (1-2 sentences) for natural voice flow.${firstName ? ` The client's name is ${firstName}.` : ""}`,
-      first_message: `${hi} I'm so excited to learn about your brand! Let's start at the beginning — what's the story behind your business? What inspired you to start it?`,
+      first_message: `${hi} I'm so excited to learn about your brand! Tell me — what does your business do?`,
     },
     brand_voice: {
       prompt: `You are a brand voice specialist from Stay Social conducting a focused brand voice interview${clientCtx}. Your goal is to understand how they naturally communicate — their tone, personality, phrases they use, and how they want to sound to their audience. Be friendly and conversational. Ask one question at a time. Keep responses short.${firstName ? ` The client's name is ${firstName}.` : ""}`,
@@ -46,7 +46,7 @@ function buildInterviewVoicePrompt(template: string, clientName: string | null, 
     },
     website_discovery: {
       prompt: `You are a website strategist from Stay Social conducting a website discovery session${clientCtx}. Your goal is to understand their current website situation, design preferences (colors, fonts, style), page structure, functionality needs (booking, forms, ecommerce), and inspirational sites they admire. Be practical and creative. Ask one question at a time. Keep responses short.${firstName ? ` The client's name is ${firstName}.` : ""}`,
-      first_message: `${hi} I'm your website strategist. Let's talk about your website! Do you currently have one? If so, what platform is it on and what's your biggest frustration with it?`,
+      first_message: `${hi} I'm your website strategist. Let's start simple — do you currently have a website?`,
     },
   };
 
