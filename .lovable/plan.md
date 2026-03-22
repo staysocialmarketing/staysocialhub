@@ -1,31 +1,30 @@
 
 
-# Fix: Slow Down Interview Pacing
+# Fix: Voice Call Stuck After Disconnect
 
 ## Problem
-The AI asks multiple questions at once or gives long responses before asking a question, making it overwhelming — especially in the website discovery interview.
+When the ElevenLabs agent stops talking (timeout or natural end), the WebSocket disconnects. The component then:
+1. Hides the "End Call" button (gated on `isConnected`)
+2. Doesn't show the pre-call screen (gated on `!hasStartedRef.current`, which is `true`)
+3. User is stuck on a dead screen with no way out
 
 ## Solution
-Strengthen the "one question at a time" instruction in all template prompts and add explicit pacing rules.
 
-### `supabase/functions/ai-interview/index.ts`
+### `src/components/brain/VoiceCallPanel.tsx`
 
-Add a shared pacing block to every template prompt:
+Two fixes:
 
-```
-PACING RULES (critical):
-- Ask exactly ONE question per response. Never two.
-- Keep your response to 1-2 short sentences of acknowledgment, then your single question.
-- Do NOT list multiple things to answer. One topic, one question.
-- Wait for their full answer before moving to the next topic.
-- Never rush — let the conversation breathe.
-```
+1. **Always show an exit button** — when disconnected but `hasStartedRef.current` is true, show a "Done" / "Return to Chat" button that calls `onCallEnd` or `onCancel`
 
-Apply to all 5 templates (`full_onboarding`, `brand_voice`, `audience`, `content_strategy`, `website_discovery`).
+2. **Handle `onDisconnect` more gracefully** — show a toast notifying the user the call ended, and add a `disconnected` state so the UI shows a clear "call ended" screen with the transcript and a button to continue
 
-Also fix the `full_onboarding` and `website_discovery` FIRST message instructions — currently they ask multiple things ("what they do, how they got started, and what inspired them" / "do they have one already, what platform is it on, and what's working or not working"). Change these to a single opening question each.
+Specifically:
+- Add a `callEnded` state, set to `true` in `onDisconnect` when `hasStartedRef.current` is true
+- When `callEnded` is true, show a "Call ended" status in the header and a "Return to Chat" button
+- Change the "End Call" button condition from `isConnected || isConnecting` to `isConnected || isConnecting || callEnded` (or always show it after call started)
+- Show a toast on unexpected disconnect
 
 | File | Change |
 |---|---|
-| `supabase/functions/ai-interview/index.ts` | Add pacing rules to all 5 template prompts; simplify first-message instructions to single questions |
+| `src/components/brain/VoiceCallPanel.tsx` | Add `callEnded` state, show exit UI after disconnect, toast on unexpected end |
 
