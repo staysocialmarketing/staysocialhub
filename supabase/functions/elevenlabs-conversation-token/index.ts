@@ -177,9 +177,9 @@ Deno.serve(async (req) => {
       // No body or invalid JSON — that's fine, just get signed URL
     }
 
-    // Generate WebRTC conversation token
+    // Generate signed URL for WebSocket connection
     const response = await fetch(
-      `https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=${ELEVENLABS_AGENT_ID}`,
+      `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${ELEVENLABS_AGENT_ID}`,
       {
         headers: {
           "xi-api-key": ELEVENLABS_API_KEY,
@@ -190,11 +190,11 @@ Deno.serve(async (req) => {
     if (!response.ok) {
       const errBody = await response.text();
       throw new Error(
-        `ElevenLabs token request failed [${response.status}]: ${errBody}`
+        `ElevenLabs signed URL request failed [${response.status}]: ${errBody}`
       );
     }
 
-    const { token: conversationToken } = await response.json();
+    const { signed_url } = await response.json();
 
     // If prompt is requested, resolve user role and build it
     if (includePrompt) {
