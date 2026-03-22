@@ -25,6 +25,7 @@ export default function VoiceCallPanel({
   onCancel,
 }: VoiceCallPanelProps) {
   const [isConnecting, setIsConnecting] = useState(false);
+  const [callEnded, setCallEnded] = useState(false);
   const hasStartedRef = useRef(false);
   const transcriptRef = useRef<Message[]>([]);
   const [transcript, setTranscript] = useState<Message[]>([]);
@@ -38,8 +39,9 @@ export default function VoiceCallPanel({
     },
     onDisconnect: () => {
       console.log("EL onDisconnect — hasStarted:", hasStartedRef.current, "transcript length:", transcriptRef.current.length);
-      if (hasStartedRef.current && transcriptRef.current.length > 0) {
-        onCallEnd(transcriptRef.current);
+      if (hasStartedRef.current) {
+        setCallEnded(true);
+        toast.info("Voice call ended");
       }
     },
     onMessage: (message: any) => {
@@ -151,6 +153,46 @@ export default function VoiceCallPanel({
 
   // Show prior context count if resuming
   const contextCount = existingMessages.length;
+
+  // Call ended screen
+  if (callEnded) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center justify-between p-3 border-b">
+          <div className="flex items-center gap-2">
+            <div className="h-2.5 w-2.5 rounded-full bg-muted-foreground" />
+            <span className="text-xs font-medium text-muted-foreground">Call ended</span>
+          </div>
+        </div>
+        {transcript.length > 0 && (
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+            {transcript.map((msg, i) => (
+              <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                <Card className={cn("max-w-[85%] px-3 py-2 text-xs", msg.role === "user" ? "bg-primary text-primary-foreground border-0" : "bg-background")}>
+                  {msg.content}
+                </Card>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="p-4 border-t flex justify-center">
+          <Button
+            size="sm"
+            onClick={() => {
+              if (transcriptRef.current.length > 0) {
+                onCallEnd(transcriptRef.current);
+              } else {
+                onCancel();
+              }
+            }}
+            className="gap-1.5"
+          >
+            Return to Chat
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   // Pre-call screen
   if (!hasStartedRef.current && !isConnecting) {
