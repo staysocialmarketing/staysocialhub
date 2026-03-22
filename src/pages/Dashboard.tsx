@@ -44,6 +44,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { compressImage } from "@/lib/imageUtils";
 
+function useGreeting(userId?: string): string {
+  return useMemo(() => {
+    if (!userId) return "Hey";
+    const key = `last_dashboard_visit_${userId}`;
+    const last = localStorage.getItem(key);
+    const now = Date.now();
+    if (last && now - parseInt(last, 10) < 24 * 60 * 60 * 1000) {
+      return "Welcome back";
+    }
+    localStorage.setItem(key, String(now));
+    return "Hey";
+  }, [userId]);
+}
+
 const TASK_STATUSES = ["backlog", "todo", "in_progress", "waiting", "review", "complete"] as const;
 const TASK_STATUS_LABELS: Record<string, string> = {
   backlog: "Backlog", todo: "To Do", in_progress: "In Progress",
