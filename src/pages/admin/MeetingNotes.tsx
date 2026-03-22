@@ -49,7 +49,7 @@ export default function MeetingNotes() {
     const state = JSON.stringify({ token: session?.access_token || "", origin: window.location.origin });
 
     const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}&access_type=offline&prompt=consent&state=${encodeURIComponent(state)}`;
-    window.location.href = url;
+    window.open(url, "_blank");
   };
 
   const syncMutation = useMutation({
