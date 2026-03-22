@@ -110,11 +110,13 @@ export default function CorporateStrategy() {
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <SectionHeader
-          icon={<BookOpen className="h-5 w-5" />}
-          title="Strategy Playbook"
-          subtitle="Corporate strategies, design prompts, and SOPs that apply across all clients"
-        />
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <BookOpen className="h-5 w-5 text-muted-foreground" />
+            <h1 className="text-lg font-semibold">Strategy Playbook</h1>
+          </div>
+          <p className="text-sm text-muted-foreground">Corporate strategies, design prompts, and SOPs that apply across all clients</p>
+        </div>
         {isSSAdmin && (
           <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) resetForm(); else setDialogOpen(true); }}>
             <DialogTrigger asChild>
