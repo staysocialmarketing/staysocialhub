@@ -39,8 +39,9 @@ export default function VoiceCallPanel({
     },
     onDisconnect: () => {
       console.log("EL onDisconnect — hasStarted:", hasStartedRef.current, "transcript length:", transcriptRef.current.length);
-      if (hasStartedRef.current && transcriptRef.current.length > 0) {
-        onCallEnd(transcriptRef.current);
+      if (hasStartedRef.current) {
+        setCallEnded(true);
+        toast.info("Voice call ended");
       }
     },
     onMessage: (message: any) => {
