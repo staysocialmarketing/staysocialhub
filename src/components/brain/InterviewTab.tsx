@@ -584,7 +584,7 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
               ) : (
                 <Sparkles className="h-3.5 w-3.5" />
               )}
-              {hasExtracted ? "Re-extract" : "Extract to Brain"}
+              {hasExtracted ? "Re-extract" : WEBSITE_TEMPLATES.has(template) ? "Extract to Website Brief" : "Extract to Brain"}
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={startNew} className="gap-1.5">
