@@ -370,33 +370,75 @@ export type Database = {
       brand_twin: {
         Row: {
           audience_json: Json
+          avoid_list_json: Json
           brand_basics_json: Json
           brand_voice_json: Json
           client_id: string
+          colour_direction_json: Json
+          composition_json: Json
           content_rules_json: Json
+          cta_style_json: Json
+          formatting_rules_json: Json
+          locked_rules_json: Json
           offers_json: Json
+          prompt_notes_json: Json
+          seasonal_local_json: Json
+          social_direction_json: Json
           source_material_json: Json
+          subject_themes_json: Json
+          text_on_design_json: Json
+          typography_json: Json
           updated_at: string
+          visual_design_json: Json
+          website_direction_json: Json
         }
         Insert: {
           audience_json?: Json
+          avoid_list_json?: Json
           brand_basics_json?: Json
           brand_voice_json?: Json
           client_id: string
+          colour_direction_json?: Json
+          composition_json?: Json
           content_rules_json?: Json
+          cta_style_json?: Json
+          formatting_rules_json?: Json
+          locked_rules_json?: Json
           offers_json?: Json
+          prompt_notes_json?: Json
+          seasonal_local_json?: Json
+          social_direction_json?: Json
           source_material_json?: Json
+          subject_themes_json?: Json
+          text_on_design_json?: Json
+          typography_json?: Json
           updated_at?: string
+          visual_design_json?: Json
+          website_direction_json?: Json
         }
         Update: {
           audience_json?: Json
+          avoid_list_json?: Json
           brand_basics_json?: Json
           brand_voice_json?: Json
           client_id?: string
+          colour_direction_json?: Json
+          composition_json?: Json
           content_rules_json?: Json
+          cta_style_json?: Json
+          formatting_rules_json?: Json
+          locked_rules_json?: Json
           offers_json?: Json
+          prompt_notes_json?: Json
+          seasonal_local_json?: Json
+          social_direction_json?: Json
           source_material_json?: Json
+          subject_themes_json?: Json
+          text_on_design_json?: Json
+          typography_json?: Json
           updated_at?: string
+          visual_design_json?: Json
+          website_direction_json?: Json
         }
         Relationships: [
           {
