@@ -362,8 +362,25 @@ Deno.serve(async (req) => {
 
     // Fetch existing Brand Twin data for context
     let brandContext = "";
+    const serviceClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+    // Onboarding pre-check for non-full templates
+    let onboardingPreCheck = "";
+    if (templateKey !== "full_onboarding" && client_id) {
+      const { data: completedOnboarding } = await serviceClient
+        .from("brain_interviews")
+        .select("id")
+        .eq("client_id", client_id)
+        .eq("template", "full_onboarding")
+        .eq("status", "extracted")
+        .limit(1);
+
+      if (!completedOnboarding || completedOnboarding.length === 0) {
+        onboardingPreCheck = `\n\nIMPORTANT: Before diving into this focused interview, check if the client has already completed the full onboarding interview. In your FIRST message, warmly ask: "Before we get started, have you already done the full brand onboarding interview with us? If not, I'd recommend doing that first since it covers your brand voice, audience, and goals — which helps us with everything else. Would you like to do that first, or continue with this focused session?" If they want to continue, proceed normally. If they want onboarding first, let them know to start a new "Full Onboarding" interview from the template picker.`;
+      }
+    }
+
     if (client_id) {
-      const serviceClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
       const { data: brandTwin } = await serviceClient
         .from("brand_twin")
         .select("*")
@@ -415,7 +432,7 @@ Deno.serve(async (req) => {
     }
 
     const aiMessages = [
-      { role: "system", content: systemPrompt + brandContext },
+      { role: "system", content: systemPrompt + onboardingPreCheck + brandContext },
       ...(messages || []).map((m: any) => ({ role: m.role, content: m.content })),
     ];
 
