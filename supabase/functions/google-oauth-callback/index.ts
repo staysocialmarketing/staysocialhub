@@ -80,9 +80,8 @@ serve(async (req) => {
   }
 
   // Redirect back to meeting notes page
-  const origin = url.searchParams.get("origin") || "https://staysocialhub.lovable.app";
   return new Response(null, {
     status: 302,
-    headers: { Location: `${origin}/admin/meeting-notes?connected=true` },
+    headers: { Location: `${redirectOrigin}/admin/meeting-notes?connected=true` },
   });
 });
