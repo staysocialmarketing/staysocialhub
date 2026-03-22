@@ -485,7 +485,7 @@ function ClientDashboard() {
       {/* Hero greeting */}
       <div>
         <h1 className="text-3xl font-bold text-foreground tracking-tight">
-          Welcome back{profile?.name ? `, ${profile.name.split(" ")[0]}` : ""} {getWaveEmoji(profile?.name)}
+          {clientGreeting}{profile?.name ? `, ${profile.name.split(" ")[0]}` : ""} {getWaveEmoji(profile?.name)}
         </h1>
         <p className="text-muted-foreground mt-1">Here's what's happening with your marketing.</p>
       </div>
