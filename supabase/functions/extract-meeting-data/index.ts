@@ -56,7 +56,7 @@ serve(async (req) => {
     const projectList = (projects || []).map((p: any) => `${p.name} (${p.id}, client: ${p.client_id || "none"})`).join(", ");
 
     // AI extraction with enhanced prompt
-    const aiRes = await fetch("https://ai.lovable.dev/api/chat", {
+    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
