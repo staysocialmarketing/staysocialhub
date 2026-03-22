@@ -36,7 +36,6 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "note_id required" }), { status: 400, headers: corsHeaders });
     }
 
-    // Get the meeting note
     const { data: note, error: noteError } = await supabase
       .from("meeting_notes")
       .select("*")
@@ -47,14 +46,16 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Note not found" }), { status: 404, headers: corsHeaders });
     }
 
-    // Update status to processing
     await supabase.from("meeting_notes").update({ extraction_status: "processing", updated_at: new Date().toISOString() }).eq("id", note_id);
 
-    // Fetch all clients for name matching
+    // Fetch clients and existing projects for matching
     const { data: clients } = await supabase.from("clients").select("id, name");
     const clientList = (clients || []).map((c: any) => `${c.name} (${c.id})`).join(", ");
 
-    // AI extraction
+    const { data: projects } = await supabase.from("projects").select("id, name, client_id");
+    const projectList = (projects || []).map((p: any) => `${p.name} (${p.id}, client: ${p.client_id || "none"})`).join(", ");
+
+    // AI extraction with enhanced prompt
     const aiRes = await fetch("https://ai.lovable.dev/api/chat", {
       method: "POST",
       headers: {
@@ -69,13 +70,32 @@ serve(async (req) => {
             content: `You are an AI assistant that extracts structured data from meeting notes for a social media agency called Stay Social.
 
 Available clients: ${clientList}
+Existing projects: ${projectList}
 
 Extract the following from the meeting notes:
-1. **client_id**: Match the client discussed to one of the available clients. Return the UUID. If multiple clients, pick the primary one.
-2. **action_items**: Array of tasks/action items mentioned. Each should have: title, description, priority (low/normal/high/urgent), assignee_name (if mentioned)
-3. **content_ideas**: Array of content ideas mentioned. Each should have: title, description, content_type (social_post/email/video/reel/carousel)
-4. **strategy_updates**: Object with any strategy-relevant info: goals, focus_areas, campaigns, pillars
-5. **summary**: 2-3 sentence summary of the meeting
+
+1. **client_id**: Match the client discussed to one of the available clients. Return the UUID. If multiple clients are discussed, pick the primary one.
+
+2. **action_items**: Array of tasks/action items mentioned. Each must have:
+   - title: Clear, actionable task name (e.g. "Create Instagram carousel for spring campaign")
+   - description: Detailed description of what needs to be done, including any specifics mentioned
+   - priority: low/normal/high/urgent
+   - assignee_name: Name of the person responsible (if mentioned)
+   - project_name: Name of the project this task belongs to (if applicable)
+
+3. **projects**: Array of projects mentioned or implied. Each should have:
+   - name: Project name (e.g. "Q2 Spring Campaign", "Website Redesign")
+   - description: Brief description of the project scope
+   - Match to an existing project ID if possible, otherwise set existing_project_id to null
+
+4. **content_ideas**: Array of content ideas mentioned. Each should have:
+   - title: Descriptive name for the content piece
+   - description: Details about the content idea
+   - content_type: social_post/email/video/reel/carousel/story/blog
+
+5. **strategy_updates**: Object with any strategy-relevant info: goals, focus_areas, campaigns, pillars
+
+6. **summary**: 2-3 sentence summary of the meeting, including key decisions made
 
 Return ONLY valid JSON with these exact keys. If a section has no data, return empty array/object.`,
           },
@@ -96,8 +116,7 @@ Return ONLY valid JSON with these exact keys. If a section has no data, return e
 
     const aiData = await aiRes.json();
     const content = aiData.choices?.[0]?.message?.content || "";
-    
-    // Parse JSON from response (handle markdown code blocks)
+
     let extracted: any;
     try {
       const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, content];
@@ -108,18 +127,41 @@ Return ONLY valid JSON with these exact keys. If a section has no data, return e
       return new Response(JSON.stringify({ error: "Failed to parse extraction" }), { status: 500, headers: corsHeaders });
     }
 
-    // Route extracted data
-    const results: any = { tasks_created: 0, captures_created: 0, strategy_updated: false };
+    const results: any = { tasks_created: 0, captures_created: 0, projects_created: 0, strategy_updated: false };
+
+    // Create projects first so we can link tasks
+    const projectIdMap: Record<string, string> = {};
+    if (extracted.projects?.length) {
+      for (const proj of extracted.projects) {
+        if (proj.existing_project_id) {
+          projectIdMap[proj.name] = proj.existing_project_id;
+          continue;
+        }
+        const { data: newProject, error } = await supabase.from("projects").insert({
+          name: proj.name,
+          description: proj.description || null,
+          client_id: extracted.client_id || null,
+          created_by_user_id: userData.user.id,
+          status: "active",
+        }).select("id").single();
+        if (!error && newProject) {
+          projectIdMap[proj.name] = newProject.id;
+          results.projects_created++;
+        }
+      }
+    }
 
     // Create tasks from action items
     if (extracted.action_items?.length) {
       for (const item of extracted.action_items) {
+        const projectId = item.project_name ? projectIdMap[item.project_name] || null : null;
         const { error } = await supabase.from("tasks").insert({
           title: item.title,
           description: item.description || null,
           priority: item.priority || "normal",
           status: "todo",
           client_id: extracted.client_id || null,
+          project_id: projectId,
           created_by_user_id: userData.user.id,
           source_type: "meeting_notes",
         });
@@ -176,7 +218,7 @@ Return ONLY valid JSON with these exact keys. If a section has no data, return e
     await supabase.from("notifications").insert({
       user_id: userData.user.id,
       title: "Meeting notes extracted",
-      body: `${results.tasks_created} tasks, ${results.captures_created} captures created from "${note.title}"`,
+      body: `${results.tasks_created} tasks, ${results.captures_created} captures, ${results.projects_created} projects from "${note.title}"`,
       link: "/admin/meeting-notes",
     });
 

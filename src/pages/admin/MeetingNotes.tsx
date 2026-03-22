@@ -1,22 +1,35 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { FileText, RefreshCw, Plug, Brain, CheckCircle2, Clock, AlertCircle, ExternalLink } from "lucide-react";
+import { FileText, RefreshCw, Plug, Brain, CheckCircle2, Clock, AlertCircle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useSearchParams } from "react-router-dom";
 
 export default function MeetingNotes() {
   const { session } = useAuth();
   const queryClient = useQueryClient();
   const [selectedNote, setSelectedNote] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // Check if Google is connected
+  // Detect ?connected=true from OAuth callback
+  useEffect(() => {
+    if (searchParams.get("connected") === "true") {
+      toast.success("Google connected successfully!");
+      searchParams.delete("connected");
+      setSearchParams(searchParams, { replace: true });
+      queryClient.invalidateQueries({ queryKey: ["google-integration"] });
+    }
+  }, [searchParams, setSearchParams, queryClient]);
+
   const { data: integration, isLoading: loadingIntegration } = useQuery({
     queryKey: ["google-integration"],
     queryFn: async () => {
@@ -29,7 +42,6 @@ export default function MeetingNotes() {
     },
   });
 
-  // Fetch meeting notes
   const { data: notes = [], isLoading: loadingNotes } = useQuery({
     queryKey: ["meeting-notes"],
     queryFn: async () => {
@@ -49,12 +61,14 @@ export default function MeetingNotes() {
     const state = JSON.stringify({ token: session?.access_token || "", origin: window.location.origin });
 
     const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}&access_type=offline&prompt=consent&state=${encodeURIComponent(state)}`;
-    window.open(url, "_blank");
+    window.location.href = url;
   };
 
   const syncMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke("sync-meeting-notes");
+      const { data, error } = await supabase.functions.invoke("sync-meeting-notes", {
+        body: { since_days: 30 },
+      });
       if (error) throw error;
       return data;
     },
@@ -75,11 +89,29 @@ export default function MeetingNotes() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["meeting-notes"] });
+      const r = data.results;
       toast.success(
-        `Extracted: ${data.results.tasks_created} tasks, ${data.results.captures_created} captures`
+        `Extracted: ${r.tasks_created} tasks, ${r.captures_created} captures, ${r.projects_created || 0} projects`
       );
     },
     onError: (err: any) => toast.error(err.message || "Extraction failed"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (noteId: string) => {
+      const { error } = await supabase
+        .from("meeting_notes" as any)
+        .delete()
+        .eq("id", noteId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["meeting-notes"] });
+      toast.success("Meeting note deleted");
+      setDeleteTarget(null);
+      if (selectedNote?.id === deleteTarget?.id) setSelectedNote(null);
+    },
+    onError: (err: any) => toast.error(err.message || "Delete failed"),
   });
 
   const statusIcon = (status: string) => {
@@ -102,7 +134,7 @@ export default function MeetingNotes() {
             Meeting Notes
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Sync and extract data from Google Meet notes
+            Sync and extract data from Google Meet notes (last 30 days)
           </p>
         </div>
         <div className="flex gap-2">
@@ -185,11 +217,43 @@ export default function MeetingNotes() {
                     Extract
                   </Button>
                 )}
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="shrink-0 text-muted-foreground hover:text-destructive h-8 w-8"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeleteTarget(note);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete meeting note?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{deleteTarget?.title}". This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Note Detail Dialog */}
       <Dialog open={!!selectedNote} onOpenChange={(open) => !open && setSelectedNote(null)}>
@@ -240,6 +304,19 @@ export default function MeetingNotes() {
                         </ul>
                       </div>
                     )}
+                    {selectedNote.extracted_data.projects?.length > 0 && (
+                      <div className="mb-3">
+                        <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-1">Projects</h4>
+                        <ul className="space-y-1">
+                          {selectedNote.extracted_data.projects.map((proj: any, i: number) => (
+                            <li key={i} className="text-sm">
+                              <span className="font-medium">{proj.name}</span>
+                              {proj.description && <span className="text-muted-foreground"> — {proj.description}</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                     {selectedNote.extracted_data.content_ideas?.length > 0 && (
                       <div className="mb-3">
                         <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-1">Content Ideas</h4>
@@ -256,7 +333,8 @@ export default function MeetingNotes() {
                     {selectedNote.extracted_data.routing_results && (
                       <div className="mt-2 p-2 bg-muted/50 rounded text-xs text-muted-foreground">
                         Results: {selectedNote.extracted_data.routing_results.tasks_created} tasks,{" "}
-                        {selectedNote.extracted_data.routing_results.captures_created} captures
+                        {selectedNote.extracted_data.routing_results.captures_created} captures,{" "}
+                        {selectedNote.extracted_data.routing_results.projects_created || 0} projects
                         {selectedNote.extracted_data.routing_results.strategy_updated && ", strategy updated"}
                       </div>
                     )}

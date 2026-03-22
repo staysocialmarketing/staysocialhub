@@ -53,7 +53,15 @@ serve(async (req) => {
     const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID")!;
     const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
 
-    // Auth check
+    // Parse request body for since_days
+    let sinceDays = 30;
+    try {
+      const body = await req.json();
+      if (body.since_days && typeof body.since_days === "number") {
+        sinceDays = body.since_days;
+      }
+    } catch { /* no body or invalid JSON, use default */ }
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
@@ -73,7 +81,6 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Restricted" }), { status: 403, headers: corsHeaders });
     }
 
-    // Get google integration
     const { data: integration, error: intError } = await supabase
       .from("google_integrations")
       .select("*")
@@ -86,11 +93,12 @@ serve(async (req) => {
 
     const accessToken = await refreshTokenIfNeeded(integration, supabase, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
 
-    // Search Google Drive for Gemini/Meet notes
-    // Look for docs created by Google Meet or with "Meeting notes" in title
+    // Build date filter
+    const sinceDate = new Date(Date.now() - sinceDays * 24 * 60 * 60 * 1000).toISOString();
     const searchQuery = encodeURIComponent(
-      "mimeType='application/vnd.google-apps.document' and (name contains 'Meeting notes' or name contains 'meeting notes')"
+      `mimeType='application/vnd.google-apps.document' and (name contains 'Meeting notes' or name contains 'meeting notes') and modifiedTime > '${sinceDate}'`
     );
+
     const driveRes = await fetch(
       `https://www.googleapis.com/drive/v3/files?q=${searchQuery}&orderBy=modifiedTime desc&pageSize=50&fields=files(id,name,createdTime,modifiedTime)`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -107,7 +115,6 @@ serve(async (req) => {
     let skipped = 0;
 
     for (const file of files) {
-      // Check if already synced
       const { data: existing } = await supabase
         .from("meeting_notes")
         .select("id")
@@ -116,7 +123,6 @@ serve(async (req) => {
 
       if (existing) { skipped++; continue; }
 
-      // Fetch document content
       const docRes = await fetch(
         `https://docs.googleapis.com/v1/documents/${file.id}`,
         { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -128,8 +134,7 @@ serve(async (req) => {
       }
 
       const doc = await docRes.json();
-      
-      // Extract plain text from document body
+
       let rawContent = "";
       if (doc.body?.content) {
         for (const element of doc.body.content) {
@@ -141,7 +146,6 @@ serve(async (req) => {
         }
       }
 
-      // Parse meeting date from title or createdTime
       let meetingDate = null;
       const dateMatch = file.name.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2})/);
       if (dateMatch) {
