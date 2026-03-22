@@ -81,6 +81,32 @@ export default function VoiceCallPanel({
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [transcript]);
 
+  // Keep-alive heartbeat to prevent premature disconnects
+  const keepAliveRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (conversation.status === "connected") {
+      keepAliveRef.current = setInterval(() => {
+        try {
+          conversation.sendUserActivity();
+        } catch (e) {
+          console.warn("Keep-alive sendUserActivity failed:", e);
+        }
+      }, 10_000);
+    } else {
+      if (keepAliveRef.current) {
+        clearInterval(keepAliveRef.current);
+        keepAliveRef.current = null;
+      }
+    }
+    return () => {
+      if (keepAliveRef.current) {
+        clearInterval(keepAliveRef.current);
+        keepAliveRef.current = null;
+      }
+    };
+  }, [conversation.status]);
+
   const startCall = useCallback(async () => {
     setIsConnecting(true);
     try {
