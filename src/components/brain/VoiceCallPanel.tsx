@@ -96,6 +96,10 @@ export default function VoiceCallPanel({
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
+          body: JSON.stringify({
+            include_prompt: true,
+            interview_template: template,
+          }),
         }
       );
 
@@ -104,13 +108,24 @@ export default function VoiceCallPanel({
         throw new Error(err.error || "Failed to get signed URL");
       }
 
-      const { signed_url } = await resp.json();
+      const { signed_url, prompt: promptText, first_message } = await resp.json();
       if (!signed_url) throw new Error("No signed URL received");
 
-      await conversation.startSession({
+      const sessionOpts: any = {
         signedUrl: signed_url,
         connectionType: "websocket",
-      });
+      };
+
+      if (promptText) {
+        sessionOpts.overrides = {
+          agent: {
+            prompt: { prompt: promptText },
+            firstMessage: first_message,
+          },
+        };
+      }
+
+      await conversation.startSession(sessionOpts);
     } catch (error: any) {
       console.error("Failed to start voice call:", error);
       if (error.name === "NotAllowedError") {

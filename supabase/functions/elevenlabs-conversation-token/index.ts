@@ -217,6 +217,14 @@ Deno.serve(async (req) => {
         clientName = client?.name || null;
       }
 
+      // If this is an interview request, use interview-specific prompts
+      if (interviewTemplate) {
+        const { prompt, first_message } = buildInterviewVoicePrompt(interviewTemplate, clientName, userName);
+        return new Response(JSON.stringify({ signed_url, prompt, first_message }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       const { hint, pageLabel } = getRouteContext(currentRoute);
       const prompt = buildVoiceSystemPrompt(isSSRole, clientName, hint, userName);
       const first_message = buildFirstMessage(isSSRole, hint, pageLabel, userName);

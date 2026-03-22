@@ -725,7 +725,7 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
               );
             })()}
             <div className="flex gap-2 mt-3">
-              <Button onClick={() => streamChat([])} size="sm" className="gap-1.5">
+              <Button onClick={() => streamChat([{ role: "user", content: TEMPLATE_OPENERS[template] || "Start the interview. Introduce yourself and begin." }])} size="sm" className="gap-1.5">
                 <Sparkles className="h-3.5 w-3.5" />
                 Text Interview
               </Button>
