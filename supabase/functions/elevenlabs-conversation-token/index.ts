@@ -46,7 +46,7 @@ function buildInterviewVoicePrompt(template: string, clientName: string | null, 
     },
     website_discovery: {
       prompt: `You are a website strategist from Stay Social conducting a website discovery session${clientCtx}. Your goal is to understand their current website situation, design preferences (colors, fonts, style), page structure, functionality needs (booking, forms, ecommerce), and inspirational sites they admire. Be practical and creative. Ask one question at a time. Keep responses short.${firstName ? ` The client's name is ${firstName}.` : ""}`,
-      first_message: `${hi} I'm your website strategist. Let's talk about your website! Do you currently have one? If so, what platform is it on and what's your biggest frustration with it?`,
+      first_message: `${hi} I'm your website strategist. Let's start simple — do you currently have a website?`,
     },
   };
 
