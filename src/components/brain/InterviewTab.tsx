@@ -737,6 +737,23 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
         </div>
       )}
 
+      {/* Voice call mode */}
+      {voiceMode && (
+        <div className="border rounded-lg bg-muted/30 flex flex-col" style={{ height: "min(500px, 60vh)" }}>
+          <VoiceCallPanel
+            clientId={clientId}
+            template={template || "full_onboarding"}
+            existingMessages={messages}
+            onCallEnd={handleVoiceCallEnd}
+            onCancel={handleVoiceCancel}
+          />
+        </div>
+      )}
+
+      {/* Chat area — active conversation */}
+      {!voiceMode && messages.length > 0 && (
+      <div className="border rounded-lg bg-muted/30 flex flex-col" style={{ height: "min(500px, 60vh)" }}>
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.map((msg, i) => (
             <div
               key={i}
@@ -771,39 +788,36 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
           <div ref={chatEndRef} />
         </div>
 
-        {/* Input — always show when there are messages (enables resume) */}
-        {messages.length > 0 && (
-          <div className="border-t p-3 flex gap-2">
-            <Textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Type your answer..."
-              className="min-h-[44px] max-h-[120px] resize-none"
-              rows={1}
-              disabled={isStreaming}
-            />
-            <Button
-              size="icon"
-              variant="outline"
-              onClick={startVoiceCall}
-              disabled={isStreaming}
-              className="shrink-0 self-end"
-              title="Switch to voice"
-            >
-              <Phone className="h-4 w-4" />
-            </Button>
-            <Button
-              size="icon"
-              onClick={handleSend}
-              disabled={!input.trim() || isStreaming}
-              className="shrink-0 self-end"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
+        <div className="border-t p-3 flex gap-2">
+          <Textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Type your answer..."
+            className="min-h-[44px] max-h-[120px] resize-none"
+            rows={1}
+            disabled={isStreaming}
+          />
+          <Button
+            size="icon"
+            variant="outline"
+            onClick={startVoiceCall}
+            disabled={isStreaming}
+            className="shrink-0 self-end"
+            title="Switch to voice"
+          >
+            <Phone className="h-4 w-4" />
+          </Button>
+          <Button
+            size="icon"
+            onClick={handleSend}
+            disabled={!input.trim() || isStreaming}
+            className="shrink-0 self-end"
+          >
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
       )}
     </div>
