@@ -110,12 +110,12 @@ export default function VoiceCallPanel({
         throw new Error(err.error || "Failed to get signed URL");
       }
 
-      const { signed_url, prompt: promptText, first_message } = await resp.json();
-      if (!signed_url) throw new Error("No signed URL received");
+      const { token: conversationToken, prompt: promptText, first_message } = await resp.json();
+      if (!conversationToken) throw new Error("No conversation token received");
 
       const sessionOpts: any = {
-        signedUrl: signed_url,
-        connectionType: "websocket",
+        conversationToken,
+        connectionType: "webrtc",
       };
 
       if (promptText) {
