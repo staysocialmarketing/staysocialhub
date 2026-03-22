@@ -4,6 +4,7 @@ import {
   MessageSquarePlus, FolderOpen, UserCircle, Sparkles, Eye,
   Inbox, FolderKanban, ListTodo, Lightbulb, Building2,
   ShoppingCart, Users, Tag, LogOut, Brain, Wand2, Palette,
+  BookOpen, Zap, FileText,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
