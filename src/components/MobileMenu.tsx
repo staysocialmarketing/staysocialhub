@@ -45,6 +45,12 @@ const ssMenuSections = [
     ],
   },
   {
+    label: "Tools",
+    items: [
+      { title: "Content Generator", url: "/client/generate", icon: Wand2 },
+    ],
+  },
+  {
     label: "Admin",
     items: [
       { title: "Clients", url: "/admin/clients", icon: Building2 },
