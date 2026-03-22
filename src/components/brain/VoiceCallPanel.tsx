@@ -168,8 +168,11 @@ export default function VoiceCallPanel({
         throw new Error(err.error || "Failed to get signed URL");
       }
 
-      const { signed_url, prompt: promptText, first_message } = await resp.json();
+      const { signed_url, prompt: promptText } = await resp.json();
       if (!signed_url) throw new Error("No signed URL received");
+
+      // Store prompt for contextual update after connection establishes
+      pendingContextRef.current = promptText || "You are a brand strategist conducting an interview. Ask one question at a time.";
 
       // Hard connection timeout — fail after 12s if onConnect never fires
       connectionTimeoutRef.current = setTimeout(() => {
@@ -182,18 +185,9 @@ export default function VoiceCallPanel({
         }
       }, 12000);
 
-      // Align with proven Hub pattern: explicit websocket + overrides
+      // Minimal startSession — no overrides to avoid SDK disconnect bug
       await conversation.startSession({
         signedUrl: signed_url,
-        connectionType: "websocket",
-        overrides: {
-          agent: {
-            prompt: {
-              prompt: promptText || "You are a brand strategist. Have a natural conversation.",
-            },
-            firstMessage: first_message || "Hey! I'm ready to chat. What would you like to talk about?",
-          },
-        },
       });
     } catch (error: any) {
       console.error("Failed to start voice call:", error);
