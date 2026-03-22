@@ -46,18 +46,24 @@ const ssMenuSections = [
     ],
   },
   {
-    label: "Tools",
+    label: "Corporate",
     items: [
+      { title: "Strategy Playbook", url: "/corporate/strategy", icon: BookOpen },
       { title: "Content Generator", url: "/client/generate", icon: Wand2 },
     ],
   },
+];
+
+const ssAdminSections = [
   {
     label: "Admin",
     items: [
       { title: "Clients", url: "/admin/clients", icon: Building2 },
-      { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
+      { title: "Team Management", url: "/admin/team", icon: Users },
       { title: "Users", url: "/admin/users", icon: Users },
-      { title: "Team", url: "/admin/team", icon: Users },
+      { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
+      { title: "Meeting Notes", url: "/admin/meeting-notes", icon: FileText },
+      { title: "Automations", url: "/admin/automations", icon: Zap },
       { title: "Versions", url: "/admin/versions", icon: Tag },
     ],
   },
