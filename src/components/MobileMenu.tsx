@@ -151,10 +151,12 @@ export function MobileMenu({ onNavigate }: MobileMenuProps) {
   };
 
   const renderSection = (section: { label: string; items: any[] }) => (
-    <div key={section.label}>
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-1">
-        {section.label}
-      </p>
+    <div key={section.label || "main"}>
+      {section.label && (
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-1">
+          {section.label}
+        </p>
+      )}
       <div className="space-y-0.5">{section.items.map(renderItem)}</div>
     </div>
   );
