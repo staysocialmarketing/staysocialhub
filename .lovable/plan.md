@@ -1,50 +1,56 @@
 
-Goal: stop interview voice calls from dropping right after the “website strategist” opening line, and preserve transcript/context when disconnects happen.
+Goal: stop voice interviews from auto-ending right after the first “website strategist” line and make recovery seamless when disconnects still happen.
 
-## What’s likely happening (from logs + code)
-- Session connects and first agent message arrives, then disconnects almost immediately.
-- `VoiceCallPanel` currently starts session without an explicit `connectionType`, unlike your working Hub voice flow.
-- Message parsing only handles `type === "agent_response"` / `user_transcript`, but your runtime payload is often compact (`{ role, message }`), so transcript stays empty (`transcript length: 0`).
-- Keep-alive starts too late for early-turn drops and runs every 10s.
+## What I found from current logs/code
+- Session is successfully connecting and receiving first agent message.
+- Disconnect happens ~1.5–1.9s later (`onConnect -> first message -> onDisconnect`), so this is not a token/auth failure.
+- Current interview voice flow differs from your known working Hub flow in key ways:
+  - no explicit `connectionType: "websocket"` in `startSession`
+  - immediate `sendUserActivity()` on connect + aggressive 4s heartbeat
+  - no use of disconnect reason payload to branch recovery logic
 
 ## Implementation plan
 
-### 1) Stabilize voice session startup
+### 1) Align interview voice session startup with known stable pattern
 **File:** `src/components/brain/VoiceCallPanel.tsx`
-- Add a strict start guard (`isStartingRef`) so `startCall()` cannot run twice in parallel.
-- Start session with explicit WebSocket mode:
-  - `conversation.startSession({ signedUrl, connectionType: "websocket", overrides: ... })`
-- Reset `callEnded` and transcript refs on each new start attempt.
+- Set explicit `connectionType: "websocket"` in `conversation.startSession(...)`.
+- Add a 12s connection-timeout watchdog (same reliability pattern as Hub voice).
+- Keep overrides, but make startup deterministic and single-flight (`isStartingRef` stays).
 
-### 2) Improve keep-alive timing for first-turn reliability
+### 2) Replace aggressive early heartbeat with safer activity strategy
 **File:** `src/components/brain/VoiceCallPanel.tsx`
-- Send `conversation.sendUserActivity()` immediately on connect.
-- Reduce heartbeat interval from 10s to 3–5s while connected.
-- Clear heartbeat on disconnect/unmount as today.
+- Remove immediate `sendUserActivity()` on `onConnect`.
+- Start heartbeat only after conversation is stable (first user transcript or small grace window), then ping every ~8–10s.
+- Clear heartbeat on disconnect/unmount.
 
-### 3) Parse both ElevenLabs message formats
+Why: current disconnect timing suggests the session is being closed shortly after first turn; reducing early control messages avoids destabilizing the first exchange.
+
+### 3) Use disconnect/error details to recover intelligently
 **File:** `src/components/brain/VoiceCallPanel.tsx`
-- Extend `onMessage` parser to support both:
-  - typed events (`agent_response`, `user_transcript`)
-  - compact events (`{ role: "agent" | "user", message: "..." }`)
-- This ensures assistant/user turns are captured, transcript is not empty, and post-call behavior is reliable.
+- Update callbacks to SDK-native signatures:
+  - `onDisconnect(details)`
+  - `onError(message, context)`
+- Classify disconnects (`user`, `agent`, `error`) and elapsed time.
+- If `agent/error` disconnect happens very early with no user speech:
+  - auto-retry once in “safe mode” (same session but without overrides)
+  - if second failure: show clear CTA to retry or continue in text mode.
 
-### 4) Add early-disconnect recovery UX
-**File:** `src/components/brain/VoiceCallPanel.tsx`
-- Track session start time.
-- If disconnect happens very early (e.g., <10s) and no user speech yet:
-  - auto-retry once in-place, or show a one-click “Reconnect Voice Call” CTA.
-- Keep existing “Return to Chat” fallback so users never get stuck.
+### 4) Preserve context/transcript across retries and fallback
+**Files:** 
+- `src/components/brain/VoiceCallPanel.tsx`
+- `src/components/brain/InterviewTab.tsx`
+- Do not wipe transcript on internal reconnect attempts.
+- Keep assistant opening line so context is preserved if user switches to text.
+- Add “Continue in Text” action from early-disconnect UI, using the same template thread.
 
-### 5) Tighten website voice opener pacing
+### 5) Keep interview prompt pacing but reduce startup complexity
 **File:** `supabase/functions/elevenlabs-conversation-token/index.ts`
-- Make `website_discovery` first message one-question only (no stacked questions).
-- Align all interview voice first messages to single-question pacing.
-- Keep prompt overrides as-is.
+- Keep one-question first messages (already done), but avoid extra startup verbosity in first turn prompts.
+- No database changes required.
 
 ## Validation checklist
-1. Start Website Discovery voice call and confirm it stays connected past first prompt.
-2. Speak once; verify user transcript appears in panel.
-3. Let silence sit for >20s; confirm session remains alive.
-4. End call manually; confirm transcript returns to chat.
-5. Repeat on other templates to confirm no regression.
+1. Start Website Discovery voice interview: connection remains active at least 30s after first line.
+2. Speak one answer: user transcript appears and call remains connected.
+3. Stay silent briefly: call should not instantly end; if it does, auto-retry triggers once.
+4. After forced second failure: “Retry Voice” and “Continue in Text” both work.
+5. Repeat on at least 2 other templates to confirm no regressions.
