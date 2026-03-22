@@ -1,30 +1,29 @@
 
 
-# Fix: Voice Call Stuck After Disconnect
+# Fix: Voice Call Disconnecting After ~5 Seconds
 
-## Problem
-When the ElevenLabs agent stops talking (timeout or natural end), the WebSocket disconnects. The component then:
-1. Hides the "End Call" button (gated on `isConnected`)
-2. Doesn't show the pre-call screen (gated on `!hasStartedRef.current`, which is `true`)
-3. User is stuck on a dead screen with no way out
+## Analysis
 
-## Solution
+Your ElevenLabs dashboard settings look correct — "End conversation after silence" is disabled (-1), max duration is 600s. The issue is on the connection side.
 
-### `src/components/brain/VoiceCallPanel.tsx`
+The most likely cause is **WebSocket instability**. The current code uses `connectionType: "websocket"` with a `signed_url`. WebRTC is the recommended, more stable connection type for ElevenLabs conversational AI.
 
-Two fixes:
+## Solution: Switch to WebRTC + Add Keep-Alive
 
-1. **Always show an exit button** — when disconnected but `hasStartedRef.current` is true, show a "Done" / "Return to Chat" button that calls `onCallEnd` or `onCancel`
+### 1. `supabase/functions/elevenlabs-conversation-token/index.ts`
+- Fetch a **WebRTC conversation token** instead of (or in addition to) a signed URL
+- Change the ElevenLabs API call from `get-signed-url` to the token endpoint: `POST https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=...`
+- Return `{ token, prompt, first_message }` instead of `{ signed_url, ... }`
 
-2. **Handle `onDisconnect` more gracefully** — show a toast notifying the user the call ended, and add a `disconnected` state so the UI shows a clear "call ended" screen with the transcript and a button to continue
+### 2. `src/components/brain/VoiceCallPanel.tsx`
+- Switch from `signedUrl` + `connectionType: "websocket"` to `conversationToken` + `connectionType: "webrtc"`
+- Add a **keep-alive interval** using `conversation.sendUserActivity()` every 10 seconds while connected — this signals to ElevenLabs that the user is still present
+- Clean up the interval on disconnect/unmount
 
-Specifically:
-- Add a `callEnded` state, set to `true` in `onDisconnect` when `hasStartedRef.current` is true
-- When `callEnded` is true, show a "Call ended" status in the header and a "Return to Chat" button
-- Change the "End Call" button condition from `isConnected || isConnecting` to `isConnected || isConnecting || callEnded` (or always show it after call started)
-- Show a toast on unexpected disconnect
+### 3. Changes Summary
 
 | File | Change |
 |---|---|
-| `src/components/brain/VoiceCallPanel.tsx` | Add `callEnded` state, show exit UI after disconnect, toast on unexpected end |
+| `supabase/functions/elevenlabs-conversation-token/index.ts` | Fetch WebRTC token instead of signed URL |
+| `src/components/brain/VoiceCallPanel.tsx` | Use `conversationToken` + `webrtc`, add keep-alive heartbeat |
 
