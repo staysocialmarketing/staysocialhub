@@ -1,42 +1,62 @@
 
 
-# Personalized Welcome Messages per Interview Template
+# Fix: Personalized Interview Openings (Text + Voice)
 
-## Problem
-When clicking "Text Interview", `streamChat([])` sends an empty message array to the AI. The system prompt varies per template, but the AI's opening greeting ends up sounding similar across all templates because there's no explicit instruction for **how to open the conversation**.
+## Root Causes
 
-## Solution
-Add a short opening instruction as the first user message (hidden from UI) that primes the AI to greet the client with a template-specific welcome. This gives each interview type a distinct, personalized start.
+1. **Text mode**: `streamChat([])` sends an empty messages array. The system prompt says "Your FIRST message should..." but with zero user messages, models often ignore this instruction.
+2. **Voice mode**: `VoiceCallPanel` sends no body to the token endpoint (no `include_prompt`, no `interview_template`), so it gets the generic Hub Assistant prompt. It also doesn't pass `overrides` to `startSession`.
 
 ## Changes
 
-### `src/components/brain/InterviewTab.tsx`
-Instead of calling `streamChat([])` with no messages, send a hidden "primer" message per template:
+### 1. `src/components/brain/InterviewTab.tsx` — Hidden primer for text mode
 
-```text
-full_onboarding → "Start the comprehensive brand onboarding interview. Introduce yourself warmly and ask about their business story."
-brand_voice     → "Start the brand voice deep dive. Introduce yourself and ask about how they naturally communicate."
-audience        → "Start the audience research session. Introduce yourself and ask who their ideal customers are."
-content_strategy → "Start the content strategy session. Introduce yourself and ask about their current platforms and content approach."
-website_discovery → "Start the website discovery session. Introduce yourself and ask about their current website situation."
+Add a `TEMPLATE_OPENERS` map. When "Text Interview" is clicked, call `streamChat([{ role: "user", content: opener }])` instead of `streamChat([])`. The primer message is NOT added to visible `messages` state — it's only passed to the API.
+
+```typescript
+const TEMPLATE_OPENERS: Record<string, string> = {
+  full_onboarding: "Start the comprehensive brand onboarding interview. Introduce yourself warmly and ask about their business story.",
+  brand_voice: "Start the brand voice deep dive. Introduce yourself and ask about how they naturally communicate.",
+  audience: "Start the audience research session. Introduce yourself and ask who their ideal customers are.",
+  content_strategy: "Start the content strategy session. Introduce yourself and ask about their current platforms and content approach.",
+  website_discovery: "Start the website discovery session. Introduce yourself and ask about their current website situation.",
+};
 ```
 
-- Define a `TEMPLATE_OPENERS` map with these primer messages
-- On "Text Interview" click, call `streamChat([{ role: "user", content: opener }])` but **do not** add this primer to the visible `messages` state — only pass it to the API call
-- Alternatively (simpler): append the opener instruction directly to the system prompt in the edge function as a "Begin by..." line
+Line ~720: Change `streamChat([])` → `streamChat([{ role: "user", content: TEMPLATE_OPENERS[template] || "Start the interview." }])`
 
-**Recommended approach**: Add the opening instruction to the system prompts in the edge function — this is cleaner since the system prompts already exist per template and it requires no frontend changes.
+### 2. `src/components/brain/VoiceCallPanel.tsx` — Pass template context + use overrides
 
-### `supabase/functions/ai-interview/index.ts`
-Append a clear opening instruction to each template's system prompt:
+- Send `{ include_prompt: true, interview_template: template }` in the POST body to the token endpoint
+- Use the returned `prompt` and `first_message` as overrides in `startSession`:
 
-- `full_onboarding`: already has "Start with warm introductions and ask about their business story" — just make it more explicit: "Your FIRST message should warmly introduce yourself as a brand strategist from Stay Social and ask about their business story and what inspired them to start."
-- `brand_voice`: "Your FIRST message should introduce yourself as a brand voice specialist and ask how they'd describe the way they naturally talk about their business."
-- `audience`: "Your FIRST message should introduce yourself as an audience research specialist and ask them to describe their ideal customer."
-- `content_strategy`: "Your FIRST message should introduce yourself as a content strategy consultant and ask what platforms they're currently using."
-- `website_discovery`: "Your FIRST message should introduce yourself as a website strategist from Stay Social and ask about their current website situation — do they have one, what's working, what's not."
+```typescript
+await conversation.startSession({
+  signedUrl: signed_url,
+  overrides: {
+    agent: {
+      prompt: { prompt: promptText },
+      firstMessage: first_message,
+    },
+  },
+});
+```
+
+### 3. `supabase/functions/elevenlabs-conversation-token/index.ts` — Interview-aware voice prompts
+
+Accept optional `interview_template` in the request body. When present, build a voice-optimized system prompt and first message from the interview template (shorter versions of the text-mode prompts) instead of the Hub Assistant prompt.
+
+Add a function like `buildInterviewVoicePrompt(template, clientName, userName)` that returns `{ prompt, first_message }` per template.
+
+## ElevenLabs Dashboard
+
+Already confirmed: "First message" and "System prompt" overrides are ON (per screenshot). No further dashboard changes needed.
+
+## Summary
 
 | File | Change |
 |---|---|
-| `supabase/functions/ai-interview/index.ts` | Add explicit first-message instructions to each template prompt |
+| `src/components/brain/InterviewTab.tsx` | Send hidden primer message for text mode instead of empty array |
+| `src/components/brain/VoiceCallPanel.tsx` | Send template to token endpoint; use prompt/firstMessage overrides |
+| `supabase/functions/elevenlabs-conversation-token/index.ts` | Build interview-specific voice prompts when `interview_template` is provided |
 
