@@ -229,12 +229,12 @@ Deno.serve(async (req) => {
       const prompt = buildVoiceSystemPrompt(isSSRole, clientName, hint, userName);
       const first_message = buildFirstMessage(isSSRole, hint, pageLabel, userName);
 
-      return new Response(JSON.stringify({ signed_url, prompt, first_message }), {
+      return new Response(JSON.stringify({ token: conversationToken, prompt, first_message }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(JSON.stringify({ signed_url }), {
+    return new Response(JSON.stringify({ token: conversationToken }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
