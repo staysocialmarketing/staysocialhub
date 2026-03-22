@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Brain, Send, Sparkles, Plus, Loader2, CheckCircle2, Phone, Trash2 } from "lucide-react";
+import { Brain, Send, Sparkles, Plus, Loader2, CheckCircle2, Phone, Trash2, Globe, Users, Megaphone, MessageSquare, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import VoiceCallPanel from "./VoiceCallPanel";
@@ -25,11 +25,11 @@ type Interview = {
 };
 
 const TEMPLATES = [
-  { value: "full_onboarding", label: "Full Onboarding", desc: "Comprehensive brand discovery", color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300" },
-  { value: "brand_voice", label: "Brand Voice", desc: "Define communication style", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
-  { value: "audience", label: "Audience Deep Dive", desc: "Understand target customers", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" },
-  { value: "content_strategy", label: "Content Strategy", desc: "Platforms & content planning", color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" },
-  { value: "website_discovery", label: "Website Discovery", desc: "Design, pages & functionality", color: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300" },
+  { value: "full_onboarding", label: "Full Onboarding", desc: "Comprehensive brand discovery — voice, audience, offers & goals", color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300", icon: Brain },
+  { value: "brand_voice", label: "Brand Voice", desc: "Define communication style, tone & messaging", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300", icon: MessageSquare },
+  { value: "audience", label: "Audience Deep Dive", desc: "Understand target customers & pain points", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300", icon: Users },
+  { value: "content_strategy", label: "Content Strategy", desc: "Platforms, content types & posting goals", color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300", icon: Megaphone },
+  { value: "website_discovery", label: "Website Discovery", desc: "Design, pages, functionality & integrations", color: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300", icon: Globe },
 ];
 
 const WEBSITE_TEMPLATES = new Set(["website_discovery"]);
@@ -43,7 +43,7 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
-  const [template, setTemplate] = useState("full_onboarding");
+  const [template, setTemplate] = useState<string | null>(null);
   const [voiceMode, setVoiceMode] = useState(false);
   const autoExtractedRef = useRef<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -374,6 +374,7 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
     setMessages([]);
     setInput("");
     setVoiceMode(false);
+    setTemplate(null);
     autoExtractedRef.current = null;
   };
 
@@ -546,26 +547,33 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
   const hasExtracted = activeInterview?.status === "extracted";
   const isResuming = !!activeInterviewId && messages.length > 0;
 
+  // Template not yet selected — show picker
+  const showTemplatePicker = !template && !activeInterviewId && messages.length === 0;
+
   return (
     <div className="space-y-4">
       {/* Header with template select and controls */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          <Select value={template} onValueChange={setTemplate} disabled={!!activeInterviewId}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {TEMPLATES.map((t) => (
-                <SelectItem key={t.value} value={t.value}>
-                  <div>
-                    <span className="font-medium">{t.label}</span>
-                    <span className="text-xs text-muted-foreground ml-2">{t.desc}</span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {template ? (
+            <Select value={template} onValueChange={setTemplate} disabled={!!activeInterviewId}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TEMPLATES.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>
+                    <div>
+                      <span className="font-medium">{t.label}</span>
+                      <span className="text-xs text-muted-foreground ml-2">{t.desc}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <p className="text-sm font-medium text-muted-foreground">Select an interview type to begin</p>
+          )}
         </div>
 
         <div className="flex gap-2">
@@ -584,76 +592,147 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
               ) : (
                 <Sparkles className="h-3.5 w-3.5" />
               )}
-              {hasExtracted ? "Re-extract" : WEBSITE_TEMPLATES.has(template) ? "Extract to Website Brief" : "Extract to Brain"}
+              {hasExtracted ? "Re-extract" : WEBSITE_TEMPLATES.has(template || "") ? "Extract to Website Brief" : "Extract to Brain"}
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={startNew} className="gap-1.5">
-            <Plus className="h-3.5 w-3.5" />
-            New Interview
-          </Button>
+          {(template || activeInterviewId) && (
+            <Button variant="outline" size="sm" onClick={startNew} className="gap-1.5">
+              <Plus className="h-3.5 w-3.5" />
+              New Interview
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Previous interviews */}
-      {interviews && interviews.length > 0 && !activeInterviewId && messages.length === 0 && (
-        <div className="space-y-2">
-          <p className="text-xs text-muted-foreground font-medium">Previous Interviews</p>
-          <div className="grid gap-2">
-            {interviews.map((interview) => (
-              <Card
-                key={interview.id}
-                className="p-3 cursor-pointer hover:bg-accent/50 transition-colors"
-                onClick={() => {
-                  setActiveInterviewId(interview.id);
-                  autoExtractedRef.current = null;
-                }}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Brain className="h-4 w-4 text-primary" />
-                    {getTemplateBadge(interview.template)}
-                    <Badge
-                      variant={interview.status === "extracted" ? "default" : "secondary"}
-                      className="text-[10px]"
-                    >
-                      {interview.status}
-                    </Badge>
+      {/* Template Picker Grid */}
+      {showTemplatePicker && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {TEMPLATES.map((t) => {
+              const Icon = t.icon;
+              return (
+                <Card
+                  key={t.value}
+                  className="p-4 cursor-pointer hover:bg-accent/50 hover:border-primary/30 transition-all group"
+                  onClick={() => setTemplate(t.value)}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`rounded-lg p-2 ${t.color}`}>
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold group-hover:text-primary transition-colors">{t.label}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{t.desc}</p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">
-                      {formatRelativeTime(interview.updated_at || interview.created_at)}
-                    </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (!confirm("Delete this interview?")) return;
-                        supabase
-                          .from("brain_interviews" as any)
-                          .delete()
-                          .eq("id", interview.id)
-                          .then(({ error }) => {
-                            if (error) {
-                              toast.error("Failed to delete interview");
-                            } else {
-                              toast.success("Interview deleted");
-                              queryClient.invalidateQueries({ queryKey: ["brain-interviews", clientId] });
-                            }
-                          });
-                      }}
-                      className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* Previous interviews below the picker */}
+          {interviews && interviews.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground font-medium">Previous Interviews</p>
+              <div className="grid gap-2">
+                {interviews.map((interview) => (
+                  <Card
+                    key={interview.id}
+                    className="p-3 cursor-pointer hover:bg-accent/50 transition-colors"
+                    onClick={() => {
+                      setActiveInterviewId(interview.id);
+                      setTemplate(interview.template);
+                      autoExtractedRef.current = null;
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Brain className="h-4 w-4 text-primary" />
+                        {getTemplateBadge(interview.template)}
+                        <Badge
+                          variant={interview.status === "extracted" ? "default" : "secondary"}
+                          className="text-[10px]"
+                        >
+                          {interview.status}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">
+                          {formatRelativeTime(interview.updated_at || interview.created_at)}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!confirm("Delete this interview?")) return;
+                            supabase
+                              .from("brain_interviews" as any)
+                              .delete()
+                              .eq("id", interview.id)
+                              .then(({ error }) => {
+                                if (error) {
+                                  toast.error("Failed to delete interview");
+                                } else {
+                                  toast.success("Interview deleted");
+                                  queryClient.invalidateQueries({ queryKey: ["brain-interviews", clientId] });
+                                }
+                              });
+                          }}
+                          className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-xs text-muted-foreground">
+                        {(interview.messages || []).length} messages
+                      </p>
+                      <span className="text-xs text-primary font-medium">Continue →</span>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Template selected but no conversation yet — show start buttons */}
+      {template && !activeInterviewId && messages.length === 0 && !voiceMode && !showTemplatePicker && (
+        <div className="border rounded-lg bg-muted/30 flex flex-col" style={{ height: "min(500px, 60vh)" }}>
+          <div className="flex-1 flex flex-col items-center justify-center text-center gap-3 p-4">
+            {(() => {
+              const t = TEMPLATES.find(tp => tp.value === template);
+              const Icon = t?.icon || Brain;
+              return (
+                <>
+                  <div className={`rounded-xl p-3 ${t?.color || ""}`}>
+                    <Icon className="h-8 w-8" />
                   </div>
-                </div>
-                <div className="flex items-center gap-2 mt-1">
-                  <p className="text-xs text-muted-foreground">
-                    {(interview.messages || []).length} messages
-                  </p>
-                  <span className="text-xs text-primary font-medium">Continue →</span>
-                </div>
-              </Card>
-            ))}
+                  <div>
+                    <p className="text-sm font-semibold">{t?.label}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t?.desc}</p>
+                  </div>
+                </>
+              );
+            })()}
+            <div className="flex gap-2 mt-3">
+              <Button onClick={() => streamChat([])} size="sm" className="gap-1.5">
+                <Sparkles className="h-3.5 w-3.5" />
+                Text Interview
+              </Button>
+              <Button onClick={() => setVoiceMode(true)} size="sm" variant="outline" className="gap-1.5">
+                <Phone className="h-3.5 w-3.5" />
+                Voice Call
+              </Button>
+            </div>
+            <button
+              onClick={() => setTemplate(null)}
+              className="text-xs text-muted-foreground hover:text-foreground mt-2 flex items-center gap-1 transition-colors"
+            >
+              <ArrowLeft className="h-3 w-3" />
+              Back to templates
+            </button>
           </div>
         </div>
       )}
@@ -663,7 +742,7 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
         <div className="border rounded-lg bg-muted/30 flex flex-col" style={{ height: "min(500px, 60vh)" }}>
           <VoiceCallPanel
             clientId={clientId}
-            template={template}
+            template={template || "full_onboarding"}
             existingMessages={messages}
             onCallEnd={handleVoiceCallEnd}
             onCancel={handleVoiceCancel}
@@ -671,32 +750,10 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
         </div>
       )}
 
-      {/* Chat area */}
-      {!voiceMode && (
+      {/* Chat area — active conversation */}
+      {!voiceMode && messages.length > 0 && (
       <div className="border rounded-lg bg-muted/30 flex flex-col" style={{ height: "min(500px, 60vh)" }}>
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full text-center gap-3">
-              <Brain className="h-10 w-10 text-primary/40" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">AI Brand Interview</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Start a conversation to build the Brand Twin through natural dialogue
-                </p>
-              </div>
-              <div className="flex gap-2 mt-2">
-                <Button onClick={() => streamChat([])} size="sm" className="gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Text Interview
-                </Button>
-                <Button onClick={() => { setVoiceMode(true); }} size="sm" variant="outline" className="gap-1.5">
-                  <Phone className="h-3.5 w-3.5" />
-                  Voice Call
-                </Button>
-              </div>
-            </div>
-          )}
-
           {messages.map((msg, i) => (
             <div
               key={i}
@@ -731,39 +788,36 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
           <div ref={chatEndRef} />
         </div>
 
-        {/* Input — always show when there are messages (enables resume) */}
-        {messages.length > 0 && (
-          <div className="border-t p-3 flex gap-2">
-            <Textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Type your answer..."
-              className="min-h-[44px] max-h-[120px] resize-none"
-              rows={1}
-              disabled={isStreaming}
-            />
-            <Button
-              size="icon"
-              variant="outline"
-              onClick={startVoiceCall}
-              disabled={isStreaming}
-              className="shrink-0 self-end"
-              title="Switch to voice"
-            >
-              <Phone className="h-4 w-4" />
-            </Button>
-            <Button
-              size="icon"
-              onClick={handleSend}
-              disabled={!input.trim() || isStreaming}
-              className="shrink-0 self-end"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
+        <div className="border-t p-3 flex gap-2">
+          <Textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Type your answer..."
+            className="min-h-[44px] max-h-[120px] resize-none"
+            rows={1}
+            disabled={isStreaming}
+          />
+          <Button
+            size="icon"
+            variant="outline"
+            onClick={startVoiceCall}
+            disabled={isStreaming}
+            className="shrink-0 self-end"
+            title="Switch to voice"
+          >
+            <Phone className="h-4 w-4" />
+          </Button>
+          <Button
+            size="icon"
+            onClick={handleSend}
+            disabled={!input.trim() || isStreaming}
+            className="shrink-0 self-end"
+          >
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
       )}
     </div>
