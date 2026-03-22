@@ -179,7 +179,7 @@ function WorkQueueDashboard() {
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground tracking-tight">
-            {profile?.name ? `Hey, ${profile.name.split(" ")[0]} ${getWaveEmoji(profile.name)}` : "Work Queue"}
+            {profile?.name ? `${greeting}, ${profile.name.split(" ")[0]} ${getWaveEmoji(profile.name)}` : "Work Queue"}
           </h1>
           <p className="text-muted-foreground mt-1">Here's what needs your attention today.</p>
         </div>
