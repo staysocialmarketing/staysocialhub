@@ -33,8 +33,8 @@ export default function VoiceCallPanel({
   const transcriptRef = useRef<Message[]>([]);
   const [transcript, setTranscript] = useState<Message[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const keepAliveRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const retryCountRef = useRef(0);
+  const connectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const addMessage = useCallback((msg: Message) => {
     transcriptRef.current = [...transcriptRef.current, msg];
@@ -49,16 +49,23 @@ export default function VoiceCallPanel({
       sessionStartTimeRef.current = Date.now();
       setIsConnecting(false);
       setEarlyDisconnect(false);
-      // Immediate keep-alive on connect
-      try { conversation.sendUserActivity(); } catch (_) {}
+      // Clear connection timeout
+      if (connectionTimeoutRef.current) {
+        clearTimeout(connectionTimeoutRef.current);
+        connectionTimeoutRef.current = null;
+      }
     },
     onDisconnect: () => {
       const elapsed = Date.now() - sessionStartTimeRef.current;
       console.log("EL onDisconnect — hasStarted:", hasStartedRef.current, "transcript:", transcriptRef.current.length, "elapsed:", elapsed);
       isStartingRef.current = false;
+      if (connectionTimeoutRef.current) {
+        clearTimeout(connectionTimeoutRef.current);
+        connectionTimeoutRef.current = null;
+      }
       if (hasStartedRef.current) {
         // Early disconnect with no user speech — offer retry
-        if (elapsed < 12000 && transcriptRef.current.filter(m => m.role === "user").length === 0 && retryCountRef.current < 1) {
+        if (elapsed < 12000 && transcriptRef.current.filter(m => m.role === "user").length === 0 && retryCountRef.current < 2) {
           setEarlyDisconnect(true);
           toast.warning("Connection dropped. You can retry.");
         } else {
@@ -94,6 +101,10 @@ export default function VoiceCallPanel({
       toast.error("Voice connection error. Please try again.");
       setIsConnecting(false);
       isStartingRef.current = false;
+      if (connectionTimeoutRef.current) {
+        clearTimeout(connectionTimeoutRef.current);
+        connectionTimeoutRef.current = null;
+      }
     },
   });
 
@@ -101,27 +112,14 @@ export default function VoiceCallPanel({
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [transcript]);
 
-  // Keep-alive heartbeat — 4s interval
+  // Cleanup on unmount
   useEffect(() => {
-    if (conversation.status === "connected") {
-      keepAliveRef.current = setInterval(() => {
-        try { conversation.sendUserActivity(); } catch (e) {
-          console.warn("Keep-alive failed:", e);
-        }
-      }, 4000);
-    } else {
-      if (keepAliveRef.current) {
-        clearInterval(keepAliveRef.current);
-        keepAliveRef.current = null;
-      }
-    }
     return () => {
-      if (keepAliveRef.current) {
-        clearInterval(keepAliveRef.current);
-        keepAliveRef.current = null;
+      if (connectionTimeoutRef.current) {
+        clearTimeout(connectionTimeoutRef.current);
       }
     };
-  }, [conversation.status]);
+  }, []);
 
   const startCall = useCallback(async () => {
     if (isStartingRef.current) return;
@@ -162,23 +160,37 @@ export default function VoiceCallPanel({
       const { signed_url, prompt: promptText, first_message } = await resp.json();
       if (!signed_url) throw new Error("No signed URL received");
 
-      const sessionOpts: any = {
+      // Hard connection timeout — fail after 12s if onConnect never fires
+      connectionTimeoutRef.current = setTimeout(() => {
+        if (isStartingRef.current || !hasStartedRef.current) {
+          console.log("[VoiceCallPanel] Connection timeout — 12s elapsed");
+          toast.error("Voice connection timed out. Please try again.");
+          isStartingRef.current = false;
+          setIsConnecting(false);
+          try { conversation.endSession().catch(() => {}); } catch {}
+        }
+      }, 12000);
+
+      // Align with proven Hub pattern: explicit websocket + overrides
+      await conversation.startSession({
         signedUrl: signed_url,
-      };
-
-      if (promptText) {
-        sessionOpts.overrides = {
+        connectionType: "websocket",
+        overrides: {
           agent: {
-            prompt: { prompt: promptText },
-            firstMessage: first_message,
+            prompt: {
+              prompt: promptText || "You are a brand strategist. Have a natural conversation.",
+            },
+            firstMessage: first_message || "Hey! I'm ready to chat. What would you like to talk about?",
           },
-        };
-      }
-
-      await conversation.startSession(sessionOpts);
+        },
+      });
     } catch (error: any) {
       console.error("Failed to start voice call:", error);
       isStartingRef.current = false;
+      if (connectionTimeoutRef.current) {
+        clearTimeout(connectionTimeoutRef.current);
+        connectionTimeoutRef.current = null;
+      }
       if (error.name === "NotAllowedError") {
         toast.error("Microphone access is required for voice calls. Please enable it in your browser settings.");
       } else {
