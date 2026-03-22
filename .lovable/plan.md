@@ -1,29 +1,39 @@
 
 
-# Fix: Update Hardcoded Fallback URL + Origin Encoding
+# Fix: Google OAuth Redirect From Preview
 
-## Problem
-1. The OAuth callback fallback URL is `staysocialhub.lovable.app` — should be `hub.staysocial.ca`
-2. Google strips custom query params from the callback URL, so the `origin` param never arrives — need to encode it in the `state` parameter instead
+## Root Cause
 
-## Google Cloud Console Action (you)
-In **Authorized JavaScript origins**, make sure `https://hub.staysocial.ca` is listed (add the preview domain too if you want to test from there).
+The "Connect Google" button sets `window.location.href` to redirect to Google's OAuth page. Inside the Lovable preview iframe, this navigation is silently blocked by the browser's cross-origin iframe restrictions. No request ever reaches Google — that's why there are zero edge function logs and zero network requests to Google.
 
-## Code Changes
+## Solution
 
-### 1. `src/pages/admin/MeetingNotes.tsx`
-Encode both the access token and origin into the `state` param as JSON, so Google preserves it through the callback:
+Change `window.location.href` to `window.open()` so it opens in a new tab, bypassing iframe restrictions. This works from both the preview and the published app.
+
+## Code Change
+
+### `src/pages/admin/MeetingNotes.tsx`
+
+Replace line 52:
+```typescript
+// Before
+window.location.href = url;
+
+// After  
+window.open(url, "_blank");
 ```
-state = JSON.stringify({ token: session.access_token, origin: window.location.origin })
-```
-Remove the separate `&origin=` query param.
 
-### 2. `supabase/functions/google-oauth-callback/index.ts`
-- Parse `state` as JSON to extract `token` and `origin`
-- Update fallback origin from `staysocialhub.lovable.app` → `hub.staysocial.ca`
+## Google Cloud Console Requirement (unchanged)
+
+Make sure these are in your **Authorized JavaScript origins**:
+- `https://hub.staysocial.ca`
+
+And this is in your **Authorized redirect URIs**:
+- `https://aernowjtmvisvayzpccg.supabase.co/functions/v1/google-oauth-callback`
+
+(You confirmed the redirect URI is already set. Just verify the JavaScript origin.)
 
 | File | Change |
 |---|---|
-| `src/pages/admin/MeetingNotes.tsx` | Encode origin in state JSON |
-| `supabase/functions/google-oauth-callback/index.ts` | Parse state JSON, update fallback URL |
+| `src/pages/admin/MeetingNotes.tsx` | `window.location.href` → `window.open(url, "_blank")` |
 
