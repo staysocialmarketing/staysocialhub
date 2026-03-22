@@ -378,13 +378,13 @@ export function AppSidebar() {
 
             <SidebarSeparator className="opacity-30" />
 
-            <Collapsible open={isSectionOpen("account")} onOpenChange={() => toggleSection("account")}>
+            <Collapsible open={isSectionOpen("my-account")} onOpenChange={() => toggleSection("my-account")}>
               <SidebarGroup>
                 {!collapsed && (
                   <CollapsibleTrigger asChild>
                     <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40 cursor-pointer flex items-center justify-between w-full">
-                      Account
-                      <ChevronDown className={cn("h-3 w-3 transition-transform", isSectionOpen("account") && "rotate-180")} />
+                      My Account
+                      <ChevronDown className={cn("h-3 w-3 transition-transform", isSectionOpen("my-account") && "rotate-180")} />
                     </SidebarGroupLabel>
                   </CollapsibleTrigger>
                 )}

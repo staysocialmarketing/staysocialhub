@@ -52,16 +52,21 @@ const ssMenuSections = [
       { title: "Content Generator", url: "/client/generate", icon: Wand2 },
     ],
   },
+  {
+    label: "Manage",
+    items: [
+      { title: "Clients", url: "/admin/clients", icon: Building2 },
+      { title: "Team Success", url: "/admin/team", icon: Users },
+      { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
+    ],
+  },
 ];
 
 const ssAdminSections = [
   {
     label: "Admin",
     items: [
-      { title: "Clients", url: "/admin/clients", icon: Building2 },
-      { title: "Team Management", url: "/admin/team", icon: Users },
       { title: "Users", url: "/admin/users", icon: Users },
-      { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
       { title: "Meeting Notes", url: "/admin/meeting-notes", icon: FileText },
       { title: "Automations", url: "/admin/automations", icon: Zap },
       { title: "Versions", url: "/admin/versions", icon: Tag },
@@ -71,11 +76,22 @@ const ssAdminSections = [
 
 const clientMenuSections = [
   {
-    label: "My Content",
+    label: "",
     items: [
+      { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
       { title: "Success Center", url: "/client/success", icon: Sparkles },
+      { title: "Approvals", url: "/approvals", icon: CheckSquare },
+      { title: "Calendar", url: "/calendar", icon: CalendarDays },
+      { title: "Requests", url: "/requests", icon: MessageSquarePlus },
       { title: "My Media", url: "/content-library", icon: FolderOpen },
+    ],
+  },
+  {
+    label: "My Account",
+    items: [
+      { title: "My Profile", url: "/profile", icon: UserCircle },
       { title: "My Plan", url: "/plan", icon: Eye },
+      { title: "What's New", url: "/whats-new", icon: Eye },
     ],
   },
   {
@@ -84,13 +100,6 @@ const clientMenuSections = [
       { title: "AI Interview", url: "/client/ai-interview", icon: Brain },
       { title: "Content Generator", url: "/client/generate", icon: Wand2 },
       { title: "Brand Twin", url: "/client/brand-twin", icon: Palette },
-    ],
-  },
-  {
-    label: "Account",
-    items: [
-      { title: "My Profile", url: "/profile", icon: UserCircle },
-      { title: "What's New", url: "/whats-new", icon: Eye },
     ],
   },
 ];
