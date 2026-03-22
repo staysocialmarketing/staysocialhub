@@ -111,7 +111,7 @@ export default function CorporateStrategy() {
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <SectionHeader
-          icon={BookOpen}
+          icon={<BookOpen className="h-5 w-5" />}
           title="Strategy Playbook"
           subtitle="Corporate strategies, design prompts, and SOPs that apply across all clients"
         />

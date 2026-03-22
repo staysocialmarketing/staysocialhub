@@ -120,6 +120,7 @@ const App = () => (
               <Route path="/team/projects" element={<AdminRoute><Projects /></AdminRoute>} />
               <Route path="/team/tasks" element={<AdminRoute><Tasks /></AdminRoute>} />
               <Route path="/team/inbox" element={<AdminRoute><UniversalInbox /></AdminRoute>} />
+              <Route path="/corporate/strategy" element={<AdminRoute><CorporateStrategy /></AdminRoute>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

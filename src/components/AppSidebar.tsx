@@ -293,21 +293,43 @@ export function AppSidebar() {
 
             <SidebarSeparator className="opacity-30" />
 
-            <Collapsible open={isSectionOpen("admin")} onOpenChange={() => toggleSection("admin")}>
+            <Collapsible open={isSectionOpen("corporate")} onOpenChange={() => toggleSection("corporate")}>
               <SidebarGroup>
                 {!collapsed && (
                   <CollapsibleTrigger asChild>
                     <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40 cursor-pointer flex items-center justify-between w-full">
-                      Admin
-                      <ChevronDown className={cn("h-3 w-3 transition-transform", isSectionOpen("admin") && "rotate-180")} />
+                      Corporate
+                      <ChevronDown className={cn("h-3 w-3 transition-transform", isSectionOpen("corporate") && "rotate-180")} />
                     </SidebarGroupLabel>
                   </CollapsibleTrigger>
                 )}
                 <CollapsibleContent>
-                  <SidebarGroupContent>{renderMenuItems(visibleAdminItems)}</SidebarGroupContent>
+                  <SidebarGroupContent>{renderMenuItems(corporateSection)}</SidebarGroupContent>
                 </CollapsibleContent>
               </SidebarGroup>
             </Collapsible>
+
+            {isSSAdmin && (
+              <>
+                <SidebarSeparator className="opacity-30" />
+
+                <Collapsible open={isSectionOpen("admin")} onOpenChange={() => toggleSection("admin")}>
+                  <SidebarGroup>
+                    {!collapsed && (
+                      <CollapsibleTrigger asChild>
+                        <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40 cursor-pointer flex items-center justify-between w-full">
+                          Admin
+                          <ChevronDown className={cn("h-3 w-3 transition-transform", isSectionOpen("admin") && "rotate-180")} />
+                        </SidebarGroupLabel>
+                      </CollapsibleTrigger>
+                    )}
+                    <CollapsibleContent>
+                      <SidebarGroupContent>{renderMenuItems(adminSection)}</SidebarGroupContent>
+                    </CollapsibleContent>
+                  </SidebarGroup>
+                </Collapsible>
+              </>
+            )}
           </>
         ) : (
           <>

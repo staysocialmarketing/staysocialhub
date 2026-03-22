@@ -198,20 +198,18 @@ export function MobileMenu({ onNavigate }: MobileMenuProps) {
         )}
 
         {isInternalUser ? (
-          ssMenuSections.map((section) => {
-            let items = section.items;
-            if (section.label === "Admin" && !isSSAdmin) {
-              items = items.filter(i => i.title !== "Users" && i.title !== "Versions");
-            }
-            if (section.label === "Menu" && isSSTeam && !isSSAdmin) {
-              items = items.filter(i => i.title !== "Approvals");
-            }
-            return renderSection({ ...section, items });
-          })
+          <>
+            {ssMenuSections.map((section) => {
+              let items = section.items;
+              if (section.label === "Menu" && isSSTeam && !isSSAdmin) {
+                items = items.filter(i => i.title !== "Approvals");
+              }
+              return renderSection({ ...section, items });
+            })}
+            {isSSAdmin && ssAdminSections.map((section) => renderSection(section))}
+          </>
         ) : (
-          clientMenuSections.map((section) => {
-            return renderSection(section);
-          })
+          clientMenuSections.map((section) => renderSection(section))
         )}
 
         {/* User info + sign out */}
