@@ -46,10 +46,9 @@ export default function MeetingNotes() {
     const clientId = "508191597658-jkqgk7e36u69d3t3i36mn70el1apff60.apps.googleusercontent.com";
     const redirectUri = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-oauth-callback`;
     const scope = "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/documents.readonly";
-    const state = session?.access_token || "";
-    const origin = window.location.origin;
+    const state = JSON.stringify({ token: session?.access_token || "", origin: window.location.origin });
 
-    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}&access_type=offline&prompt=consent&state=${encodeURIComponent(state)}&origin=${encodeURIComponent(origin)}`;
+    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}&access_type=offline&prompt=consent&state=${encodeURIComponent(state)}`;
     window.location.href = url;
   };
 
