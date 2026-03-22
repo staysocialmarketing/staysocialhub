@@ -43,7 +43,7 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
-  const [template, setTemplate] = useState("full_onboarding");
+  const [template, setTemplate] = useState<string | null>(null);
   const [voiceMode, setVoiceMode] = useState(false);
   const autoExtractedRef = useRef<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
