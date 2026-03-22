@@ -1,18 +1,29 @@
 
 
-# Fix: Google OAuth 403
+# Fix: Update Hardcoded Fallback URL + Origin Encoding
 
-## Root Cause
+## Problem
+1. The OAuth callback fallback URL is `staysocialhub.lovable.app` — should be `hub.staysocial.ca`
+2. Google strips custom query params from the callback URL, so the `origin` param never arrives — need to encode it in the `state` parameter instead
 
-Your Google Cloud project's OAuth consent screen is set to **"Testing"** mode. In this mode, only explicitly listed test users can authorize. Since the callback edge function has zero logs, Google blocked the request before it ever reached your app.
+## Google Cloud Console Action (you)
+In **Authorized JavaScript origins**, make sure `https://hub.staysocial.ca` is listed (add the preview domain too if you want to test from there).
 
-## Fix (Google Cloud Console — no code changes needed)
+## Code Changes
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com) → **APIs & Services** → **OAuth consent screen**
-2. Either:
-   - **Add your Google account as a test user**: Under "Test users", click "Add users" and enter `corey@staysocial.ca`
-   - **Or publish the app**: Click "Publish App" to move from Testing to Production (since this is internal/single-user, either works)
-3. Try "Connect Google" again on the Meeting Notes page
+### 1. `src/pages/admin/MeetingNotes.tsx`
+Encode both the access token and origin into the `state` param as JSON, so Google preserves it through the callback:
+```
+state = JSON.stringify({ token: session.access_token, origin: window.location.origin })
+```
+Remove the separate `&origin=` query param.
 
-No code changes required.
+### 2. `supabase/functions/google-oauth-callback/index.ts`
+- Parse `state` as JSON to extract `token` and `origin`
+- Update fallback origin from `staysocialhub.lovable.app` → `hub.staysocial.ca`
+
+| File | Change |
+|---|---|
+| `src/pages/admin/MeetingNotes.tsx` | Encode origin in state JSON |
+| `supabase/functions/google-oauth-callback/index.ts` | Parse state JSON, update fallback URL |
 
