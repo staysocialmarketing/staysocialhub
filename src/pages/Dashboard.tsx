@@ -316,6 +316,7 @@ function WorkQueueDashboard() {
 function ClientDashboard() {
   const { profile, isClientAdmin } = useAuth();
   const navigate = useNavigate();
+  const clientGreeting = useGreeting(profile?.id);
 
   const { data: pendingApprovals = 0 } = useQuery({
     queryKey: ["client-pending-approvals", profile?.client_id],
