@@ -1,39 +1,51 @@
 
 
-# Fix: Google OAuth Redirect From Preview
+# Meeting Notes Improvements
 
-## Root Cause
+## 1. Redirect after OAuth → Meeting Notes page
+**File**: `supabase/functions/google-oauth-callback/index.ts`
+- Line 85: already redirects to `/admin/meeting-notes?connected=true` — this works
+- The issue is `window.open()` opens a new tab, so the callback lands on the sign-in page because there's no active session in the new tab
+- **Fix**: Change the redirect to include a success message parameter, and in the MeetingNotes page, detect `?connected=true` in the URL (already there) and show a toast. The real fix is switching back from `window.open` to `window.location.href` now that you're testing from the published domain (`hub.staysocial.ca`), OR keep `window.open` but have the callback redirect close the popup and signal the opener
 
-The "Connect Google" button sets `window.location.href` to redirect to Google's OAuth page. Inside the Lovable preview iframe, this navigation is silently blocked by the browser's cross-origin iframe restrictions. No request ever reaches Google — that's why there are zero edge function logs and zero network requests to Google.
+**Approach**: Use `window.location.href` for the OAuth redirect (works fine on published domain). Add a `useEffect` in MeetingNotes to detect `?connected=true` query param, show a success toast, and clean the URL.
 
-## Solution
+## 2. Delete meeting notes
+**File**: `src/pages/admin/MeetingNotes.tsx`
+- Add a Trash icon button on each note card (with stopPropagation)
+- Confirmation via AlertDialog before deleting
+- Delete mutation: `supabase.from("meeting_notes").delete().eq("id", noteId)`
+- RLS already allows ss_admin to do ALL operations
 
-Change `window.location.href` to `window.open()` so it opens in a new tab, bypassing iframe restrictions. This works from both the preview and the published app.
+## 3. Richer AI extraction (names, descriptions, client assignment, projects)
+**File**: `supabase/functions/extract-meeting-data/index.ts`
+- Enhance the AI system prompt to also extract:
+  - Proper task names and descriptions (not just titles)
+  - Project groupings (create projects if mentioned)
+  - Client assignment with confidence
+- After extraction, also create projects in `projects` table when new project names are identified
+- Ensure tasks get proper descriptions, client_id, and link to created projects
 
-## Code Change
+Existing prompt already extracts action_items with title/description/priority and content_ideas. Enhancements:
+- Add `projects` array to extraction schema: `{ name, description, client_id }`
+- Create projects and link tasks to them
+- Fetch existing projects list so AI can match or suggest new ones
 
-### `src/pages/admin/MeetingNotes.tsx`
+## 4. Limit sync to recent meetings only
+**File**: `supabase/functions/sync-meeting-notes/index.ts`
+- Add a date filter to the Google Drive API query: `modifiedTime > 'YYYY-MM-DDTHH:mm:ss'`
+- Default to last 30 days
+- Accept optional `since_days` parameter from the request body (default 30)
+- **File**: `src/pages/admin/MeetingNotes.tsx` — optionally expose a "Sync last X days" control
 
-Replace line 52:
-```typescript
-// Before
-window.location.href = url;
+**Approach**: Accept `{ since_days: number }` in the request body (default 30). Add `modifiedTime > '...'` to the Drive API query.
 
-// After  
-window.open(url, "_blank");
-```
+## Files to change
 
-## Google Cloud Console Requirement (unchanged)
-
-Make sure these are in your **Authorized JavaScript origins**:
-- `https://hub.staysocial.ca`
-
-And this is in your **Authorized redirect URIs**:
-- `https://aernowjtmvisvayzpccg.supabase.co/functions/v1/google-oauth-callback`
-
-(You confirmed the redirect URI is already set. Just verify the JavaScript origin.)
-
-| File | Change |
+| File | Changes |
 |---|---|
-| `src/pages/admin/MeetingNotes.tsx` | `window.location.href` → `window.open(url, "_blank")` |
+| `src/pages/admin/MeetingNotes.tsx` | Revert to `window.location.href`, add `?connected=true` detection, add delete button with confirmation, add sync range selector |
+| `supabase/functions/google-oauth-callback/index.ts` | No changes needed (already redirects correctly) |
+| `supabase/functions/sync-meeting-notes/index.ts` | Add date filter using `since_days` param (default 30) |
+| `supabase/functions/extract-meeting-data/index.ts` | Enhanced AI prompt for richer extraction, project creation logic, better task descriptions |
 
