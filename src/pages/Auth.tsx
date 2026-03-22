@@ -90,7 +90,7 @@ export default function Auth() {
             Stay Social <span className="text-primary">HUB</span>
           </h1>
           <p className="text-white/50 mt-2 text-sm">
-            Sign in to manage your social content
+            Your all-in-one marketing command center
           </p>
         </div>
 
