@@ -167,10 +167,12 @@ Deno.serve(async (req) => {
     // Parse optional body
     let includePrompt = false;
     let currentRoute = "";
+    let interviewTemplate = "";
     try {
       const body = await req.json();
       includePrompt = body.include_prompt === true;
       currentRoute = typeof body.current_route === "string" ? body.current_route : "";
+      interviewTemplate = typeof body.interview_template === "string" ? body.interview_template : "";
     } catch {
       // No body or invalid JSON — that's fine, just get signed URL
     }
