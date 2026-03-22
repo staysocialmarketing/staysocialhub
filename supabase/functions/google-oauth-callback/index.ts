@@ -38,11 +38,18 @@ serve(async (req) => {
     return new Response("Token exchange failed: " + JSON.stringify(tokenData), { status: 400 });
   }
 
-  // Verify user from state (their Supabase access token)
+  // Parse state JSON to extract token and origin
+  let userToken = state;
+  let redirectOrigin = "https://hub.staysocial.ca";
+  try {
+    const parsed = JSON.parse(state);
+    userToken = parsed.token || state;
+    redirectOrigin = parsed.origin || redirectOrigin;
+  } catch {
+    // Legacy: state is just the token string
+  }
+
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-  
-  // Decode the state to get user token
-  const userToken = state;
   const { data: userData, error: userError } = await supabase.auth.getUser(userToken);
   if (userError || !userData.user) {
     return new Response("Invalid user session", { status: 401 });
