@@ -234,7 +234,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ token: conversationToken }), {
+    return new Response(JSON.stringify({ signed_url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
