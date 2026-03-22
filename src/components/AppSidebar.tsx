@@ -79,11 +79,14 @@ const corporateSection = [
   { title: "Content Generator", url: "/client/generate", icon: Wand2 },
 ];
 
-const adminSection = [
+const manageSection = [
   { title: "Clients", url: "/admin/clients", icon: Building2 },
-  { title: "Team Management", url: "/admin/team", icon: Users },
-  { title: "Users", url: "/admin/users", icon: Users },
+  { title: "Team Success", url: "/admin/team", icon: Users },
   { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
+];
+
+const adminSection = [
+  { title: "Users", url: "/admin/users", icon: Users },
   { title: "Meeting Notes", url: "/admin/meeting-notes", icon: FileText },
   { title: "Automations", url: "/admin/automations", icon: Zap },
   { title: "Versions", url: "/admin/versions", icon: Tag },
@@ -96,7 +99,6 @@ const clientContentSection = [
   { title: "Calendar", url: "/calendar", icon: CalendarDays },
   { title: "Requests", url: "/requests", icon: MessageSquarePlus },
   { title: "My Media", url: "/content-library", icon: FolderOpen },
-  { title: "My Plan", url: "/plan", icon: ClipboardList },
 ];
 
 const clientAISection = [
@@ -107,6 +109,7 @@ const clientAISection = [
 
 const clientAccountSection = [
   { title: "My Profile", url: "/profile", icon: UserCircle },
+  { title: "My Plan", url: "/plan", icon: ClipboardList },
   { title: "What's New", url: "/whats-new", icon: Eye },
 ];
 
