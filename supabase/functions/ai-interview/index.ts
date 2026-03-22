@@ -51,6 +51,7 @@ Your FIRST message should introduce yourself as a brand voice specialist from St
 - Common objections and hesitations
 - What outcomes customers desire
 - Where these customers spend time online
+- What the audience should FEEL when they encounter this brand (trust, clarity, excitement, calm, confidence)
 ${PACING_RULES}
 
 After 6-8 exchanges, summarize the audience profile.
@@ -85,6 +86,49 @@ ${PACING_RULES}
 After 8-12 exchanges, summarize the website brief and ask if anything is missing.
 
 Your FIRST message should introduce yourself as a website strategist from Stay Social and ask ONE question: do they currently have a website?`,
+
+  visual_brand: `You are a visual brand director and design strategist conducting a deep discovery interview for a social media marketing agency called Stay Social. Your goal is to understand the client's complete visual identity so the team can create perfectly on-brand designs, AI-generated images, social graphics, and web layouts.
+
+Interview flow (follow this order, ONE question at a time):
+
+Phase 1 — Visual Style:
+- Do they prefer bold ad-style creative or softer lifestyle content?
+- Should visuals feel more like premium advertising, editorial branding, or personal content?
+- Clean and minimal, or layered and high-impact?
+
+Phase 2 — Colour Behaviour:
+- Describe their brand colours in plain language (not just hex codes — the mood and feel)
+- Which colour should dominate?
+- Which are accent-only?
+- Any tones they dislike even if close to their brand colours?
+
+Phase 3 — Typography + Text-on-Design:
+- What kind of font feel do they prefer? (bold sans-serif, elegant serif, modern geometric)
+- How much text belongs on graphics vs in captions?
+- Headline-only, or supporting text too?
+
+Phase 4 — Web + Social Application:
+- Should their website and social visuals feel the same or slightly different?
+- What's the visual priority on the website — trust, luxury, simplicity, or conversion?
+- For social posts — cleaner headline-driven graphics or text-heavy educational content?
+
+Phase 5 — Subject Matter + Seasonal:
+- What kind of people, settings, or scenes should appear in visuals?
+- Any local or regional identity to reflect?
+- Should content reflect seasons? Subtly or strongly?
+
+Phase 6 — Negative Direction + Avoid List:
+- What feels off-brand visually?
+- Specific colours, tones, or styles to absolutely avoid?
+- What "bad" design looks like for this brand
+${PACING_RULES}
+
+Guidelines:
+- Be conversational and warm, not robotic
+- Use plain language — avoid design jargon unless the client uses it
+- After 10-14 exchanges, summarize the visual direction and ask if anything is missing
+
+Your FIRST message should warmly introduce yourself as a visual brand director from Stay Social and ask ONE question: how do they want their brand to feel when someone lands on their website or sees their content for the first time?`,
 };
 
 const EXTRACTION_PROMPT = `You are a data extraction specialist. Analyze the following interview conversation and extract structured brand intelligence data.
@@ -94,7 +138,7 @@ Return a JSON object using tool calling with ONLY the fields you have clear info
 The fields should map to these Brand Twin sections:
 - brand_basics: business_name, industry, region, website, primary_contact
 - brand_voice: tone, writing_style, messaging_style, cta_style, key_phrases (array), avoid_phrases (array), positioning
-- audience: primary, secondary, pain_points, objections, desired_outcomes
+- audience: primary, secondary, pain_points, objections, desired_outcomes, target_emotional_response, trust_signals, first_impression, engagement_drivers
 - offers: main_services (array), key_offers (array), priority_services (array), seasonal_focus
 - content_rules: platforms (array), content_types (array), posting_goals, compliance, do_dont`;
 
@@ -108,6 +152,24 @@ The fields should map to these Website Brief sections:
 - functionality: booking_system, forms_needed (array), ecommerce, blog, gallery, memberships, other_features (array)
 - content: has_copy (boolean), has_photos (boolean), has_videos (boolean), content_needs (array), copywriting_notes
 - inspiration: reference_sites (array of {url, what_they_like}), dislikes, overall_direction`;
+
+const VISUAL_BRAND_EXTRACTION_PROMPT = `You are a data extraction specialist. Analyze the following visual brand interview conversation and extract structured visual identity data.
+
+Return a JSON object using tool calling with ONLY the fields you have clear information about. Do not guess or fabricate data.
+
+Extract data for these sections:
+- visual_design: design_style, social_visual_style, website_visual_style, photo_realism, brand_polish_level
+- colour_direction: primary_colour_mood, accent_colour_mood, dominant, supporting (array), avoid (array), descriptions
+- typography: font_feel, headline_style, supporting_text_style, text_density, caps_preference, bold_vs_subtle
+- text_on_design: headline_only_vs_multiline, educational_on_graphics, subtitles_ok, caption_carries_message
+- composition: focal_point, single_vs_split_scene, text_room, subject_placement, mobile_priority
+- social_direction: post_style, ad_style, carousel_style, quote_post_look, educational_graphic_rules, consistency_system
+- website_direction: homepage_mood, hero_style, section_density, luxury_vs_clarity, lead_gen_vs_credibility
+- subject_themes: people_types, home_style, business_setting, city_elements, lifestyle_cues, symbolic_themes
+- seasonal_local: local_region, neighbourhood_vibe, urban_vs_suburban, seasonal_reflection, seasonal_strength, weather_cues, holiday_style
+- cta_style: strong_vs_soft, educational_vs_conversion, preferred_phrasing, salesiness_threshold
+- formatting_rules: bullet_style, emoji_level, hashtag_count, contact_info_rules, platform_tone
+- avoid_list: visual_dislikes (array), colour_dislikes (array), tone_dislikes (array), bad_fit_styles (array), overused_trends (array)`;
 
 const BRAND_EXTRACT_TOOLS = [
   {
@@ -148,6 +210,10 @@ const BRAND_EXTRACT_TOOLS = [
               pain_points: { type: "string" },
               objections: { type: "string" },
               desired_outcomes: { type: "string" },
+              target_emotional_response: { type: "string" },
+              trust_signals: { type: "string" },
+              first_impression: { type: "string" },
+              engagement_drivers: { type: "string" },
             },
           },
           offers: {
@@ -249,7 +315,147 @@ const WEBSITE_EXTRACT_TOOLS = [
   },
 ];
 
+const VISUAL_BRAND_EXTRACT_TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "extract_visual_brand_data",
+      description: "Extract structured visual brand identity data from conversation",
+      parameters: {
+        type: "object",
+        properties: {
+          visual_design: {
+            type: "object",
+            properties: {
+              design_style: { type: "string" },
+              social_visual_style: { type: "string" },
+              website_visual_style: { type: "string" },
+              photo_realism: { type: "string" },
+              brand_polish_level: { type: "string" },
+            },
+          },
+          colour_direction: {
+            type: "object",
+            properties: {
+              primary_colour_mood: { type: "string" },
+              accent_colour_mood: { type: "string" },
+              dominant: { type: "string" },
+              supporting: { type: "array", items: { type: "string" } },
+              avoid: { type: "array", items: { type: "string" } },
+              descriptions: { type: "string" },
+            },
+          },
+          typography: {
+            type: "object",
+            properties: {
+              font_feel: { type: "string" },
+              headline_style: { type: "string" },
+              supporting_text_style: { type: "string" },
+              text_density: { type: "string" },
+              caps_preference: { type: "string" },
+              bold_vs_subtle: { type: "string" },
+            },
+          },
+          text_on_design: {
+            type: "object",
+            properties: {
+              headline_only_vs_multiline: { type: "string" },
+              educational_on_graphics: { type: "string" },
+              subtitles_ok: { type: "string" },
+              caption_carries_message: { type: "string" },
+            },
+          },
+          composition: {
+            type: "object",
+            properties: {
+              focal_point: { type: "string" },
+              single_vs_split_scene: { type: "string" },
+              text_room: { type: "string" },
+              subject_placement: { type: "string" },
+              mobile_priority: { type: "string" },
+            },
+          },
+          social_direction: {
+            type: "object",
+            properties: {
+              post_style: { type: "string" },
+              ad_style: { type: "string" },
+              carousel_style: { type: "string" },
+              quote_post_look: { type: "string" },
+              educational_graphic_rules: { type: "string" },
+              consistency_system: { type: "string" },
+            },
+          },
+          website_direction: {
+            type: "object",
+            properties: {
+              homepage_mood: { type: "string" },
+              hero_style: { type: "string" },
+              section_density: { type: "string" },
+              luxury_vs_clarity: { type: "string" },
+              lead_gen_vs_credibility: { type: "string" },
+            },
+          },
+          subject_themes: {
+            type: "object",
+            properties: {
+              people_types: { type: "string" },
+              home_style: { type: "string" },
+              business_setting: { type: "string" },
+              city_elements: { type: "string" },
+              lifestyle_cues: { type: "string" },
+              symbolic_themes: { type: "string" },
+            },
+          },
+          seasonal_local: {
+            type: "object",
+            properties: {
+              local_region: { type: "string" },
+              neighbourhood_vibe: { type: "string" },
+              urban_vs_suburban: { type: "string" },
+              seasonal_reflection: { type: "string" },
+              seasonal_strength: { type: "string" },
+              weather_cues: { type: "string" },
+              holiday_style: { type: "string" },
+            },
+          },
+          cta_style: {
+            type: "object",
+            properties: {
+              strong_vs_soft: { type: "string" },
+              educational_vs_conversion: { type: "string" },
+              preferred_phrasing: { type: "string" },
+              salesiness_threshold: { type: "string" },
+            },
+          },
+          formatting_rules: {
+            type: "object",
+            properties: {
+              bullet_style: { type: "string" },
+              emoji_level: { type: "string" },
+              hashtag_count: { type: "string" },
+              contact_info_rules: { type: "string" },
+              platform_tone: { type: "string" },
+            },
+          },
+          avoid_list: {
+            type: "object",
+            properties: {
+              visual_dislikes: { type: "array", items: { type: "string" } },
+              colour_dislikes: { type: "array", items: { type: "string" } },
+              tone_dislikes: { type: "array", items: { type: "string" } },
+              bad_fit_styles: { type: "array", items: { type: "string" } },
+              overused_trends: { type: "array", items: { type: "string" } },
+            },
+          },
+        },
+      },
+    },
+  },
+];
+
 const WEBSITE_TEMPLATES = new Set(["website_discovery"]);
+const VISUAL_BRAND_TEMPLATES = new Set(["visual_brand"]);
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -308,6 +514,7 @@ Deno.serve(async (req) => {
     const { action, client_id, messages, template, interview_id } = body;
 
     const isWebsiteTemplate = WEBSITE_TEMPLATES.has(template || "");
+    const isVisualBrandTemplate = VISUAL_BRAND_TEMPLATES.has(template || "");
 
     if (action === "extract") {
       // Extract structured data from conversation
@@ -315,9 +522,23 @@ Deno.serve(async (req) => {
         .map((m: any) => `${m.role === "user" ? "Interviewer" : "Client"}: ${m.content}`)
         .join("\n\n");
 
-      const extractionPrompt = isWebsiteTemplate ? WEBSITE_EXTRACTION_PROMPT : EXTRACTION_PROMPT;
-      const extractionTools = isWebsiteTemplate ? WEBSITE_EXTRACT_TOOLS : BRAND_EXTRACT_TOOLS;
-      const toolName = isWebsiteTemplate ? "extract_website_data" : "extract_brand_data";
+      let extractionPrompt: string;
+      let extractionTools: any[];
+      let toolName: string;
+
+      if (isVisualBrandTemplate) {
+        extractionPrompt = VISUAL_BRAND_EXTRACTION_PROMPT;
+        extractionTools = VISUAL_BRAND_EXTRACT_TOOLS;
+        toolName = "extract_visual_brand_data";
+      } else if (isWebsiteTemplate) {
+        extractionPrompt = WEBSITE_EXTRACTION_PROMPT;
+        extractionTools = WEBSITE_EXTRACT_TOOLS;
+        toolName = "extract_website_data";
+      } else {
+        extractionPrompt = EXTRACTION_PROMPT;
+        extractionTools = BRAND_EXTRACT_TOOLS;
+        toolName = "extract_brand_data";
+      }
 
       const extractionResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -366,7 +587,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      return new Response(JSON.stringify({ extracted_data: extractedData, is_website: isWebsiteTemplate }), {
+      return new Response(JSON.stringify({ extracted_data: extractedData, is_website: isWebsiteTemplate, is_visual_brand: isVisualBrandTemplate }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -417,6 +638,12 @@ Deno.serve(async (req) => {
           }
           if (bt.brand_voice_json && Object.keys(bt.brand_voice_json).length > 0) {
             brandContext += `Brand voice: ${JSON.stringify(bt.brand_voice_json)}\n`;
+          }
+          if (bt.visual_design_json && Object.keys(bt.visual_design_json).length > 0) {
+            brandContext += `Visual design: ${JSON.stringify(bt.visual_design_json)}\n`;
+          }
+          if (bt.colour_direction_json && Object.keys(bt.colour_direction_json).length > 0) {
+            brandContext += `Colour direction: ${JSON.stringify(bt.colour_direction_json)}\n`;
           }
         }
         brandContext += "\nUse this context to ask more relevant questions and avoid repeating what you already know. Reference their specifics when asking follow-ups.";
