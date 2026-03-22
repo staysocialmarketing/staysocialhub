@@ -79,11 +79,14 @@ const corporateSection = [
   { title: "Content Generator", url: "/client/generate", icon: Wand2 },
 ];
 
-const adminSection = [
+const manageSection = [
   { title: "Clients", url: "/admin/clients", icon: Building2 },
-  { title: "Team Management", url: "/admin/team", icon: Users },
-  { title: "Users", url: "/admin/users", icon: Users },
+  { title: "Team Success", url: "/admin/team", icon: Users },
   { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
+];
+
+const adminSection = [
+  { title: "Users", url: "/admin/users", icon: Users },
   { title: "Meeting Notes", url: "/admin/meeting-notes", icon: FileText },
   { title: "Automations", url: "/admin/automations", icon: Zap },
   { title: "Versions", url: "/admin/versions", icon: Tag },
@@ -96,7 +99,6 @@ const clientContentSection = [
   { title: "Calendar", url: "/calendar", icon: CalendarDays },
   { title: "Requests", url: "/requests", icon: MessageSquarePlus },
   { title: "My Media", url: "/content-library", icon: FolderOpen },
-  { title: "My Plan", url: "/plan", icon: ClipboardList },
 ];
 
 const clientAISection = [
@@ -107,6 +109,7 @@ const clientAISection = [
 
 const clientAccountSection = [
   { title: "My Profile", url: "/profile", icon: UserCircle },
+  { title: "My Plan", url: "/plan", icon: ClipboardList },
   { title: "What's New", url: "/whats-new", icon: Eye },
 ];
 
@@ -309,6 +312,24 @@ export function AppSidebar() {
               </SidebarGroup>
             </Collapsible>
 
+            <SidebarSeparator className="opacity-30" />
+
+            <Collapsible open={isSectionOpen("manage")} onOpenChange={() => toggleSection("manage")}>
+              <SidebarGroup>
+                {!collapsed && (
+                  <CollapsibleTrigger asChild>
+                    <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40 cursor-pointer flex items-center justify-between w-full">
+                      Manage
+                      <ChevronDown className={cn("h-3 w-3 transition-transform", isSectionOpen("manage") && "rotate-180")} />
+                    </SidebarGroupLabel>
+                  </CollapsibleTrigger>
+                )}
+                <CollapsibleContent>
+                  <SidebarGroupContent>{renderMenuItems(manageSection)}</SidebarGroupContent>
+                </CollapsibleContent>
+              </SidebarGroup>
+            </Collapsible>
+
             {isSSAdmin && (
               <>
                 <SidebarSeparator className="opacity-30" />
@@ -357,13 +378,13 @@ export function AppSidebar() {
 
             <SidebarSeparator className="opacity-30" />
 
-            <Collapsible open={isSectionOpen("account")} onOpenChange={() => toggleSection("account")}>
+            <Collapsible open={isSectionOpen("my-account")} onOpenChange={() => toggleSection("my-account")}>
               <SidebarGroup>
                 {!collapsed && (
                   <CollapsibleTrigger asChild>
                     <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40 cursor-pointer flex items-center justify-between w-full">
-                      Account
-                      <ChevronDown className={cn("h-3 w-3 transition-transform", isSectionOpen("account") && "rotate-180")} />
+                      My Account
+                      <ChevronDown className={cn("h-3 w-3 transition-transform", isSectionOpen("my-account") && "rotate-180")} />
                     </SidebarGroupLabel>
                   </CollapsibleTrigger>
                 )}
