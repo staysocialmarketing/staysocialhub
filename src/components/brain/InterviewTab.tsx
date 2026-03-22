@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Brain, Send, Sparkles, Plus, Loader2, CheckCircle2, Phone, Trash2, Globe, Users, Megaphone, MessageSquare, ArrowLeft } from "lucide-react";
+import { Brain, Send, Sparkles, Plus, Loader2, CheckCircle2, Phone, Trash2, Globe, Users, Megaphone, MessageSquare, ArrowLeft, Palette } from "lucide-react";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import VoiceCallPanel from "./VoiceCallPanel";
@@ -30,9 +30,11 @@ const TEMPLATES = [
   { value: "audience", label: "Audience Deep Dive", desc: "Understand target customers & pain points", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300", icon: Users },
   { value: "content_strategy", label: "Content Strategy", desc: "Platforms, content types & posting goals", color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300", icon: Megaphone },
   { value: "website_discovery", label: "Website Discovery", desc: "Design, pages, functionality & integrations", color: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300", icon: Globe },
+  { value: "visual_brand", label: "Visual & Design Direction", desc: "Colours, typography, layout, visual style & brand avoid list", color: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300", icon: Palette },
 ];
 
 const WEBSITE_TEMPLATES = new Set(["website_discovery"]);
+const VISUAL_BRAND_TEMPLATES = new Set(["visual_brand"]);
 
 const TEMPLATE_OPENERS: Record<string, string> = {
   full_onboarding: "Start the comprehensive brand onboarding interview. Introduce yourself warmly and ask about their business story and what inspired them to start.",
@@ -40,6 +42,7 @@ const TEMPLATE_OPENERS: Record<string, string> = {
   audience: "Start the audience research session. Introduce yourself as an audience research specialist and ask them to describe their ideal customer.",
   content_strategy: "Start the content strategy session. Introduce yourself as a content strategy consultant and ask what platforms they're currently using.",
   website_discovery: "Start the website discovery session. Introduce yourself as a website strategist and ask about their current website situation — do they have one, what's working, what's not.",
+  visual_brand: "Start the visual brand direction interview. Introduce yourself as a visual brand director from Stay Social and ask how they want their brand to feel when someone sees their content for the first time.",
 };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-interview`;
@@ -106,6 +109,7 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
         .maybeSingle()).data as any;
       const interviewTemplate = interview?.template || "full_onboarding";
       const isWebsite = WEBSITE_TEMPLATES.has(interviewTemplate);
+      const isVisualBrand = VISUAL_BRAND_TEMPLATES.has(interviewTemplate);
 
       const resp = await fetch(CHAT_URL, {
         method: "POST",
@@ -165,6 +169,41 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
 
         queryClient.invalidateQueries({ queryKey: ["website-brief", clientId] });
         toast.success("Website Brief auto-updated with new insights");
+      } else if (isVisualBrand) {
+        const { data: existing } = await supabase
+          .from("brand_twin" as any)
+          .select("*")
+          .eq("client_id", clientId)
+          .maybeSingle();
+
+        const payload: any = { client_id: clientId };
+        const fieldMap: Record<string, string> = {
+          visual_design: "visual_design_json",
+          colour_direction: "colour_direction_json",
+          typography: "typography_json",
+          text_on_design: "text_on_design_json",
+          composition: "composition_json",
+          social_direction: "social_direction_json",
+          website_direction: "website_direction_json",
+          subject_themes: "subject_themes_json",
+          seasonal_local: "seasonal_local_json",
+          cta_style: "cta_style_json",
+          formatting_rules: "formatting_rules_json",
+          avoid_list: "avoid_list_json",
+        };
+
+        for (const [extractKey, dbCol] of Object.entries(fieldMap)) {
+          payload[dbCol] = mergeSection((existing as any)?.[dbCol], extracted_data[extractKey]);
+        }
+
+        if (existing) {
+          await supabase.from("brand_twin" as any).update(payload).eq("client_id", clientId);
+        } else {
+          await supabase.from("brand_twin" as any).insert(payload);
+        }
+
+        queryClient.invalidateQueries({ queryKey: ["brand-twin", clientId] });
+        toast.success("Brand Twin visual profile auto-updated");
       } else {
         const { data: existing } = await supabase
           .from("brand_twin" as any)
@@ -387,12 +426,10 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
   };
 
   const startVoiceCall = () => {
-    // Don't reset activeInterviewId or messages — voice appends to current session
     setVoiceMode(true);
   };
 
   const handleVoiceCallEnd = (voiceMessages: Message[]) => {
-    // Append voice messages to existing conversation
     const combined = [...messages, ...voiceMessages];
     setMessages(combined);
     setVoiceMode(false);
@@ -410,7 +447,8 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
       return;
     }
     setIsExtracting(true);
-    const isWebsite = WEBSITE_TEMPLATES.has(template);
+    const isWebsite = WEBSITE_TEMPLATES.has(template || "");
+    const isVisualBrand = VISUAL_BRAND_TEMPLATES.has(template || "");
     try {
       const { data: session } = await supabase.auth.getSession();
       const token = session?.session?.access_token;
@@ -485,6 +523,41 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
 
         queryClient.invalidateQueries({ queryKey: ["website-brief", clientId] });
         toast.success("Website Brief updated with interview insights!");
+      } else if (isVisualBrand) {
+        const { data: existing } = await supabase
+          .from("brand_twin" as any)
+          .select("*")
+          .eq("client_id", clientId)
+          .maybeSingle();
+
+        const payload: any = { client_id: clientId };
+        const fieldMap: Record<string, string> = {
+          visual_design: "visual_design_json",
+          colour_direction: "colour_direction_json",
+          typography: "typography_json",
+          text_on_design: "text_on_design_json",
+          composition: "composition_json",
+          social_direction: "social_direction_json",
+          website_direction: "website_direction_json",
+          subject_themes: "subject_themes_json",
+          seasonal_local: "seasonal_local_json",
+          cta_style: "cta_style_json",
+          formatting_rules: "formatting_rules_json",
+          avoid_list: "avoid_list_json",
+        };
+
+        for (const [extractKey, dbCol] of Object.entries(fieldMap)) {
+          payload[dbCol] = mergeSection((existing as any)?.[dbCol], extracted_data[extractKey]);
+        }
+
+        if (existing) {
+          await supabase.from("brand_twin" as any).update(payload).eq("client_id", clientId);
+        } else {
+          await supabase.from("brand_twin" as any).insert(payload);
+        }
+
+        queryClient.invalidateQueries({ queryKey: ["brand-twin", clientId] });
+        toast.success("Brand Twin visual profile updated!");
       } else {
         const { data: existing } = await supabase
           .from("brand_twin" as any)
@@ -551,6 +624,12 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
     return d.toLocaleDateString();
   };
 
+  const getExtractLabel = () => {
+    if (WEBSITE_TEMPLATES.has(template || "")) return "Extract to Website Brief";
+    if (VISUAL_BRAND_TEMPLATES.has(template || "")) return "Extract to Visual Profile";
+    return "Extract to Brain";
+  };
+
   const activeInterview = interviews?.find((i) => i.id === activeInterviewId);
   const hasExtracted = activeInterview?.status === "extracted";
   const isResuming = !!activeInterviewId && messages.length > 0;
@@ -600,7 +679,7 @@ export default function InterviewTab({ clientId }: { clientId: string }) {
               ) : (
                 <Sparkles className="h-3.5 w-3.5" />
               )}
-              {hasExtracted ? "Re-extract" : WEBSITE_TEMPLATES.has(template || "") ? "Extract to Website Brief" : "Extract to Brain"}
+              {hasExtracted ? "Re-extract" : getExtractLabel()}
             </Button>
           )}
           {(template || activeInterviewId) && (
