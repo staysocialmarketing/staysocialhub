@@ -1,81 +1,39 @@
 
 
-# Navigation Reorganization
+# Fix: Voice Interview Disconnecting — Remove `sendContextualUpdate`
 
-## Changes Overview
+## Root Cause
 
-### Internal Navigation
+The console logs show the exact pattern every time:
+1. `onConnect` fires
+2. `sendContextualUpdate` is called immediately
+3. Agent speaks first message
+4. `onDisconnect` fires ~3.6 seconds later
 
-**Current problem**: Team members can't see Clients, Marketplace, or Team Management. These are locked behind the Admin-only gate.
+The Hub Assistant voice (GlobalCaptureButton) does NOT use `sendContextualUpdate` and stays connected reliably. The interview flow calls it immediately on connect, which destabilizes the WebSocket and causes the agent to disconnect after its first utterance.
 
-**Proposed structure:**
+`sendContextualUpdate` is only used because we removed `overrides` from `startSession` (which also caused disconnects). The interview-specific prompt was being injected post-connection as a workaround — but this workaround itself causes disconnects.
 
-```text
-MENU
-  Dashboard
-  Workflow
-  Calendar
-  Approvals (admin only)
-  Requests
+## Solution
 
-TEAM
-  Inbox
-  Projects
-  Tasks
-  Think Tank
+Stop trying to customize the agent at runtime entirely. Instead, rely on the **default agent configuration** from ElevenLabs dashboard. The interview context will be handled purely in the text chat (which already works). Voice mode becomes a simpler "talk to the default agent" experience.
 
-CORPORATE
-  Strategy Playbook
-  Content Generator
+### `src/components/brain/VoiceCallPanel.tsx`
+1. **Remove `sendContextualUpdate` call** from `onConnect` — delete the `pendingContextRef` logic entirely
+2. **Remove `pendingContextRef`** — no longer needed
+3. **Add `connectionType: "websocket"` explicitly** to `startSession` (matching the stable Hub pattern)
+4. Keep everything else (retry logic, transcript capture, early disconnect detection)
 
-MANAGE (visible to all SS roles)
-  Clients
-  Team Success          ← renamed from "Team Management"
-  Marketplace
+### No edge function changes
+The token endpoint still returns `prompt` and `first_message`, but the client will simply not use them for overrides or contextual updates. The text-mode interview (which works fine) continues using these.
 
-ADMIN (ss_admin only)
-  Users
-  Meeting Notes
-  Automations
-  Versions
-```
-
-This gives team members access to Clients (for reference), Marketplace (for sales), and Team Success (for their own growth/roles), while keeping sensitive admin tools gated.
-
-### Client Navigation
-
-**Current problem**: "My Plan" and "My Profile" are in separate sections. "Account" section has only 2 items. The layout feels fragmented.
-
-**Proposed simplified client structure:**
-
-```text
-(no section label — top level)
-  Dashboard
-  Success Center
-  Approvals
-  Calendar
-  Requests
-  My Media
-
-MY ACCOUNT              ← merges Plan, Profile, What's New
-  My Profile
-  My Plan
-  What's New
-
-AI TOOLS
-  AI Interview
-  Content Generator
-  Brand Twin
-```
-
-This groups all "about me / my stuff" into one **My Account** section, removing the separate "Account" label and putting Plan alongside Profile where it logically belongs. The main nav stays clean and action-focused.
-
-## Files Changed
+## What This Means
+- Voice interviews will use the agent's default persona from the ElevenLabs dashboard
+- The specific template personality (brand strategist, website strategist, etc.) won't be injected into voice mode
+- Text interviews remain fully customized per template
+- Voice calls will actually stay connected
 
 | File | Change |
 |---|---|
-| `src/components/AppSidebar.tsx` | Split admin items into "Manage" (all SS) + "Admin" (ss_admin only); rename Team Management → Team Success; restructure client sections |
-| `src/components/MobileMenu.tsx` | Mirror same structure |
-
-No database or routing changes needed — all routes already exist.
+| `src/components/brain/VoiceCallPanel.tsx` | Remove `sendContextualUpdate` + `pendingContextRef`; add explicit `connectionType: "websocket"` |
 
