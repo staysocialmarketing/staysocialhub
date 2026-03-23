@@ -54,16 +54,6 @@ export default function VoiceCallPanel({
         clearTimeout(connectionTimeoutRef.current);
         connectionTimeoutRef.current = null;
       }
-      // Inject template context after connection is stable
-      if (pendingContextRef.current) {
-        console.log("EL sending contextual update for interview template");
-        try {
-          conversation.sendContextualUpdate(pendingContextRef.current);
-        } catch (e) {
-          console.warn("Failed to send contextual update:", e);
-        }
-        pendingContextRef.current = null;
-      }
     },
     onDisconnect: () => {
       const elapsed = Date.now() - sessionStartTimeRef.current;
