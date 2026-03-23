@@ -35,7 +35,6 @@ export default function VoiceCallPanel({
   const scrollRef = useRef<HTMLDivElement>(null);
   const retryCountRef = useRef(0);
   const connectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingContextRef = useRef<string | null>(null);
 
   const addMessage = useCallback((msg: Message) => {
     transcriptRef.current = [...transcriptRef.current, msg];
