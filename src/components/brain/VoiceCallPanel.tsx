@@ -146,7 +146,7 @@ export default function VoiceCallPanel({
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            include_prompt: true,
+            include_prompt: false,
             interview_template: template,
           }),
         }
@@ -171,9 +171,10 @@ export default function VoiceCallPanel({
         }
       }, 12000);
 
-      // Minimal startSession — no overrides or contextual updates to avoid SDK disconnect bug
+      // Explicit WebSocket mode for interview reliability
       await conversation.startSession({
         signedUrl: signed_url,
+        connectionType: "websocket",
       });
     } catch (error: any) {
       console.error("Failed to start voice call:", error);
