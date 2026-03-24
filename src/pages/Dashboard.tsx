@@ -496,6 +496,20 @@ function ClientDashboard() {
 
   const TYPE_EMOJI: Record<string, string> = { note: "📝", voice: "🎤", link: "🔗", file: "📄" };
 
+  if (!profile?.client_id) {
+    return (
+      <div className="p-4 sm:p-8 max-w-md mx-auto flex flex-col items-center justify-center text-center py-24 space-y-4">
+        <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+          <Sparkles className="h-7 w-7 text-primary" />
+        </div>
+        <h2 className="text-lg font-semibold text-foreground">We're setting up your account</h2>
+        <p className="text-sm text-muted-foreground max-w-xs">
+          Your workspace is being prepared by our team. You'll have full access shortly.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 sm:p-8 max-w-5xl mx-auto space-y-8">
       {/* Hero greeting */}
