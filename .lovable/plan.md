@@ -1,42 +1,81 @@
 
 
-# Ensuring Client Signups Work End-to-End
+# Auto-Assign Client Role on New Signups
 
-## What Happened with Dave
+## Problem
+When a new client user signs up, the `handle_new_user` trigger creates their `users` row but assigns no role and no `client_id`. The admin must manually do both in the Users page. This is error-prone and creates a limbo state.
 
-From the auth logs: Dave McCarron (`dave@premiereinsurance.ca`) successfully signed up via Google OAuth. The `handle_new_user` trigger created his record in the `users` table. However, the `fetchProfile` function in `AuthContext` runs `checkDomainAllowed` — if `premiereinsurance.ca` is not in the `allowed_domains` table, the user is immediately signed out with an error toast.
+## Solution
+Update the `handle_new_user` trigger to automatically match new signups to their client and assign `client_admin` role based on domain matching.
 
-**This is working as designed** — the domain whitelist is your access gate. You need to:
-1. Add `premiereinsurance.ca` to Allowed Domains (Admin → Users page)
-2. Create the client record
-3. Assign Dave's user to that client (`client_id`) and give him the `client_admin` role
+### How it works
+1. When a new user signs up, extract their email domain
+2. Check if that domain exists in `allowed_domains`
+3. Look up if any existing client user shares that domain (to find the `client_id`)
+4. If a match is found: set `client_id` on the new user and insert a `client_admin` role
+5. If no match: user still gets created (current behavior), admin assigns manually
 
-## Current Gaps in the Signup Flow
+This means: once you add `premiereinsurance.ca` to allowed domains AND assign Dave to his client, the next person from that company who signs up will automatically get linked to the same client with `client_admin` role.
 
-After reviewing the full auth flow, there are two issues that could trip up new client signups:
+### Database Migration
 
-### Issue 1: No role = empty dashboard with no navigation
-When a new client user signs up and you assign them a `client_id` but forget to add a role, they land on `ClientDashboard` (since `isSSRole` is false). The sidebar shows client nav items. This actually works — but if `client_id` is null (not yet assigned), all queries return empty because they're gated on `profile?.client_id`.
+Update `handle_new_user()` function:
 
-**No code fix needed** — this is correct behavior. The admin assigns `client_id` + role after signup.
+```sql
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  _domain text;
+  _matched_client_id uuid;
+BEGIN
+  -- Create user record
+  INSERT INTO public.users (id, email, name)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'full_name',
+             NEW.raw_user_meta_data->>'name',
+             split_part(NEW.email, '@', 1))
+  );
 
-### Issue 2: Client users without `client_id` see a blank dashboard
-If a user has a `client_admin` role but no `client_id` set, the dashboard shows "Hey, Dave 👋" with all zeros and empty sections. There's no guidance telling them to wait for setup.
+  -- Try to auto-assign client based on domain
+  _domain := lower(split_part(NEW.email, '@', 2));
 
-### Fix: Show a "setup pending" state for users with no client_id
+  -- Find an existing user with same domain who has a client_id
+  SELECT u.client_id INTO _matched_client_id
+  FROM public.users u
+  WHERE lower(split_part(u.email, '@', 2)) = _domain
+    AND u.client_id IS NOT NULL
+    AND u.id != NEW.id
+  LIMIT 1;
 
-**`src/pages/Dashboard.tsx`** — In `ClientDashboard`, add an early return when `profile?.client_id` is null:
-- Show a friendly message: "We're setting up your account. You'll have access shortly."
-- This prevents confusion for newly signed-up client users before the admin assigns them
+  IF _matched_client_id IS NOT NULL THEN
+    -- Link new user to same client
+    UPDATE public.users SET client_id = _matched_client_id WHERE id = NEW.id;
 
-### No other changes needed
-- The `handle_new_user` trigger correctly creates user records on signup
-- Domain whitelist + role assignment is admin-controlled (by design)
-- Google OAuth and Magic Link both work through the same `onAuthStateChange` → `fetchProfile` flow
+    -- Assign client_admin role
+    INSERT INTO public.user_roles (user_id, role)
+    VALUES (NEW.id, 'client_admin')
+    ON CONFLICT (user_id, role) DO NOTHING;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+```
+
+### No code changes needed
+- The "setup pending" screen in Dashboard already handles the case where `client_id` is still null (first user from a new company)
+- The AuthContext domain whitelist check still gates access
+- SS domain users (staysocial.ca etc.) won't match any client, so they remain unassigned as expected
 
 ## Files Changed
 
 | File | Change |
 |---|---|
-| `src/pages/Dashboard.tsx` | Add "account setup pending" state in `ClientDashboard` when `client_id` is null |
+| Migration SQL | Update `handle_new_user()` to auto-assign `client_id` + `client_admin` role via domain matching |
 
