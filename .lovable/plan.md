@@ -1,81 +1,41 @@
 
 
-# Auto-Assign Client Role on New Signups
+# Fix: Dave Can't Log In — Missing Role Assignment
 
 ## Problem
-When a new client user signs up, the `handle_new_user` trigger creates their `users` row but assigns no role and no `client_id`. The admin must manually do both in the Users page. This is error-prone and creates a limbo state.
+Dave (`dave@premiereinsurance.ca`) has:
+- ✅ Account created via Google OAuth
+- ✅ Domain whitelisted (`premiereinsurance.ca`)
+- ✅ `client_id` assigned (`38b151b0...` → "Dave McCarron" client)
+- ❌ **No role in `user_roles` table** — this is why he can't access anything
 
-## Solution
-Update the `handle_new_user` trigger to automatically match new signups to their client and assign `client_admin` role based on domain matching.
+Without a role, the auth context returns empty `roles[]`, so the app doesn't know to show him the client dashboard.
 
-### How it works
-1. When a new user signs up, extract their email domain
-2. Check if that domain exists in `allowed_domains`
-3. Look up if any existing client user shares that domain (to find the `client_id`)
-4. If a match is found: set `client_id` on the new user and insert a `client_admin` role
-5. If no match: user still gets created (current behavior), admin assigns manually
-
-This means: once you add `premiereinsurance.ca` to allowed domains AND assign Dave to his client, the next person from that company who signs up will automatically get linked to the same client with `client_admin` role.
-
-### Database Migration
-
-Update `handle_new_user()` function:
+## Immediate Fix (Data Insert)
+Insert the `client_admin` role for Dave's user ID:
 
 ```sql
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  _domain text;
-  _matched_client_id uuid;
-BEGIN
-  -- Create user record
-  INSERT INTO public.users (id, email, name)
-  VALUES (
-    NEW.id,
-    NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'full_name',
-             NEW.raw_user_meta_data->>'name',
-             split_part(NEW.email, '@', 1))
-  );
-
-  -- Try to auto-assign client based on domain
-  _domain := lower(split_part(NEW.email, '@', 2));
-
-  -- Find an existing user with same domain who has a client_id
-  SELECT u.client_id INTO _matched_client_id
-  FROM public.users u
-  WHERE lower(split_part(u.email, '@', 2)) = _domain
-    AND u.client_id IS NOT NULL
-    AND u.id != NEW.id
-  LIMIT 1;
-
-  IF _matched_client_id IS NOT NULL THEN
-    -- Link new user to same client
-    UPDATE public.users SET client_id = _matched_client_id WHERE id = NEW.id;
-
-    -- Assign client_admin role
-    INSERT INTO public.user_roles (user_id, role)
-    VALUES (NEW.id, 'client_admin')
-    ON CONFLICT (user_id, role) DO NOTHING;
-  END IF;
-
-  RETURN NEW;
-END;
-$$;
+INSERT INTO user_roles (user_id, role)
+VALUES ('d2cf64c1-ce95-4619-91a8-b037ca351b98', 'client_admin')
+ON CONFLICT (user_id, role) DO NOTHING;
 ```
 
-### No code changes needed
-- The "setup pending" screen in Dashboard already handles the case where `client_id` is still null (first user from a new company)
-- The AuthContext domain whitelist check still gates access
-- SS domain users (staysocial.ca etc.) won't match any client, so they remain unassigned as expected
+This is a data operation, not a schema change.
+
+## Why This Happened
+The `handle_new_user` trigger was updated to auto-assign roles AFTER Dave had already signed up. His original signup used the old trigger which only created the user record. The auto-assignment only works for future signups where another user from the same domain already has a `client_id`.
+
+## Regarding "Client User" Role
+The current role system has `client_admin` and `client_assistant`. There is no generic `client_user` role. `client_admin` is the standard role for client contacts — it gives them full access to their own client dashboard, approvals, requests, etc. `client_assistant` is for secondary contacts with limited permissions (e.g., can't approve unless `assistants_can_approve` is enabled on the client record).
+
+No new role type is needed — `client_admin` covers Dave's use case.
+
+## Also: Rename Client Record
+The client record is named "Dave McCarron" — you may want to rename it to his company name (e.g., "Premiere Insurance") from the Admin → Clients page. This is just a display name issue.
 
 ## Files Changed
 
 | File | Change |
 |---|---|
-| Migration SQL | Update `handle_new_user()` to auto-assign `client_id` + `client_admin` role via domain matching |
+| Data insert (not migration) | Add `client_admin` role for Dave's user ID |
 
