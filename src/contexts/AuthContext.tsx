@@ -66,21 +66,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const checkDomainAllowed = async (email: string): Promise<boolean> => {
     const domain = email.split("@")[1]?.toLowerCase();
     if (!domain) return false;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("allowed_domains")
-      .select("id")
-      .eq("domain", domain)
-      .maybeSingle();
-    return !!data;
+      .select("domain")
+      .ilike("domain", domain)
+      .limit(1);
+
+    if (error) {
+      console.error("Domain whitelist lookup failed:", error);
+      return false;
+    }
+
+    return (data?.length ?? 0) > 0;
   };
 
   const fetchProfile = async (userId: string, email: string) => {
     // Check domain whitelist first
     const allowed = await checkDomainAllowed(email);
     if (!allowed) {
-      toast.error("Your email domain is not authorized. Contact Stay Social to request access.");
-      await supabase.auth.signOut();
-      return;
+      // Retry once to avoid race conditions during OAuth callback/session initialization
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      const retryAllowed = await checkDomainAllowed(email);
+
+      if (!retryAllowed) {
+        toast.error("Your email domain is not authorized. Contact Stay Social to request access.");
+        await supabase.auth.signOut();
+        return;
+      }
     }
 
     const { data: profileData } = await supabase
@@ -128,34 +140,66 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+    let isMounted = true;
 
-        if (session?.user) {
-          setTimeout(() => fetchProfile(session.user.id, session.user.email || ""), 0);
-        } else {
-          setRealProfile(null);
-          setRealRoles([]);
-          setViewAsUserId(null);
-          setViewAsProfile(null);
-          setViewAsRoles([]);
-        }
-        setLoading(false);
+    const applySession = async (nextSession: Session | null) => {
+      if (!isMounted) return;
+
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
+
+      if (nextSession?.user) {
+        await fetchProfile(nextSession.user.id, nextSession.user.email || "");
+      } else {
+        setRealProfile(null);
+        setRealRoles([]);
+        setViewAsUserId(null);
+        setViewAsProfile(null);
+        setViewAsRoles([]);
+      }
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, nextSession) => {
+        await applySession(nextSession);
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id, session.user.email || "");
-      }
-      setLoading(false);
-    });
+    const initializeAuth = async () => {
+      try {
+        let {
+          data: { session: initialSession },
+        } = await supabase.auth.getSession();
 
-    return () => subscription.unsubscribe();
+        const hasAuthParams =
+          window.location.search.includes("code=") ||
+          window.location.hash.includes("access_token") ||
+          window.location.hash.includes("refresh_token");
+
+        if (!initialSession && hasAuthParams) {
+          for (let attempt = 0; attempt < 5 && !initialSession; attempt++) {
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            const {
+              data: { session: retrySession },
+            } = await supabase.auth.getSession();
+            initialSession = retrySession;
+          }
+        }
+
+        await applySession(initialSession);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void initializeAuth();
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
