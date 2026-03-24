@@ -1,39 +1,42 @@
 
 
-# Fix: Voice Interview Disconnecting — Remove `sendContextualUpdate`
+# Ensuring Client Signups Work End-to-End
 
-## Root Cause
+## What Happened with Dave
 
-The console logs show the exact pattern every time:
-1. `onConnect` fires
-2. `sendContextualUpdate` is called immediately
-3. Agent speaks first message
-4. `onDisconnect` fires ~3.6 seconds later
+From the auth logs: Dave McCarron (`dave@premiereinsurance.ca`) successfully signed up via Google OAuth. The `handle_new_user` trigger created his record in the `users` table. However, the `fetchProfile` function in `AuthContext` runs `checkDomainAllowed` — if `premiereinsurance.ca` is not in the `allowed_domains` table, the user is immediately signed out with an error toast.
 
-The Hub Assistant voice (GlobalCaptureButton) does NOT use `sendContextualUpdate` and stays connected reliably. The interview flow calls it immediately on connect, which destabilizes the WebSocket and causes the agent to disconnect after its first utterance.
+**This is working as designed** — the domain whitelist is your access gate. You need to:
+1. Add `premiereinsurance.ca` to Allowed Domains (Admin → Users page)
+2. Create the client record
+3. Assign Dave's user to that client (`client_id`) and give him the `client_admin` role
 
-`sendContextualUpdate` is only used because we removed `overrides` from `startSession` (which also caused disconnects). The interview-specific prompt was being injected post-connection as a workaround — but this workaround itself causes disconnects.
+## Current Gaps in the Signup Flow
 
-## Solution
+After reviewing the full auth flow, there are two issues that could trip up new client signups:
 
-Stop trying to customize the agent at runtime entirely. Instead, rely on the **default agent configuration** from ElevenLabs dashboard. The interview context will be handled purely in the text chat (which already works). Voice mode becomes a simpler "talk to the default agent" experience.
+### Issue 1: No role = empty dashboard with no navigation
+When a new client user signs up and you assign them a `client_id` but forget to add a role, they land on `ClientDashboard` (since `isSSRole` is false). The sidebar shows client nav items. This actually works — but if `client_id` is null (not yet assigned), all queries return empty because they're gated on `profile?.client_id`.
 
-### `src/components/brain/VoiceCallPanel.tsx`
-1. **Remove `sendContextualUpdate` call** from `onConnect` — delete the `pendingContextRef` logic entirely
-2. **Remove `pendingContextRef`** — no longer needed
-3. **Add `connectionType: "websocket"` explicitly** to `startSession` (matching the stable Hub pattern)
-4. Keep everything else (retry logic, transcript capture, early disconnect detection)
+**No code fix needed** — this is correct behavior. The admin assigns `client_id` + role after signup.
 
-### No edge function changes
-The token endpoint still returns `prompt` and `first_message`, but the client will simply not use them for overrides or contextual updates. The text-mode interview (which works fine) continues using these.
+### Issue 2: Client users without `client_id` see a blank dashboard
+If a user has a `client_admin` role but no `client_id` set, the dashboard shows "Hey, Dave 👋" with all zeros and empty sections. There's no guidance telling them to wait for setup.
 
-## What This Means
-- Voice interviews will use the agent's default persona from the ElevenLabs dashboard
-- The specific template personality (brand strategist, website strategist, etc.) won't be injected into voice mode
-- Text interviews remain fully customized per template
-- Voice calls will actually stay connected
+### Fix: Show a "setup pending" state for users with no client_id
+
+**`src/pages/Dashboard.tsx`** — In `ClientDashboard`, add an early return when `profile?.client_id` is null:
+- Show a friendly message: "We're setting up your account. You'll have access shortly."
+- This prevents confusion for newly signed-up client users before the admin assigns them
+
+### No other changes needed
+- The `handle_new_user` trigger correctly creates user records on signup
+- Domain whitelist + role assignment is admin-controlled (by design)
+- Google OAuth and Magic Link both work through the same `onAuthStateChange` → `fetchProfile` flow
+
+## Files Changed
 
 | File | Change |
 |---|---|
-| `src/components/brain/VoiceCallPanel.tsx` | Remove `sendContextualUpdate` + `pendingContextRef`; add explicit `connectionType: "websocket"` |
+| `src/pages/Dashboard.tsx` | Add "account setup pending" state in `ClientDashboard` when `client_id` is null |
 
