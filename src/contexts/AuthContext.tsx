@@ -81,37 +81,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const fetchProfile = async (userId: string, email: string) => {
-    // Check domain whitelist first
-    const allowed = await checkDomainAllowed(email);
-    if (!allowed) {
-      // Retry once to avoid race conditions during OAuth callback/session initialization
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      const retryAllowed = await checkDomainAllowed(email);
+    try {
+      const allowed = await checkDomainAllowed(email);
+      if (!allowed) {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        const retryAllowed = await checkDomainAllowed(email);
 
-      if (!retryAllowed) {
-        toast.error("Your email domain is not authorized. Contact Stay Social to request access.");
-        await supabase.auth.signOut();
-        return;
+        if (!retryAllowed) {
+          toast.error("Your email domain is not authorized. Contact Stay Social to request access.");
+          await supabase.auth.signOut();
+          return;
+        }
       }
-    }
 
-    const { data: profileData } = await supabase
-      .from("users")
-      .select("*")
-      .eq("id", userId)
-      .single();
+      const { data: profileData } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", userId)
+        .single();
 
-    if (profileData) {
-      setRealProfile(profileData as UserProfile);
-    }
+      if (profileData) {
+        setRealProfile(profileData as UserProfile);
+      }
 
-    const { data: rolesData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
+      const { data: rolesData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId);
 
-    if (rolesData) {
-      setRealRoles(rolesData.map((r) => r.role));
+      if (rolesData) {
+        setRealRoles(rolesData.map((r) => r.role));
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
     }
   };
 
@@ -162,10 +164,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, nextSession) => {
         await applySession(nextSession);
+        if (isMounted) setLoading(false);
       }
     );
 
     const initializeAuth = async () => {
+      const timeout = setTimeout(() => {
+        if (isMounted) setLoading(false);
+      }, 8000);
+
       try {
         let {
           data: { session: initialSession },
@@ -188,6 +195,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         await applySession(initialSession);
       } finally {
+        clearTimeout(timeout);
         if (isMounted) {
           setLoading(false);
         }
