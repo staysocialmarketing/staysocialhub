@@ -1,41 +1,39 @@
 
 
-# Fix: Dave Can't Log In — Missing Role Assignment
+# Fix: Dashboard Stuck on "Loading..."
 
-## Problem
-Dave (`dave@premiereinsurance.ca`) has:
-- ✅ Account created via Google OAuth
-- ✅ Domain whitelisted (`premiereinsurance.ca`)
-- ✅ `client_id` assigned (`38b151b0...` → "Dave McCarron" client)
-- ❌ **No role in `user_roles` table** — this is why he can't access anything
+## Root Cause
 
-Without a role, the auth context returns empty `roles[]`, so the app doesn't know to show him the client dashboard.
+The `AuthContext` sets `loading = false` only after `applySession` completes, which calls `fetchProfile`, which makes 3 sequential database queries (`allowed_domains`, `users`, `user_roles`). If any of these queries stall (common in the Lovable preview proxy environment), `loading` stays `true` forever and the entire app shows "Loading..."
 
-## Immediate Fix (Data Insert)
-Insert the `client_admin` role for Dave's user ID:
+The Lovable preview fetch proxy is known to intermittently break Supabase data requests. The published URL (`hub.staysocial.ca`) should work fine.
 
-```sql
-INSERT INTO user_roles (user_id, role)
-VALUES ('d2cf64c1-ce95-4619-91a8-b037ca351b98', 'client_admin')
-ON CONFLICT (user_id, role) DO NOTHING;
+## Fix
+
+### `src/contexts/AuthContext.tsx`
+
+1. **Add a loading timeout safety net** — if `loading` is still `true` after 8 seconds, force it to `false`. This prevents the infinite loading state regardless of cause.
+
+2. **Wrap `fetchProfile` in try/catch** — ensure that if any query throws, `applySession` still completes rather than hanging silently.
+
+3. **Add `setLoading(false)` after the `onAuthStateChange` callback's `applySession` too** — currently only `initializeAuth` sets loading to false, but if the auth state change callback runs first and takes a long time, the user sees loading until it finishes. Both paths should guarantee loading ends.
+
+```typescript
+// In initializeAuth, add timeout:
+const timeout = setTimeout(() => {
+  if (isMounted) setLoading(false);
+}, 8000);
+
+// In finally block:
+clearTimeout(timeout);
+if (isMounted) setLoading(false);
 ```
 
-This is a data operation, not a schema change.
-
-## Why This Happened
-The `handle_new_user` trigger was updated to auto-assign roles AFTER Dave had already signed up. His original signup used the old trigger which only created the user record. The auto-assignment only works for future signups where another user from the same domain already has a `client_id`.
-
-## Regarding "Client User" Role
-The current role system has `client_admin` and `client_assistant`. There is no generic `client_user` role. `client_admin` is the standard role for client contacts — it gives them full access to their own client dashboard, approvals, requests, etc. `client_assistant` is for secondary contacts with limited permissions (e.g., can't approve unless `assistants_can_approve` is enabled on the client record).
-
-No new role type is needed — `client_admin` covers Dave's use case.
-
-## Also: Rename Client Record
-The client record is named "Dave McCarron" — you may want to rename it to his company name (e.g., "Premiere Insurance") from the Admin → Clients page. This is just a display name issue.
+Also wrap `fetchProfile` body in try/catch so a failed query doesn't prevent completion.
 
 ## Files Changed
 
 | File | Change |
 |---|---|
-| Data insert (not migration) | Add `client_admin` role for Dave's user ID |
+| `src/contexts/AuthContext.tsx` | Add loading timeout, wrap fetchProfile in try/catch |
 
