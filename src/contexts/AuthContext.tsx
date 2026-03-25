@@ -162,9 +162,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, nextSession) => {
-        await applySession(nextSession);
-        if (isMounted) setLoading(false);
+      (_event, nextSession) => {
+        // Fire-and-forget to avoid blocking the auth state change callback
+        applySession(nextSession).then(() => {
+          if (isMounted) setLoading(false);
+        });
       }
     );
 
