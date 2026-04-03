@@ -167,6 +167,10 @@ export default function Auth() {
         <p className="text-center text-xs text-white/25 mt-6">
           By signing in, you agree to Stay Social's terms of service.
         </p>
+        <p className="text-center text-xs text-white/25 mt-2 space-x-3">
+          <a href="https://staysocial.ca/privacy-policy" target="_blank" rel="noopener noreferrer" className="hover:text-white/50 transition-colors">Privacy Policy</a>
+          <a href="https://staysocial.ca/terms-of-service" target="_blank" rel="noopener noreferrer" className="hover:text-white/50 transition-colors">Terms of Service</a>
+        </p>
       </div>
     </div>
   );
