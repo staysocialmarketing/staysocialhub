@@ -2,7 +2,6 @@ import whiteLogo from "@/assets/white_with_orange.png";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -17,16 +16,12 @@ export default function Auth() {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: window.location.origin },
       });
-      if (result.error) {
-        console.error("Google sign-in error:", result.error);
-        const msg = result.error?.message || String(result.error);
-        toast.error(msg || "Google sign-in failed. Try using the magic link below instead.");
-      }
+      if (error) throw error;
     } catch (err: any) {
-      console.error("Google sign-in exception:", err);
       toast.error(err?.message || "Google sign-in failed. Try using the magic link below instead.");
     } finally {
       setLoading(false);
