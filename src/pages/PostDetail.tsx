@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner";
 import {
   ArrowLeft, Calendar, Hash, MessageSquare, Image as ImageIcon,
-  Check, FileEdit, AlertTriangle, Save, Upload,
+  Check, FileEdit, AlertTriangle, Save, Upload, Sparkles,
 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { compressImage } from "@/lib/imageUtils";
@@ -271,7 +271,19 @@ export default function PostDetail() {
 
           {/* Caption & Hashtags */}
           <Card>
-            <CardHeader><CardTitle className="text-base">Caption</CardTitle></CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base">Caption</CardTitle>
+              {isSSRole && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/client/generate?post_id=${postId}`)}
+                >
+                  <Sparkles className="h-3 w-3 mr-1" />
+                  Generate with AI
+                </Button>
+              )}
+            </CardHeader>
             <CardContent>
               <p className="text-sm text-foreground whitespace-pre-wrap">{post.caption || "No caption yet"}</p>
               {post.hashtags && (

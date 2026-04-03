@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -41,6 +42,9 @@ const TONE_OPTIONS = [
 export default function ContentGenerator() {
   const { profile, isSSRole } = useAuth();
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const postId = searchParams.get("post_id");
 
   const [contentType, setContentType] = useState("caption");
   const [topic, setTopic] = useState("");
@@ -106,6 +110,24 @@ export default function ContentGenerator() {
     onError: (err: Error) => {
       toast.error(err.message);
     },
+  });
+
+  // Apply caption to post
+  const useCaption = useMutation({
+    mutationFn: async () => {
+      if (!postId || !output) return;
+      const { error } = await supabase
+        .from("posts")
+        .update({ caption: output, status_column: "writing" })
+        .eq("id", postId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Caption applied to post!");
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+      navigate(`/approvals/${postId}`);
+    },
+    onError: () => toast.error("Failed to apply caption"),
   });
 
   // Save to captures
@@ -271,6 +293,33 @@ export default function ContentGenerator() {
             <div className="prose prose-sm dark:prose-invert max-w-none rounded-xl bg-muted/30 p-4 text-sm">
               <ReactMarkdown>{output}</ReactMarkdown>
             </div>
+            {postId && (
+              <div className="flex gap-2 pt-1 border-t">
+                <Button
+                  size="sm"
+                  onClick={() => useCaption.mutate()}
+                  disabled={useCaption.isPending}
+                  className="flex-1 rounded-xl"
+                >
+                  {useCaption.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4 mr-2" />
+                  )}
+                  Use this caption
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => generate.mutate()}
+                  disabled={generate.isPending}
+                  className="flex-1 rounded-xl"
+                >
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Regenerate
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
