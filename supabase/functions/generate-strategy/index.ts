@@ -81,47 +81,44 @@ CLIENT CONTEXT:
 
 Return a strategy brief with these exact fields. Be specific and actionable.`;
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) {
       return new Response(JSON.stringify({ error: "AI not configured" }), { status: 500, headers: corsHeaders });
     }
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: "You are a content strategist. Return structured strategy briefs." },
-          { role: "user", content: prompt },
-        ],
+        model: "claude-sonnet-4-6",
+        max_tokens: 2048,
+        system: "You are a content strategist. Return structured strategy briefs.",
+        messages: [{ role: "user", content: prompt }],
         tools: [
           {
-            type: "function",
-            function: {
-              name: "return_strategy_brief",
-              description: "Return a structured strategy brief for the content request.",
-              parameters: {
-                type: "object",
-                properties: {
-                  objective: { type: "string", description: "The strategic objective for this content" },
-                  angle: { type: "string", description: "The content angle or approach" },
-                  primary_message: { type: "string", description: "The primary message to communicate" },
-                  audience: { type: "string", description: "The target audience" },
-                  campaign: { type: "string", description: "Related campaign or initiative" },
-                  cta: { type: "string", description: "The call to action" },
-                  production_notes: { type: "string", description: "Notes for the production team" },
-                },
-                required: ["objective", "angle", "primary_message", "audience", "campaign", "cta", "production_notes"],
-                additionalProperties: false,
+            name: "return_strategy_brief",
+            description: "Return a structured strategy brief for the content request.",
+            input_schema: {
+              type: "object",
+              properties: {
+                objective: { type: "string", description: "The strategic objective for this content" },
+                angle: { type: "string", description: "The content angle or approach" },
+                primary_message: { type: "string", description: "The primary message to communicate" },
+                audience: { type: "string", description: "The target audience" },
+                campaign: { type: "string", description: "Related campaign or initiative" },
+                cta: { type: "string", description: "The call to action" },
+                production_notes: { type: "string", description: "Notes for the production team" },
               },
+              required: ["objective", "angle", "primary_message", "audience", "campaign", "cta", "production_notes"],
+              additionalProperties: false,
             },
           },
         ],
-        tool_choice: { type: "function", function: { name: "return_strategy_brief" } },
+        tool_choice: { type: "tool", name: "return_strategy_brief" },
       }),
     });
 
@@ -130,21 +127,18 @@ Return a strategy brief with these exact fields. Be specific and actionable.`;
       if (status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again shortly." }), { status: 429, headers: corsHeaders });
       }
-      if (status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits." }), { status: 402, headers: corsHeaders });
-      }
       const text = await aiResponse.text();
-      console.error("AI gateway error:", status, text);
+      console.error("Anthropic API error:", status, text);
       return new Response(JSON.stringify({ error: "AI generation failed" }), { status: 500, headers: corsHeaders });
     }
 
     const aiData = await aiResponse.json();
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall) {
+    const toolUseBlock = aiData.content?.find((b: any) => b.type === "tool_use");
+    if (!toolUseBlock?.input) {
       return new Response(JSON.stringify({ error: "AI did not return structured output" }), { status: 500, headers: corsHeaders });
     }
 
-    const brief = JSON.parse(toolCall.function.arguments);
+    const brief = toolUseBlock.input;
 
     // Write back to requests table
     const { error: updateErr } = await supabase

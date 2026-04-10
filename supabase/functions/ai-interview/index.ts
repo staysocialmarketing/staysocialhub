@@ -457,6 +457,61 @@ const VISUAL_BRAND_EXTRACT_TOOLS = [
 const WEBSITE_TEMPLATES = new Set(["website_discovery"]);
 const VISUAL_BRAND_TEMPLATES = new Set(["visual_brand"]);
 
+// Convert OpenAI-style tool definitions to Anthropic format
+function toAnthropicTools(tools: any[]) {
+  return tools.map((t) => ({
+    name: t.function.name,
+    description: t.function.description,
+    input_schema: t.function.parameters,
+  }));
+}
+
+// Transform Anthropic streaming SSE into OpenAI-compatible SSE for the frontend
+async function transformAnthropicStream(anthropicBody: ReadableStream): Promise<ReadableStream> {
+  const { readable, writable } = new TransformStream();
+  const writer = writable.getWriter();
+  const encoder = new TextEncoder();
+
+  (async () => {
+    try {
+      const reader = anthropicBody.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const data = line.slice(6).trim();
+          if (!data) continue;
+
+          try {
+            const event = JSON.parse(data);
+            if (event.type === "content_block_delta" && event.delta?.type === "text_delta") {
+              const chunk = `data: ${JSON.stringify({ choices: [{ delta: { content: event.delta.text } }] })}\n\n`;
+              await writer.write(encoder.encode(chunk));
+            } else if (event.type === "message_stop") {
+              await writer.write(encoder.encode("data: [DONE]\n\n"));
+            }
+          } catch { /* ignore malformed lines */ }
+        }
+      }
+    } catch (err) {
+      console.error("ai-interview stream transform error:", err);
+    } finally {
+      try { await writer.close(); } catch {}
+    }
+  })();
+
+  return readable;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -473,9 +528,9 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+    const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY");
 
-    if (!lovableApiKey) {
+    if (!anthropicApiKey) {
       return new Response(JSON.stringify({ error: "AI not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -540,20 +595,20 @@ Deno.serve(async (req) => {
         toolName = "extract_brand_data";
       }
 
-      const extractionResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const extractionResponse = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${lovableApiKey}`,
+          "x-api-key": anthropicApiKey,
+          "anthropic-version": "2023-06-01",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            { role: "system", content: extractionPrompt },
-            { role: "user", content: conversationText },
-          ],
-          tools: extractionTools,
-          tool_choice: { type: "function", function: { name: toolName } },
+          model: "claude-sonnet-4-6",
+          max_tokens: 4096,
+          system: extractionPrompt,
+          messages: [{ role: "user", content: conversationText }],
+          tools: toAnthropicTools(extractionTools),
+          tool_choice: { type: "tool", name: toolName },
         }),
       });
 
@@ -567,24 +622,14 @@ Deno.serve(async (req) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-        if (status === 402) {
-          return new Response(JSON.stringify({ error: "AI credits exhausted" }), {
-            status: 402,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
         throw new Error("Extraction failed");
       }
 
       const extractionResult = await extractionResponse.json();
-      const toolCall = extractionResult.choices?.[0]?.message?.tool_calls?.[0];
+      const toolUseBlock = extractionResult.content?.find((b: any) => b.type === "tool_use");
       let extractedData = {};
-      if (toolCall?.function?.arguments) {
-        try {
-          extractedData = JSON.parse(toolCall.function.arguments);
-        } catch {
-          extractedData = {};
-        }
+      if (toolUseBlock?.input) {
+        extractedData = toolUseBlock.input;
       }
 
       return new Response(JSON.stringify({ extracted_data: extractedData, is_website: isWebsiteTemplate, is_visual_brand: isVisualBrandTemplate }), {
@@ -678,15 +723,22 @@ Deno.serve(async (req) => {
       ...(messages || []).map((m: any) => ({ role: m.role, content: m.content })),
     ];
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Extract system from aiMessages (Anthropic requires it as a top-level field)
+    const systemMsg = aiMessages.find((m: any) => m.role === "system");
+    const userMessages = aiMessages.filter((m: any) => m.role !== "system");
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${lovableApiKey}`,
+        "x-api-key": anthropicApiKey,
+        "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: aiMessages,
+        model: "claude-sonnet-4-6",
+        max_tokens: 1024,
+        system: systemMsg?.content,
+        messages: userMessages,
         stream: true,
       }),
     });
@@ -701,16 +753,12 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
       throw new Error("AI request failed");
     }
 
-    return new Response(response.body, {
+    // Transform Anthropic SSE → OpenAI-compatible SSE (frontend parses choices[0].delta.content)
+    const transformedStream = await transformAnthropicStream(response.body!);
+    return new Response(transformedStream, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (err) {

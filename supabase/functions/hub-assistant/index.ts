@@ -550,8 +550,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!lovableApiKey) {
+    const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!anthropicApiKey) {
       return new Response(JSON.stringify({ error: "AI not configured" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -646,20 +646,28 @@ IMPORTANT:
 
 If no actionable items are found, do not call any tools.${routeHint}`;
 
-      const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const extractionTools = tools.filter(t => ["create_request", "capture_idea", "create_task"].includes(t.function.name));
+      const anthropicExtractionTools = extractionTools.map((t: any) => ({
+        name: t.function.name,
+        description: t.function.description,
+        input_schema: t.function.parameters,
+      }));
+
+      const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${lovableApiKey}`,
+          "x-api-key": anthropicApiKey,
+          "anthropic-version": "2023-06-01",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash-lite",
+          model: "claude-sonnet-4-6",
+          max_tokens: 2048,
+          system: extractionPrompt,
           messages: [
-            { role: "system", content: extractionPrompt },
             { role: "user", content: `Here is the voice conversation transcript:\n\n${transcript}` },
           ],
-          tools: tools.filter(t => ["create_request", "capture_idea", "create_task"].includes(t.function.name)),
-          stream: false,
+          tools: anthropicExtractionTools,
         }),
       });
 
@@ -670,24 +678,15 @@ If no actionable items are found, do not call any tools.${routeHint}`;
             status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-        if (status === 402) {
-          return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds." }), {
-            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
         throw new Error("AI request failed");
       }
 
       const result = await aiResponse.json();
-      const choice = result.choices?.[0];
-      if (!choice) throw new Error("No AI response");
-
-      const toolCalls = choice.message?.tool_calls || [];
-      console.log("[hub-assistant] extract_actions — tool calls found:", toolCalls.length);
-      const actions = toolCalls.map((tc: any) => {
-        let args: any = {};
-        try { args = JSON.parse(tc.function.arguments); } catch {}
-        const toolName = tc.function.name;
+      const toolUseBlocks = result.content?.filter((b: any) => b.type === "tool_use") || [];
+      console.log("[hub-assistant] extract_actions — tool calls found:", toolUseBlocks.length);
+      const actions = toolUseBlocks.map((block: any) => {
+        const args = block.input; // Already an object — no JSON.parse needed
+        const toolName = block.name;
         console.log("[hub-assistant] extracted tool:", toolName, "args:", JSON.stringify(args).slice(0, 200));
         let summary = "";
         if (toolName === "create_request") {
@@ -802,30 +801,37 @@ If no actionable items are found, do not call any tools.${routeHint}`;
       });
     }
 
-    const tools = isSSRole ? [...baseTools, ...ssOnlyTools] : [...baseTools];
+    const chatTools = isSSRole ? [...baseTools, ...ssOnlyTools] : [...baseTools];
     const currentRoute = body.current_route || "";
     const systemPrompt = buildSystemPrompt(isSSRole, clientName, currentRoute);
 
-    let aiMessages: any[] = [
-      { role: "system", content: systemPrompt },
-      ...messages.map((m: any) => ({ role: m.role, content: m.content })),
-    ];
+    // Anthropic tool format
+    const anthropicChatTools = chatTools.map((t: any) => ({
+      name: t.function.name,
+      description: t.function.description,
+      input_schema: t.function.parameters,
+    }));
+
+    // Anthropic requires messages-only array (no system role in messages)
+    let aiMessages: any[] = messages.map((m: any) => ({ role: m.role, content: m.content }));
 
     const MAX_TOOL_ROUNDS = 3;
     let round = 0;
 
     while (round < MAX_TOOL_ROUNDS) {
-      const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${lovableApiKey}`,
+          "x-api-key": anthropicApiKey,
+          "anthropic-version": "2023-06-01",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: "claude-sonnet-4-6",
+          max_tokens: 1024,
+          system: systemPrompt,
           messages: aiMessages,
-          tools,
-          stream: false,
+          tools: anthropicChatTools,
         }),
       });
 
@@ -836,52 +842,43 @@ If no actionable items are found, do not call any tools.${routeHint}`;
             status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-        if (status === 402) {
-          return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds." }), {
-            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
         const errText = await aiResponse.text();
         console.error("AI error:", status, errText);
         throw new Error("AI request failed");
       }
 
       const result = await aiResponse.json();
-      const choice = result.choices?.[0];
-      if (!choice) throw new Error("No AI response");
+      if (!result.content) throw new Error("No AI response");
 
-      const assistantMsg = choice.message;
-      aiMessages.push(assistantMsg);
+      const toolUseBlocks = result.content.filter((b: any) => b.type === "tool_use");
+      const textBlocks = result.content.filter((b: any) => b.type === "text");
 
-      if (!assistantMsg.tool_calls || assistantMsg.tool_calls.length === 0) {
-        const content = assistantMsg.content || "";
+      if (toolUseBlocks.length === 0) {
+        // No tool calls — return the text response
+        const content = textBlocks.map((b: any) => b.text).join("") || "";
         return new Response(JSON.stringify({ response: content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      for (const toolCall of assistantMsg.tool_calls) {
-        const fnName = toolCall.function.name;
-        let args: any;
-        try {
-          args = JSON.parse(toolCall.function.arguments);
-        } catch {
-          aiMessages.push({
-            role: "tool",
-            tool_call_id: toolCall.id,
-            content: JSON.stringify({ error: "Invalid arguments" }),
-          });
-          continue;
-        }
+      // Add assistant turn to conversation (Anthropic expects the full content array)
+      aiMessages.push({ role: "assistant", content: result.content });
 
+      // Execute each tool and collect results as a single user turn
+      const toolResults: any[] = [];
+      for (const toolBlock of toolUseBlocks) {
+        const fnName = toolBlock.name;
+        const args = toolBlock.input; // Already an object — no JSON.parse needed
         const toolResult = await executeTool(fnName, args, serviceClient, userId, clientId, isSSRole);
-
-        aiMessages.push({
-          role: "tool",
-          tool_call_id: toolCall.id,
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: toolBlock.id,
           content: JSON.stringify(toolResult),
         });
       }
+
+      // Anthropic tool results go as a user message with content array
+      aiMessages.push({ role: "user", content: toolResults });
 
       round++;
     }

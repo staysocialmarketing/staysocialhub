@@ -22,8 +22,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!lovableApiKey) {
+    const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!anthropicApiKey) {
       return new Response(JSON.stringify({ error: "AI not configured" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
 
     // Get user profile
     const { data: userProfile } = await serviceClient.from("users").select("client_id").eq("id", userId).single();
-    
+
     const body = await req.json();
     const { content_type, topic, tone_override, client_id: requestClientId } = body;
 
@@ -70,15 +70,15 @@ Deno.serve(async (req) => {
 
     const contentDesc = CONTENT_TYPES[content_type] || "content";
 
-    // Fetch brand twin
-    const { data: brandTwin } = await serviceClient
-      .from("brand_twin")
-      .select("brand_voice_json, audience_json, brand_basics_json, offers_json, content_rules_json")
-      .eq("client_id", clientId)
-      .single();
-
-    // Fetch client name
-    const { data: client } = await serviceClient.from("clients").select("name").eq("id", clientId).single();
+    // Fetch brand twin and client name in parallel
+    const [{ data: brandTwin }, { data: client }] = await Promise.all([
+      serviceClient
+        .from("brand_twin")
+        .select("brand_voice_json, audience_json, brand_basics_json, offers_json, content_rules_json")
+        .eq("client_id", clientId)
+        .single(),
+      serviceClient.from("clients").select("name").eq("id", clientId).single(),
+    ]);
 
     // Build brand context
     let brandContext = "";
@@ -117,57 +117,95 @@ RULES:
       ? `Write ${contentDesc} about: ${topic}`
       : `Write ${contentDesc} that would resonate with the target audience. Choose a relevant topic based on the brand profile.`;
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const anthropicResp = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${lovableApiKey}`,
+        "x-api-key": anthropicApiKey,
+        "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        stream: false,
+        model: "claude-sonnet-4-6",
+        max_tokens: 2048,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+        stream: true,
       }),
     });
 
-    if (!aiResponse.ok) {
-      const status = aiResponse.status;
-      if (status === 429) {
+    if (!anthropicResp.ok) {
+      if (anthropicResp.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limited, please try again later." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       throw new Error("AI generation failed");
     }
 
-    const result = await aiResponse.json();
-    const output = result.choices?.[0]?.message?.content || "";
+    // Transform Anthropic SSE → OpenAI-compatible SSE
+    // Accumulate full text so we can save to DB on completion
+    let fullText = "";
+    const { readable, writable } = new TransformStream();
+    const writer = writable.getWriter();
+    const encoder = new TextEncoder();
 
-    // Save to generated_content table
-    const { data: saved, error: saveErr } = await serviceClient.from("generated_content").insert({
-      client_id: clientId,
-      user_id: userId,
-      content_type: content_type || "caption",
-      prompt: topic || "(auto-generated)",
-      tone_override: tone_override || null,
-      output,
-    }).select("id").single();
+    (async () => {
+      try {
+        const reader = anthropicResp.body!.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
 
-    if (saveErr) {
-      console.error("Failed to save generated content:", saveErr);
-    }
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-    return new Response(JSON.stringify({ output, id: saved?.id || null, client_name: client?.name }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const data = line.slice(6).trim();
+            if (!data) continue;
+
+            try {
+              const event = JSON.parse(data);
+
+              if (event.type === "content_block_delta" && event.delta?.type === "text_delta") {
+                const text = event.delta.text;
+                fullText += text;
+                const chunk = `data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`;
+                await writer.write(encoder.encode(chunk));
+              } else if (event.type === "message_stop") {
+                // Save completed output to generated_content
+                const { data: saved } = await serviceClient.from("generated_content").insert({
+                  client_id: clientId,
+                  user_id: userId,
+                  content_type: content_type || "caption",
+                  prompt: topic || "(auto-generated)",
+                  tone_override: tone_override || null,
+                  output: fullText,
+                }).select("id").single();
+
+                // Emit final metadata event so the frontend can get the record ID
+                const metaChunk = `data: ${JSON.stringify({ done: true, id: saved?.id || null, client_name: client?.name || null })}\n\n`;
+                await writer.write(encoder.encode(metaChunk));
+                await writer.write(encoder.encode("data: [DONE]\n\n"));
+              }
+            } catch { /* ignore malformed SSE lines */ }
+          }
+        }
+      } catch (err) {
+        console.error("generate-content streaming error:", err);
+      } finally {
+        try { await writer.close(); } catch {}
+      }
+    })();
+
+    return new Response(readable, {
+      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
+
   } catch (err) {
     console.error("generate-content error:", err);
     return new Response(JSON.stringify({ error: (err as Error).message }), {

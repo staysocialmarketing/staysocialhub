@@ -12,9 +12,9 @@ serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
@@ -56,18 +56,17 @@ serve(async (req) => {
     const projectList = (projects || []).map((p: any) => `${p.name} (${p.id}, client: ${p.client_id || "none"})`).join(", ");
 
     // AI extraction with enhanced prompt
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "system",
-            content: `You are an AI assistant that extracts structured data from meeting notes for a social media agency called Stay Social.
+        model: "claude-sonnet-4-6",
+        max_tokens: 4096,
+        system: `You are an AI assistant that extracts structured data from meeting notes for a social media agency called Stay Social.
 
 Available clients: ${clientList}
 Existing projects: ${projectList}
@@ -98,7 +97,7 @@ Extract the following from the meeting notes:
 6. **summary**: 2-3 sentence summary of the meeting, including key decisions made
 
 Return ONLY valid JSON with these exact keys. If a section has no data, return empty array/object.`,
-          },
+        messages: [
           {
             role: "user",
             content: `Meeting Title: ${note.title}\nMeeting Date: ${note.meeting_date || "Unknown"}\n\n--- MEETING NOTES ---\n${note.raw_content}`,
@@ -115,7 +114,7 @@ Return ONLY valid JSON with these exact keys. If a section has no data, return e
     }
 
     const aiData = await aiRes.json();
-    const content = aiData.choices?.[0]?.message?.content || "";
+    const content = aiData.content?.[0]?.text || "";
 
     let extracted: any;
     try {
