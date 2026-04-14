@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -22,8 +23,7 @@ interface OfficeState {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const NANOCLAW_URL = "http://localhost:3456/status";
-const POLL_MS = 5000;
+const POLL_MS = 8000;
 
 // Office canvas dimensions (fixed pixel art canvas)
 const OW = 960;  // office width
@@ -1839,7 +1839,7 @@ function StatusBar({
           animation: connected ? "ao-status-dot 2s ease-in-out infinite" : "none",
         }}/>
         <span style={{ color: connected ? "#3fb950" : "#f85149" }}>
-          {connected ? "NANOCLAW ONLINE" : "NANOCLAW OFFLINE"}
+          {connected ? "AGENTS ONLINE" : "AGENTS OFFLINE"}
         </span>
       </div>
       <span>│</span>
@@ -1854,7 +1854,7 @@ function StatusBar({
       <span>│</span>
       <span>SYNC: {time}</span>
       <span style={{ marginLeft: "auto", color: "#30363d" }}>
-        POLL {POLL_MS / 1000}s · NANOCLAW OPS CENTER v0.1
+        POLL {POLL_MS / 1000}s · NANOCLAW OPS CENTER
       </span>
     </div>
   );
@@ -1886,8 +1886,8 @@ function EmptyState({ error }: { error: string | null }) {
         </div>
         <div style={{ fontSize: 11, color: "#6e7681", letterSpacing: 2, textTransform: "uppercase" }}>
           {error
-            ? `NANOCLAW UNREACHABLE — ${error}`
-            : "WAITING FOR NANOCLAW ON localhost:3456"}
+            ? `ERROR — ${error}`
+            : "WAITING FOR AGENT STATUS — NanoClaw not yet reporting"}
         </div>
         <div style={{ marginTop: 14, display: "flex", justifyContent: "center", gap: 4 }}>
           {[...Array(5)].map((_, i) => (
@@ -1979,24 +1979,30 @@ export default function AgentOffice() {
     return () => ro.disconnect();
   }, []);
 
-  // Poll NanoClaw
+  // Poll agent_status table (written by NanoClaw via push-agent-status edge function)
   useEffect(() => {
     let cancelled = false;
     const poll = async () => {
       try {
-        const res = await fetch(NANOCLAW_URL, {
-          signal: AbortSignal.timeout(4000),
-          headers: { Accept: "application/json" },
+        const { data, error } = await supabase
+          .from("agent_status" as any)
+          .select("*")
+          .order("id");
+        if (cancelled) return;
+        if (error) throw new Error(error.message);
+        const rows = (data || []) as AgentData[];
+        // Consider connected if any agent updated in the last 30 seconds
+        const recentlySeen = rows.some((a: any) => {
+          const age = Date.now() - new Date(a.updated_at).getTime();
+          return age < 30000;
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (!cancelled) {
-          prevAgentsRef.current = state.agents;
-          setState({
-            agents: Array.isArray(data.agents) ? data.agents : [],
-            connected: true, lastUpdated: new Date(), error: null,
-          });
-        }
+        prevAgentsRef.current = state.agents;
+        setState({
+          agents: rows,
+          connected: recentlySeen,
+          lastUpdated: new Date(),
+          error: null,
+        });
       } catch (err) {
         if (!cancelled) {
           setState(prev => ({
