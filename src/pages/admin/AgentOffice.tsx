@@ -302,6 +302,15 @@ const OFFICE_CSS = `
   .ao-walk-in     { animation: ao-walk-in   0.5s  ease-out forwards; transform-origin: bottom center; }
   .ao-desk-away   { animation: ao-desk-away 3s    ease-in-out infinite; }
 
+  /* ── Walk cycle (playing while position is transitioning) ── */
+  @keyframes ao-walk {
+    0%,100% { transform: translateX(-2px) rotate(-4deg); }
+    25%     { transform: translateX(0)    rotate(0deg);   }
+    50%     { transform: translateX(2px)  rotate(4deg);   }
+    75%     { transform: translateX(0)    rotate(0deg);   }
+  }
+  .ao-walk { animation: ao-walk 0.25s ease-in-out infinite; transform-origin: bottom center; }
+
   /* ── Enhanced ambient life ── */
   @keyframes ao-lev-sip {
     0%,100% { transform: translateY(0); }
@@ -1080,10 +1089,12 @@ function AgentCharacter({
   agent,
   status,
   waking,
+  extraClass,
 }: {
   agent: AgentData;
   status: keyof typeof STATUS_CFG;
   waking: boolean;
+  extraClass?: string;
 }) {
   if (isLevAgent(agent)) {
     let cls = "ao-lev-idle";
@@ -1091,7 +1102,7 @@ function AgentCharacter({
     else if (status === "active")      cls = "ao-lev-active";
     else if (status === "processing")  cls = "ao-lev-process";
     else if (status === "offline")     cls = "ao-lev-offline";
-    return <LevCharacter animClass={cls} isTeam={isTeamContext(agent)} />;
+    return <LevCharacter animClass={extraClass ?? cls} isTeam={isTeamContext(agent)} />;
   }
   if (isScoutAgent(agent)) {
     let cls = "ao-scout-idle";
@@ -1099,7 +1110,7 @@ function AgentCharacter({
     else if (status === "active")      cls = "ao-scout-active";
     else if (status === "processing")  cls = "ao-scout-aha";
     else if (status === "offline")     cls = "ao-scout-offline";
-    return <ScoutCharacter animClass={cls} />;
+    return <ScoutCharacter animClass={extraClass ?? cls} />;
   }
   if (isQuillAgent(agent)) {
     let cls = "ao-quill-idle";
@@ -1107,14 +1118,14 @@ function AgentCharacter({
     else if (status === "active")      cls = "ao-quill-active";
     else if (status === "processing")  cls = "ao-quill-process";
     else if (status === "offline")     cls = "ao-quill-offline";
-    return <QuillCharacter animClass={cls} />;
+    return <QuillCharacter animClass={extraClass ?? cls} />;
   }
   let cls = "ao-char-idle";
   if (waking)                       cls = "ao-char-wake";
   else if (status === "active")      cls = "ao-char-active";
   else if (status === "processing")  cls = "ao-char-process";
   else if (status === "offline")     cls = "ao-char-offline";
-  return <GenericCharacter status={status} animClass={cls} />;
+  return <GenericCharacter status={status} animClass={extraClass ?? cls} />;
 }
 
 // ─── Document prop (Lev reviewing docs when offline) ─────────────────────────
@@ -1300,6 +1311,31 @@ function AgentDesk({
     }
   }, [status, prevStatus]);
 
+  // Ambient idle actions — random sip/glance/stretch every 15–30s when not offline
+  const [idleAction, setIdleAction] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    if (status === "offline") return;
+    const IDLE_ACTIONS = isLevAgent(agent)
+      ? ["ao-lev-sip", "ao-ambient-glance", "ao-ambient-stretch"]
+      : isScoutAgent(agent)
+      ? ["ao-scout-idle", "ao-ambient-glance"]
+      : isQuillAgent(agent)
+      ? ["ao-quill-idle", "ao-ambient-stretch"]
+      : ["ao-ambient-glance"];
+    let timer: ReturnType<typeof setTimeout>;
+    function scheduleNext() {
+      const delay = 15000 + Math.random() * 15000;
+      timer = setTimeout(() => {
+        const action = IDLE_ACTIONS[Math.floor(Math.random() * IDLE_ACTIONS.length)];
+        setIdleAction(action);
+        setTimeout(() => { setIdleAction(undefined); scheduleNext(); }, 2000);
+      }, delay);
+    }
+    scheduleNext();
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, agent.id]);
+
   const showBubble = status === "active" || status === "processing";
   const taskText = agent.task
     || (status === "idle"    ? "Waiting for work…"
@@ -1431,7 +1467,7 @@ function AgentDesk({
 
         {/* ── Character ── */}
         <div style={{ marginTop: 3, position: "relative", display: "inline-block" }}>
-          <AgentCharacter agent={agent} status={status} waking={waking} />
+          <AgentCharacter agent={agent} status={status} waking={waking} extraClass={idleAction} />
 
           {/* Offline indicators */}
           {status === "offline" && (
@@ -1577,6 +1613,19 @@ const BOARDROOM_SEATS: Record<string, { x: number; y: number }> = {
 };
 const BR_SEAT_W = 54;
 const BR_SEAT_H = 64;
+
+// Canvas-absolute character sprite position within each desk
+const DESK_CHAR_POS: Record<string, { x: number; y: number }> = {
+  lev:   { x: 406 + 16, y: 224 + 45 },  // { x: 422, y: 269 }
+  scout: { x: 204 + 16, y: 352 + 45 },  // { x: 220, y: 397 }
+  quill: { x: 596 + 16, y: 352 + 45 },  // { x: 612, y: 397 }
+};
+// Canvas-absolute character arrival position within each boardroom seat
+const BOARD_CHAR_POS: Record<string, { x: number; y: number }> = {
+  lev:   { x: 292 + 10, y: 104 + 13 },  // { x: 302, y: 117 }
+  scout: { x: 370 + 10, y: 38  + 13 },  // { x: 380, y: 51  }
+  quill: { x: 456 + 10, y: 38  + 13 },  // { x: 466, y: 51  }
+};
 
 const MEETING_KEYWORDS = /meet|brief|sync|standup|call|present|strategy|board|session/i;
 
@@ -1854,6 +1903,48 @@ function EmptyState({ error }: { error: string | null }) {
   );
 }
 
+// ─── Walking Character overlay ────────────────────────────────────────────────
+// Renders a free-floating character sprite that CSS-transitions between
+// canvas-absolute coordinates to simulate physical movement.
+
+function WalkingCharacter({
+  agent,
+  from,
+  to,
+  phase,           // "walking" | "arrived"
+}: {
+  agent: AgentData;
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+  phase: "walking" | "arrived";
+}) {
+  // Positions are in raw canvas coords; ao-canvas handles the scale transform
+  const pos = phase === "arrived" ? to : from;
+  const isWalking = phase === "walking";
+  const status = (agent.status in STATUS_CFG ? agent.status : "idle") as keyof typeof STATUS_CFG;
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: pos.x,
+        top: pos.y,
+        transition: "left 800ms ease-in-out, top 800ms ease-in-out",
+        zIndex: 30,
+        pointerEvents: "none",
+        transformOrigin: "bottom center",
+      }}
+    >
+      <AgentCharacter
+        agent={agent}
+        status={status}
+        waking={false}
+        extraClass={isWalking ? "ao-walk" : undefined}
+      />
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AgentOffice() {
@@ -1864,9 +1955,12 @@ export default function AgentOffice() {
   const prevAgentsRef    = useRef<AgentData[]>([]);
   const viewportRef      = useRef<HTMLDivElement>(null);
   const prevMeetingRef   = useRef(false);
+  const walkTimers       = useRef<ReturnType<typeof setTimeout>[]>([]);
   const [canvasTransform, setCanvasTransform] = useState({ scale: 1, x: 0, y: 0 });
   // boardroomVisible lags isMeetingMode by ~500 ms so "stand-up" plays first
   const [boardroomVisible, setBoardroomVisible] = useState(false);
+  // Per-agent walk phase: "walking" | "arrived" (absent = at desk)
+  const [movePhase, setMovePhase] = useState<Record<string, "walking" | "arrived">>({});
 
   // Scale canvas to fill viewport
   useEffect(() => {
@@ -1926,15 +2020,47 @@ export default function AgentOffice() {
   const levAgent = agents.find(isLevAgent);
   const isMeetingMode = !!(levAgent?.task && MEETING_KEYWORDS.test(levAgent.task));
 
-  // Boardroom visibility with stand-up delay (runs outside effect for simplicity
-  // using a derived ref comparison — triggers on each render where mode changed)
+  // Boardroom + walk orchestration (ref comparison — only fires on mode change)
   if (isMeetingMode !== prevMeetingRef.current) {
     prevMeetingRef.current = isMeetingMode;
+    // Clear any in-flight walk timers
+    walkTimers.current.forEach(clearTimeout);
+    walkTimers.current = [];
+
+    const WALKERS = ["lev", "scout", "quill"] as const;
+
     if (isMeetingMode) {
-      // Desks show "away" immediately; boardroom appears after stand-up anim
-      setTimeout(() => setBoardroomVisible(true), 520);
+      // Stagger agents walking to boardroom
+      WALKERS.forEach((key, i) => {
+        const t1 = setTimeout(() => {
+          setMovePhase(prev => ({ ...prev, [key]: "walking" }));
+          const t2 = setTimeout(() => {
+            setMovePhase(prev => ({ ...prev, [key]: "arrived" }));
+          }, 820);
+          walkTimers.current.push(t2);
+        }, i * 180);
+        walkTimers.current.push(t1);
+      });
+      // Boardroom seats appear after last walker arrives
+      const t = setTimeout(() => setBoardroomVisible(true), 2 * 180 + 820 + 120);
+      walkTimers.current.push(t);
     } else {
       setBoardroomVisible(false);
+      // Agents walk back to desks
+      WALKERS.forEach((key, i) => {
+        const t1 = setTimeout(() => {
+          setMovePhase(prev => ({ ...prev, [key]: "walking" }));
+          const t2 = setTimeout(() => {
+            setMovePhase(prev => {
+              const next = { ...prev };
+              delete next[key];
+              return next;
+            });
+          }, 820);
+          walkTimers.current.push(t2);
+        }, i * 180);
+        walkTimers.current.push(t1);
+      });
     }
   }
 
@@ -2081,6 +2207,29 @@ export default function AgentOffice() {
               </div>
             </>
           )}
+
+          {/* ── WALKING CHARACTER OVERLAYS ── */}
+          {(["lev", "scout", "quill"] as const).map(key => {
+            const phase = movePhase[key];
+            if (!phase) return null;
+            const agentForKey =
+              key === "lev"   ? (levAgent ?? null) :
+              key === "scout" ? (agents.find(isScoutAgent) ?? STUB_SCOUT) :
+                                (agents.find(isQuillAgent) ?? STUB_QUILL);
+            if (!agentForKey) return null;
+            const from = DESK_CHAR_POS[key];
+            const to   = BOARD_CHAR_POS[key];
+            if (!from || !to) return null;
+            return (
+              <WalkingCharacter
+                key={key}
+                agent={agentForKey}
+                from={from}
+                to={to}
+                phase={phase}
+              />
+            );
+          })}
 
           {!connected && agents.length === 0 && <EmptyState error={error} />}
         </div>

@@ -345,7 +345,7 @@ export function AppSidebar() {
               </SidebarGroup>
             </Collapsible>
 
-            {isSSAdmin && (
+            {isInternalUser && (
               <>
                 <SidebarSeparator className="opacity-30" />
 
@@ -360,7 +360,12 @@ export function AppSidebar() {
                       </CollapsibleTrigger>
                     )}
                     <CollapsibleContent>
-                      <SidebarGroupContent>{renderMenuItems(adminSection, pendingCount > 0 ? { Users: pendingCount } : undefined)}</SidebarGroupContent>
+                      <SidebarGroupContent>{renderMenuItems(
+                        isSSAdmin
+                          ? adminSection
+                          : adminSection.filter(i => i.title !== "Users" && i.title !== "Versions"),
+                        isSSAdmin && pendingCount > 0 ? { Users: pendingCount } : undefined
+                      )}</SidebarGroupContent>
                     </CollapsibleContent>
                   </SidebarGroup>
                 </Collapsible>

@@ -5,13 +5,244 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { FileText, RefreshCw, Plug, Brain, CheckCircle2, Clock, AlertCircle, Trash2 } from "lucide-react";
+import { FileText, RefreshCw, Plug, Brain, CheckCircle2, Clock, AlertCircle, Trash2, FolderOpen, Lightbulb } from "lucide-react";
 import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
+
+const PRIORITY_COLORS: Record<string, string> = {
+  high: "bg-red-500/10 text-red-500 border-red-500/20",
+  medium: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
+  low: "bg-muted text-muted-foreground",
+};
+
+// ── Review dialog state ───────────────────────────────────────────────────────
+
+interface ExtractedDraft {
+  note_id: string;
+  note_title: string;
+  extracted: {
+    client_id?: string;
+    summary?: string;
+    action_items?: any[];
+    projects?: any[];
+    content_ideas?: any[];
+    strategy_updates?: any;
+  };
+}
+
+interface CheckedState {
+  action_items: boolean[];
+  projects: boolean[];
+  content_ideas: boolean[];
+}
+
+function ReviewDialog({
+  draft,
+  onConfirm,
+  onCancel,
+  saving,
+}: {
+  draft: ExtractedDraft;
+  onConfirm: (confirmed: any) => void;
+  onCancel: () => void;
+  saving: boolean;
+}) {
+  const { extracted } = draft;
+  const [checked, setChecked] = useState<CheckedState>({
+    action_items: (extracted.action_items || []).map(() => true),
+    projects: (extracted.projects || []).map(() => true),
+    content_ideas: (extracted.content_ideas || []).map(() => true),
+  });
+
+  const toggle = (section: keyof CheckedState, i: number) => {
+    setChecked(prev => ({
+      ...prev,
+      [section]: prev[section].map((v, idx) => idx === i ? !v : v),
+    }));
+  };
+
+  const handleConfirm = () => {
+    onConfirm({
+      client_id: extracted.client_id,
+      summary: extracted.summary,
+      action_items: (extracted.action_items || []).filter((_, i) => checked.action_items[i]),
+      projects: (extracted.projects || []).filter((_, i) => checked.projects[i]),
+      content_ideas: (extracted.content_ideas || []).filter((_, i) => checked.content_ideas[i]),
+      strategy_updates: extracted.strategy_updates || {},
+    });
+  };
+
+  const totalSelected =
+    checked.action_items.filter(Boolean).length +
+    checked.projects.filter(Boolean).length +
+    checked.content_ideas.filter(Boolean).length;
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onCancel()}>
+      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="text-base">Review Extracted Data</DialogTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            From: <span className="font-medium">{draft.note_title}</span>
+          </p>
+        </DialogHeader>
+
+        <ScrollArea className="flex-1 min-h-0 pr-1">
+          <div className="space-y-5 py-1">
+            {extracted.summary && (
+              <div className="text-sm text-muted-foreground bg-muted/30 rounded-lg p-3">
+                {extracted.summary}
+              </div>
+            )}
+
+            {/* Action Items */}
+            {(extracted.action_items || []).length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Tasks ({checked.action_items.filter(Boolean).length} / {extracted.action_items!.length} selected)
+                </h3>
+                {extracted.action_items!.map((item, i) => (
+                  <label
+                    key={i}
+                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                      checked.action_items[i] ? "bg-card border-border" : "bg-muted/20 border-border/30 opacity-50"
+                    }`}
+                  >
+                    <Checkbox
+                      checked={checked.action_items[i]}
+                      onCheckedChange={() => toggle("action_items", i)}
+                      className="mt-0.5 shrink-0"
+                    />
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium">{item.title}</span>
+                        {item.priority && (
+                          <Badge variant="outline" className={`text-xs ${PRIORITY_COLORS[item.priority] || ""}`}>
+                            {item.priority}
+                          </Badge>
+                        )}
+                        {item.suggested_owner && (
+                          <Badge variant="secondary" className="text-xs">
+                            → {item.suggested_owner}
+                          </Badge>
+                        )}
+                      </div>
+                      {item.description && (
+                        <p className="text-xs text-muted-foreground">{item.description}</p>
+                      )}
+                      {item.project_name && (
+                        <p className="text-xs text-muted-foreground/70">Project: {item.project_name}</p>
+                      )}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {/* Projects */}
+            {(extracted.projects || []).length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                  <FolderOpen className="h-3.5 w-3.5" />
+                  Projects ({checked.projects.filter(Boolean).length} / {extracted.projects!.length} selected)
+                </h3>
+                {extracted.projects!.map((proj, i) => (
+                  <label
+                    key={i}
+                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                      checked.projects[i] ? "bg-card border-border" : "bg-muted/20 border-border/30 opacity-50"
+                    }`}
+                  >
+                    <Checkbox
+                      checked={checked.projects[i]}
+                      onCheckedChange={() => toggle("projects", i)}
+                      className="mt-0.5 shrink-0"
+                    />
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{proj.name}</span>
+                        {proj.existing_project_id && (
+                          <Badge variant="outline" className="text-xs">existing</Badge>
+                        )}
+                      </div>
+                      {proj.description && (
+                        <p className="text-xs text-muted-foreground">{proj.description}</p>
+                      )}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {/* Content Ideas */}
+            {(extracted.content_ideas || []).length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                  <Lightbulb className="h-3.5 w-3.5" />
+                  Content Ideas ({checked.content_ideas.filter(Boolean).length} / {extracted.content_ideas!.length} selected)
+                </h3>
+                {extracted.content_ideas!.map((idea, i) => (
+                  <label
+                    key={i}
+                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                      checked.content_ideas[i] ? "bg-card border-border" : "bg-muted/20 border-border/30 opacity-50"
+                    }`}
+                  >
+                    <Checkbox
+                      checked={checked.content_ideas[i]}
+                      onCheckedChange={() => toggle("content_ideas", i)}
+                      className="mt-0.5 shrink-0"
+                    />
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{idea.title}</span>
+                        {idea.content_type && (
+                          <Badge variant="outline" className="text-xs">{idea.content_type}</Badge>
+                        )}
+                      </div>
+                      {idea.description && (
+                        <p className="text-xs text-muted-foreground">{idea.description}</p>
+                      )}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {(extracted.action_items || []).length === 0 &&
+             (extracted.projects || []).length === 0 &&
+             (extracted.content_ideas || []).length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No items were extracted from this note.
+              </p>
+            )}
+          </div>
+        </ScrollArea>
+
+        <DialogFooter className="pt-3 border-t gap-2">
+          <Button variant="outline" onClick={onCancel} disabled={saving}>
+            Discard
+          </Button>
+          <Button onClick={handleConfirm} disabled={saving || totalSelected === 0}>
+            {saving ? (
+              <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Saving…</>
+            ) : (
+              `Confirm & Save${totalSelected > 0 ? ` (${totalSelected})` : ""}`
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function MeetingNotes() {
   const { session } = useAuth();
@@ -19,6 +250,7 @@ export default function MeetingNotes() {
   const [selectedNote, setSelectedNote] = useState<any>(null);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+  const [extractedDraft, setExtractedDraft] = useState<ExtractedDraft | null>(null);
 
   // Detect ?connected=true from OAuth callback
   useEffect(() => {
@@ -79,22 +311,43 @@ export default function MeetingNotes() {
     onError: (err: any) => toast.error(err.message || "Sync failed"),
   });
 
+  // Step 1: dry_run extraction — returns AI result for review
   const extractMutation = useMutation({
-    mutationFn: async (noteId: string) => {
+    mutationFn: async (note: any) => {
       const { data, error } = await supabase.functions.invoke("extract-meeting-data", {
-        body: { note_id: noteId },
+        body: { note_id: note.id, dry_run: true },
+      });
+      if (error) throw error;
+      return { note, data };
+    },
+    onSuccess: ({ note, data }) => {
+      setExtractedDraft({
+        note_id: note.id,
+        note_title: note.title,
+        extracted: data.extracted,
+      });
+    },
+    onError: (err: any) => toast.error(err.message || "Extraction failed"),
+  });
+
+  // Step 2: save confirmed items
+  const saveMutation = useMutation({
+    mutationFn: async ({ note_id, confirmed_items }: { note_id: string; confirmed_items: any }) => {
+      const { data, error } = await supabase.functions.invoke("extract-meeting-data", {
+        body: { note_id, dry_run: false, confirmed_items },
       });
       if (error) throw error;
       return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["meeting-notes"] });
+      setExtractedDraft(null);
       const r = data.results;
       toast.success(
-        `Extracted: ${r.tasks_created} tasks, ${r.captures_created} captures, ${r.projects_created || 0} projects`
+        `Saved: ${r.tasks_created} tasks, ${r.captures_created} captures, ${r.projects_created || 0} projects`
       );
     },
-    onError: (err: any) => toast.error(err.message || "Extraction failed"),
+    onError: (err: any) => toast.error(err.message || "Save failed"),
   });
 
   const deleteMutation = useMutation({
@@ -209,12 +462,16 @@ export default function MeetingNotes() {
                     className="gap-1 text-xs shrink-0"
                     onClick={(e) => {
                       e.stopPropagation();
-                      extractMutation.mutate(note.id);
+                      extractMutation.mutate(note);
                     }}
                     disabled={extractMutation.isPending}
                   >
-                    <Brain className="h-3.5 w-3.5" />
-                    Extract
+                    {extractMutation.isPending ? (
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Brain className="h-3.5 w-3.5" />
+                    )}
+                    {extractMutation.isPending ? "Extracting…" : "Extract"}
                   </Button>
                 )}
                 <Button
@@ -232,6 +489,18 @@ export default function MeetingNotes() {
             </Card>
           ))}
         </div>
+      )}
+
+      {/* Review dialog — shown after dry_run extraction */}
+      {extractedDraft && (
+        <ReviewDialog
+          draft={extractedDraft}
+          saving={saveMutation.isPending}
+          onConfirm={(confirmed_items) => {
+            saveMutation.mutate({ note_id: extractedDraft.note_id, confirmed_items });
+          }}
+          onCancel={() => setExtractedDraft(null)}
+        />
       )}
 
       {/* Delete Confirmation */}
@@ -275,7 +544,10 @@ export default function MeetingNotes() {
                 <Button
                   size="sm"
                   className="gap-1.5"
-                  onClick={() => extractMutation.mutate(selectedNote.id)}
+                  onClick={() => {
+                    setSelectedNote(null);
+                    extractMutation.mutate(selectedNote);
+                  }}
                   disabled={extractMutation.isPending}
                 >
                   <Brain className="h-4 w-4" />

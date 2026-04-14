@@ -27,11 +27,23 @@ serve(async (req) => {
     });
 
     const { data: userData, error: userError } = await userSupabase.auth.getUser();
-    if (userError || !userData.user || userData.user.email !== "corey@staysocial.ca") {
+    if (userError || !userData.user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
+    }
+
+    // Allow ss_admin or ss_team roles
+    const { data: roleRows } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userData.user.id);
+    const roles = (roleRows || []).map((r: any) => r.role);
+    if (!roles.some((r: string) => r === "ss_admin" || r === "ss_team")) {
       return new Response(JSON.stringify({ error: "Restricted" }), { status: 403, headers: corsHeaders });
     }
 
-    const { note_id } = await req.json();
+    const body = await req.json();
+    const { note_id, dry_run = false, confirmed_items } = body;
+
     if (!note_id) {
       return new Response(JSON.stringify({ error: "note_id required" }), { status: 400, headers: corsHeaders });
     }
@@ -46,7 +58,15 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Note not found" }), { status: 404, headers: corsHeaders });
     }
 
-    await supabase.from("meeting_notes").update({ extraction_status: "processing", updated_at: new Date().toISOString() }).eq("id", note_id);
+    // ── SAVE PATH: confirmed_items provided, skip re-extraction ──────────────
+    if (!dry_run && confirmed_items) {
+      return await saveConfirmedItems({ supabase, note, confirmed_items, userId: userData.user.id });
+    }
+
+    // ── EXTRACT PATH: run AI extraction ──────────────────────────────────────
+    if (!dry_run) {
+      await supabase.from("meeting_notes").update({ extraction_status: "processing", updated_at: new Date().toISOString() }).eq("id", note_id);
+    }
 
     // Fetch clients and existing projects for matching
     const { data: clients } = await supabase.from("clients").select("id, name");
@@ -55,7 +75,6 @@ serve(async (req) => {
     const { data: projects } = await supabase.from("projects").select("id, name, client_id");
     const projectList = (projects || []).map((p: any) => `${p.name} (${p.id}, client: ${p.client_id || "none"})`).join(", ");
 
-    // AI extraction with enhanced prompt
     const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -75,17 +94,17 @@ Extract the following from the meeting notes:
 
 1. **client_id**: Match the client discussed to one of the available clients. Return the UUID. If multiple clients are discussed, pick the primary one.
 
-2. **action_items**: Array of tasks/action items mentioned. Each must have:
+2. **action_items**: Array of the most urgent/important tasks mentioned. MAXIMUM 5 items — pick only the clearest, most actionable ones. Each must have:
    - title: Clear, actionable task name (e.g. "Create Instagram carousel for spring campaign")
-   - description: Detailed description of what needs to be done, including any specifics mentioned
-   - priority: low/normal/high/urgent
-   - assignee_name: Name of the person responsible (if mentioned)
+   - description: Detailed description of what needs to be done
+   - priority: high / medium / low
+   - suggested_owner: "corey" if this is a strategy, leadership, or client-relationship decision; otherwise "team"
    - project_name: Name of the project this task belongs to (if applicable)
 
-3. **projects**: Array of projects mentioned or implied. Each should have:
-   - name: Project name (e.g. "Q2 Spring Campaign", "Website Redesign")
+3. **projects**: Array of clearly named initiatives mentioned. MAXIMUM 2 items — only include concrete named projects (e.g. "Q2 Spring Campaign", "Website Redesign"), not vague themes or topics. Each should have:
+   - name: Project name
    - description: Brief description of the project scope
-   - Match to an existing project ID if possible, otherwise set existing_project_id to null
+   - existing_project_id: Match to an existing project ID if possible, otherwise null
 
 4. **content_ideas**: Array of content ideas mentioned. Each should have:
    - title: Descriptive name for the content piece
@@ -109,7 +128,9 @@ Return ONLY valid JSON with these exact keys. If a section has no data, return e
     if (!aiRes.ok) {
       const errText = await aiRes.text();
       console.error("AI extraction failed:", errText);
-      await supabase.from("meeting_notes").update({ extraction_status: "failed", updated_at: new Date().toISOString() }).eq("id", note_id);
+      if (!dry_run) {
+        await supabase.from("meeting_notes").update({ extraction_status: "failed", updated_at: new Date().toISOString() }).eq("id", note_id);
+      }
       return new Response(JSON.stringify({ error: "AI extraction failed" }), { status: 500, headers: corsHeaders });
     }
 
@@ -122,109 +143,36 @@ Return ONLY valid JSON with these exact keys. If a section has no data, return e
       extracted = JSON.parse(jsonMatch[1].trim());
     } catch (e) {
       console.error("Failed to parse AI response:", content);
-      await supabase.from("meeting_notes").update({ extraction_status: "failed", extracted_data: { raw_response: content }, updated_at: new Date().toISOString() }).eq("id", note_id);
+      if (!dry_run) {
+        await supabase.from("meeting_notes").update({ extraction_status: "failed", extracted_data: { raw_response: content }, updated_at: new Date().toISOString() }).eq("id", note_id);
+      }
       return new Response(JSON.stringify({ error: "Failed to parse extraction" }), { status: 500, headers: corsHeaders });
     }
 
-    const results: any = { tasks_created: 0, captures_created: 0, projects_created: 0, strategy_updated: false };
-
-    // Create projects first so we can link tasks
-    const projectIdMap: Record<string, string> = {};
-    if (extracted.projects?.length) {
-      for (const proj of extracted.projects) {
-        if (proj.existing_project_id) {
-          projectIdMap[proj.name] = proj.existing_project_id;
-          continue;
-        }
-        const { data: newProject, error } = await supabase.from("projects").insert({
-          name: proj.name,
-          description: proj.description || null,
-          client_id: extracted.client_id || null,
-          created_by_user_id: userData.user.id,
-          status: "active",
-        }).select("id").single();
-        if (!error && newProject) {
-          projectIdMap[proj.name] = newProject.id;
-          results.projects_created++;
-        }
-      }
+    // dry_run: return extracted data for review without saving anything
+    if (dry_run) {
+      return new Response(
+        JSON.stringify({ success: true, extracted }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // Create tasks from action items
-    if (extracted.action_items?.length) {
-      for (const item of extracted.action_items) {
-        const projectId = item.project_name ? projectIdMap[item.project_name] || null : null;
-        const { error } = await supabase.from("tasks").insert({
-          title: item.title,
-          description: item.description || null,
-          priority: item.priority || "normal",
-          status: "todo",
-          client_id: extracted.client_id || null,
-          project_id: projectId,
-          created_by_user_id: userData.user.id,
-          source_type: "meeting_notes",
-        });
-        if (!error) results.tasks_created++;
-      }
-    }
-
-    // Create brain captures from content ideas
-    if (extracted.content_ideas?.length && extracted.client_id) {
-      for (const idea of extracted.content_ideas) {
-        const { error } = await supabase.from("brain_captures").insert({
-          client_id: extracted.client_id,
-          created_by_user_id: userData.user.id,
-          type: "note",
-          content: `[${idea.content_type || "idea"}] ${idea.title}: ${idea.description || ""}`,
-          tags: JSON.stringify(["meeting-notes", idea.content_type || "idea"]),
-        });
-        if (!error) results.captures_created++;
-      }
-    }
-
-    // Update strategy if applicable
-    if (extracted.strategy_updates && extracted.client_id && Object.keys(extracted.strategy_updates).length > 0) {
-      const { data: existingStrategy } = await supabase
-        .from("client_strategy")
-        .select("*")
-        .eq("client_id", extracted.client_id)
-        .maybeSingle();
-
-      if (existingStrategy) {
-        const updates: any = { updated_at: new Date().toISOString() };
-        if (extracted.strategy_updates.goals) {
-          const existing = existingStrategy.goals_json as any || {};
-          updates.goals_json = { ...existing, meeting_notes_goals: extracted.strategy_updates.goals };
-        }
-        if (extracted.strategy_updates.focus_areas) {
-          const existing = existingStrategy.focus_json as any || {};
-          updates.focus_json = { ...existing, meeting_notes_focus: extracted.strategy_updates.focus_areas };
-        }
-        await supabase.from("client_strategy").update(updates).eq("client_id", extracted.client_id);
-        results.strategy_updated = true;
-      }
-    }
-
-    // Update note with extracted data and link client
-    await supabase.from("meeting_notes").update({
-      extraction_status: "done",
-      extracted_data: { ...extracted, routing_results: results },
-      client_id: extracted.client_id || null,
-      updated_at: new Date().toISOString(),
-    }).eq("id", note_id);
-
-    // Create notification
-    await supabase.from("notifications").insert({
-      user_id: userData.user.id,
-      title: "Meeting notes extracted",
-      body: `${results.tasks_created} tasks, ${results.captures_created} captures, ${results.projects_created} projects from "${note.title}"`,
-      link: "/admin/meeting-notes",
+    // Non-dry-run without confirmed_items: legacy auto-save path (unused by new UI but kept for safety)
+    return await saveConfirmedItems({
+      supabase,
+      note,
+      confirmed_items: {
+        action_items: extracted.action_items || [],
+        projects: extracted.projects || [],
+        content_ideas: extracted.content_ideas || [],
+        strategy_updates: extracted.strategy_updates || {},
+        client_id: extracted.client_id,
+        summary: extracted.summary,
+      },
+      userId: userData.user.id,
+      fullExtracted: extracted,
     });
 
-    return new Response(
-      JSON.stringify({ success: true, extracted, results }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
   } catch (error) {
     console.error("Extract error:", error);
     return new Response(
@@ -233,3 +181,113 @@ Return ONLY valid JSON with these exact keys. If a section has no data, return e
     );
   }
 });
+
+async function saveConfirmedItems({ supabase, note, confirmed_items, userId, fullExtracted }: {
+  supabase: any;
+  note: any;
+  confirmed_items: any;
+  userId: string;
+  fullExtracted?: any;
+}) {
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
+
+  const results: any = { tasks_created: 0, captures_created: 0, projects_created: 0, strategy_updated: false };
+  const { action_items = [], projects = [], content_ideas = [], strategy_updates = {}, client_id } = confirmed_items;
+
+  // Create projects first so tasks can be linked
+  const projectIdMap: Record<string, string> = {};
+  for (const proj of projects) {
+    if (proj.existing_project_id) {
+      projectIdMap[proj.name] = proj.existing_project_id;
+      continue;
+    }
+    const { data: newProject, error } = await supabase.from("projects").insert({
+      name: proj.name,
+      description: proj.description || null,
+      client_id: client_id || null,
+      created_by_user_id: userId,
+      status: "active",
+    }).select("id").single();
+    if (!error && newProject) {
+      projectIdMap[proj.name] = newProject.id;
+      results.projects_created++;
+    }
+  }
+
+  // Create tasks
+  for (const item of action_items) {
+    const projectId = item.project_name ? projectIdMap[item.project_name] || null : null;
+    const { error } = await supabase.from("tasks").insert({
+      title: item.title,
+      description: item.description || null,
+      priority: item.priority || "normal",
+      status: "todo",
+      client_id: client_id || null,
+      project_id: projectId,
+      created_by_user_id: userId,
+      source_type: "meeting_notes",
+    });
+    if (!error) results.tasks_created++;
+  }
+
+  // Create brain captures from content ideas
+  if (client_id) {
+    for (const idea of content_ideas) {
+      const { error } = await supabase.from("brain_captures").insert({
+        client_id,
+        created_by_user_id: userId,
+        type: "note",
+        content: `[${idea.content_type || "idea"}] ${idea.title}: ${idea.description || ""}`,
+        tags: JSON.stringify(["meeting-notes", idea.content_type || "idea"]),
+      });
+      if (!error) results.captures_created++;
+    }
+  }
+
+  // Update strategy if applicable
+  if (strategy_updates && client_id && Object.keys(strategy_updates).length > 0) {
+    const { data: existingStrategy } = await supabase
+      .from("client_strategy")
+      .select("*")
+      .eq("client_id", client_id)
+      .maybeSingle();
+
+    if (existingStrategy) {
+      const updates: any = { updated_at: new Date().toISOString() };
+      if (strategy_updates.goals) {
+        const existing = existingStrategy.goals_json as any || {};
+        updates.goals_json = { ...existing, meeting_notes_goals: strategy_updates.goals };
+      }
+      if (strategy_updates.focus_areas) {
+        const existing = existingStrategy.focus_json as any || {};
+        updates.focus_json = { ...existing, meeting_notes_focus: strategy_updates.focus_areas };
+      }
+      await supabase.from("client_strategy").update(updates).eq("client_id", client_id);
+      results.strategy_updated = true;
+    }
+  }
+
+  const extractedToStore = fullExtracted || confirmed_items;
+
+  await supabase.from("meeting_notes").update({
+    extraction_status: "done",
+    extracted_data: { ...extractedToStore, routing_results: results },
+    client_id: client_id || null,
+    updated_at: new Date().toISOString(),
+  }).eq("id", note.id);
+
+  await supabase.from("notifications").insert({
+    user_id: userId,
+    title: "Meeting notes extracted",
+    body: `${results.tasks_created} tasks, ${results.captures_created} captures, ${results.projects_created} projects from "${note.title}"`,
+    link: "/admin/meeting-notes",
+  });
+
+  return new Response(
+    JSON.stringify({ success: true, results }),
+    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
