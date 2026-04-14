@@ -1450,6 +1450,193 @@ function VacantDesk({ x, y }: { x: number; y: number }) {
   );
 }
 
+// ─── Meeting Host Seat — Lev's chair at the conference table head ─────────────
+
+const MEETING_SEAT_X = 645;
+const MEETING_SEAT_Y = 86;
+const MEETING_SEAT_W = 72;
+const MEETING_SEAT_H = 92;
+
+function MeetingHostSeat({
+  agent,
+  prevStatus,
+}: {
+  agent: AgentData | null;
+  prevStatus?: string;
+}) {
+  const status = (
+    agent && agent.status in STATUS_CFG ? agent.status : "offline"
+  ) as keyof typeof STATUS_CFG;
+  const cfg = STATUS_CFG[status];
+
+  const [waking, setWaking] = useState(false);
+  useEffect(() => {
+    if (prevStatus === "offline" && status !== "offline") {
+      setWaking(true);
+      const t = setTimeout(() => setWaking(false), 1700);
+      return () => clearTimeout(t);
+    }
+  }, [status, prevStatus]);
+
+  const inMeeting = !!(agent?.task?.match(/meet|brief|sync|standup|call|present/i));
+  const showBubble = inMeeting && agent?.task;
+
+  const levAnimClass =
+    waking             ? "ao-lev-wake"    :
+    status === "active"     ? "ao-lev-active"  :
+    status === "processing" ? "ao-lev-process" :
+    status === "offline"    ? "ao-lev-offline" :
+                              "ao-lev-idle";
+
+  return (
+    <div style={{
+      position: "absolute",
+      left: MEETING_SEAT_X,
+      top:  MEETING_SEAT_Y,
+      width:  MEETING_SEAT_W,
+      height: MEETING_SEAT_H,
+      boxSizing: "border-box",
+      boxShadow: status !== "offline"
+        ? `0 0 14px 4px ${
+            status === "active"     ? "rgba(80,140,255,0.38)"
+          : status === "processing" ? "rgba(212,130,42,0.28)"
+          :                           "rgba(56,139,253,0.12)"}`
+        : "none",
+    }}>
+      {/* Speech bubble (meeting task) */}
+      {showBubble && (
+        <div className="ao-speech" style={{ outlineColor: cfg.border, width: 130 }}>
+          {agent!.task}
+          <div className="ao-speech-tail" style={{ borderTopColor: cfg.border }} />
+        </div>
+      )}
+
+      {/* "HOST" strip — meeting-room navy */}
+      <div style={{
+        height: 10,
+        background: "#0e0e20",
+        outline: "1px solid #1e1e42",
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+      }}>
+        <div style={{
+          width: 4, height: 4,
+          background: status !== "offline" ? cfg.color : "#2a2a4a",
+          animation: status !== "offline" ? "ao-status-dot 2s ease-in-out infinite" : "none",
+        }} />
+        <span style={{
+          fontSize: 6, fontWeight: 700, letterSpacing: 2,
+          color: "#2a2a5a", textTransform: "uppercase",
+          fontFamily: "'Courier New', monospace",
+        }}>HOST</span>
+      </div>
+
+      {/* Desk surface — deep navy, meeting-room feel */}
+      <div style={{
+        height: MEETING_SEAT_H - 10 - 11,
+        background: "#131226",
+        outline: "2px solid #1e1e3e",
+        position: "relative",
+        padding: "4px 6px",
+        boxSizing: "border-box",
+        overflow: "hidden",
+      }}>
+        {/* Status glow bloom */}
+        {status !== "offline" && (
+          <div style={{
+            position: "absolute", inset: -6,
+            background: `radial-gradient(ellipse at 50% 40%, ${cfg.glowColor} 0%, transparent 72%)`,
+            pointerEvents: "none",
+            animation: status === "active" ? "ao-monitor-glow 1.5s ease-in-out infinite" : "none",
+          }} />
+        )}
+
+        {/* Laptop screen */}
+        <div style={{ position: "relative", marginBottom: 3 }}>
+          {status !== "offline" && (
+            <div style={{
+              position: "absolute", inset: -4,
+              background: `radial-gradient(ellipse at 50% 50%, ${
+                status === "active"     ? "rgba(80,140,255,0.32)"
+              : status === "processing" ? "rgba(212,130,42,0.22)"
+              :                           "rgba(56,139,253,0.10)"
+              } 0%, transparent 70%)`,
+              pointerEvents: "none",
+            }} />
+          )}
+          <div style={{
+            width: 38, height: 24,
+            background: "#161b22",
+            outline: `2px solid ${status !== "offline" ? cfg.border : "#1e2228"}`,
+            position: "relative",
+            overflow: "hidden",
+          }}>
+            <div style={{
+              margin: 2, background: cfg.screenBg,
+              height: "calc(100% - 4px)", position: "relative", overflow: "hidden",
+            }}>
+              {status === "active" && (
+                <>
+                  {[2, 6, 10, 14].map((top, i) => (
+                    <div key={i} style={{
+                      position: "absolute", top, left: 2,
+                      width: `${45 + i * 12}%`, height: 2,
+                      background: cfg.screenLine, opacity: 0.8 - i * 0.15,
+                    }} />
+                  ))}
+                  <div style={{
+                    position: "absolute", bottom: 2, left: 2, width: 2, height: 3,
+                    background: cfg.screenLine,
+                    animation: "ao-blink-cursor 0.7s step-end infinite",
+                  }} />
+                </>
+              )}
+              {status === "processing" && (
+                <div style={{
+                  position: "absolute", top: 0, left: 0, right: 0, height: 3,
+                  background: cfg.screenLine, opacity: 0.7,
+                  animation: "ao-scan 1.0s linear infinite",
+                }} />
+              )}
+              {status === "idle" && (
+                <div style={{ position: "absolute", inset: 0, background: cfg.screenLine, opacity: 0.04 }} />
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Lev character */}
+        <div style={{ position: "relative", display: "inline-block" }}>
+          <LevCharacter animClass={levAnimClass} isTeam={false} />
+          {status === "offline" && <DocProp />}
+        </div>
+      </div>
+
+      {/* Nameplate */}
+      <div style={{
+        height: 11,
+        background: status !== "offline" ? cfg.border : "#0e0e1e",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "0 5px",
+        outline: `2px solid ${status !== "offline" ? cfg.border : "#161626"}`,
+        outlineOffset: -2,
+      }}>
+        <span style={{
+          fontFamily: "'Courier New', Courier, monospace",
+          fontSize: 7, fontWeight: 700, letterSpacing: 1,
+          color: status !== "offline" ? "#0d1117" : "#2a2a4a",
+          textTransform: "uppercase",
+        }}>LEV</span>
+        <span style={{
+          fontFamily: "'Courier New', Courier, monospace",
+          fontSize: 6, letterSpacing: 1,
+          color: status !== "offline" ? "rgba(0,0,0,0.5)" : "#1a1a32",
+          textTransform: "uppercase",
+        }}>{cfg.label}</span>
+      </div>
+    </div>
+  );
+}
+
 // ─── Hierarchy Lines — SVG org-chart connectors ──────────────────────────────
 
 function HierarchyLines() {
@@ -1746,6 +1933,18 @@ export default function AgentOffice() {
 
           {/* Hierarchy connector lines — rendered below desks */}
           <HierarchyLines />
+
+          {/* Lev's meeting host seat at the conference table head */}
+          {(() => {
+            const levAgent = agents.find(isLevAgent) ?? null;
+            const prevLev  = prevAgentsRef.current.find(isLevAgent);
+            return (
+              <MeetingHostSeat
+                agent={levAgent}
+                prevStatus={prevLev?.status}
+              />
+            );
+          })()}
 
           {/* Named desks */}
           {NAMED_DESKS.map((desk, i) => {
