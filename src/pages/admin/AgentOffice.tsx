@@ -276,6 +276,53 @@ const OFFICE_CSS = `
   .ao-quill-offline { animation: ao-quill-offline 4s ease-in-out infinite; transform-origin: bottom center; }
   .ao-quill-wake    { animation: ao-quill-wake 1.6s ease-out forwards; transform-origin: bottom center; }
 
+  /* ── Meeting / boardroom transitions ── */
+  @keyframes ao-stand-up {
+    0%   { transform: translateY(0); opacity: 1; }
+    25%  { transform: translateY(-6px) translateX(2px); }
+    60%  { transform: translateY(-4px) translateX(8px); opacity: 0.6; }
+    100% { transform: translateY(-2px) translateX(20px); opacity: 0; }
+  }
+  @keyframes ao-walk-in {
+    0%   { transform: translateY(10px) translateX(-8px); opacity: 0; }
+    35%  { transform: translateY(-3px) translateX(2px); opacity: 1; }
+    55%  { transform: translateY(-2px); }
+    75%  { transform: translateY(-1px); }
+    100% { transform: translateY(0); opacity: 1; }
+  }
+  @keyframes ao-desk-away {
+    0%,100% { opacity: 0.28; }
+    50%     { opacity: 0.22; }
+  }
+  @keyframes ao-boardroom-pulse {
+    0%,100% { box-shadow: 0 0 0 0 transparent; }
+    50%     { box-shadow: 0 0 18px 4px rgba(100,120,255,0.18); }
+  }
+  .ao-stand-up    { animation: ao-stand-up  0.55s ease-in forwards; transform-origin: bottom center; }
+  .ao-walk-in     { animation: ao-walk-in   0.5s  ease-out forwards; transform-origin: bottom center; }
+  .ao-desk-away   { animation: ao-desk-away 3s    ease-in-out infinite; }
+
+  /* ── Enhanced ambient life ── */
+  @keyframes ao-lev-sip {
+    0%,100% { transform: translateY(0); }
+    20%  { transform: translateY(-3px) rotate(-8deg); }
+    40%  { transform: translateY(-3px) rotate(-8deg); }
+    55%  { transform: translateY(0) rotate(0deg); }
+  }
+  @keyframes ao-ambient-glance {
+    0%,70%,100% { transform: translateX(0); }
+    80%  { transform: translateX(-2px); }
+    90%  { transform: translateX(2px); }
+  }
+  @keyframes ao-ambient-stretch {
+    0%,100% { transform: translateY(0) scaleY(1); }
+    40%  { transform: translateY(-4px) scaleY(1.05); }
+    60%  { transform: translateY(-3px); }
+  }
+  .ao-lev-sip      { animation: ao-lev-sip      1.8s ease-in-out forwards; transform-origin: bottom center; }
+  .ao-ambient-glance  { animation: ao-ambient-glance  6s ease-in-out infinite; transform-origin: bottom center; }
+  .ao-ambient-stretch { animation: ao-ambient-stretch 12s ease-in-out infinite; transform-origin: bottom center; }
+
   .ao-canvas {
     position: relative;
     width: ${OW}px;
@@ -517,7 +564,70 @@ function OfficeBg() {
       <ellipse cx="242" cy={ROOM_BOTTOM - 44} rx={10} ry={14} fill="#1e3c1a"/>
       <ellipse cx="254" cy={ROOM_BOTTOM - 50} rx={8} ry={12} fill="#274a24"/>
 
-      {/* ── MEETING ROOM ── */}
+      {/* ── BOARDROOM (top-centre corridor) ── */}
+      {/* Subtle navy tint over the centre floor */}
+      {R(TT_RIGHT + 4, TOP_WALL_H, MR_LEFT - TT_RIGHT - 8, ROOM_BOTTOM - TOP_WALL_H, "#09091a", { opacity: 0.55 } as any)}
+      {/* Room label strip */}
+      {R(TT_RIGHT + 4, TOP_WALL_H, MR_LEFT - TT_RIGHT - 8, 8, "#0a0a1e")}
+      <text x={BR_CX} y={TOP_WALL_H + 6} textAnchor="middle"
+        fill="#22224a" fontSize="6" fontFamily="'Courier New', monospace" letterSpacing="3">
+        BOARDROOM
+      </text>
+      {/* Projector screen on back wall (centred, above table) */}
+      {R(BR_CX - 60, TOP_WALL_H + 10, 120, 52, "#e4e8f4")}
+      {R(BR_CX - 60, TOP_WALL_H + 10, 120, 52, "none", { stroke: "#c0c4d4", strokeWidth: 2 } as any)}
+      {R(BR_CX - 60, TOP_WALL_H + 10, 120, 3,  "#a0a4b4")}
+      {/* Screen content */}
+      {R(BR_CX - 56, TOP_WALL_H + 16, 110, 7, "#c8d0f0")}
+      <text x={BR_CX} y={TOP_WALL_H + 23} textAnchor="middle"
+        fill="#404880" fontSize="5" fontFamily="'Courier New', monospace">STRATEGY REVIEW</text>
+      {[[BR_CX-52,TOP_WALL_H+28,90,3],[BR_CX-52,TOP_WALL_H+34,70,3],
+        [BR_CX-52,TOP_WALL_H+40,100,3],[BR_CX-52,TOP_WALL_H+46,55,3]].map(([rx,ry,rw,rh],i) =>
+        <rect key={i} x={rx} y={ry} width={rw} height={rh} fill="#8090c0" opacity="0.45"/>
+      )}
+      {/* Conference table — rounded rectangle */}
+      {R(BR_TABLE_X,     BR_TABLE_Y,     BR_TABLE_W,     BR_TABLE_H,     "#2a1e10")}
+      {R(BR_TABLE_X + 4, BR_TABLE_Y + 4, BR_TABLE_W - 8, BR_TABLE_H - 8, "#321e08")}
+      {R(BR_TABLE_X + 4, BR_TABLE_Y + 4, BR_TABLE_W - 8, 3,              "#4a3018")}
+      {/* Table grain lines */}
+      {[0,1,2,3].map(i =>
+        R(BR_TABLE_X + 8, BR_TABLE_Y + 10 + i * 18, BR_TABLE_W - 16, 1, "#3a2808", { key: i, opacity: 0.5 } as any)
+      )}
+      {/* Notepads on table */}
+      {[BR_TABLE_X+16, BR_TABLE_X+68, BR_TABLE_X+124, BR_TABLE_X+178].map((nx, i) => (
+        <g key={i}>
+          {R(nx, BR_TABLE_Y + 24, 16, 12, "#e8e4d0")}
+          {R(nx, BR_TABLE_Y + 24, 16,  2, "#d0ccc0")}
+          <line x1={nx+2} y1={BR_TABLE_Y+30} x2={nx+12} y2={BR_TABLE_Y+30} stroke="#a0a090" strokeWidth="1"/>
+          <line x1={nx+2} y1={BR_TABLE_Y+33} x2={nx+ 9} y2={BR_TABLE_Y+33} stroke="#a0a090" strokeWidth="1"/>
+        </g>
+      ))}
+      {/* Coffee mugs */}
+      {[BR_TABLE_X+50, BR_TABLE_X+154, BR_TABLE_X+214].map((mx, i) => (
+        <g key={i}>
+          {R(mx, BR_TABLE_Y + 20, 8, 9, "#2a1a0a")}
+          {R(mx + 1, BR_TABLE_Y + 22, 6, 5, "#6b2f0a", { opacity: 0.9 } as any)}
+        </g>
+      ))}
+      {/* SVG chair silhouettes — north side (agents sit above) */}
+      {[BR_TABLE_X + 42, BR_TABLE_X + 126, BR_TABLE_X + 210].map((cx, i) => (
+        <g key={i}>
+          {R(cx - 2, BR_TABLE_Y - 12, 24, 8,  "#1a1e38")}
+          {R(cx,     BR_TABLE_Y - 10, 20, 6,  "#22263e")}
+          {R(cx + 6, BR_TABLE_Y - 4,  8,  4,  "#1a1e38")}
+        </g>
+      ))}
+      {/* Chair west head (Lev's seat) */}
+      {R(BR_TABLE_X - 14, BR_TABLE_Y + 30, 8, 24, "#1a1e38")}
+      {R(BR_TABLE_X - 12, BR_TABLE_Y + 32, 4, 20, "#22263e")}
+      {/* Chair east head */}
+      {R(BR_TABLE_X + BR_TABLE_W + 6, BR_TABLE_Y + 30, 8, 24, "#1a1e38")}
+      {R(BR_TABLE_X + BR_TABLE_W + 8, BR_TABLE_Y + 32, 4, 20, "#22263e")}
+      {/* "LEV" seat marker on west chair */}
+      <text x={BR_TABLE_X - 14} y={BR_TABLE_Y + 28} fontSize="5"
+        fill="#1e2050" fontFamily="'Courier New', monospace" letterSpacing="1">HOST</text>
+
+      {/* ── MEETING ROOM (right) ── */}
       {/* Room label strip */}
       {R(MR_LEFT + 4, TOP_WALL_H, OW - MR_LEFT - 8, 8, "#0c0c1e")}
       <text x={MR_LEFT + (OW - MR_LEFT) / 2} y={TOP_WALL_H + 6} textAnchor="middle"
@@ -1170,11 +1280,13 @@ function TopDownMonitor({ status }: { status: keyof typeof STATUS_CFG }) {
 // ─── Agent Desk ───────────────────────────────────────────────────────────────
 
 function AgentDesk({
-  agent, x, y, prevStatus,
+  agent, x, y, prevStatus, away = false,
 }: {
-  agent: AgentData; x: number; y: number; prevStatus?: string;
+  agent: AgentData; x: number; y: number; prevStatus?: string; away?: boolean;
 }) {
-  const status = (agent.status in STATUS_CFG ? agent.status : "idle") as keyof typeof STATUS_CFG;
+  // When agent is in the boardroom, force offline appearance
+  const rawStatus = away ? "offline" : (agent.status in STATUS_CFG ? agent.status : "idle");
+  const status = rawStatus as keyof typeof STATUS_CFG;
   const cfg = STATUS_CFG[status];
   const lev = isLevAgent(agent);
   const team = lev && isTeamContext(agent);
@@ -1375,9 +1487,9 @@ function AgentDesk({
         <span style={{
           fontFamily: "'Courier New', Courier, monospace",
           fontSize: 7, letterSpacing: 1,
-          color: status !== "offline" ? "rgba(0,0,0,0.55)" : "#3a3f4a",
+          color: away ? "#2a4a6a" : status !== "offline" ? "rgba(0,0,0,0.55)" : "#3a3f4a",
           textTransform: "uppercase",
-        }}>{cfg.label}</span>
+        }}>{away ? "MEETING" : cfg.label}</span>
       </div>
     </div>
   );
@@ -1450,186 +1562,142 @@ function VacantDesk({ x, y }: { x: number; y: number }) {
   );
 }
 
-// ─── Meeting Host Seat — Lev's chair at the conference table head ─────────────
+// ─── Boardroom geometry ───────────────────────────────────────────────────────
 
-const MEETING_SEAT_X = 645;
-const MEETING_SEAT_Y = 86;
-const MEETING_SEAT_W = 72;
-const MEETING_SEAT_H = 92;
+// Top-centre corridor between Think Tank and Server Room walls
+const BR_CX  = (TT_RIGHT + MR_LEFT) / 2;  // 480 — boardroom centre X
+const BR_TABLE_X = 354, BR_TABLE_Y = 100, BR_TABLE_W = 254, BR_TABLE_H = 84;
+// Named seat positions (top-left of each 54×64 component)
+const BOARDROOM_SEATS: Record<string, { x: number; y: number }> = {
+  lev:    { x: 292, y: 104 },   // west head
+  scout:  { x: 370, y: 38  },   // north-left
+  quill:  { x: 456, y: 38  },   // north-centre
+  future1:{ x: 542, y: 38  },   // north-right
+  future2:{ x: 618, y: 104 },   // east head (future)
+};
+const BR_SEAT_W = 54;
+const BR_SEAT_H = 64;
 
-function MeetingHostSeat({
+const MEETING_KEYWORDS = /meet|brief|sync|standup|call|present|strategy|board|session/i;
+
+
+// ─── Boardroom Seat — compact agent view at the conference table ──────────────
+
+function BoardroomSeat({
   agent,
-  prevStatus,
+  seatKey,
+  walkDelay = 0,
 }: {
   agent: AgentData | null;
-  prevStatus?: string;
+  seatKey: string;
+  walkDelay?: number;
 }) {
+  const pos = BOARDROOM_SEATS[seatKey];
+  if (!pos) return null;
+
   const status = (
     agent && agent.status in STATUS_CFG ? agent.status : "offline"
   ) as keyof typeof STATUS_CFG;
   const cfg = STATUS_CFG[status];
 
-  const [waking, setWaking] = useState(false);
-  useEffect(() => {
-    if (prevStatus === "offline" && status !== "offline") {
-      setWaking(true);
-      const t = setTimeout(() => setWaking(false), 1700);
-      return () => clearTimeout(t);
-    }
-  }, [status, prevStatus]);
+  // Pick character animation — use existing per-agent classes
+  const getAnimClass = () => {
+    if (!agent) return "ao-char-offline";
+    if (isLevAgent(agent)) return status === "active" ? "ao-lev-active" : status === "processing" ? "ao-lev-process" : "ao-lev-idle";
+    if (isScoutAgent(agent)) return status === "active" ? "ao-scout-active" : status === "processing" ? "ao-scout-aha" : "ao-scout-idle";
+    if (isQuillAgent(agent)) return status === "active" ? "ao-quill-active" : status === "processing" ? "ao-quill-process" : "ao-quill-idle";
+    return status === "active" ? "ao-char-active" : status === "processing" ? "ao-char-process" : "ao-char-idle";
+  };
 
-  const inMeeting = !!(agent?.task?.match(/meet|brief|sync|standup|call|present/i));
-  const showBubble = inMeeting && agent?.task;
-
-  const levAnimClass =
-    waking             ? "ao-lev-wake"    :
-    status === "active"     ? "ao-lev-active"  :
-    status === "processing" ? "ao-lev-process" :
-    status === "offline"    ? "ao-lev-offline" :
-                              "ao-lev-idle";
+  const isFuture = seatKey.startsWith("future");
 
   return (
-    <div style={{
-      position: "absolute",
-      left: MEETING_SEAT_X,
-      top:  MEETING_SEAT_Y,
-      width:  MEETING_SEAT_W,
-      height: MEETING_SEAT_H,
-      boxSizing: "border-box",
-      boxShadow: status !== "offline"
-        ? `0 0 14px 4px ${
-            status === "active"     ? "rgba(80,140,255,0.38)"
-          : status === "processing" ? "rgba(212,130,42,0.28)"
-          :                           "rgba(56,139,253,0.12)"}`
-        : "none",
-    }}>
-      {/* Speech bubble (meeting task) */}
-      {showBubble && (
-        <div className="ao-speech" style={{ outlineColor: cfg.border, width: 130 }}>
-          {agent!.task}
-          <div className="ao-speech-tail" style={{ borderTopColor: cfg.border }} />
-        </div>
-      )}
-
-      {/* "HOST" strip — meeting-room navy */}
+    <div
+      className="ao-walk-in"
+      style={{
+        position: "absolute",
+        left: pos.x, top: pos.y,
+        width: BR_SEAT_W, height: BR_SEAT_H,
+        boxSizing: "border-box",
+        animationDelay: `${walkDelay}ms`,
+        opacity: isFuture ? 0 : 1,   // future seats invisible unless filled
+      }}
+    >
+      {/* Status dot row */}
       <div style={{
-        height: 10,
-        background: "#0e0e20",
-        outline: "1px solid #1e1e42",
-        display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+        height: 9,
+        background: "#0c0c1e",
+        outline: "1px solid #1a1a38",
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
       }}>
         <div style={{
           width: 4, height: 4,
-          background: status !== "offline" ? cfg.color : "#2a2a4a",
-          animation: status !== "offline" ? "ao-status-dot 2s ease-in-out infinite" : "none",
+          background: agent ? cfg.color : "#2a2a4a",
+          animation: agent && status !== "offline" ? "ao-status-dot 2s ease-in-out infinite" : "none",
         }} />
         <span style={{
-          fontSize: 6, fontWeight: 700, letterSpacing: 2,
+          fontSize: 5, fontWeight: 700, letterSpacing: 1.5,
           color: "#2a2a5a", textTransform: "uppercase",
           fontFamily: "'Courier New', monospace",
-        }}>HOST</span>
+          overflow: "hidden", maxWidth: 36, whiteSpace: "nowrap",
+        }}>
+          {agent?.role ?? "—"}
+        </span>
       </div>
 
-      {/* Desk surface — deep navy, meeting-room feel */}
+      {/* Character body */}
       <div style={{
-        height: MEETING_SEAT_H - 10 - 11,
-        background: "#131226",
-        outline: "2px solid #1e1e3e",
+        height: BR_SEAT_H - 9 - 10,
+        background: "#0f0f20",
+        outline: `2px solid ${agent && status !== "offline" ? cfg.border : "#161630"}`,
         position: "relative",
-        padding: "4px 6px",
-        boxSizing: "border-box",
+        display: "flex", alignItems: "center", justifyContent: "center",
         overflow: "hidden",
       }}>
-        {/* Status glow bloom */}
-        {status !== "offline" && (
+        {/* Status glow */}
+        {agent && status !== "offline" && (
           <div style={{
-            position: "absolute", inset: -6,
-            background: `radial-gradient(ellipse at 50% 40%, ${cfg.glowColor} 0%, transparent 72%)`,
+            position: "absolute", inset: -4,
+            background: `radial-gradient(ellipse at 50% 60%, ${cfg.glowColor} 0%, transparent 70%)`,
             pointerEvents: "none",
-            animation: status === "active" ? "ao-monitor-glow 1.5s ease-in-out infinite" : "none",
           }} />
         )}
 
-        {/* Laptop screen */}
-        <div style={{ position: "relative", marginBottom: 3 }}>
-          {status !== "offline" && (
-            <div style={{
-              position: "absolute", inset: -4,
-              background: `radial-gradient(ellipse at 50% 50%, ${
-                status === "active"     ? "rgba(80,140,255,0.32)"
-              : status === "processing" ? "rgba(212,130,42,0.22)"
-              :                           "rgba(56,139,253,0.10)"
-              } 0%, transparent 70%)`,
-              pointerEvents: "none",
-            }} />
-          )}
-          <div style={{
-            width: 38, height: 24,
-            background: "#161b22",
-            outline: `2px solid ${status !== "offline" ? cfg.border : "#1e2228"}`,
-            position: "relative",
-            overflow: "hidden",
-          }}>
-            <div style={{
-              margin: 2, background: cfg.screenBg,
-              height: "calc(100% - 4px)", position: "relative", overflow: "hidden",
-            }}>
-              {status === "active" && (
-                <>
-                  {[2, 6, 10, 14].map((top, i) => (
-                    <div key={i} style={{
-                      position: "absolute", top, left: 2,
-                      width: `${45 + i * 12}%`, height: 2,
-                      background: cfg.screenLine, opacity: 0.8 - i * 0.15,
-                    }} />
-                  ))}
-                  <div style={{
-                    position: "absolute", bottom: 2, left: 2, width: 2, height: 3,
-                    background: cfg.screenLine,
-                    animation: "ao-blink-cursor 0.7s step-end infinite",
-                  }} />
-                </>
-              )}
-              {status === "processing" && (
-                <div style={{
-                  position: "absolute", top: 0, left: 0, right: 0, height: 3,
-                  background: cfg.screenLine, opacity: 0.7,
-                  animation: "ao-scan 1.0s linear infinite",
-                }} />
-              )}
-              {status === "idle" && (
-                <div style={{ position: "absolute", inset: 0, background: cfg.screenLine, opacity: 0.04 }} />
-              )}
-            </div>
+        {agent ? (
+          <div style={{ position: "relative" }}>
+            {isLevAgent(agent)   && <LevCharacter animClass={getAnimClass()} isTeam={false} />}
+            {isScoutAgent(agent) && <ScoutCharacter animClass={getAnimClass()} />}
+            {isQuillAgent(agent) && <QuillCharacter animClass={getAnimClass()} />}
+            {!isLevAgent(agent) && !isScoutAgent(agent) && !isQuillAgent(agent) && (
+              <GenericCharacter status={status} animClass={getAnimClass()} />
+            )}
           </div>
-        </div>
-
-        {/* Lev character */}
-        <div style={{ position: "relative", display: "inline-block" }}>
-          <LevCharacter animClass={levAnimClass} isTeam={false} />
-          {status === "offline" && <DocProp />}
-        </div>
+        ) : (
+          /* Empty seat — tucked chair silhouette */
+          <div style={{ width: 28, height: 18, background: "#181830", outline: "1px solid #202040", opacity: 0.5 }} />
+        )}
       </div>
 
       {/* Nameplate */}
       <div style={{
-        height: 11,
-        background: status !== "offline" ? cfg.border : "#0e0e1e",
+        height: 10,
+        background: agent && status !== "offline" ? cfg.border : "#0e0e1e",
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 5px",
-        outline: `2px solid ${status !== "offline" ? cfg.border : "#161626"}`,
-        outlineOffset: -2,
+        padding: "0 4px",
+        outline: `1px solid ${agent && status !== "offline" ? cfg.border : "#161626"}`,
+        outlineOffset: -1,
       }}>
         <span style={{
           fontFamily: "'Courier New', Courier, monospace",
           fontSize: 7, fontWeight: 700, letterSpacing: 1,
-          color: status !== "offline" ? "#0d1117" : "#2a2a4a",
+          color: agent && status !== "offline" ? "#0d1117" : "#2a2a4a",
           textTransform: "uppercase",
-        }}>LEV</span>
+          overflow: "hidden", maxWidth: 32, whiteSpace: "nowrap",
+        }}>{agent?.name ?? "—"}</span>
         <span style={{
           fontFamily: "'Courier New', Courier, monospace",
-          fontSize: 6, letterSpacing: 1,
-          color: status !== "offline" ? "rgba(0,0,0,0.5)" : "#1a1a32",
+          fontSize: 5, letterSpacing: 1,
+          color: agent && status !== "offline" ? "rgba(0,0,0,0.5)" : "#1a1a32",
           textTransform: "uppercase",
         }}>{cfg.label}</span>
       </div>
@@ -1793,11 +1861,14 @@ export default function AgentOffice() {
   const [state, setState] = useState<OfficeState>({
     agents: [], connected: false, lastUpdated: null, error: null,
   });
-  const prevAgentsRef = useRef<AgentData[]>([]);
-  const viewportRef = useRef<HTMLDivElement>(null);
+  const prevAgentsRef    = useRef<AgentData[]>([]);
+  const viewportRef      = useRef<HTMLDivElement>(null);
+  const prevMeetingRef   = useRef(false);
   const [canvasTransform, setCanvasTransform] = useState({ scale: 1, x: 0, y: 0 });
+  // boardroomVisible lags isMeetingMode by ~500 ms so "stand-up" plays first
+  const [boardroomVisible, setBoardroomVisible] = useState(false);
 
-  // Scale canvas to fill available viewport, maintaining aspect ratio
+  // Scale canvas to fill viewport
   useEffect(() => {
     const el = viewportRef.current;
     if (!el) return;
@@ -1814,9 +1885,9 @@ export default function AgentOffice() {
     return () => ro.disconnect();
   }, []);
 
+  // Poll NanoClaw
   useEffect(() => {
     let cancelled = false;
-
     const poll = async () => {
       try {
         const res = await fetch(NANOCLAW_URL, {
@@ -1829,23 +1900,18 @@ export default function AgentOffice() {
           prevAgentsRef.current = state.agents;
           setState({
             agents: Array.isArray(data.agents) ? data.agents : [],
-            connected: true,
-            lastUpdated: new Date(),
-            error: null,
+            connected: true, lastUpdated: new Date(), error: null,
           });
         }
       } catch (err) {
         if (!cancelled) {
           setState(prev => ({
-            ...prev,
-            connected: false,
-            lastUpdated: new Date(),
+            ...prev, connected: false, lastUpdated: new Date(),
             error: err instanceof Error ? err.message : "Connection failed",
           }));
         }
       }
     };
-
     poll();
     const interval = setInterval(poll, POLL_MS);
     return () => { cancelled = true; clearInterval(interval); };
@@ -1856,10 +1922,25 @@ export default function AgentOffice() {
 
   const { agents, connected, lastUpdated, error } = state;
 
-  // Resolve each named desk to either a live agent, a stub, or vacant
+  // Meeting mode: Lev has a task matching meeting keywords
+  const levAgent = agents.find(isLevAgent);
+  const isMeetingMode = !!(levAgent?.task && MEETING_KEYWORDS.test(levAgent.task));
+
+  // Boardroom visibility with stand-up delay (runs outside effect for simplicity
+  // using a derived ref comparison — triggers on each render where mode changed)
+  if (isMeetingMode !== prevMeetingRef.current) {
+    prevMeetingRef.current = isMeetingMode;
+    if (isMeetingMode) {
+      // Desks show "away" immediately; boardroom appears after stand-up anim
+      setTimeout(() => setBoardroomVisible(true), 520);
+    } else {
+      setBoardroomVisible(false);
+    }
+  }
+
+  // Resolve named desk → agent / stub / null
   const resolveDesk = (desk: NamedDesk) => {
     if (desk.key === "future") return null;
-    // Named agent — find in live feed or fall back to stub
     const live = agents.find(a => {
       if (desk.key === "lev")   return isLevAgent(a);
       if (desk.key === "scout") return isScoutAgent(a);
@@ -1872,7 +1953,15 @@ export default function AgentOffice() {
     return null;
   };
 
-  // Agents shown in status bar = live feed + stubs for named slots not yet online
+  // Resolve boardroom seat → agent / null
+  const resolveSeat = (key: string): AgentData | null => {
+    if (key === "future1" || key === "future2") return null;
+    if (key === "lev")   return levAgent ?? null;
+    if (key === "scout") return agents.find(isScoutAgent) ?? STUB_SCOUT;
+    if (key === "quill") return agents.find(isQuillAgent) ?? STUB_QUILL;
+    return null;
+  };
+
   const displayAgents = [
     ...agents,
     ...(agents.find(isScoutAgent) ? [] : [STUB_SCOUT]),
@@ -1881,32 +1970,31 @@ export default function AgentOffice() {
 
   return (
     <div style={{
-      display: "flex",
-      flexDirection: "column",
-      height: "100%",
-      background: "#080a14",
+      display: "flex", flexDirection: "column",
+      height: "100%", background: "#080a14",
       fontFamily: "'Courier New', Courier, monospace",
     }}>
       <style>{OFFICE_CSS}</style>
 
-      {/* Header bar */}
+      {/* Header */}
       <div style={{
-        padding: "12px 20px 10px",
-        borderBottom: "2px solid #1e2236",
-        flexShrink: 0,
-        display: "flex",
-        alignItems: "baseline",
-        gap: 16,
+        padding: "12px 20px 10px", borderBottom: "2px solid #1e2236",
+        flexShrink: 0, display: "flex", alignItems: "baseline", gap: 16,
       }}>
-        <span style={{
-          fontSize: 16, fontWeight: 700, letterSpacing: 4,
-          color: "#f97316", textTransform: "uppercase",
-        }}>
+        <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: 4, color: "#f97316", textTransform: "uppercase" }}>
           ▓▓ AGENT OFFICE
         </span>
         <span style={{ fontSize: 9, color: "#30363d", letterSpacing: 2, textTransform: "uppercase" }}>
           NANOCLAW OPS · FLOOR 1
         </span>
+        {isMeetingMode && (
+          <span style={{
+            fontSize: 8, letterSpacing: 2, textTransform: "uppercase",
+            color: "#388bfd", animation: "ao-status-dot 2s ease-in-out infinite",
+          }}>
+            ● IN SESSION
+          </span>
+        )}
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{
             width: 6, height: 6,
@@ -1919,7 +2007,7 @@ export default function AgentOffice() {
         </div>
       </div>
 
-      {/* Full-screen scaled canvas */}
+      {/* Canvas */}
       <div ref={viewportRef} className="ao-viewport">
         <div
           className="ao-canvas"
@@ -1928,53 +2016,76 @@ export default function AgentOffice() {
             transform: `translate(${canvasTransform.x}px, ${canvasTransform.y}px) scale(${canvasTransform.scale})`,
           }}
         >
-          {/* Static room background */}
           <OfficeBg />
-
-          {/* Hierarchy connector lines — rendered below desks */}
           <HierarchyLines />
 
-          {/* Lev's meeting host seat at the conference table head */}
-          {(() => {
-            const levAgent = agents.find(isLevAgent) ?? null;
-            const prevLev  = prevAgentsRef.current.find(isLevAgent);
-            return (
-              <MeetingHostSeat
-                agent={levAgent}
-                prevStatus={prevLev?.status}
-              />
-            );
-          })()}
-
-          {/* Named desks */}
+          {/* ── OPEN-FLOOR DESKS ── always rendered; faded + "MEETING" when in session */}
           {NAMED_DESKS.map((desk, i) => {
             const agent = resolveDesk(desk);
-            if (!agent) {
-              return <VacantDesk key={`future-${i}`} x={desk.x} y={desk.y} />;
-            }
+            if (!agent) return <VacantDesk key={`future-${i}`} x={desk.x} y={desk.y} />;
             const isStub = agent === STUB_SCOUT || agent === STUB_QUILL;
             const prevAgent = prevAgentsRef.current.find(a => a.id === agent.id);
             return (
               <div
                 key={`${desk.key}-${i}`}
-                style={{ opacity: isStub ? 0.45 : 1, transition: "opacity 0.6s ease" }}
+                className={isMeetingMode ? "ao-desk-away" : undefined}
+                style={{
+                  opacity: isMeetingMode ? 0.32 : isStub ? 0.45 : 1,
+                  transition: "opacity 0.4s ease",
+                }}
               >
                 <AgentDesk
-                  agent={agent}
-                  x={desk.x}
-                  y={desk.y}
+                  agent={agent} x={desk.x} y={desk.y}
                   prevStatus={prevAgent?.status}
+                  away={isMeetingMode}
                 />
               </div>
             );
           })}
 
-          {/* No-signal overlay */}
+          {/* ── BOARDROOM SCENE — appears after stand-up delay ── */}
+          {boardroomVisible && (
+            <>
+              {/* Soft blue overlay on the boardroom area */}
+              <div style={{
+                position: "absolute",
+                left: TT_RIGHT + 4, top: TOP_WALL_H,
+                width: MR_LEFT - TT_RIGHT - 8,
+                height: ROOM_BOTTOM - TOP_WALL_H,
+                background: "rgba(20,30,80,0.22)",
+                animation: "ao-boardroom-pulse 4s ease-in-out infinite",
+                pointerEvents: "none",
+              }} />
+              {/* Agent seats */}
+              {Object.keys(BOARDROOM_SEATS).map((key, i) => (
+                <BoardroomSeat
+                  key={key}
+                  agent={resolveSeat(key)}
+                  seatKey={key}
+                  walkDelay={i * 80}
+                />
+              ))}
+              {/* "IN SESSION" banner above screen */}
+              <div style={{
+                position: "absolute",
+                left: BR_CX - 48, top: TOP_WALL_H + 2,
+                padding: "1px 6px",
+                background: "#0a1030",
+                outline: "1px solid #2a3060",
+                fontFamily: "'Courier New', monospace",
+                fontSize: 7, letterSpacing: 2, color: "#388bfd",
+                textTransform: "uppercase",
+                animation: "ao-status-dot 2s ease-in-out infinite",
+              }}>
+                ● STRATEGY SESSION
+              </div>
+            </>
+          )}
+
           {!connected && agents.length === 0 && <EmptyState error={error} />}
         </div>
       </div>
 
-      {/* Status bar */}
       <StatusBar agents={displayAgents} connected={connected} lastUpdated={lastUpdated} />
     </div>
   );
