@@ -41,13 +41,34 @@ const REC_BOTTOM   = 552;
 const TT_RIGHT   = 280;   // Think Tank right edge
 const MR_LEFT    = 680;   // Meeting Room left edge
 
-// Desk grid
+// Desk dimensions
 const DESK_W = 148;
 const DESK_H = 100;
-const DESK_COLS = [20, 194, 368, 542, 716] as const;
-const DESK_ROWS = [224, 358] as const;
-// 10 desk slots total; agents fill first N, rest are vacant
-const DESK_SLOTS = DESK_ROWS.flatMap(y => DESK_COLS.map(x => ({ x, y })));
+
+// Named desk layout — hierarchical
+// Lev centered in row 1; Scout + Quill flank below; 2 future slots
+interface NamedDesk {
+  key: "lev" | "scout" | "quill" | "future";
+  x: number;
+  y: number;
+}
+const NAMED_DESKS: NamedDesk[] = [
+  { key: "lev",    x: 406, y: 224 },  // Centered, row 1
+  { key: "scout",  x: 204, y: 352 },  // Flanks left, row 2
+  { key: "quill",  x: 596, y: 352 },  // Flanks right, row 2
+  { key: "future", x: 32,  y: 352 },  // Far-left future slot
+  { key: "future", x: 780, y: 352 },  // Far-right future slot
+];
+
+// Hierarchy connector points (bottom-center of Lev → top-center of sub-agents)
+const LEV_BC   = { x: 406 + DESK_W / 2, y: 224 + DESK_H };   // 480, 324
+const SCOUT_TC = { x: 204 + DESK_W / 2, y: 352 };              // 278, 352
+const QUILL_TC = { x: 596 + DESK_W / 2, y: 352 };              // 670, 352
+const BRANCH_Y = 338; // midpoint for org-chart elbow
+
+// Stub agents — pre-configured desks shown even before NanoClaw creates them
+const STUB_SCOUT: AgentData = { id: "scout", name: "Scout", role: "Research",     status: "offline", task: null };
+const STUB_QUILL: AgentData = { id: "quill", name: "Quill", role: "Copywriting",  status: "offline", task: null };
 
 const STATUS_CFG = {
   active: {
@@ -184,6 +205,76 @@ const OFFICE_CSS = `
   .ao-char-idle    { animation: ao-char-idle 4s ease-in-out infinite; transform-origin: bottom center; }
   .ao-char-offline { animation: ao-char-offline 3s ease-in-out infinite; transform-origin: bottom center; }
   .ao-char-wake    { animation: ao-char-wake 1.4s ease-out forwards; transform-origin: bottom center; }
+
+  /* ── Scout (alert, dual-monitor glancer) ── */
+  @keyframes ao-scout-idle {
+    0%,40%,100% { transform: translateX(0) translateY(0); }
+    55%  { transform: translateX(-2px) translateY(-1px); }
+    70%  { transform: translateX(-2px) translateY(-1px); }
+    80%  { transform: translateX(2px) translateY(-1px); }
+    90%  { transform: translateX(0) translateY(0); }
+  }
+  @keyframes ao-scout-active {
+    0%,100% { transform: translateY(-2px) translateX(-1px); }
+    30%     { transform: translateY(-3px) translateX(-2px); }
+    60%     { transform: translateY(-2px) translateX(1px); }
+  }
+  @keyframes ao-scout-aha {
+    0%   { transform: translateY(0) scale(1); }
+    15%  { transform: translateY(-5px) scale(1.04); }
+    35%  { transform: translateY(-4px) translateX(1px) scale(1.02); }
+    60%  { transform: translateY(-3px); }
+    100% { transform: translateY(-2px) translateX(-1px); }
+  }
+  @keyframes ao-scout-offline {
+    0%,100% { transform: rotate(-4deg) translateY(1px); }
+    50%     { transform: rotate(-2deg) translateY(0); }
+  }
+  @keyframes ao-scout-wake {
+    0%   { transform: rotate(-4deg) translateY(3px); opacity:0.7; }
+    20%  { transform: translateY(-5px) translateX(-2px); opacity:1; }
+    45%  { transform: translateY(-4px) translateX(2px); }
+    70%  { transform: translateY(-3px) translateX(-1px); }
+    100% { transform: translateY(-2px) translateX(-1px); }
+  }
+  .ao-scout-idle    { animation: ao-scout-idle 5s ease-in-out infinite; transform-origin: bottom center; }
+  .ao-scout-active  { animation: ao-scout-active 0.5s ease-in-out infinite; transform-origin: bottom center; }
+  .ao-scout-aha     { animation: ao-scout-aha 1.8s ease-out forwards; transform-origin: bottom center; }
+  .ao-scout-offline { animation: ao-scout-offline 3.5s ease-in-out infinite; transform-origin: bottom center; }
+  .ao-scout-wake    { animation: ao-scout-wake 1.5s ease-out forwards; transform-origin: bottom center; }
+
+  /* ── Quill (relaxed, thoughtful pauses) ── */
+  @keyframes ao-quill-idle {
+    0%,60%,100% { transform: translateY(0) rotate(0deg); }
+    72%  { transform: translateY(-1px) rotate(1deg); }
+    84%  { transform: translateY(-2px) rotate(1deg); }
+    92%  { transform: translateY(-1px) rotate(0deg); }
+  }
+  @keyframes ao-quill-active {
+    0%,100% { transform: translateY(-1px); }
+    40%     { transform: translateY(-2px) rotate(1deg); }
+    70%     { transform: translateY(-1px) rotate(-1deg); }
+  }
+  @keyframes ao-quill-process {
+    0%,100% { transform: translateY(0) rotate(2deg); }
+    50%     { transform: translateY(-3px) rotate(2deg); }
+  }
+  @keyframes ao-quill-offline {
+    0%,100% { transform: rotate(-3deg) translateY(2px); }
+    50%     { transform: rotate(-1deg) translateY(1px); }
+  }
+  @keyframes ao-quill-wake {
+    0%   { transform: rotate(-3deg) translateY(3px); opacity:0.7; }
+    30%  { transform: rotate(2deg) translateY(-3px); opacity:1; }
+    55%  { transform: rotate(1deg) translateY(-2px); }
+    80%  { transform: translateY(-1px); }
+    100% { transform: translateY(0); }
+  }
+  .ao-quill-idle    { animation: ao-quill-idle 7s ease-in-out infinite; transform-origin: bottom center; }
+  .ao-quill-active  { animation: ao-quill-active 0.9s ease-in-out infinite; transform-origin: bottom center; }
+  .ao-quill-process { animation: ao-quill-process 3s ease-in-out infinite; transform-origin: bottom center; }
+  .ao-quill-offline { animation: ao-quill-offline 4s ease-in-out infinite; transform-origin: bottom center; }
+  .ao-quill-wake    { animation: ao-quill-wake 1.6s ease-out forwards; transform-origin: bottom center; }
 
   .ao-canvas {
     position: relative;
@@ -604,6 +695,18 @@ function isTeamContext(agent: AgentData) {
     agent.role?.toLowerCase().includes("team")
   );
 }
+function isScoutAgent(agent: AgentData) {
+  return (
+    agent.name?.toLowerCase() === "scout" ||
+    agent.id?.toLowerCase().startsWith("scout")
+  );
+}
+function isQuillAgent(agent: AgentData) {
+  return (
+    agent.name?.toLowerCase() === "quill" ||
+    agent.id?.toLowerCase().startsWith("quill")
+  );
+}
 
 // ─── Lev's pixel art character (3/4 view, P=3, 11×10 grid = 33×30px) ─────────
 
@@ -732,6 +835,135 @@ function GenericCharacter({
   );
 }
 
+// ─── Scout character (alert researcher, P=3, 11×10) ──────────────────────────
+
+const SC_HAIR  = "#1a1a2a";
+const SC_HAIR_H= "#2e2e4a";
+const SC_SKIN  = "#c8906a";
+const SC_SKIN_D= "#a87050";
+const SC_GREEN = "#2e6b3e";
+const SC_GREEN_L="#3d8a52";
+const SC_GREEN_D="#1e4a2a";
+const SC_CREAM = "#e8dfc0";
+const SC_EYE   = "#1e0800";
+
+function ScoutCharacter({ animClass }: { animClass: string }) {
+  const P = 3;
+  const W = 11 * P, H = 10 * P;
+  const r = (x: number, y: number, w: number, h: number, fill: string) => (
+    <rect x={x * P} y={y * P} width={w * P} height={h * P} fill={fill} />
+  );
+  return (
+    <svg
+      width={W} height={H}
+      viewBox={`0 0 ${W} ${H}`}
+      shapeRendering="crispEdges"
+      style={{ imageRendering: "pixelated", display: "block" }}
+      className={animClass}
+    >
+      {/* Hair — short dark, slight side part */}
+      {r(2, 0, 7, 1, SC_HAIR)}
+      {r(1, 1, 9, 1, SC_HAIR)}
+      {r(2, 2, 7, 1, SC_HAIR)}
+      {r(3, 1, 1, 2, SC_HAIR_H)}  {/* part highlight */}
+
+      {/* Face */}
+      {r(2, 2, 7, 3, SC_SKIN)}
+      {r(2, 2, 1, 3, SC_SKIN_D)}  {/* left cheek shadow */}
+      {r(8, 2, 1, 3, SC_SKIN_D)}  {/* right cheek shadow */}
+
+      {/* Eyes — wide, alert */}
+      {r(3, 3, 1, 1, SC_EYE)}
+      {r(7, 3, 1, 1, SC_EYE)}
+      <rect x={3 * P + 1} y={3 * P + 1} width={1} height={1} fill="#fff" />
+      <rect x={7 * P + 1} y={3 * P + 1} width={1} height={1} fill="#fff" />
+
+      {/* Neck */}
+      {r(4, 5, 3, 1, SC_SKIN_D)}
+      {r(4, 6, 3, 1, SC_SKIN)}
+
+      {/* Hoodie body — forest green */}
+      {r(1, 7, 9, 3, SC_GREEN)}
+      {r(1, 7, 1, 3, SC_GREEN_D)}   {/* left shadow */}
+      {r(9, 7, 1, 3, SC_GREEN_D)}   {/* right shadow */}
+      {r(2, 7, 7, 1, SC_GREEN_L)}   {/* shoulder highlight */}
+
+      {/* Hoodie pocket seam */}
+      {r(4, 8, 3, 2, SC_GREEN_D)}
+      {r(4, 8, 3, 1, SC_GREEN)}
+
+      {/* Cream collar */}
+      {r(4, 7, 3, 1, SC_CREAM)}
+    </svg>
+  );
+}
+
+// ─── Quill character (thoughtful writer, P=3, 11×10) ─────────────────────────
+
+const QL_HAIR  = "#8b3a1a";
+const QL_HAIR_H= "#c05020";
+const QL_HAIR_D= "#5a1e08";
+const QL_SKIN  = "#d4a06a";
+const QL_SKIN_D= "#b07848";
+const QL_SKIN_L= "#e0b888";
+const QL_EYE   = "#1e0800";
+const QL_BURG  = "#7a1a2e";
+const QL_BURG_L= "#962030";
+const QL_BURG_D= "#4e0e1e";
+const QL_CREAM = "#e8dfc0";
+
+function QuillCharacter({ animClass }: { animClass: string }) {
+  const P = 3;
+  const W = 11 * P, H = 10 * P;
+  const r = (x: number, y: number, w: number, h: number, fill: string) => (
+    <rect x={x * P} y={y * P} width={w * P} height={h * P} fill={fill} />
+  );
+  return (
+    <svg
+      width={W} height={H}
+      viewBox={`0 0 ${W} ${H}`}
+      shapeRendering="crispEdges"
+      style={{ imageRendering: "pixelated", display: "block" }}
+      className={animClass}
+    >
+      {/* Auburn hair — slightly longer on sides */}
+      {r(2, 0, 7, 1, QL_HAIR)}
+      {r(1, 1, 9, 2, QL_HAIR)}
+      {r(2, 2, 1, 2, QL_HAIR)}   {/* left side hair */}
+      {r(8, 2, 1, 2, QL_HAIR)}   {/* right side hair */}
+      {r(4, 0, 3, 1, QL_HAIR_H)} {/* top highlight */}
+      {r(1, 1, 1, 1, QL_HAIR_D)} {/* left deep shadow */}
+      {r(9, 1, 1, 1, QL_HAIR_D)} {/* right deep shadow */}
+
+      {/* Face — warm skin */}
+      {r(2, 2, 7, 3, QL_SKIN)}
+      {r(2, 2, 1, 2, QL_SKIN_D)}  {/* left shadow */}
+      {r(8, 2, 1, 2, QL_SKIN_D)}  {/* right shadow */}
+      {r(4, 2, 3, 1, QL_SKIN_L)}  {/* forehead highlight */}
+
+      {/* Eyes — thoughtful, slightly downcast */}
+      {r(3, 3, 1, 1, QL_EYE)}
+      {r(7, 3, 1, 1, QL_EYE)}
+      <rect x={3 * P + 1} y={3 * P + 1} width={1} height={1} fill="#fff" />
+      <rect x={7 * P + 1} y={3 * P + 1} width={1} height={1} fill="#fff" />
+
+      {/* Neck */}
+      {r(4, 5, 3, 1, QL_SKIN_D)}
+      {r(4, 6, 3, 1, QL_SKIN)}
+
+      {/* Burgundy top */}
+      {r(1, 7, 9, 3, QL_BURG)}
+      {r(1, 7, 1, 3, QL_BURG_D)}  {/* left shadow */}
+      {r(9, 7, 1, 3, QL_BURG_D)}  {/* right shadow */}
+      {r(2, 7, 7, 1, QL_BURG_L)}  {/* shoulder highlight */}
+
+      {/* Cream collar accent */}
+      {r(4, 7, 3, 1, QL_CREAM)}
+      {r(5, 7, 1, 2, QL_CREAM)}   {/* collar V */}
+    </svg>
+  );
+}
+
 // ─── Character dispatcher ─────────────────────────────────────────────────────
 
 function AgentCharacter({
@@ -750,6 +982,22 @@ function AgentCharacter({
     else if (status === "processing")  cls = "ao-lev-process";
     else if (status === "offline")     cls = "ao-lev-offline";
     return <LevCharacter animClass={cls} isTeam={isTeamContext(agent)} />;
+  }
+  if (isScoutAgent(agent)) {
+    let cls = "ao-scout-idle";
+    if (waking)                       cls = "ao-scout-wake";
+    else if (status === "active")      cls = "ao-scout-active";
+    else if (status === "processing")  cls = "ao-scout-aha";
+    else if (status === "offline")     cls = "ao-scout-offline";
+    return <ScoutCharacter animClass={cls} />;
+  }
+  if (isQuillAgent(agent)) {
+    let cls = "ao-quill-idle";
+    if (waking)                       cls = "ao-quill-wake";
+    else if (status === "active")      cls = "ao-quill-active";
+    else if (status === "processing")  cls = "ao-quill-process";
+    else if (status === "offline")     cls = "ao-quill-offline";
+    return <QuillCharacter animClass={cls} />;
   }
   let cls = "ao-char-idle";
   if (waking)                       cls = "ao-char-wake";
@@ -1194,11 +1442,60 @@ function VacantDesk({ x, y }: { x: number; y: number }) {
       }}>
         <span style={{
           fontFamily: "'Courier New', Courier, monospace",
-          fontSize: 8, fontWeight: 700, letterSpacing: 3,
+          fontSize: 7, fontWeight: 700, letterSpacing: 2,
           color: "#2e2c28", textTransform: "uppercase",
-        }}>VACANT</span>
+        }}>FUTURE AGENT</span>
       </div>
     </div>
+  );
+}
+
+// ─── Hierarchy Lines — SVG org-chart connectors ──────────────────────────────
+
+function HierarchyLines() {
+  const strokeColor = "#2a3040";
+  const dotColor    = "#3a4560";
+  return (
+    <svg
+      width={OW} height={OH}
+      viewBox={`0 0 ${OW} ${OH}`}
+      shapeRendering="crispEdges"
+      style={{
+        position: "absolute", top: 0, left: 0,
+        pointerEvents: "none",
+        imageRendering: "pixelated",
+      }}
+    >
+      {/* Vertical drop from Lev bottom-center down to branch Y */}
+      <line
+        x1={LEV_BC.x} y1={LEV_BC.y}
+        x2={LEV_BC.x} y2={BRANCH_Y}
+        stroke={strokeColor} strokeWidth={2} strokeDasharray="4 3"
+      />
+      {/* Horizontal branch spanning Scout → Quill at BRANCH_Y */}
+      <line
+        x1={SCOUT_TC.x} y1={BRANCH_Y}
+        x2={QUILL_TC.x} y2={BRANCH_Y}
+        stroke={strokeColor} strokeWidth={2} strokeDasharray="4 3"
+      />
+      {/* Vertical drop Scout branch → Scout desk top */}
+      <line
+        x1={SCOUT_TC.x} y1={BRANCH_Y}
+        x2={SCOUT_TC.x} y2={SCOUT_TC.y}
+        stroke={strokeColor} strokeWidth={2} strokeDasharray="4 3"
+      />
+      {/* Vertical drop Quill branch → Quill desk top */}
+      <line
+        x1={QUILL_TC.x} y1={BRANCH_Y}
+        x2={QUILL_TC.x} y2={QUILL_TC.y}
+        stroke={strokeColor} strokeWidth={2} strokeDasharray="4 3"
+      />
+      {/* Junction dot at branch midpoint */}
+      <rect x={LEV_BC.x - 3} y={BRANCH_Y - 3} width={6} height={6} fill={dotColor} />
+      {/* Endpoint dots */}
+      <rect x={SCOUT_TC.x - 2} y={SCOUT_TC.y - 2} width={4} height={4} fill={dotColor} />
+      <rect x={QUILL_TC.x - 2} y={QUILL_TC.y - 2} width={4} height={4} fill={dotColor} />
+    </svg>
   );
 }
 
@@ -1372,10 +1669,28 @@ export default function AgentOffice() {
 
   const { agents, connected, lastUpdated, error } = state;
 
-  // Build desk assignments: agents fill first N slots, rest are vacant
-  const maxDesks = DESK_SLOTS.length;
-  const agentDesks = agents.slice(0, maxDesks);
-  const vacantStart = agentDesks.length;
+  // Resolve each named desk to either a live agent, a stub, or vacant
+  const resolveDesk = (desk: NamedDesk) => {
+    if (desk.key === "future") return null;
+    // Named agent — find in live feed or fall back to stub
+    const live = agents.find(a => {
+      if (desk.key === "lev")   return isLevAgent(a);
+      if (desk.key === "scout") return isScoutAgent(a);
+      if (desk.key === "quill") return isQuillAgent(a);
+      return false;
+    });
+    if (live) return live;
+    if (desk.key === "scout") return STUB_SCOUT;
+    if (desk.key === "quill") return STUB_QUILL;
+    return null;
+  };
+
+  // Agents shown in status bar = live feed + stubs for named slots not yet online
+  const displayAgents = [
+    ...agents,
+    ...(agents.find(isScoutAgent) ? [] : [STUB_SCOUT]),
+    ...(agents.find(isQuillAgent) ? [] : [STUB_QUILL]),
+  ];
 
   return (
     <div style={{
@@ -1429,25 +1744,31 @@ export default function AgentOffice() {
           {/* Static room background */}
           <OfficeBg />
 
-          {/* Agent desks (absolutely positioned over SVG) */}
-          {agentDesks.map((agent, i) => {
-            const slot = DESK_SLOTS[i];
+          {/* Hierarchy connector lines — rendered below desks */}
+          <HierarchyLines />
+
+          {/* Named desks */}
+          {NAMED_DESKS.map((desk, i) => {
+            const agent = resolveDesk(desk);
+            if (!agent) {
+              return <VacantDesk key={`future-${i}`} x={desk.x} y={desk.y} />;
+            }
+            const isStub = agent === STUB_SCOUT || agent === STUB_QUILL;
             const prevAgent = prevAgentsRef.current.find(a => a.id === agent.id);
             return (
-              <AgentDesk
-                key={agent.id}
-                agent={agent}
-                x={slot.x}
-                y={slot.y}
-                prevStatus={prevAgent?.status}
-              />
+              <div
+                key={`${desk.key}-${i}`}
+                style={{ opacity: isStub ? 0.45 : 1, transition: "opacity 0.6s ease" }}
+              >
+                <AgentDesk
+                  agent={agent}
+                  x={desk.x}
+                  y={desk.y}
+                  prevStatus={prevAgent?.status}
+                />
+              </div>
             );
           })}
-
-          {/* Vacant desk placeholders */}
-          {DESK_SLOTS.slice(vacantStart, Math.min(vacantStart + 6, maxDesks)).map((slot, i) => (
-            <VacantDesk key={`vacant-${i}`} x={slot.x} y={slot.y} />
-          ))}
 
           {/* No-signal overlay */}
           {!connected && agents.length === 0 && <EmptyState error={error} />}
@@ -1455,7 +1776,7 @@ export default function AgentOffice() {
       </div>
 
       {/* Status bar */}
-      <StatusBar agents={agents} connected={connected} lastUpdated={lastUpdated} />
+      <StatusBar agents={displayAgents} connected={connected} lastUpdated={lastUpdated} />
     </div>
   );
 }
