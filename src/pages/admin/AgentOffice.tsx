@@ -79,29 +79,64 @@ const STATUS_CFG = {
 // ─── CSS ─────────────────────────────────────────────────────────────────────
 
 const OFFICE_CSS = `
-  @keyframes ao-bounce {
+  /* ── Lev character ── */
+  @keyframes ao-lev-idle {
+    0%,55%,100% { transform: translateY(0) translateX(0); }
+    65%  { transform: translateY(-1px) translateX(-1px); }
+    75%  { transform: translateY(-1px) translateX(-1px); }
+    85%  { transform: translateY(0) translateX(0); }
+  }
+  @keyframes ao-lev-active {
+    0%,100% { transform: translateY(-2px) translateX(-1px); }
+    40%     { transform: translateY(-3px) translateX(-2px); }
+    70%     { transform: translateY(-2px) translateX(-1px); }
+  }
+  @keyframes ao-lev-process {
+    0%,100% { transform: translateY(-1px); }
+    50%     { transform: translateY(-2px); }
+  }
+  @keyframes ao-lev-offline {
+    0%,100% { transform: rotate(-3deg) translateY(0); }
+    50%     { transform: rotate(-2deg) translateY(-1px); }
+  }
+  @keyframes ao-lev-wake {
+    0%   { transform: rotate(-3deg) translateY(3px); opacity:0.7; }
+    22%  { transform: rotate(0deg) translateY(-4px); opacity:1; }
+    42%  { transform: translateY(-4px) scaleX(1.03); }
+    62%  { transform: translateY(-3px) translateX(-2px); }
+    82%  { transform: translateY(-2px) translateX(-1px); }
+    100% { transform: translateY(-2px) translateX(-1px); }
+  }
+  /* ── Generic characters ── */
+  @keyframes ao-char-active {
+    0%,100% { transform: translateY(-1px); }
+    40%     { transform: translateY(-2px); }
+  }
+  @keyframes ao-char-process {
+    0%,100% { opacity:1; }
+    50%     { opacity:0.72; }
+  }
+  @keyframes ao-char-idle {
     0%,100% { transform: translateY(0); }
-    40%      { transform: translateY(-3px); }
-    70%      { transform: translateY(-1px); }
+    50%     { transform: translateY(-1px); }
   }
-  @keyframes ao-pulse-char {
-    0%,100% { opacity: 1; }
-    50%     { opacity: 0.7; }
+  @keyframes ao-char-offline {
+    0%,100% { transform: rotate(-5deg) translateY(2px); }
+    50%     { transform: rotate(-3deg) translateY(1px); }
   }
-  @keyframes ao-breathe {
-    0%,100% { transform: scaleY(1); }
-    50%     { transform: scaleY(0.97); }
+  @keyframes ao-char-wake {
+    0%   { transform: rotate(-5deg) translateY(3px); }
+    40%  { transform: rotate(0deg) translateY(-3px); }
+    70%  { transform: translateY(-2px); }
+    100% { transform: translateY(0); }
   }
-  @keyframes ao-sleep {
-    0%,100% { transform: rotate(0deg) translateY(0); }
-    50%     { transform: rotate(-6deg) translateY(2px); }
-  }
+  /* ── Desk / environment ── */
   @keyframes ao-blink-cursor {
     0%,49% { opacity:1; } 50%,100% { opacity:0; }
   }
   @keyframes ao-scan {
     0%   { transform: translateY(0); opacity:0.9; }
-    100% { transform: translateY(14px); opacity:0.3; }
+    100% { transform: translateY(16px); opacity:0.2; }
   }
   @keyframes ao-zzz {
     0%   { transform: translate(0,0) scale(0.5); opacity:0; }
@@ -112,6 +147,18 @@ const OFFICE_CSS = `
     0%   { box-shadow: 0 0 0 0 transparent; }
     40%  { box-shadow: 0 0 24px 4px var(--desk-glow); }
     100% { box-shadow: 0 0 8px 2px var(--desk-glow); }
+  }
+  @keyframes ao-monitor-glow {
+    0%,100% { opacity:0.8; }
+    50%     { opacity:1; }
+  }
+  @keyframes ao-doc-float {
+    0%,100% { transform: translateY(0) rotate(-2deg); }
+    50%     { transform: translateY(-2px) rotate(-1deg); }
+  }
+  @keyframes ao-steam {
+    0%   { transform: translateY(0) scaleX(1); opacity:0.5; }
+    100% { transform: translateY(-6px) scaleX(1.3); opacity:0; }
   }
   @keyframes ao-light-flicker {
     0%,100% { opacity:0.82; }
@@ -127,10 +174,16 @@ const OFFICE_CSS = `
     0%,100% { opacity:1; }
     50%     { opacity:0.3; }
   }
-  .ao-char-active      { animation: ao-bounce 0.55s ease-in-out infinite; }
-  .ao-char-processing  { animation: ao-pulse-char 1.8s ease-in-out infinite; }
-  .ao-char-idle        { animation: ao-breathe 3.5s ease-in-out infinite; transform-origin: bottom center; }
-  .ao-char-offline     { animation: ao-sleep 3s ease-in-out infinite; transform-origin: bottom center; }
+  .ao-lev-idle    { animation: ao-lev-idle 8s ease-in-out infinite; transform-origin: bottom center; }
+  .ao-lev-active  { animation: ao-lev-active 0.7s ease-in-out infinite; transform-origin: bottom center; }
+  .ao-lev-process { animation: ao-lev-process 2.5s ease-in-out infinite; transform-origin: bottom center; }
+  .ao-lev-offline { animation: ao-lev-offline 4s ease-in-out infinite; transform-origin: bottom center; }
+  .ao-lev-wake    { animation: ao-lev-wake 1.6s ease-out forwards; transform-origin: bottom center; }
+  .ao-char-active  { animation: ao-char-active 0.6s ease-in-out infinite; transform-origin: bottom center; }
+  .ao-char-process { animation: ao-char-process 1.8s ease-in-out infinite; transform-origin: bottom center; }
+  .ao-char-idle    { animation: ao-char-idle 4s ease-in-out infinite; transform-origin: bottom center; }
+  .ao-char-offline { animation: ao-char-offline 3s ease-in-out infinite; transform-origin: bottom center; }
+  .ao-char-wake    { animation: ao-char-wake 1.4s ease-out forwards; transform-origin: bottom center; }
 
   .ao-canvas {
     position: relative;
@@ -536,40 +589,286 @@ function OfficeBg() {
   );
 }
 
-// ─── Top-down character sprite ────────────────────────────────────────────────
+// ─── Character helpers ────────────────────────────────────────────────────────
 
-function TopDownChar({ status }: { status: keyof typeof STATUS_CFG }) {
-  const cfg = STATUS_CFG[status];
-  const skin = "#e8c090";
-  const hair = "#2d1500";
-  // Pixel unit = 3px; character is 9×5 pixels
-  const P = 3;
-  const px = (col: number, row: number, w = 1, h = 1, fill = "#000") => (
-    <rect x={col * P} y={row * P} width={w * P} height={h * P} fill={fill} />
+function isLevAgent(agent: AgentData) {
+  return (
+    agent.name?.toLowerCase() === "lev" ||
+    agent.id?.toLowerCase().startsWith("lev")
   );
+}
+function isTeamContext(agent: AgentData) {
+  return (
+    agent.id?.toLowerCase().includes("team") ||
+    agent.id?.toLowerCase().includes("telegram") ||
+    agent.role?.toLowerCase().includes("team")
+  );
+}
+
+// ─── Lev's pixel art character (3/4 view, P=3, 11×10 grid = 33×30px) ─────────
+
+const LEV_HAIR   = "#3a1800";
+const LEV_HAIR_H = "#6b3a10";
+const LEV_HAIR_D = "#260e00";
+const LEV_SKIN   = "#c8906a";
+const LEV_SKIN_D = "#a87050";
+const LEV_SKIN_L = "#daa880";
+const LEV_EYE    = "#1e0800";
+const LEV_NAVY   = "#1e2d3d";
+const LEV_NAVY_L = "#2e4050";
+const LEV_NAVY_D = "#141e28";
+const LEV_AMBER  = "#d4822a";
+const LEV_TEAM_A = "#ff6c00";
+
+function LevCharacter({
+  animClass,
+  isTeam,
+}: {
+  animClass: string;
+  isTeam: boolean;
+}) {
+  const P = 3;
+  const W = 11 * P, H = 10 * P;
+  const r = (x: number, y: number, w: number, h: number, fill: string) => (
+    <rect x={x * P} y={y * P} width={w * P} height={h * P} fill={fill} />
+  );
+  const A = isTeam ? LEV_TEAM_A : LEV_AMBER;
 
   return (
     <svg
-      width={9 * P} height={7 * P}
-      viewBox={`0 0 ${9 * P} ${7 * P}`}
+      width={W} height={H}
+      viewBox={`0 0 ${W} ${H}`}
+      shapeRendering="crispEdges"
+      style={{ imageRendering: "pixelated", display: "block", overflow: "visible" }}
+      className={animClass}
+    >
+      {/* ── Hair ── */}
+      {r(2, 0, 6, 1, LEV_HAIR_D)}
+      {r(1, 1, 9, 2, LEV_HAIR)}
+      {r(3, 1, 2, 1, LEV_HAIR_H)}
+      {r(6, 1, 2, 1, LEV_HAIR_H)}
+      {r(1, 2, 1, 1, LEV_HAIR_D)}
+      {r(9, 2, 1, 1, LEV_HAIR_D)}
+
+      {/* ── Face ── */}
+      {r(2, 3, 7, 1, LEV_SKIN_D)}   {/* forehead shadow */}
+      {r(2, 4, 7, 3, LEV_SKIN)}     {/* face body */}
+      {r(2, 3, 7, 1, LEV_SKIN)}     {/* forehead */}
+      {r(3, 5, 5, 1, LEV_SKIN_L)}   {/* cheeks highlight */}
+
+      {/* Eyes */}
+      {r(3, 4, 2, 1, LEV_EYE)}
+      {r(6, 4, 2, 1, LEV_EYE)}
+      <rect x={3 * P + 1} y={4 * P + 1} width={1} height={1} fill="#fff" />
+      <rect x={6 * P + 1} y={4 * P + 1} width={1} height={1} fill="#fff" />
+
+      {/* Mouth — subtle smirk */}
+      {r(4, 6, 1, 1, LEV_SKIN_D)}
+      {r(5, 6, 2, 1, LEV_SKIN_D)}
+
+      {/* Chin */}
+      {r(3, 7, 5, 1, LEV_SKIN_D)}
+
+      {/* ── Neck ── */}
+      {r(4, 8, 3, 1, LEV_SKIN)}
+      {/* Amber collar pips */}
+      {r(3, 8, 1, 1, A)}
+      {r(7, 8, 1, 1, A)}
+
+      {/* ── Shirt / shoulders ── */}
+      {r(1, 9, 9, 1, LEV_NAVY_L)}   {/* shoulder highlight */}
+      {r(1, 9, 1, 1, LEV_NAVY_D)}   {/* left shadow */}
+      {r(9, 9, 1, 1, LEV_NAVY_D)}   {/* right shadow */}
+
+      {/* Amber badge — right chest */}
+      <rect x={7 * P} y={9 * P + 1} width={P} height={P - 1} fill={A} />
+
+      {/* Team indicator dot — left shoulder */}
+      {isTeam && (
+        <rect x={2 * P} y={9 * P + 1} width={3} height={3} fill={LEV_TEAM_A} />
+      )}
+    </svg>
+  );
+}
+
+// ─── Generic agent character (P=3, 11×8) ─────────────────────────────────────
+
+function GenericCharacter({
+  status,
+  animClass,
+}: {
+  status: keyof typeof STATUS_CFG;
+  animClass: string;
+}) {
+  const cfg = STATUS_CFG[status];
+  const P = 3;
+  const W = 11 * P, H = 8 * P;
+  const r = (x: number, y: number, w: number, h: number, fill: string) => (
+    <rect x={x * P} y={y * P} width={w * P} height={h * P} fill={fill} />
+  );
+  const SKIN = "#c8906a", SKIN_D = "#a87050";
+  const EYE  = "#1e0800";
+  const HAIR = "#2a1400";
+
+  return (
+    <svg
+      width={W} height={H}
+      viewBox={`0 0 ${W} ${H}`}
       shapeRendering="crispEdges"
       style={{ imageRendering: "pixelated", display: "block" }}
-      className={`ao-char-${status}`}
+      className={animClass}
     >
-      {/* Head (top-down: slightly oval) */}
-      {px(3, 0, 3, 1, hair)}
-      {px(2, 1, 5, 3, skin)}
-      {/* Eyes */}
-      {px(3, 1, 1, 1, "#1a0800")}
-      {px(5, 1, 1, 1, "#1a0800")}
-      {/* Shoulders */}
-      {px(1, 3, 7, 2, cfg.bodyFill)}
-      {/* Collar highlight */}
-      {px(3, 3, 3, 1, cfg.headFill)}
-      {/* Chair back visible at bottom */}
-      {px(0, 5, 9, 2, "#1a1e30")}
-      {px(1, 5, 7, 2, "#22263e")}
+      {r(2, 0, 7, 2, HAIR)}
+      {r(2, 2, 7, 3, SKIN)}
+      {r(3, 3, 1, 1, EYE)}
+      {r(7, 3, 1, 1, EYE)}
+      <rect x={3 * P + 1} y={3 * P + 1} width={1} height={1} fill="#fff" />
+      <rect x={7 * P + 1} y={3 * P + 1} width={1} height={1} fill="#fff" />
+      {r(3, 5, 5, 1, SKIN_D)}
+      {r(4, 6, 3, 1, SKIN)}
+      {r(1, 7, 9, 1, cfg.bodyFill)}
+      {r(4, 7, 3, 1, cfg.headFill)}
     </svg>
+  );
+}
+
+// ─── Character dispatcher ─────────────────────────────────────────────────────
+
+function AgentCharacter({
+  agent,
+  status,
+  waking,
+}: {
+  agent: AgentData;
+  status: keyof typeof STATUS_CFG;
+  waking: boolean;
+}) {
+  if (isLevAgent(agent)) {
+    let cls = "ao-lev-idle";
+    if (waking)                       cls = "ao-lev-wake";
+    else if (status === "active")      cls = "ao-lev-active";
+    else if (status === "processing")  cls = "ao-lev-process";
+    else if (status === "offline")     cls = "ao-lev-offline";
+    return <LevCharacter animClass={cls} isTeam={isTeamContext(agent)} />;
+  }
+  let cls = "ao-char-idle";
+  if (waking)                       cls = "ao-char-wake";
+  else if (status === "active")      cls = "ao-char-active";
+  else if (status === "processing")  cls = "ao-char-process";
+  else if (status === "offline")     cls = "ao-char-offline";
+  return <GenericCharacter status={status} animClass={cls} />;
+}
+
+// ─── Document prop (Lev reviewing docs when offline) ─────────────────────────
+
+function DocProp() {
+  return (
+    <div style={{
+      position: "absolute",
+      bottom: 2,
+      right: 4,
+      animation: "ao-doc-float 3s ease-in-out infinite",
+      pointerEvents: "none",
+    }}>
+      <svg width={16} height={20} viewBox="0 0 16 20" shapeRendering="crispEdges"
+        style={{ imageRendering: "pixelated", display: "block" }}>
+        <rect x={1} y={1} width={15} height={19} fill="#101018" opacity="0.5" />
+        <rect x={0} y={0} width={14} height={19} fill="#e4e8f0" />
+        <rect x={11} y={0} width={3} height={3} fill="#c0c4d4" />
+        <rect x={11} y={0} width={1} height={3} fill="#e4e8f0" />
+        <rect x={11} y={0} width={3} height={1} fill="#e4e8f0" />
+        {[3, 6, 9, 12, 15].map((y, i) => (
+          <rect key={i} x={2} y={y} width={i === 2 ? 8 : 10} height={1} fill="#8888a0" opacity="0.8" />
+        ))}
+        <rect x={2} y={9} width={10} height={2} fill={LEV_AMBER} opacity="0.22" />
+      </svg>
+    </div>
+  );
+}
+
+// ─── Enhanced monitor ─────────────────────────────────────────────────────────
+
+function AgentMonitor({
+  status,
+  lev,
+}: {
+  status: keyof typeof STATUS_CFG;
+  lev: boolean;
+}) {
+  const cfg = STATUS_CFG[status];
+  const glowColor = lev
+    ? status === "active"     ? "rgba(80,140,255,0.40)"
+    : status === "processing" ? "rgba(212,130,42,0.32)"
+    : status === "idle"       ? "rgba(56,139,253,0.14)"
+    :                           "transparent"
+    : cfg.glowColor;
+
+  return (
+    <div style={{ position: "relative" }}>
+      {/* Screen bloom behind monitor */}
+      {status !== "offline" && (
+        <div style={{
+          position: "absolute", inset: -5,
+          background: `radial-gradient(ellipse at 50% 50%, ${glowColor} 0%, transparent 70%)`,
+          pointerEvents: "none",
+          animation: status === "active" ? "ao-monitor-glow 1.5s ease-in-out infinite" : "none",
+        }} />
+      )}
+      <div style={{
+        width: 44, height: 28,
+        background: "#161b22",
+        outline: `2px solid ${status !== "offline" ? cfg.border : "#21262d"}`,
+        position: "relative",
+        overflow: "hidden",
+      }}>
+        <div style={{
+          margin: 2,
+          background: cfg.screenBg,
+          height: "calc(100% - 4px)",
+          position: "relative",
+          overflow: "hidden",
+        }}>
+          {status === "active" && (
+            <>
+              {[2, 6, 10, 14, 18].map((top, i) => (
+                <div key={i} style={{
+                  position: "absolute", top, left: 2,
+                  width: `${42 + i * 7}%`, height: 2,
+                  background: cfg.screenLine, opacity: 0.8 - i * 0.12,
+                }} />
+              ))}
+              <div style={{
+                position: "absolute", bottom: 2, left: 2,
+                width: 2, height: 3,
+                background: cfg.screenLine,
+                animation: "ao-blink-cursor 0.7s step-end infinite",
+              }} />
+            </>
+          )}
+          {status === "processing" && (
+            <>
+              <div style={{
+                position: "absolute", top: 0, left: 0, right: 0, height: 3,
+                background: cfg.screenLine, opacity: 0.7,
+                animation: "ao-scan 1.0s linear infinite",
+              }} />
+              {lev && (
+                <div style={{
+                  position: "absolute", bottom: 2, left: 2, right: 2, height: 2,
+                  background: LEV_AMBER, opacity: 0.35,
+                }} />
+              )}
+            </>
+          )}
+          {status === "idle" && (
+            <div style={{
+              position: "absolute", inset: 0,
+              background: cfg.screenLine, opacity: 0.04,
+            }} />
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -620,7 +919,7 @@ function TopDownMonitor({ status }: { status: keyof typeof STATUS_CFG }) {
   );
 }
 
-// ─── Agent Desk (top-down view) ───────────────────────────────────────────────
+// ─── Agent Desk ───────────────────────────────────────────────────────────────
 
 function AgentDesk({
   agent, x, y, prevStatus,
@@ -629,140 +928,206 @@ function AgentDesk({
 }) {
   const status = (agent.status in STATUS_CFG ? agent.status : "idle") as keyof typeof STATUS_CFG;
   const cfg = STATUS_CFG[status];
-  const justCameOnline = prevStatus === "offline" && status !== "offline";
+  const lev = isLevAgent(agent);
+  const team = lev && isTeamContext(agent);
+
+  const [waking, setWaking] = useState(false);
+  useEffect(() => {
+    if (prevStatus === "offline" && status !== "offline") {
+      setWaking(true);
+      const t = setTimeout(() => setWaking(false), 1700);
+      return () => clearTimeout(t);
+    }
+  }, [status, prevStatus]);
 
   const showBubble = status === "active" || status === "processing";
-  const taskText = agent.task || (status === "idle" ? "Waiting..." : status === "offline" ? "—" : "Working...");
+  const taskText = agent.task
+    || (status === "idle"    ? "Waiting for work…"
+      : status === "offline" ? (lev ? "Reviewing docs…" : "—")
+      : "Working…");
 
   return (
     <div
       className="ao-desk"
       style={{
-        left: x,
-        top: y,
+        left: x, top: y,
         "--desk-glow": cfg.glowColor,
         boxShadow: status !== "offline" ? `0 0 10px 2px ${cfg.glowColor}` : "none",
-        animation: justCameOnline ? "ao-desk-on 1.2s ease-out forwards" : "none",
+        animation: waking && !prevStatus ? "ao-desk-on 1.2s ease-out forwards" : "none",
       } as React.CSSProperties}
     >
       {/* Speech bubble */}
       {showBubble && (
         <div className="ao-speech" style={{ outlineColor: cfg.border }}>
           {taskText}
-          <div className="ao-speech-tail" style={{
-            borderTopColor: cfg.border,
-          }}/>
+          <div className="ao-speech-tail" style={{ borderTopColor: cfg.border }} />
         </div>
       )}
 
-      {/* Desk surface */}
+      {/* ── Desk surface ── */}
       <div style={{
-        width: "100%",
-        height: DESK_H - 18,
+        width: "100%", height: DESK_H - 18,
         background: "#3d2b1f",
-        outline: `2px solid #5a3d2a`,
+        outline: "2px solid #5a3d2a",
         position: "relative",
         padding: "5px 6px",
         boxSizing: "border-box",
+        overflow: "hidden",
       }}>
-        {/* Desk lamp glow (soft radial) */}
+        {/* Monitor screen bloom */}
         {status !== "offline" && (
           <div style={{
-            position: "absolute", inset: 0,
-            background: `radial-gradient(ellipse at 50% 0%, ${cfg.glowColor} 0%, transparent 70%)`,
+            position: "absolute", top: 0, left: 0, right: 0, height: "55%",
+            background: `radial-gradient(ellipse at 30% 0%, ${cfg.glowColor} 0%, transparent 75%)`,
             pointerEvents: "none",
-          }}/>
+          }} />
         )}
 
-        {/* Monitor + accessories row */}
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 5 }}>
-          <TopDownMonitor status={status}/>
-          {/* Coffee cup */}
-          <div style={{
-            width: 8, height: 9, marginTop: 8,
-            background: "#2a1a0a",
-            outline: "1px solid #4a3020",
-            position: "relative",
-          }}>
+        {/* ── Top row: monitor + coffee + files ── */}
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 5, position: "relative" }}>
+          <AgentMonitor status={status} lev={lev} />
+
+          {/* Coffee cup — always full for Lev */}
+          <div style={{ marginTop: 10, position: "relative" }}>
             <div style={{
-              position: "absolute", top: 1, left: 1, right: 1, height: 3,
-              background: status !== "offline" ? "#8b4513" : "#2a1a0a",
-              opacity: 0.8,
-            }}/>
+              width: 9, height: 10,
+              background: "#2a1a0a",
+              outline: "1px solid #4a3020",
+              position: "relative",
+            }}>
+              {/* Handle */}
+              <div style={{
+                position: "absolute", right: -4, top: 2,
+                width: 4, height: 5,
+                borderRight: "2px solid #4a3020",
+                borderTop: "1px solid #4a3020",
+                borderBottom: "1px solid #4a3020",
+              }} />
+              {/* Liquid */}
+              <div style={{
+                position: "absolute", top: 2, left: 1, right: 1, bottom: 1,
+                background: status !== "offline" ? "#6b2f0a" : "#1a0a00",
+                opacity: 0.9,
+              }} />
+            </div>
+            {/* Steam wisps — only when actively working */}
+            {(status === "active" || status === "processing") && (
+              <div style={{ position: "absolute", top: -7, left: 1, display: "flex", gap: 2 }}>
+                {[0, 1].map(i => (
+                  <div key={i} style={{
+                    width: 2, height: 5,
+                    background: "#8a7060",
+                    opacity: 0.5,
+                    borderRadius: 1,
+                    animation: `ao-steam 1.8s ease-out ${i * 0.5}s infinite`,
+                  }} />
+                ))}
+              </div>
+            )}
           </div>
-          {/* Stack of papers / sticky note */}
-          <div style={{ marginTop: 6 }}>
-            <div style={{ width: 14, height: 12, background: "#ffe090", outline: "1px solid #ccb060", marginBottom: 1 }}/>
-            <div style={{ width: 14, height: 8, background: "#e8e4d0", outline: "1px solid #c0bc9c" }}/>
-          </div>
-        </div>
 
-        {/* Keyboard */}
-        <div style={{
-          marginTop: 3, width: 44, height: 6,
-          background: "#222636",
-          outline: "1px solid #30364a",
-          position: "relative",
-        }}>
-          {[0, 1, 2].map(i => (
-            <div key={i} style={{
-              position: "absolute", top: 1, left: 3 + i * 13, width: 11, height: 4,
-              background: "#282c40", outline: "1px solid #383e56",
-            }}/>
-          ))}
-        </div>
-
-        {/* Character (top-down, sits below keyboard) */}
-        <div style={{ marginTop: 3, position: "relative", display: "inline-block" }}>
-          <TopDownChar status={status}/>
-          {/* ZZZ for sleeping */}
-          {status === "offline" && (
-            <div style={{ position: "absolute", top: -4, right: -10 }}>
-              {["Z", "Z", "Z"].map((z, i) => (
-                <span key={i} style={{
-                  position: "absolute",
-                  fontSize: 8 + i * 2,
-                  fontWeight: 700,
-                  color: "#6e7681",
-                  fontFamily: "'Courier New', monospace",
-                  animation: `ao-zzz ${2.2}s ease-out ${i * 0.7}s infinite`,
-                  left: i * 4,
-                  top: 0,
-                }}>{z}</span>
+          {/* Files stack — always on Lev's desk, optional for others */}
+          {(lev || status !== "offline") && (
+            <div style={{ marginTop: 6, position: "relative", width: 20, height: 20 }}>
+              {/* Three stacked sheets */}
+              {[
+                { top: 4, left: 2, bg: "#dce0f0", border: "#b0b4c8" },
+                { top: 2, left: 1, bg: "#e8e4d4", border: "#c0bc9c" },
+                { top: 0, left: 0, bg: "#efe8d0", border: "#ccb870" },
+              ].map((s, i) => (
+                <div key={i} style={{
+                  position: "absolute", top: s.top, left: s.left,
+                  width: 18, height: 14,
+                  background: s.bg, outline: `1px solid ${s.border}`,
+                }}>
+                  {i === 0 && (
+                    <>
+                      <div style={{ position: "absolute", top: 2, left: 2, right: 2, height: 1, background: "#a09880" }} />
+                      <div style={{ position: "absolute", top: 5, left: 2, right: 4, height: 1, background: "#a09880" }} />
+                      <div style={{ position: "absolute", top: 8, left: 2, right: 1, height: 1, background: "#a09880" }} />
+                    </>
+                  )}
+                </div>
               ))}
             </div>
           )}
         </div>
+
+        {/* Keyboard */}
+        <div style={{
+          marginTop: 3, width: 46, height: 6,
+          background: "#1e2230",
+          outline: "1px solid #2e3448",
+          position: "relative",
+        }}>
+          {[0, 1, 2].map(i => (
+            <div key={i} style={{
+              position: "absolute", top: 1, left: 3 + i * 14, width: 12, height: 4,
+              background: status === "active" ? "#252840" : "#222636",
+              outline: "1px solid #323650",
+            }} />
+          ))}
+        </div>
+
+        {/* ── Character ── */}
+        <div style={{ marginTop: 3, position: "relative", display: "inline-block" }}>
+          <AgentCharacter agent={agent} status={status} waking={waking} />
+
+          {/* Offline indicators */}
+          {status === "offline" && (
+            lev
+              ? <DocProp />  /* Lev reviews docs, doesn't sleep */
+              : (
+                <div style={{ position: "absolute", top: -4, right: -12 }}>
+                  {["Z", "Z", "Z"].map((z, i) => (
+                    <span key={i} style={{
+                      position: "absolute",
+                      fontSize: 7 + i * 2, fontWeight: 700,
+                      color: "#6e7681",
+                      fontFamily: "'Courier New', monospace",
+                      animation: `ao-zzz 2.2s ease-out ${i * 0.75}s infinite`,
+                      left: i * 5, top: 0,
+                    }}>{z}</span>
+                  ))}
+                </div>
+              )
+          )}
+        </div>
       </div>
 
-      {/* Nameplate bar */}
+      {/* ── Nameplate ── */}
       <div style={{
         height: 18,
-        background: status !== "offline" ? cfg.border : "#21262d",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
+        background: status !== "offline" ? cfg.border : "#1a1e2a",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "0 6px",
-        outline: `2px solid ${cfg.border}`,
+        outline: `2px solid ${status !== "offline" ? cfg.border : "#21262d"}`,
         outlineOffset: -2,
+        position: "relative",
       }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <span style={{
+            fontFamily: "'Courier New', Courier, monospace",
+            fontSize: 9, fontWeight: 700, letterSpacing: 1,
+            color: status !== "offline" ? "#0d1117" : "#484f58",
+            textTransform: "uppercase",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            maxWidth: 78,
+          }}>{agent.name}</span>
+          {/* Team badge */}
+          {team && (
+            <span style={{
+              fontSize: 6, fontWeight: 700, letterSpacing: 1,
+              background: LEV_TEAM_A, color: "#0d1117",
+              padding: "0 3px", lineHeight: "9px",
+              textTransform: "uppercase",
+            }}>TEAM</span>
+          )}
+        </div>
         <span style={{
           fontFamily: "'Courier New', Courier, monospace",
-          fontSize: 9,
-          fontWeight: 700,
-          letterSpacing: 1,
-          color: status !== "offline" ? "#0d1117" : "#6e7681",
-          textTransform: "uppercase",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-          maxWidth: 90,
-        }}>{agent.name}</span>
-        <span style={{
-          fontFamily: "'Courier New', Courier, monospace",
-          fontSize: 7,
-          letterSpacing: 1,
-          color: status !== "offline" ? "rgba(0,0,0,0.6)" : "#484f58",
+          fontSize: 7, letterSpacing: 1,
+          color: status !== "offline" ? "rgba(0,0,0,0.55)" : "#3a3f4a",
           textTransform: "uppercase",
         }}>{cfg.label}</span>
       </div>
@@ -770,54 +1135,67 @@ function AgentDesk({
   );
 }
 
-// ─── Vacant Desk ─────────────────────────────────────────────────────────────
+// ─── Vacant Desk — clean, waiting, chair tucked ───────────────────────────────
 
 function VacantDesk({ x, y }: { x: number; y: number }) {
   return (
-    <div className="ao-desk" style={{ left: x, top: y, opacity: 0.35 }}>
+    <div className="ao-desk" style={{ left: x, top: y }}>
       <div style={{
-        width: "100%",
-        height: DESK_H - 18,
-        background: "#1e1a14",
-        outline: "2px solid #2a2418",
+        width: "100%", height: DESK_H - 18,
+        background: "#221c14",
+        outline: "2px solid #2e2418",
         position: "relative",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        padding: "5px 6px",
+        boxSizing: "border-box",
+        opacity: 0.5,
       }}>
-        {/* Dusty monitor outline */}
+        {/* Monitor — off, screen dark */}
         <div style={{
-          width: 40, height: 26,
-          background: "#111318",
+          width: 44, height: 28,
+          background: "#141820",
           outline: "2px solid #1e2228",
-          position: "absolute",
-          top: 5, left: 6,
-        }}/>
-        {/* Chair silhouette */}
+          position: "relative",
+        }}>
+          <div style={{
+            margin: 2, background: "#0a0c10",
+            height: "calc(100% - 4px)",
+          }} />
+        </div>
+
+        {/* Clean keyboard — untouched */}
         <div style={{
-          width: 27, height: 21,
-          background: "#161412",
-          outline: "1px solid #2a2420",
-          position: "absolute",
-          bottom: 6, left: "50%",
-          transform: "translateX(-50%)",
-        }}/>
+          marginTop: 4, width: 46, height: 6,
+          background: "#1a1c28",
+          outline: "1px solid #242636",
+        }} />
+
+        {/* Chair back visible — tucked neatly */}
+        <div style={{
+          marginTop: 6,
+          width: 33, height: 8,
+          background: "#181c30",
+          outline: "1px solid #22263e",
+        }}>
+          <div style={{
+            margin: "2px 4px",
+            height: 4,
+            background: "#1e2238",
+          }} />
+        </div>
       </div>
+
+      {/* Nameplate */}
       <div style={{
         height: 18,
         background: "#161410",
-        outline: "2px solid #1e1a14",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        outline: "2px solid #201c14",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        opacity: 0.5,
       }}>
         <span style={{
           fontFamily: "'Courier New', Courier, monospace",
-          fontSize: 8,
-          fontWeight: 700,
-          letterSpacing: 3,
-          color: "#3a3630",
-          textTransform: "uppercase",
+          fontSize: 8, fontWeight: 700, letterSpacing: 3,
+          color: "#2e2c28", textTransform: "uppercase",
         }}>VACANT</span>
       </div>
     </div>
