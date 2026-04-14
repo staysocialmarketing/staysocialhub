@@ -28,6 +28,7 @@ import {
   Zap,
   FileText,
   BookOpen,
+  Monitor,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -86,6 +87,7 @@ const manageSection = [
 ];
 
 const adminSection = [
+  { title: "Agent Office", url: "/agent-office", icon: Monitor },
   { title: "Users", url: "/admin/users", icon: Users },
   { title: "Meeting Notes", url: "/admin/meeting-notes", icon: FileText },
   { title: "Automations", url: "/admin/automations", icon: Zap },
