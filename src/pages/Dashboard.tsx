@@ -1,5 +1,6 @@
 
 import { useState, useRef, useCallback, useMemo } from "react";
+import { SSAdminDashboard } from "@/components/dashboard/SSAdminDashboard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientFilter } from "@/contexts/ClientFilterContext";
 import { Button } from "@/components/ui/button";
@@ -616,6 +617,9 @@ function ClientDashboard() {
         <StatCard label="Sent Campaigns" value={sentCampaigns} icon={<CheckCircle2 className="h-4 w-4" />} onClick={() => navigate("/approvals")} />
       </div>
 
+      {/* Recently Published */}
+      <RecentlyPublishedSection clientId={profile?.client_id} />
+
       {/* Recent Activity */}
       <RecentActivitySection clientId={profile?.client_id} />
 
@@ -685,6 +689,53 @@ function ClientDashboard() {
   );
 }
 
+// ─── Recently Published Section ─────────────────────────────────────────────
+
+function RecentlyPublishedSection({ clientId }: { clientId: string | null | undefined }) {
+  const navigate = useNavigate();
+
+  const { data: posts = [] } = useQuery({
+    queryKey: ["client-recently-published", clientId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("posts")
+        .select("id, title, platform, created_at")
+        .eq("client_id", clientId!)
+        .in("status_column", ["published", "sent"])
+        .order("created_at", { ascending: false })
+        .limit(5);
+      return data || [];
+    },
+    enabled: !!clientId,
+  });
+
+  if (!clientId || posts.length === 0) return null;
+
+  return (
+    <section>
+      <SectionHeader title="Recently Published" icon={<CheckCircle2 className="h-5 w-5" />} />
+      <div className="card-elevated divide-y divide-border/40">
+        {posts.map((post: any) => (
+          <div
+            key={post.id}
+            className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 cursor-pointer transition-colors"
+            onClick={() => navigate(`/approvals`)}
+          >
+            <div className="flex items-center gap-3">
+              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+              <span className="text-sm font-medium text-foreground">{post.title}</span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {post.platform && <Badge variant="secondary" className="text-[10px] hidden sm:inline-flex">{post.platform.split(",")[0].trim()}</Badge>}
+              <span className="text-[11px] text-muted-foreground">{format(new Date(post.created_at), "MMM d")}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 // ─── Recent Activity Section ─────────────────────────────────────────────────
 
 function RecentActivitySection({ clientId }: { clientId: string | null | undefined }) {
@@ -729,7 +780,9 @@ function RecentActivitySection({ clientId }: { clientId: string | null | undefin
 // ─── Main Dashboard ──────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { isSSRole, loading } = useAuth();
+  const { isSSRole, isSSAdmin, loading } = useAuth();
   if (loading) return <div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
-  return isSSRole ? <WorkQueueDashboard /> : <ClientDashboard />;
+  if (isSSAdmin) return <SSAdminDashboard />;
+  if (isSSRole)  return <WorkQueueDashboard />;
+  return <ClientDashboard />;
 }

@@ -1,0 +1,211 @@
+/**
+ * agent-bridge — Supabase Edge Function
+ *
+ * Internal API for the NanoClaw AI agent (Lev) to interact with the HUB.
+ * All requests must include:  x-api-key: <AGENT_BRIDGE_API_KEY>
+ *
+ * Routes (path suffix after /agent-bridge):
+ *   POST /create-post          — create a new post for a client
+ *   POST /update-post-status   — move a post to a new status
+ *   POST /tag-user             — assign or set reviewer on a post
+ *   POST /read-posts           — fetch posts for a client (with optional status filter)
+ */
+
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+type PostStatus =
+  | "new_requests" | "idea" | "in_progress" | "writing" | "design"
+  | "internal_review" | "corey_review" | "client_approval" | "request_changes"
+  | "approved" | "scheduled" | "published" | "ready_to_schedule"
+  | "ready_to_send" | "sent" | "complete" | "ready_for_client_batch"
+  | "ai_draft";
+
+const VALID_STATUSES = new Set<PostStatus>([
+  "new_requests", "idea", "in_progress", "writing", "design",
+  "internal_review", "corey_review", "client_approval", "request_changes",
+  "approved", "scheduled", "published", "ready_to_schedule",
+  "ready_to_send", "sent", "complete", "ready_for_client_batch", "ai_draft",
+]);
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+
+const err = (message: string, status = 400) => json({ success: false, error: message }, status);
+
+// ---------------------------------------------------------------------------
+// Main handler
+// ---------------------------------------------------------------------------
+
+Deno.serve(async (req: Request) => {
+  // OPTIONS pre-flight (Supabase Studio / curl testing)
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "content-type, x-api-key",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+      },
+    });
+  }
+
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  const expectedKey = Deno.env.get("AGENT_BRIDGE_API_KEY");
+  if (!expectedKey) {
+    return err("Server misconfiguration: AGENT_BRIDGE_API_KEY not set", 500);
+  }
+
+  const providedKey = req.headers.get("x-api-key");
+  if (!providedKey || providedKey !== expectedKey) {
+    return err("Unauthorized", 401);
+  }
+
+  // ── Route ─────────────────────────────────────────────────────────────────
+  const url = new URL(req.url);
+  // The path will be something like /agent-bridge/create-post
+  const route = url.pathname.split("/").filter(Boolean).at(-1);
+
+  if (req.method !== "POST") {
+    return err("Method not allowed — use POST", 405);
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return err("Invalid JSON body");
+  }
+
+  // ── Supabase admin client (bypasses RLS — Lev is a trusted agent) ─────────
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const db = createClient(supabaseUrl, serviceKey);
+
+  // ── Dispatch ──────────────────────────────────────────────────────────────
+  switch (route) {
+
+    // ────────────────────────────────────────────────────────────────────────
+    case "create-post": {
+      const { client_id, title, platform, caption, hashtags, status } = body as {
+        client_id?: string;
+        title?: string;
+        platform?: string;
+        caption?: string;
+        hashtags?: string;
+        status?: PostStatus;
+      };
+
+      if (!client_id) return err("client_id is required");
+      if (!title)     return err("title is required");
+
+      const postStatus: PostStatus = (status && VALID_STATUSES.has(status)) ? status : "ai_draft";
+
+      const { data, error } = await db
+        .from("posts")
+        .insert({
+          client_id,
+          title,
+          platform:      platform  ?? null,
+          caption:       caption   ?? null,
+          hashtags:      hashtags  ?? null,
+          status_column: postStatus,
+        })
+        .select("id, title, status_column, created_at")
+        .single();
+
+      if (error) return err(error.message, 500);
+      return json({ success: true, post: data });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    case "update-post-status": {
+      const { post_id, status } = body as { post_id?: string; status?: string };
+
+      if (!post_id) return err("post_id is required");
+      if (!status)  return err("status is required");
+      if (!VALID_STATUSES.has(status as PostStatus)) {
+        return err(`Invalid status "${status}". Valid values: ${[...VALID_STATUSES].join(", ")}`);
+      }
+
+      const { data, error } = await db
+        .from("posts")
+        .update({ status_column: status as PostStatus })
+        .eq("id", post_id)
+        .select("id, title, status_column")
+        .single();
+
+      if (error) return err(error.message, 500);
+      if (!data)  return err("Post not found", 404);
+      return json({ success: true, post: data });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    case "tag-user": {
+      const { post_id, user_id, role } = body as {
+        post_id?: string;
+        user_id?: string;
+        role?: "assignee" | "reviewer";
+      };
+
+      if (!post_id) return err("post_id is required");
+      if (!user_id) return err("user_id is required");
+
+      // role defaults to "assignee"; "reviewer" sets the reviewer_user_id column
+      const column = role === "reviewer" ? "reviewer_user_id" : "assigned_to_user_id";
+
+      const { data, error } = await db
+        .from("posts")
+        .update({ [column]: user_id })
+        .eq("id", post_id)
+        .select("id, title, assigned_to_user_id, reviewer_user_id")
+        .single();
+
+      if (error) return err(error.message, 500);
+      if (!data)  return err("Post not found", 404);
+      return json({ success: true, post: data });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    case "read-posts": {
+      const { client_id, status, limit } = body as {
+        client_id?: string;
+        status?: string;
+        limit?: number;
+      };
+
+      if (!client_id) return err("client_id is required");
+
+      let query = db
+        .from("posts")
+        .select("id, title, platform, caption, status_column, assigned_to_user_id, reviewer_user_id, scheduled_at, created_at")
+        .eq("client_id", client_id)
+        .order("created_at", { ascending: false });
+
+      if (status && VALID_STATUSES.has(status as PostStatus)) {
+        query = query.eq("status_column", status);
+      }
+
+      if (typeof limit === "number" && limit > 0) {
+        query = query.limit(Math.min(limit, 100));
+      }
+
+      const { data, error } = await query;
+      if (error) return err(error.message, 500);
+      return json({ success: true, posts: data, count: data?.length ?? 0 });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    default:
+      return err(`Unknown route "/${route}". Valid routes: /create-post, /update-post-status, /tag-user, /read-posts`, 404);
+  }
+});

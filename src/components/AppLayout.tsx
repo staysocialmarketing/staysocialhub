@@ -5,6 +5,7 @@ import { BottomTabBar } from "@/components/BottomTabBar";
 import { Outlet, useNavigate } from "react-router-dom";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useAuth } from "@/contexts/AuthContext";
+import { ViewAsDropdown } from "@/components/ViewAsDropdown";
 import { X } from "lucide-react";
 import { GlobalCaptureButton } from "@/components/GlobalCaptureButton";
 import { CommandPalette } from "@/components/CommandPalette";
@@ -95,6 +96,7 @@ export function AppLayout() {
                 </button>
               )}
             </div>
+            {profile && <ViewAsDropdown />}
             {profile && <CommandPalette />}
             {profile && <NotificationBell />}
           </header>
