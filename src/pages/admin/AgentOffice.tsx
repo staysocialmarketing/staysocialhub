@@ -136,19 +136,16 @@ const OFFICE_CSS = `
     position: relative;
     width: ${OW}px;
     height: ${OH}px;
-    flex-shrink: 0;
     font-family: 'Courier New', Courier, monospace;
     image-rendering: pixelated;
+    transform-origin: top left;
   }
-  .ao-scroll-wrap {
-    width: 100%;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding-bottom: 4px;
+  .ao-viewport {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: #080a14;
   }
-  .ao-scroll-wrap::-webkit-scrollbar { height: 6px; }
-  .ao-scroll-wrap::-webkit-scrollbar-track { background: #0d1117; }
-  .ao-scroll-wrap::-webkit-scrollbar-thumb { background: #30363d; }
 
   .ao-desk {
     position: absolute;
@@ -935,6 +932,25 @@ export default function AgentOffice() {
     agents: [], connected: false, lastUpdated: null, error: null,
   });
   const prevAgentsRef = useRef<AgentData[]>([]);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [canvasTransform, setCanvasTransform] = useState({ scale: 1, x: 0, y: 0 });
+
+  // Scale canvas to fill available viewport, maintaining aspect ratio
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const compute = () => {
+      const { width, height } = el.getBoundingClientRect();
+      const scale = Math.min(width / OW, height / OH);
+      const x = (width - OW * scale) / 2;
+      const y = (height - OH * scale) / 2;
+      setCanvasTransform({ scale, x, y });
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -1023,36 +1039,40 @@ export default function AgentOffice() {
         </div>
       </div>
 
-      {/* Scrollable office canvas */}
-      <div style={{ flex: 1, overflow: "auto", background: "#080a14" }}>
-        <div className="ao-scroll-wrap">
-          <div className="ao-canvas">
-            {/* Static room background */}
-            <OfficeBg />
+      {/* Full-screen scaled canvas */}
+      <div ref={viewportRef} className="ao-viewport">
+        <div
+          className="ao-canvas"
+          style={{
+            position: "absolute",
+            transform: `translate(${canvasTransform.x}px, ${canvasTransform.y}px) scale(${canvasTransform.scale})`,
+          }}
+        >
+          {/* Static room background */}
+          <OfficeBg />
 
-            {/* Agent desks (absolutely positioned over SVG) */}
-            {agentDesks.map((agent, i) => {
-              const slot = DESK_SLOTS[i];
-              const prevAgent = prevAgentsRef.current.find(a => a.id === agent.id);
-              return (
-                <AgentDesk
-                  key={agent.id}
-                  agent={agent}
-                  x={slot.x}
-                  y={slot.y}
-                  prevStatus={prevAgent?.status}
-                />
-              );
-            })}
+          {/* Agent desks (absolutely positioned over SVG) */}
+          {agentDesks.map((agent, i) => {
+            const slot = DESK_SLOTS[i];
+            const prevAgent = prevAgentsRef.current.find(a => a.id === agent.id);
+            return (
+              <AgentDesk
+                key={agent.id}
+                agent={agent}
+                x={slot.x}
+                y={slot.y}
+                prevStatus={prevAgent?.status}
+              />
+            );
+          })}
 
-            {/* Vacant desk placeholders */}
-            {DESK_SLOTS.slice(vacantStart, Math.min(vacantStart + 6, maxDesks)).map((slot, i) => (
-              <VacantDesk key={`vacant-${i}`} x={slot.x} y={slot.y} />
-            ))}
+          {/* Vacant desk placeholders */}
+          {DESK_SLOTS.slice(vacantStart, Math.min(vacantStart + 6, maxDesks)).map((slot, i) => (
+            <VacantDesk key={`vacant-${i}`} x={slot.x} y={slot.y} />
+          ))}
 
-            {/* No-signal overlay */}
-            {!connected && agents.length === 0 && <EmptyState error={error} />}
-          </div>
+          {/* No-signal overlay */}
+          {!connected && agents.length === 0 && <EmptyState error={error} />}
         </div>
       </div>
 
