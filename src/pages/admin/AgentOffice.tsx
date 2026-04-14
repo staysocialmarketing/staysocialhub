@@ -1948,7 +1948,7 @@ function WalkingCharacter({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AgentOffice() {
-  const { isSSAdmin, loading } = useAuth();
+  const { isSSAdmin, isSSRole, loading } = useAuth();
   const [state, setState] = useState<OfficeState>({
     agents: [], connected: false, lastUpdated: null, error: null,
   });
@@ -2012,7 +2012,7 @@ export default function AgentOffice() {
   }, []);
 
   if (loading) return null;
-  if (!isSSAdmin) return <Navigate to="/dashboard" replace />;
+  if (!isSSRole) return <Navigate to="/dashboard" replace />;
 
   const { agents, connected, lastUpdated, error } = state;
 
