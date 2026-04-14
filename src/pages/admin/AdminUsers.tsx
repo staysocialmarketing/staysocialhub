@@ -6,9 +6,21 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Plus, X, Building2, Globe, Trash2 } from "lucide-react";
+import { Users, Plus, X, Building2, Globe, Trash2, Clock, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 2) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString();
+}
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -40,6 +52,9 @@ export default function AdminUsers() {
       return data || [];
     },
   });
+
+  const pendingUsers = users.filter((u: any) => !u.user_roles || u.user_roles.length === 0);
+  const assignedUsers = users.filter((u: any) => u.user_roles && u.user_roles.length > 0);
 
   const { data: domains = [] } = useQuery({
     queryKey: ["allowed-domains"],
@@ -163,14 +178,108 @@ export default function AdminUsers() {
         </div>
       )}
 
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-foreground">Users</h1>
-        <p className="text-sm text-muted-foreground mt-1">Manage team members and their roles.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">Users</h1>
+          <p className="text-sm text-muted-foreground mt-1">Manage team members and their roles.</p>
+        </div>
+        {!isLoading && pendingUsers.length > 0 && (
+          <Badge variant="destructive" className="text-xs gap-1.5">
+            <AlertCircle className="h-3 w-3" />
+            {pendingUsers.length} pending
+          </Badge>
+        )}
       </div>
 
+      {/* Pending users — no role assigned */}
+      {!isLoading && pendingUsers.length > 0 && (
+        <div className="rounded-2xl border border-orange-500/30 bg-orange-500/5 overflow-hidden">
+          <div className="px-5 py-3 border-b border-orange-500/20 flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-orange-400" />
+            <span className="text-sm font-semibold text-orange-400">Pending Role Assignment</span>
+            <span className="text-xs text-orange-400/60 ml-auto">
+              {pendingUsers.length} user{pendingUsers.length !== 1 ? "s" : ""} awaiting a role
+            </span>
+          </div>
+          {pendingUsers.map((u: any) => {
+            const availableRoles = ALL_ROLES;
+            return (
+              <div key={u.id} className="px-5 py-4 space-y-3 border-b border-orange-500/10 last:border-0 hover:bg-orange-500/5 transition-colors">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-xl bg-orange-500/20 flex items-center justify-center text-sm font-semibold text-orange-400">
+                      {(u.name || u.email || "?")[0].toUpperCase()}
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-foreground text-sm">{u.name || u.email}</h4>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>{u.email}</span>
+                        {u.created_at && (
+                          <>
+                            <span>·</span>
+                            <Clock className="h-3 w-3" />
+                            <span>joined {timeAgo(u.created_at)}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-orange-400/70">No role —</span>
+                  {isSSAdmin && addingRoleFor === u.id ? (
+                    <Select onValueChange={(v) => addRole.mutate({ userId: u.id, role: v as AppRole })}>
+                      <SelectTrigger className="h-7 w-40 text-xs rounded-lg border-orange-500/30">
+                        <SelectValue placeholder="Assign role…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableRoles.map((r) => (
+                          <SelectItem key={r} value={r}>{roleLabels[r]}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    isSSAdmin && (
+                      <Button
+                        size="sm"
+                        className="h-7 px-3 text-xs bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border border-orange-500/30 rounded-lg"
+                        variant="ghost"
+                        onClick={() => setAddingRoleFor(u.id)}
+                      >
+                        <Plus className="h-3 w-3 mr-1" />Assign Role
+                      </Button>
+                    )
+                  )}
+                  {isSSAdmin && (
+                    <div className="flex items-center gap-2 ml-auto">
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <Select
+                        value={u.client_id || "none"}
+                        onValueChange={(v) => updateClient.mutate({ userId: u.id, clientId: v === "none" ? null : v })}
+                      >
+                        <SelectTrigger className="h-7 w-44 text-xs rounded-lg">
+                          <SelectValue placeholder="No client" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No client</SelectItem>
+                          {clients.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* All assigned users */}
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : (
         <div className="rounded-2xl bg-card shadow-soft divide-y divide-border/30">
-          {users.map((u: any) => {
+          {assignedUsers.map((u: any) => {
             const userRoles: AppRole[] = (u.user_roles || []).map((r: any) => r.role);
             const availableRoles = ALL_ROLES.filter((r) => !userRoles.includes(r));
 

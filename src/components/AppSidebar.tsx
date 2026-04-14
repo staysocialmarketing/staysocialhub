@@ -167,23 +167,36 @@ export function AppSidebar() {
 
   const ssUsers = allUsers.filter((u) => u.roles.some((r) => ["ss_admin", "ss_producer", "ss_ops", "ss_team"].includes(r)));
   const clientUsers = allUsers.filter((u) => u.roles.some((r) => ["client_admin", "client_assistant"].includes(r)));
+  const pendingCount = allUsers.filter((u) => u.roles.length === 0).length;
 
-  const renderMenuItems = (items: typeof menuSection) => (
+  const renderMenuItems = (items: typeof menuSection, badges?: Record<string, number>) => (
     <SidebarMenu>
-      {items.map((item) => (
-        <SidebarMenuItem key={item.title}>
-          <SidebarMenuButton asChild>
-            <NavLink
-              to={item.url}
-              className="hover:bg-sidebar-accent/50 rounded-xl transition-colors"
-              activeClassName="bg-primary/10 text-primary font-medium"
-            >
-              <item.icon className="h-4 w-4 shrink-0" />
-              {!collapsed && <span>{item.title}</span>}
-            </NavLink>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      ))}
+      {items.map((item) => {
+        const badge = badges?.[item.title];
+        return (
+          <SidebarMenuItem key={item.title}>
+            <SidebarMenuButton asChild>
+              <NavLink
+                to={item.url}
+                className="hover:bg-sidebar-accent/50 rounded-xl transition-colors"
+                activeClassName="bg-primary/10 text-primary font-medium"
+              >
+                <item.icon className="h-4 w-4 shrink-0" />
+                {!collapsed && (
+                  <span className="flex-1 flex items-center justify-between gap-1 min-w-0">
+                    <span>{item.title}</span>
+                    {badge ? (
+                      <span className="text-[9px] font-bold leading-none px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-400">
+                        {badge}
+                      </span>
+                    ) : null}
+                  </span>
+                )}
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        );
+      })}
     </SidebarMenu>
   );
 
@@ -347,7 +360,7 @@ export function AppSidebar() {
                       </CollapsibleTrigger>
                     )}
                     <CollapsibleContent>
-                      <SidebarGroupContent>{renderMenuItems(adminSection)}</SidebarGroupContent>
+                      <SidebarGroupContent>{renderMenuItems(adminSection, pendingCount > 0 ? { Users: pendingCount } : undefined)}</SidebarGroupContent>
                     </CollapsibleContent>
                   </SidebarGroup>
                 </Collapsible>
