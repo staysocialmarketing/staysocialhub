@@ -2,8 +2,8 @@ import type { Database } from "@/integrations/supabase/types";
 
 type PostStatus = Database["public"]["Enums"]["post_status"];
 
-const SOCIAL_TYPES = ["image", "video", "reel", "carousel"];
-const EMAIL_TYPES = ["email_campaign"];
+const SOCIAL_TYPES = ["image", "video", "reel", "carousel", "social_post", "story", "google_post"];
+const EMAIL_TYPES = ["email_campaign", "email"];
 
 export function getContentCategory(contentType: string | null): "social" | "email" | "other" {
   if (!contentType) return "social";
@@ -36,11 +36,15 @@ export function getApproveTarget(contentType: string | null, currentStatus: Post
 }
 
 export const CONTENT_TYPE_OPTIONS = [
+  { value: "social_post", label: "Social Post", category: "social" },
   { value: "image", label: "Image", category: "social" },
   { value: "video", label: "Video", category: "social" },
   { value: "reel", label: "Reel", category: "social" },
+  { value: "story", label: "Story", category: "social" },
   { value: "carousel", label: "Carousel", category: "social" },
+  { value: "google_post", label: "Google Post", category: "social" },
   { value: "email_campaign", label: "Email Campaign", category: "email" },
+  { value: "email", label: "Email", category: "email" },
   { value: "ad_creative", label: "Ad Creative", category: "other" },
   { value: "landing_page", label: "Landing Page", category: "other" },
   { value: "graphic_design", label: "Graphic Design", category: "other" },

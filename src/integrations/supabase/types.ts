@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.1"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -55,6 +55,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      agent_status: {
+        Row: {
+          id: string
+          name: string
+          role: string | null
+          status: string
+          task: string | null
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          name: string
+          role?: string | null
+          status?: string
+          task?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          role?: string | null
+          status?: string
+          task?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       allowed_domains: {
         Row: {
@@ -489,6 +516,13 @@ export type Database = {
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "client_activity_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
         ]
       }
       client_onboarding: {
@@ -646,37 +680,52 @@ export type Database = {
       clients: {
         Row: {
           assistants_can_approve: boolean
+          company: string | null
           created_at: string
           health_override: string | null
           health_override_at: string | null
           id: string
           name: string
+          niche: string | null
           plan_id: string | null
+          platforms: Json | null
+          province: string | null
           recommended_item_id: string | null
+          region: string | null
           status: string
           whats_new_visible_addons: Json
         }
         Insert: {
           assistants_can_approve?: boolean
+          company?: string | null
           created_at?: string
           health_override?: string | null
           health_override_at?: string | null
           id?: string
           name: string
+          niche?: string | null
           plan_id?: string | null
+          platforms?: Json | null
+          province?: string | null
           recommended_item_id?: string | null
+          region?: string | null
           status?: string
           whats_new_visible_addons?: Json
         }
         Update: {
           assistants_can_approve?: boolean
+          company?: string | null
           created_at?: string
           health_override?: string | null
           health_override_at?: string | null
           id?: string
           name?: string
+          niche?: string | null
           plan_id?: string | null
+          platforms?: Json | null
+          province?: string | null
           recommended_item_id?: string | null
+          region?: string | null
           status?: string
           whats_new_visible_addons?: Json
         }
@@ -1208,6 +1257,7 @@ export type Database = {
           id: string
           internal_notes: string | null
           platform: string | null
+          platform_content: Json
           preview_text: string | null
           request_id: string | null
           reviewer_user_id: string | null
@@ -1234,6 +1284,7 @@ export type Database = {
           id?: string
           internal_notes?: string | null
           platform?: string | null
+          platform_content?: Json
           preview_text?: string | null
           request_id?: string | null
           reviewer_user_id?: string | null
@@ -1260,6 +1311,7 @@ export type Database = {
           id?: string
           internal_notes?: string | null
           platform?: string | null
+          platform_content?: Json
           preview_text?: string | null
           request_id?: string | null
           reviewer_user_id?: string | null

@@ -26,13 +26,16 @@ const healthConfig: Record<HealthStatus, { color: string; label: string; descrip
 interface ClientHealthIndicatorProps {
   clientId: string;
   override?: string | null;
+  /** Pre-computed status from a bulk query — skips the per-client query when provided. */
+  precomputed?: HealthStatus;
   className?: string;
 }
 
-export function ClientHealthIndicator({ clientId, override, className }: ClientHealthIndicatorProps) {
+export function ClientHealthIndicator({ clientId, override, precomputed, className }: ClientHealthIndicatorProps) {
   const { data: computedStatus } = useQuery({
     queryKey: ["client-health", clientId],
-    enabled: !override,
+    // Skip the per-client query when the parent has already computed status in bulk
+    enabled: !override && !precomputed,
     staleTime: 5 * 60 * 1000,
     queryFn: async (): Promise<HealthStatus> => {
       const now = new Date();
@@ -57,7 +60,7 @@ export function ClientHealthIndicator({ clientId, override, className }: ClientH
     },
   });
 
-  const status: HealthStatus = (override as HealthStatus) || computedStatus || "active";
+  const status: HealthStatus = (override as HealthStatus) || precomputed || computedStatus || "active";
   const config = healthConfig[status];
   const isManual = !!override;
 

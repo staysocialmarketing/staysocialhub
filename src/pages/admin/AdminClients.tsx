@@ -96,6 +96,47 @@ export default function AdminClients() {
     },
   });
 
+  // Bulk health computation — 6 queries total regardless of client count (replaces 6 × N per-client queries)
+  const clientIds = clients.map((c: any) => c.id);
+  const { data: clientHealthMap = {} } = useQuery<Record<string, "active" | "needs_attention" | "inactive">>({
+    queryKey: ["client-health-bulk", clientIds],
+    enabled: clientIds.length > 0,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const now = new Date();
+      const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString();
+      const thirtyDaysAgo  = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+      const [req14, tasks14, posts14, req30, tasks30, posts30] = await Promise.all([
+        supabase.from("requests").select("client_id").in("client_id", clientIds).gte("created_at", fourteenDaysAgo).limit(500),
+        supabase.from("tasks").select("client_id").in("client_id", clientIds).gte("updated_at", fourteenDaysAgo).limit(500),
+        supabase.from("posts").select("client_id").in("client_id", clientIds).gte("created_at", fourteenDaysAgo).limit(500),
+        supabase.from("requests").select("client_id").in("client_id", clientIds).gte("created_at", thirtyDaysAgo).limit(500),
+        supabase.from("tasks").select("client_id").in("client_id", clientIds).gte("updated_at", thirtyDaysAgo).limit(500),
+        supabase.from("posts").select("client_id").in("client_id", clientIds).gte("created_at", thirtyDaysAgo).limit(500),
+      ]);
+
+      const active14 = new Set([
+        ...(req14.data  ?? []).map((r: any) => r.client_id),
+        ...(tasks14.data ?? []).map((r: any) => r.client_id),
+        ...(posts14.data ?? []).map((r: any) => r.client_id),
+      ]);
+      const active30 = new Set([
+        ...(req30.data  ?? []).map((r: any) => r.client_id),
+        ...(tasks30.data ?? []).map((r: any) => r.client_id),
+        ...(posts30.data ?? []).map((r: any) => r.client_id),
+      ]);
+
+      const map: Record<string, "active" | "needs_attention" | "inactive"> = {};
+      for (const id of clientIds) {
+        if (active14.has(id))      map[id] = "active";
+        else if (active30.has(id)) map[id] = "needs_attention";
+        else                       map[id] = "inactive";
+      }
+      return map;
+    },
+  });
+
   useEffect(() => {
     supabase.from("marketplace_items").select("id, name, category, is_active").eq("is_active", true).order("sort_order").then(({ data }) => {
       setMarketplaceItems(data || []);
@@ -787,7 +828,7 @@ export default function AdminClients() {
                           <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
                             <Building2 className="h-4 w-4 text-primary" />
                           </div>
-                          <ClientHealthIndicator clientId={c.id} override={c.health_override} />
+                          <ClientHealthIndicator clientId={c.id} override={c.health_override} precomputed={clientHealthMap[c.id]} />
                           <div>
                             <h4 className="font-semibold text-foreground text-sm">{c.name}</h4>
                             <p className="text-xs text-muted-foreground">

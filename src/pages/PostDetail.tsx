@@ -15,8 +15,8 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
-  ArrowLeft, Calendar, Hash, MessageSquare, Image as ImageIcon,
-  Check, FileEdit, AlertTriangle, Save, Upload, Sparkles,
+  ArrowLeft, ChevronLeft, ChevronRight, Calendar, Hash, MessageSquare, Image as ImageIcon,
+  Check, FileEdit, AlertTriangle, Save, Upload, Sparkles, X,
 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { compressImage } from "@/lib/imageUtils";
@@ -115,6 +115,30 @@ export default function PostDetail() {
     enabled: !!postId,
   });
 
+  // Fetch post images
+  const { data: postImages = [] } = useQuery({
+    queryKey: ["post-images", postId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("post_images" as any)
+        .select("id, post_id, storage_path, url, platform, position, alt_text, created_at")
+        .eq("post_id", postId!)
+        .order("position", { ascending: true });
+      if (error) throw error;
+      return (data || []) as Array<{
+        id: string;
+        post_id: string;
+        storage_path: string;
+        url: string;
+        platform: string | null;
+        position: number;
+        alt_text: string | null;
+        created_at: string;
+      }>;
+    },
+    enabled: !!postId,
+  });
+
   // Add comment
   const addComment = useMutation({
     mutationFn: async () => {
@@ -185,7 +209,94 @@ export default function PostDetail() {
   });
 
   // Upload new version
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
+  const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const [swipeStartX, setSwipeStartX] = useState(0);
   const [uploadingVersion, setUploadingVersion] = useState(false);
+
+  // Upload images to post_images table
+  const uploadImages = async (files: FileList) => {
+    if (!profile || !postId) return;
+    setUploadingImage(true);
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const compressed = await compressImage(file);
+        const ext = compressed.name.split(".").pop();
+        const fileName = `${crypto.randomUUID()}.${ext}`;
+        const storagePath = `post-images/${postId}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("creative-assets")
+          .upload(storagePath, compressed);
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage
+          .from("creative-assets")
+          .getPublicUrl(storagePath);
+
+        const nextPosition = postImages.length + i;
+
+        const { error: insertError } = await supabase
+          .from("post_images" as any)
+          .insert({
+            post_id: postId,
+            storage_path: storagePath,
+            url: urlData.publicUrl,
+            position: nextPosition,
+            created_by_user_id: profile.id,
+          });
+        if (insertError) throw insertError;
+
+        // Dual-write: keep creative_url pointing to the first (primary) image
+        if (nextPosition === 0) {
+          await supabase.from("posts")
+            .update({ creative_url: urlData.publicUrl })
+            .eq("id", postId);
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ["post-images", postId] });
+      queryClient.invalidateQueries({ queryKey: ["post-detail", postId] });
+      toast.success(files.length > 1 ? `${files.length} images uploaded` : "Image uploaded");
+    } catch {
+      toast.error("Failed to upload image");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  // Delete an image from post_images
+  const deleteImage = async (img: { id: string; storage_path: string; url: string }) => {
+    setDeletingImageId(img.id);
+    try {
+      await supabase.storage.from("creative-assets").remove([img.storage_path]);
+
+      const { error } = await supabase
+        .from("post_images" as any)
+        .delete()
+        .eq("id", img.id);
+      if (error) throw error;
+
+      // Dual-write: if this was the primary image, update creative_url to next or null
+      if (post?.creative_url === img.url) {
+        const remaining = postImages.filter(i => i.id !== img.id);
+        const nextUrl = remaining.length > 0 ? remaining[0].url : null;
+        await supabase.from("posts")
+          .update({ creative_url: nextUrl })
+          .eq("id", postId!);
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["post-images", postId] });
+      queryClient.invalidateQueries({ queryKey: ["post-detail", postId] });
+      toast.success("Image removed");
+    } catch {
+      toast.error("Failed to remove image");
+    } finally {
+      setDeletingImageId(null);
+    }
+  };
+
   const uploadNewVersion = async (file: File, caption?: string, hashtags?: string) => {
     if (!profile || !postId) return;
     setUploadingVersion(true);
@@ -284,10 +395,127 @@ export default function PostDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Creative */}
+          {/* Creative — multi-image manager */}
           <Card>
-            <CardContent className="p-4">
-              {post.creative_url ? (
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-base">Creative</CardTitle>
+              {isSSRole && (
+                <label className="cursor-pointer">
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*,video/*"
+                    multiple
+                    disabled={uploadingImage}
+                    onChange={(e) => {
+                      if (e.target.files?.length) uploadImages(e.target.files);
+                      e.target.value = "";
+                    }}
+                  />
+                  <Button variant="outline" size="sm" asChild disabled={uploadingImage}>
+                    <span>
+                      <Upload className="h-3 w-3 mr-1" />
+                      {uploadingImage ? "Uploading..." : "Add Image"}
+                    </span>
+                  </Button>
+                </label>
+              )}
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              {postImages.length > 0 ? (
+                isSSRole ? (
+                  /* SS: editable grid with delete controls */
+                  <div className={cn(
+                    "gap-2",
+                    postImages.length === 1 ? "flex" : "grid grid-cols-2"
+                  )}>
+                    {postImages.map((img, idx) => (
+                      <div key={img.id} className="relative group">
+                        <img
+                          src={img.url}
+                          alt={img.alt_text ?? ""}
+                          className={cn(
+                            "rounded-lg object-cover w-full",
+                            postImages.length === 1 ? "max-h-[500px] object-contain" : "aspect-square"
+                          )}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => deleteImage(img)}
+                          disabled={deletingImageId === img.id}
+                          className="absolute top-1.5 right-1.5 h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                        {idx === 0 && postImages.length > 1 && (
+                          <span className="absolute bottom-1.5 left-1.5 text-[10px] bg-black/60 text-white px-1.5 py-0.5 rounded">
+                            Primary
+                          </span>
+                        )}
+                        {img.platform && (
+                          <span className="absolute top-1.5 left-1.5 text-[10px] bg-black/60 text-white px-1.5 py-0.5 rounded capitalize">
+                            {img.platform}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  /* Client: swipeable gallery */
+                  <div
+                    className="relative select-none"
+                    onTouchStart={(e) => setSwipeStartX(e.touches[0].clientX)}
+                    onTouchEnd={(e) => {
+                      const delta = swipeStartX - e.changedTouches[0].clientX;
+                      if (delta > 50) setActiveImageIdx(i => Math.min(postImages.length - 1, i + 1));
+                      if (delta < -50) setActiveImageIdx(i => Math.max(0, i - 1));
+                    }}
+                  >
+                    <img
+                      src={postImages[Math.min(activeImageIdx, postImages.length - 1)]?.url}
+                      alt={postImages[Math.min(activeImageIdx, postImages.length - 1)]?.alt_text ?? ""}
+                      className="w-full rounded-lg object-contain max-h-[500px]"
+                    />
+                    {postImages.length > 1 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setActiveImageIdx(i => Math.max(0, i - 1))}
+                          disabled={activeImageIdx === 0}
+                          className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/50 text-white flex items-center justify-center transition-opacity disabled:opacity-20 hover:bg-black/70"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveImageIdx(i => Math.min(postImages.length - 1, i + 1))}
+                          disabled={activeImageIdx === postImages.length - 1}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/50 text-white flex items-center justify-center transition-opacity disabled:opacity-20 hover:bg-black/70"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
+                        <span className="absolute top-2 right-2 text-xs bg-black/60 text-white px-2 py-0.5 rounded-full">
+                          {activeImageIdx + 1} / {postImages.length}
+                        </span>
+                        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                          {postImages.map((_, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => setActiveImageIdx(i)}
+                              className={cn(
+                                "h-1.5 rounded-full transition-all",
+                                i === activeImageIdx ? "w-4 bg-white" : "w-1.5 bg-white/50 hover:bg-white/80"
+                              )}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )
+              ) : post.creative_url ? (
+                /* Legacy single image — not yet in post_images */
                 <img src={post.creative_url} alt="" className="w-full rounded-lg object-contain max-h-[500px]" />
               ) : (
                 <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">

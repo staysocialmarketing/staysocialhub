@@ -31,6 +31,14 @@ const VALID_STATUSES = new Set<PostStatus>([
   "ready_to_send", "sent", "complete", "ready_for_client_batch", "ai_draft",
 ]);
 
+const VALID_CONTENT_TYPES = new Set([
+  "image", "video", "reel", "carousel",
+  "email_campaign",
+  "ad_creative", "landing_page", "graphic_design",
+  "website_update", "general_task",
+  "social_post", "email", "story", "google_post",
+]);
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -96,7 +104,7 @@ Deno.serve(async (req: Request) => {
 
     // ────────────────────────────────────────────────────────────────────────
     case "create-post": {
-      const { client_id, title, platform, caption, hashtags, status, platform_content } = body as {
+      const { client_id, title, platform, caption, hashtags, status, platform_content, content_type } = body as {
         client_id?: string;
         title?: string;
         platform?: string;
@@ -104,10 +112,14 @@ Deno.serve(async (req: Request) => {
         hashtags?: string;
         status?: PostStatus;
         platform_content?: Record<string, Record<string, string>>;
+        content_type?: string;
       };
 
       if (!client_id) return err("client_id is required");
       if (!title)     return err("title is required");
+      if (content_type && !VALID_CONTENT_TYPES.has(content_type)) {
+        return err(`Invalid content_type "${content_type}". Valid values: ${[...VALID_CONTENT_TYPES].join(", ")}`);
+      }
 
       const postStatus: PostStatus = (status && VALID_STATUSES.has(status)) ? status : "ai_draft";
 
@@ -135,8 +147,9 @@ Deno.serve(async (req: Request) => {
           hashtags:         hashtags          ?? null,
           status_column:    postStatus,
           platform_content: platform_content  ?? null,
+          content_type:     content_type      ?? null,
         })
-        .select("id, title, platform, platform_content, status_column, created_at")
+        .select("id, title, platform, platform_content, content_type, status_column, created_at")
         .single();
 
       if (error) return err(error.message, 500);
@@ -203,7 +216,11 @@ Deno.serve(async (req: Request) => {
 
       let query = db
         .from("posts")
-        .select("id, title, platform, caption, status_column, assigned_to_user_id, reviewer_user_id, scheduled_at, created_at")
+        .select(`
+          id, title, platform, caption, content_type, platform_content,
+          status_column, assigned_to_user_id, reviewer_user_id, scheduled_at, created_at,
+          post_images(id, url, storage_path, platform, position, alt_text)
+        `)
         .eq("client_id", client_id)
         .order("created_at", { ascending: false });
 
@@ -217,7 +234,16 @@ Deno.serve(async (req: Request) => {
 
       const { data, error } = await query;
       if (error) return err(error.message, 500);
-      return json({ success: true, posts: data, count: data?.length ?? 0 });
+
+      // Sort post_images by position ascending for each post
+      const posts = (data ?? []).map((p: any) => ({
+        ...p,
+        post_images: Array.isArray(p.post_images)
+          ? p.post_images.sort((a: any, b: any) => a.position - b.position)
+          : [],
+      }));
+
+      return json({ success: true, posts, count: posts.length });
     }
 
     // ────────────────────────────────────────────────────────────────────────
