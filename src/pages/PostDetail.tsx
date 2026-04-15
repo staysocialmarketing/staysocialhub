@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner";
 import {
   ArrowLeft, ChevronLeft, ChevronRight, Calendar, Hash, MessageSquare, Image as ImageIcon,
-  Check, FileEdit, AlertTriangle, Save, Upload, Sparkles, X,
+  Check, FileEdit, AlertTriangle, Save, Upload, Sparkles, X, Trash2,
 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { compressImage } from "@/lib/imageUtils";
@@ -46,7 +46,7 @@ const platformColors: Record<string, string> = {
 export default function PostDetail() {
   const { postId } = useParams<{ postId: string }>();
   const navigate = useNavigate();
-  const { profile, isSSRole, isClientAdmin, isClientAssistant } = useAuth();
+  const { profile, isSSRole, isSSAdmin, isClientAdmin, isClientAssistant } = useAuth();
   const queryClient = useQueryClient();
 
   const [commentText, setCommentText] = useState("");
@@ -55,6 +55,7 @@ export default function PostDetail() {
   const [activePlatformTabState, setActivePlatformTab] = useState("");
   const [approvalNote, setApprovalNote] = useState("");
   const [lightboxVersion, setLightboxVersion] = useState<any>(null);
+  const [deleteDialog, setDeleteDialog] = useState(false);
 
   // Fetch post
   const { data: post, isLoading } = useQuery({
@@ -198,6 +199,27 @@ export default function PostDetail() {
       );
     },
     onError: () => toast.error("Failed to submit approval"),
+  });
+
+  // Delete post
+  const deletePost = useMutation({
+    mutationFn: async () => {
+      if (post?.status_column === "published" || post?.status_column === "sent") {
+        throw new Error("Cannot delete a published or sent post.");
+      }
+      // Remove all images from storage and post_images table
+      for (const img of postImages) {
+        await supabase.storage.from("creative-assets").remove([img.storage_path]);
+        await supabase.from("post_images").delete().eq("id", img.id);
+      }
+      const { error } = await supabase.from("posts").delete().eq("id", postId!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Post deleted");
+      navigate("/approvals");
+    },
+    onError: (e: Error) => toast.error(e.message || "Failed to delete post"),
   });
 
   // Upload new version
@@ -365,6 +387,17 @@ export default function PostDetail() {
             {(post as any).clients?.name} · {post.platform || "No platform"}
           </p>
         </div>
+        {isSSAdmin && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-destructive text-destructive hover:bg-destructive/10"
+            onClick={() => setDeleteDialog(true)}
+          >
+            <Trash2 className="h-4 w-4 mr-1.5" />
+            Delete
+          </Button>
+        )}
         {latestApproval && (
           <Badge
             className={
@@ -880,6 +913,30 @@ export default function PostDetail() {
               {lightboxVersion?.hashtags && <p className="text-muted-foreground">#{lightboxVersion.hashtags}</p>}
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Post Confirmation Dialog */}
+      <Dialog open={deleteDialog} onOpenChange={setDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Post</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Are you sure you want to delete this post? This cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deletePost.mutate()}
+              disabled={deletePost.isPending}
+            >
+              {deletePost.isPending ? "Deleting..." : "Delete Post"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
