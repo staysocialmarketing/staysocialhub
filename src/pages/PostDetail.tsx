@@ -23,6 +23,24 @@ import { compressImage } from "@/lib/imageUtils";
 
 type ApprovalType = Database["public"]["Enums"]["approval_type"];
 
+const PLATFORM_LABELS: Record<string, string> = {
+  instagram: "Instagram",
+  facebook: "Facebook",
+  linkedin: "LinkedIn",
+  google: "Google",
+  email: "Email",
+  tiktok: "TikTok",
+};
+
+const platformColors: Record<string, string> = {
+  instagram: "bg-pink-500/10 text-pink-600",
+  facebook: "bg-blue-500/10 text-blue-600",
+  linkedin: "bg-sky-500/10 text-sky-600",
+  google: "bg-emerald-500/10 text-emerald-600",
+  email: "bg-violet-500/10 text-violet-600",
+  tiktok: "bg-purple-500/10 text-purple-600",
+};
+
 export default function PostDetail() {
   const { postId } = useParams<{ postId: string }>();
   const navigate = useNavigate();
@@ -32,6 +50,7 @@ export default function PostDetail() {
   const [commentText, setCommentText] = useState("");
   const [internalNotes, setInternalNotes] = useState<string | null>(null);
   const [approvalDialog, setApprovalDialog] = useState<ApprovalType | null>(null);
+  const [activePlatformTabState, setActivePlatformTab] = useState("");
   const [approvalNote, setApprovalNote] = useState("");
   const [lightboxVersion, setLightboxVersion] = useState<any>(null);
 
@@ -221,6 +240,14 @@ export default function PostDetail() {
   const canApprove = isClientAdmin || (isClientAssistant && (post as any).clients?.assistants_can_approve);
   const isApprovalStatus = post.status_column === "client_approval";
 
+  const platformContent = (post as any).platform_content as Record<string, any> | null;
+  const platformTabs = platformContent && Object.keys(platformContent).length > 0
+    ? Object.keys(platformContent)
+    : [];
+  const effectiveTab = activePlatformTabState && platformTabs.includes(activePlatformTabState)
+    ? activePlatformTabState
+    : platformTabs[0] ?? "";
+
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       {/* Header */}
@@ -285,14 +312,81 @@ export default function PostDetail() {
               )}
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-foreground whitespace-pre-wrap">{post.caption || "No caption yet"}</p>
-              {post.hashtags && (
-                <>
-                  <Separator className="my-3" />
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                    <Hash className="h-3 w-3" />
-                    {post.hashtags}
+              {platformTabs.length > 0 ? (
+                <div className="space-y-3">
+                  {/* Platform tab pills */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {platformTabs.map(key => (
+                      <button
+                        key={key}
+                        onClick={() => setActivePlatformTab(key)}
+                        className={cn(
+                          "px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
+                          effectiveTab === key
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted text-muted-foreground hover:bg-muted/70"
+                        )}
+                      >
+                        {PLATFORM_LABELS[key] ?? key}
+                      </button>
+                    ))}
                   </div>
+                  {/* Tab content */}
+                  {effectiveTab === "email" ? (
+                    <div className="space-y-3">
+                      {platformContent![effectiveTab]?.subject && (
+                        <div>
+                          <p className="text-xs text-muted-foreground font-medium mb-1">Subject</p>
+                          <p className="text-sm text-foreground">{platformContent![effectiveTab].subject}</p>
+                        </div>
+                      )}
+                      {platformContent![effectiveTab]?.preview_text && (
+                        <div>
+                          <p className="text-xs text-muted-foreground font-medium mb-1">Preview Text</p>
+                          <p className="text-sm text-foreground">{platformContent![effectiveTab].preview_text}</p>
+                        </div>
+                      )}
+                      {platformContent![effectiveTab]?.body && (
+                        <>
+                          <Separator />
+                          <p className="text-xs text-muted-foreground font-medium mb-1">Body</p>
+                          <p className="text-sm text-foreground whitespace-pre-wrap">{platformContent![effectiveTab].body}</p>
+                        </>
+                      )}
+                      {!platformContent![effectiveTab]?.subject && !platformContent![effectiveTab]?.body && (
+                        <p className="text-sm text-muted-foreground">No email content yet</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-sm text-foreground whitespace-pre-wrap">
+                        {platformContent![effectiveTab]?.caption || "No caption yet"}
+                      </p>
+                      {platformContent![effectiveTab]?.hashtags && (
+                        <>
+                          <Separator className="my-3" />
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                            <Hash className="h-3 w-3" />
+                            {platformContent![effectiveTab].hashtags}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Fallback: no platform_content */
+                <>
+                  <p className="text-sm text-foreground whitespace-pre-wrap">{post.caption || "No caption yet"}</p>
+                  {post.hashtags && (
+                    <>
+                      <Separator className="my-3" />
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <Hash className="h-3 w-3" />
+                        {post.hashtags}
+                      </div>
+                    </>
+                  )}
                 </>
               )}
             </CardContent>

@@ -25,6 +25,17 @@ const platformColors: Record<string, string> = {
   facebook: "bg-blue-500/10 text-blue-600",
   linkedin: "bg-sky-500/10 text-sky-600",
   tiktok: "bg-purple-500/10 text-purple-600",
+  google: "bg-emerald-500/10 text-emerald-600",
+  email: "bg-violet-500/10 text-violet-600",
+};
+
+const PLATFORM_LABELS: Record<string, string> = {
+  instagram: "Instagram",
+  facebook: "Facebook",
+  linkedin: "LinkedIn",
+  tiktok: "TikTok",
+  google: "Google",
+  email: "Email",
 };
 
 function getDueDateColor(dueAt: string | null) {
@@ -69,10 +80,25 @@ function PostCard({ post, onClick, showClient = false, children }: {
               <Badge variant="outline" className="text-[10px]">{post.clients.name}</Badge>
             )}
             <div className="flex flex-wrap gap-1">
-              {post.platform?.split(",").map((p: string) => (
-                <Badge key={p} variant="secondary" className={`text-[10px] border-0 ${platformColors[p.trim().toLowerCase()] || "bg-muted"}`}>{p.trim()}</Badge>
-              ))}
-              {isEmail && <Badge variant="secondary" className="text-[10px] bg-blue-500/10 text-blue-600 border-0">Email</Badge>}
+              {(() => {
+                const pc = (post as any).platform_content as Record<string, any> | null;
+                const keys = pc && Object.keys(pc).length > 0 ? Object.keys(pc) : null;
+                if (keys) {
+                  return keys.map(k => (
+                    <Badge key={k} variant="secondary" className={`text-[10px] border-0 ${platformColors[k] || "bg-muted"}`}>
+                      {PLATFORM_LABELS[k] ?? k}
+                    </Badge>
+                  ));
+                }
+                return (
+                  <>
+                    {post.platform?.split(",").map((p: string) => (
+                      <Badge key={p} variant="secondary" className={`text-[10px] border-0 ${platformColors[p.trim().toLowerCase()] || "bg-muted"}`}>{p.trim()}</Badge>
+                    ))}
+                    {isEmail && <Badge variant="secondary" className="text-[10px] bg-blue-500/10 text-blue-600 border-0">Email</Badge>}
+                  </>
+                );
+              })()}
             </div>
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <div className="flex items-center gap-2">

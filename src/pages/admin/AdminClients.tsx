@@ -13,13 +13,23 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Building2, Sparkles, FolderOpen, ListTodo, Lightbulb, MessageSquarePlus, Target, Image, Activity, ImageIcon, Film, Mic, Download, Link2, ExternalLink, User, ClipboardList, Brain } from "lucide-react";
+import { Plus, Building2, Sparkles, FolderOpen, ListTodo, Lightbulb, MessageSquarePlus, Target, Image, Activity, ImageIcon, Film, Mic, Download, Link2, ExternalLink, User, ClipboardList, Brain, ChevronDown, ChevronRight, MapPin } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { AddActivityDialog } from "@/components/activity/AddActivityDialog";
 import { ClientHealthIndicator } from "@/components/ClientHealthIndicator";
 import { OnboardingTracker } from "@/components/OnboardingTracker";
+
+const PLATFORM_OPTIONS = [
+  { value: "facebook", label: "Facebook" },
+  { value: "instagram", label: "Instagram" },
+  { value: "linkedin", label: "LinkedIn" },
+  { value: "google", label: "Google" },
+  { value: "email", label: "Email" },
+];
+
+const PROVINCE_OPTIONS = ["Nova Scotia", "Ontario", "Newfoundland", "Manitoba"];
 
 function isVoiceNote(url: string | null) {
   if (!url) return false;
@@ -46,6 +56,16 @@ export default function AdminClients() {
   const [editPlanId, setEditPlanId] = useState("");
   const [editAssistants, setEditAssistants] = useState(false);
   const [editHealthOverride, setEditHealthOverride] = useState<string>("__auto__");
+  const [editCompany, setEditCompany] = useState("");
+  const [editNiche, setEditNiche] = useState("");
+  const [editProvince, setEditProvince] = useState("");
+  const [editRegion, setEditRegion] = useState("");
+  const [editPlatforms, setEditPlatforms] = useState<string[]>([]);
+
+  const [filterNiche, setFilterNiche] = useState("__all__");
+  const [filterProvince, setFilterProvince] = useState("__all__");
+  const [filterCompany, setFilterCompany] = useState("__all__");
+  const [collapsedProvinces, setCollapsedProvinces] = useState<Set<string>>(new Set());
 
   // Media dialog
   const [mediaClientId, setMediaClientId] = useState<string | null>(null);
@@ -178,6 +198,11 @@ export default function AdminClients() {
         assistants_can_approve: editAssistants,
         health_override: editHealthOverride === "__auto__" ? null : editHealthOverride,
         health_override_at: editHealthOverride === "__auto__" ? null : new Date().toISOString(),
+        company: editCompany.trim() || null,
+        niche: editNiche.trim() || null,
+        province: editProvince || null,
+        region: editRegion.trim() || null,
+        platforms: editPlatforms.length > 0 ? editPlatforms : null,
       } as any).eq("id", editClient.id);
       if (error) throw error;
     },
@@ -237,6 +262,11 @@ export default function AdminClients() {
     setEditPlanId(client.plan_id || "");
     setEditAssistants(client.assistants_can_approve);
     setEditHealthOverride(client.health_override || "__auto__");
+    setEditCompany(client.company || "");
+    setEditNiche(client.niche || "");
+    setEditProvince(client.province || "");
+    setEditRegion(client.region || "");
+    setEditPlatforms((client.platforms as string[]) || []);
   };
 
   const handleDownload = (url: string) => {
@@ -252,6 +282,46 @@ export default function AdminClients() {
   const handleCopyLink = (url: string) => {
     navigator.clipboard.writeText(url);
     toast.success("Link copied to clipboard");
+  };
+
+  // ── Derived filter + grouping ──────────────────────────────────────
+  const uniqueNiches = [...new Set(clients.map((c: any) => c.niche).filter(Boolean))].sort() as string[];
+  const uniqueProvinces = [...new Set(clients.map((c: any) => c.province).filter(Boolean))].sort() as string[];
+  const uniqueCompanies = [...new Set(clients.map((c: any) => c.company).filter(Boolean))].sort() as string[];
+
+  const filteredClients = clients.filter((c: any) => {
+    if (filterNiche !== "__all__" && c.niche !== filterNiche) return false;
+    if (filterProvince !== "__all__" && c.province !== filterProvince) return false;
+    if (filterCompany !== "__all__" && c.company !== filterCompany) return false;
+    return true;
+  });
+
+  const groupedByProvince = filteredClients.reduce((acc: Record<string, any[]>, c: any) => {
+    const key = c.province || "— No Province";
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(c);
+    return acc;
+  }, {});
+
+  const provinceGroups = Object.keys(groupedByProvince).sort((a, b) => {
+    if (a === "— No Province") return 1;
+    if (b === "— No Province") return -1;
+    return a.localeCompare(b);
+  });
+
+  const toggleProvince = (province: string) => {
+    setCollapsedProvinces(prev => {
+      const next = new Set(prev);
+      if (next.has(province)) next.delete(province);
+      else next.add(province);
+      return next;
+    });
+  };
+
+  const toggleEditPlatform = (value: string) => {
+    setEditPlatforms(prev =>
+      prev.includes(value) ? prev.filter(p => p !== value) : [...prev, value]
+    );
   };
 
   return (
@@ -365,6 +435,49 @@ export default function AdminClients() {
                 </Select>
               </div>
             )}
+            <div className="border-t pt-4 space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Categorization</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Company</Label>
+                  <Input value={editCompany} onChange={e => setEditCompany(e.target.value)} placeholder="e.g. Premiere Mortgage Centre" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Niche</Label>
+                  <Input value={editNiche} onChange={e => setEditNiche(e.target.value)} placeholder="e.g. Mortgage Brokers" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Province</Label>
+                  <Select value={editProvince || "__none__"} onValueChange={v => setEditProvince(v === "__none__" ? "" : v)}>
+                    <SelectTrigger><SelectValue placeholder="Select province" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">— None —</SelectItem>
+                      {PROVINCE_OPTIONS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Region</Label>
+                  <Input value={editRegion} onChange={e => setEditRegion(e.target.value)} placeholder="e.g. Halifax, GTA" />
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Platforms</Label>
+                <div className="flex flex-wrap gap-3 mt-1.5">
+                  {PLATFORM_OPTIONS.map(p => (
+                    <label key={p.value} className="flex items-center gap-2 text-sm cursor-pointer">
+                      <Checkbox
+                        checked={editPlatforms.includes(p.value)}
+                        onCheckedChange={() => toggleEditPlatform(p.value)}
+                      />
+                      {p.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setEditClient(null)}>Cancel</Button>
@@ -609,54 +722,124 @@ export default function AdminClients() {
         </DialogContent>
       </Dialog>
 
-      {isLoading ? <p className="text-muted-foreground">Loading...</p> : (
-        <div className="rounded-2xl bg-card shadow-soft divide-y divide-border/30">
-          {clients.map((c: any) => (
-            <div key={c.id} className="px-5 py-4 cursor-pointer hover:bg-muted/20 transition-colors" onClick={() => { if (isSSAdmin) openEditClient(c); }}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <Building2 className="h-4 w-4 text-primary" />
-                  </div>
-                  <ClientHealthIndicator clientId={c.id} override={c.health_override} />
-                  <div>
-                    <h4 className="font-semibold text-foreground text-sm">{c.name}</h4>
-                    <p className="text-xs text-muted-foreground">Plan: {c.plans?.name || "None"}</p>
-                  </div>
+      {/* Filter bar */}
+      <div className="flex flex-wrap gap-2">
+        <Select value={filterNiche} onValueChange={setFilterNiche}>
+          <SelectTrigger className="w-44 h-8 text-xs rounded-xl"><SelectValue placeholder="All niches" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All niches</SelectItem>
+            {uniqueNiches.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterProvince} onValueChange={setFilterProvince}>
+          <SelectTrigger className="w-44 h-8 text-xs rounded-xl"><SelectValue placeholder="All provinces" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All provinces</SelectItem>
+            {uniqueProvinces.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterCompany} onValueChange={setFilterCompany}>
+          <SelectTrigger className="w-52 h-8 text-xs rounded-xl"><SelectValue placeholder="All companies" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All companies</SelectItem>
+            {uniqueCompanies.map(co => <SelectItem key={co} value={co}>{co}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        {(filterNiche !== "__all__" || filterProvince !== "__all__" || filterCompany !== "__all__") && (
+          <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => { setFilterNiche("__all__"); setFilterProvince("__all__"); setFilterCompany("__all__"); }}>
+            Clear filters
+          </Button>
+        )}
+      </div>
+
+      {/* Client list */}
+      {isLoading ? (
+        <p className="text-muted-foreground">Loading...</p>
+      ) : filteredClients.length === 0 ? (
+        <p className="text-sm text-muted-foreground py-4">No clients match the current filters.</p>
+      ) : (
+        <div className="rounded-2xl bg-card shadow-soft overflow-hidden">
+          {provinceGroups.map((province, gIdx) => (
+            <div key={province}>
+              {/* Province group header */}
+              <button
+                onClick={() => toggleProvince(province)}
+                className="w-full px-5 py-2.5 flex items-center justify-between bg-muted/30 hover:bg-muted/40 transition-colors border-b border-border/20"
+              >
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-foreground">{province}</span>
+                  <Badge variant="secondary" className="text-[10px] h-5 px-1.5">{groupedByProvince[province].length}</Badge>
                 </div>
-                <Badge variant={c.status === "active" ? "default" : "secondary"} className="rounded-full">{c.status}</Badge>
-              </div>
-              <div className="flex items-center gap-1.5 mt-3 flex-wrap" onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="sm" className="text-xs gap-1 h-7 rounded-lg" onClick={() => navigate(`/admin/client-strategy/${c.id}`)}>
-                  <Target className="h-3.5 w-3.5" />Strategy
-                </Button>
-                <Button variant="ghost" size="sm" className="text-xs gap-1 h-7 rounded-lg" onClick={() => navigate(`/admin/client-brain/${c.id}`)}>
-                  <Brain className="h-3.5 w-3.5" />Brain
-                </Button>
-                <Button variant="ghost" size="sm" className="text-xs gap-1 h-7 rounded-lg" onClick={() => { setMediaClientId(c.id); setMediaClientName(c.name); }}>
-                  <Image className="h-3.5 w-3.5" />Media
-                </Button>
-                <Button variant="ghost" size="sm" className="text-xs gap-1 h-7 rounded-lg" onClick={() => { setActivityClientId(c.id); setActivityClientName(c.name); }}>
-                  <Activity className="h-3.5 w-3.5" />Activity
-                </Button>
-                <Button variant="ghost" size="sm" className="text-xs gap-1 h-7 rounded-lg" onClick={() => { setOnboardingClientId(c.id); setOnboardingClientName(c.name); }}>
-                  <ClipboardList className="h-3.5 w-3.5" />Onboarding
-                </Button>
-                {isSSAdmin && (
-                  <>
-                    <Button variant="ghost" size="sm" className="text-xs gap-1 h-7 rounded-lg" onClick={() => setWhatsNewClient(c.id)}>
-                      <Sparkles className="h-3.5 w-3.5" />What's New
-                    </Button>
-                    <div className="flex items-center gap-2 ml-2">
-                      <Label className="text-xs text-muted-foreground">Assistants approve</Label>
-                      <Switch
-                        checked={c.assistants_can_approve}
-                        onCheckedChange={(v) => toggleAssistants.mutate({ id: c.id, value: v })}
-                      />
+                {collapsedProvinces.has(province)
+                  ? <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  : <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                }
+              </button>
+
+              {/* Clients in group */}
+              {!collapsedProvinces.has(province) && (
+                <div className="divide-y divide-border/30">
+                  {groupedByProvince[province].map((c: any) => (
+                    <div key={c.id} className="px-5 py-4 cursor-pointer hover:bg-muted/20 transition-colors" onClick={() => { if (isSSAdmin) openEditClient(c); }}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                            <Building2 className="h-4 w-4 text-primary" />
+                          </div>
+                          <ClientHealthIndicator clientId={c.id} override={c.health_override} />
+                          <div>
+                            <h4 className="font-semibold text-foreground text-sm">{c.name}</h4>
+                            <p className="text-xs text-muted-foreground">
+                              {[c.company, c.region, c.plans?.name ? `Plan: ${c.plans.name}` : null].filter(Boolean).join(" · ") || "No details"}
+                            </p>
+                            {((c.platforms as string[]) || []).length > 0 && (
+                              <div className="flex gap-1 mt-1">
+                                {(c.platforms as string[]).map((p: string) => (
+                                  <Badge key={p} variant="outline" className="text-[9px] px-1.5 py-0 h-4 capitalize">{p}</Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <Badge variant={c.status === "active" ? "default" : "secondary"} className="rounded-full">{c.status}</Badge>
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-3 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="sm" className="text-xs gap-1 h-7 rounded-lg" onClick={() => navigate(`/admin/client-strategy/${c.id}`)}>
+                          <Target className="h-3.5 w-3.5" />Strategy
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-xs gap-1 h-7 rounded-lg" onClick={() => navigate(`/admin/client-brain/${c.id}`)}>
+                          <Brain className="h-3.5 w-3.5" />Brain
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-xs gap-1 h-7 rounded-lg" onClick={() => { setMediaClientId(c.id); setMediaClientName(c.name); }}>
+                          <Image className="h-3.5 w-3.5" />Media
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-xs gap-1 h-7 rounded-lg" onClick={() => { setActivityClientId(c.id); setActivityClientName(c.name); }}>
+                          <Activity className="h-3.5 w-3.5" />Activity
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-xs gap-1 h-7 rounded-lg" onClick={() => { setOnboardingClientId(c.id); setOnboardingClientName(c.name); }}>
+                          <ClipboardList className="h-3.5 w-3.5" />Onboarding
+                        </Button>
+                        {isSSAdmin && (
+                          <>
+                            <Button variant="ghost" size="sm" className="text-xs gap-1 h-7 rounded-lg" onClick={() => setWhatsNewClient(c.id)}>
+                              <Sparkles className="h-3.5 w-3.5" />What's New
+                            </Button>
+                            <div className="flex items-center gap-2 ml-2">
+                              <Label className="text-xs text-muted-foreground">Assistants approve</Label>
+                              <Switch
+                                checked={c.assistants_can_approve}
+                                onCheckedChange={(v) => toggleAssistants.mutate({ id: c.id, value: v })}
+                              />
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
-                  </>
-                )}
-              </div>
+                  ))}
+                </div>
+              )}
+              {gIdx < provinceGroups.length - 1 && <div className="border-b border-border/40" />}
             </div>
           ))}
         </div>
