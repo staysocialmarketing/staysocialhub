@@ -1192,6 +1192,57 @@ export type Database = {
           },
         ]
       }
+      post_images: {
+        Row: {
+          alt_text: string | null
+          created_at: string
+          created_by_user_id: string | null
+          id: string
+          platform: string | null
+          position: number
+          post_id: string
+          storage_path: string
+          url: string
+        }
+        Insert: {
+          alt_text?: string | null
+          created_at?: string
+          created_by_user_id?: string | null
+          id?: string
+          platform?: string | null
+          position?: number
+          post_id: string
+          storage_path: string
+          url: string
+        }
+        Update: {
+          alt_text?: string | null
+          created_at?: string
+          created_by_user_id?: string | null
+          id?: string
+          platform?: string | null
+          position?: number
+          post_id?: string
+          storage_path?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_images_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_images_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       post_versions: {
         Row: {
           caption: string | null
