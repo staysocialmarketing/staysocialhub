@@ -96,13 +96,14 @@ Deno.serve(async (req: Request) => {
 
     // ────────────────────────────────────────────────────────────────────────
     case "create-post": {
-      const { client_id, title, platform, caption, hashtags, status } = body as {
+      const { client_id, title, platform, caption, hashtags, status, platform_content } = body as {
         client_id?: string;
         title?: string;
         platform?: string;
         caption?: string;
         hashtags?: string;
         status?: PostStatus;
+        platform_content?: Record<string, Record<string, string>>;
       };
 
       if (!client_id) return err("client_id is required");
@@ -110,17 +111,32 @@ Deno.serve(async (req: Request) => {
 
       const postStatus: PostStatus = (status && VALID_STATUSES.has(status)) ? status : "ai_draft";
 
+      // Derive platform text from platform_content keys if not explicitly provided
+      const resolvedPlatform =
+        platform ??
+        (platform_content ? Object.keys(platform_content).join(",") : null);
+
+      // Derive fallback caption from platform_content if not explicitly provided
+      const resolvedCaption =
+        caption ??
+        (platform_content
+          ? (platform_content.instagram?.caption ??
+             platform_content.facebook?.caption ??
+             null)
+          : null);
+
       const { data, error } = await db
         .from("posts")
         .insert({
           client_id,
           title,
-          platform:      platform  ?? null,
-          caption:       caption   ?? null,
-          hashtags:      hashtags  ?? null,
-          status_column: postStatus,
+          platform:         resolvedPlatform  ?? null,
+          caption:          resolvedCaption   ?? null,
+          hashtags:         hashtags          ?? null,
+          status_column:    postStatus,
+          platform_content: platform_content  ?? null,
         })
-        .select("id, title, status_column, created_at")
+        .select("id, title, platform, platform_content, status_column, created_at")
         .single();
 
       if (error) return err(error.message, 500);
