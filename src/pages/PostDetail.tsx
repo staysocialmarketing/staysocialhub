@@ -23,6 +23,7 @@ import { compressImage } from "@/lib/imageUtils";
 import { cn } from "@/lib/utils";
 
 type ApprovalType = Database["public"]["Enums"]["approval_type"];
+type PostImage = Database["public"]["Tables"]["post_images"]["Row"];
 
 const PLATFORM_LABELS: Record<string, string> = {
   instagram: "Instagram",
@@ -120,21 +121,12 @@ export default function PostDetail() {
     queryKey: ["post-images", postId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("post_images" as any)
+        .from("post_images")
         .select("id, post_id, storage_path, url, platform, position, alt_text, created_at")
         .eq("post_id", postId!)
         .order("position", { ascending: true });
       if (error) throw error;
-      return (data || []) as Array<{
-        id: string;
-        post_id: string;
-        storage_path: string;
-        url: string;
-        platform: string | null;
-        position: number;
-        alt_text: string | null;
-        created_at: string;
-      }>;
+      return (data || []) as PostImage[];
     },
     enabled: !!postId,
   });
@@ -239,7 +231,7 @@ export default function PostDetail() {
         const nextPosition = postImages.length + i;
 
         const { error: insertError } = await supabase
-          .from("post_images" as any)
+          .from("post_images")
           .insert({
             post_id: postId,
             storage_path: storagePath,
@@ -267,13 +259,13 @@ export default function PostDetail() {
   };
 
   // Delete an image from post_images
-  const deleteImage = async (img: { id: string; storage_path: string; url: string }) => {
+  const deleteImage = async (img: Pick<PostImage, "id" | "storage_path" | "url">) => {
     setDeletingImageId(img.id);
     try {
       await supabase.storage.from("creative-assets").remove([img.storage_path]);
 
       const { error } = await supabase
-        .from("post_images" as any)
+        .from("post_images")
         .delete()
         .eq("id", img.id);
       if (error) throw error;
