@@ -802,17 +802,6 @@ export default function PostDetail() {
                 <Label className="text-muted-foreground text-xs">Status</Label>
                 <Badge variant="secondary" className="mt-1">{post.status_column.replace(/_/g, " ")}</Badge>
               </div>
-              <div>
-                <Label className="text-muted-foreground text-xs">Platform</Label>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {post.platform
-                    ? post.platform.split(",").map((p: string) => (
-                        <PlatformBadge key={p} platform={p.trim()} />
-                      ))
-                    : <span className="text-sm text-muted-foreground">—</span>
-                  }
-                </div>
-              </div>
               {isSSRole && (post as any).assigned_to_user_id && (
                 <div>
                   <Label className="text-muted-foreground text-xs">Assigned to</Label>
