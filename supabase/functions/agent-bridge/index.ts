@@ -18,14 +18,14 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // ---------------------------------------------------------------------------
 
 type PostStatus =
-  | "new_requests" | "idea" | "in_progress" | "writing" | "design"
+  | "idea" | "in_progress" | "writing" | "design"
   | "internal_review" | "corey_review" | "client_approval" | "request_changes"
   | "approved" | "scheduled" | "published" | "ready_to_schedule"
   | "ready_to_send" | "sent" | "complete" | "ready_for_client_batch"
   | "ai_draft";
 
 const VALID_STATUSES = new Set<PostStatus>([
-  "new_requests", "idea", "in_progress", "writing", "design",
+  "idea", "in_progress", "writing", "design",
   "internal_review", "corey_review", "client_approval", "request_changes",
   "approved", "scheduled", "published", "ready_to_schedule",
   "ready_to_send", "sent", "complete", "ready_for_client_batch", "ai_draft",

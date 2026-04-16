@@ -21,14 +21,22 @@ import { compressImage } from "@/lib/imageUtils";
 type PostStatus = Database["public"]["Enums"]["post_status"];
 
 const statusLabels: Record<string, string> = {
-  new_requests: "New",
-  content_process: "Content",
-  design_process: "Design",
+  idea: "New",
+  ai_draft: "AI Draft",
+  design: "Design",
+  in_progress: "In Progress",
+  internal_review: "Review",
+  corey_review: "Corey Review",
+  client_approval: "Client Approval",
   request_changes: "Changes",
-  content_for_approval: "For Approval",
+  ready_for_client_batch: "Ready for Batch",
+  ready_to_schedule: "Ready to Schedule",
+  ready_to_send: "Ready to Send",
   approved: "Approved",
-  in_the_queue: "Queued",
+  scheduled: "Scheduled",
   published: "Published",
+  sent: "Sent",
+  complete: "Complete",
 };
 
 const PLATFORM_OPTIONS = ["Instagram", "Facebook", "LinkedIn", "TikTok"];
@@ -95,7 +103,7 @@ export default function AdminContent() {
           hashtags: newPost.hashtags || null,
           creative_url,
           scheduled_at: newPost.scheduled_at?.toISOString() || null,
-          status_column: "content_process" as PostStatus,
+          status_column: "idea" as PostStatus,
           created_by_user_id: profile.id,
           internal_notes: newPost.internal_notes || null,
         } as any)

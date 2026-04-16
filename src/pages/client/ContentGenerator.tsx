@@ -146,7 +146,7 @@ export default function ContentGenerator() {
       if (!postId || !output) return;
       const { error } = await supabase
         .from("posts")
-        .update({ caption: output, status_column: "writing" })
+        .update({ caption: output, status_column: "ai_draft" })
         .eq("id", postId);
       if (error) throw error;
     },

@@ -59,10 +59,10 @@ export default function RequestChangesModal({ postId, postTitle, open, onOpenCha
         note: body,
       });
 
-      // Move post back to in_progress
+      // Return post to corey_review for SS team follow-up
       const { error } = await supabase
         .from("posts")
-        .update({ status_column: "in_progress" as any })
+        .update({ status_column: "corey_review" as any })
         .eq("id", postId);
       if (error) throw error;
     },
@@ -70,7 +70,7 @@ export default function RequestChangesModal({ postId, postTitle, open, onOpenCha
       queryClient.invalidateQueries({ queryKey: ["workflow-posts"] });
       queryClient.invalidateQueries({ queryKey: ["approval-posts"] });
       queryClient.invalidateQueries({ queryKey: ["client-approval-posts"] });
-      toast.success("Changes requested — item returned to In Progress");
+      toast.success("Changes requested — returned to Corey Review");
       setSelected([]);
       setNote("");
       onOpenChange(false);

@@ -19,6 +19,10 @@ export function getApproveTarget(contentType: string | null, currentStatus: Post
     return "design" as PostStatus;
   }
 
+  if (currentStatus === "design" as PostStatus) {
+    return "corey_review" as PostStatus;
+  }
+
   if (currentStatus === "internal_review") {
     return "corey_review" as PostStatus;
   }
