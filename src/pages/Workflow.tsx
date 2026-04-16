@@ -33,6 +33,7 @@ type PostStatus = Database["public"]["Enums"]["post_status"];
 const PRIMARY_COLUMNS: { key: PostStatus; label: string }[] = [
   { key: "idea", label: "New" },
   { key: "ai_draft" as PostStatus, label: "AI Draft" },
+  { key: "design" as PostStatus, label: "Design" },
   { key: "in_progress" as PostStatus, label: "In Progress" },
   { key: "internal_review", label: "Review" },
   { key: "corey_review" as PostStatus, label: "Corey" },

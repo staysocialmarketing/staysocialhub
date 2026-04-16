@@ -15,6 +15,10 @@ export function getContentCategory(contentType: string | null): "social" | "emai
 export function getApproveTarget(contentType: string | null, currentStatus: PostStatus): PostStatus {
   const category = getContentCategory(contentType);
 
+  if (currentStatus === "ai_draft" as PostStatus) {
+    return "design" as PostStatus;
+  }
+
   if (currentStatus === "internal_review") {
     return "corey_review" as PostStatus;
   }

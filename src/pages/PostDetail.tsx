@@ -56,6 +56,7 @@ export default function PostDetail() {
   const [approvalNote, setApprovalNote] = useState("");
   const [lightboxVersion, setLightboxVersion] = useState<any>(null);
   const [deleteDialog, setDeleteDialog] = useState(false);
+  const [designCompleteDialog, setDesignCompleteDialog] = useState(false);
 
   // Fetch post
   const { data: post, isLoading } = useQuery({
@@ -199,6 +200,28 @@ export default function PostDetail() {
       );
     },
     onError: () => toast.error("Failed to submit approval"),
+  });
+
+  // Mark design complete → send to Corey for review
+  const COREY_USER_ID = "6cd3d0da-0cbc-4bd5-b428-9f997218f5c2";
+  const markDesignComplete = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("posts")
+        .update({
+          status_column: "corey_review" as any,
+          reviewer_user_id: COREY_USER_ID,
+        })
+        .eq("id", postId!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["post-detail", postId] });
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+      setDesignCompleteDialog(false);
+      toast.success("Sent to Corey for review!");
+    },
+    onError: () => toast.error("Failed to update post status"),
   });
 
   // Delete post
@@ -798,6 +821,22 @@ export default function PostDetail() {
             </CardContent>
           </Card>
 
+          {/* Design Complete Panel */}
+          {isSSRole && post.status_column === "design" && (
+            <Card className="border-primary">
+              <CardHeader><CardTitle className="text-base">Design Review</CardTitle></CardHeader>
+              <CardContent>
+                <Button
+                  className="w-full"
+                  onClick={() => setDesignCompleteDialog(true)}
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  Design Complete — Send for Review
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Approval Panel */}
           {canApprove && isApprovalStatus && (
             <Card className="border-primary">
@@ -913,6 +952,29 @@ export default function PostDetail() {
               {lightboxVersion?.hashtags && <p className="text-muted-foreground">#{lightboxVersion.hashtags}</p>}
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Design Complete Confirmation Dialog */}
+      <Dialog open={designCompleteDialog} onOpenChange={setDesignCompleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send to Corey for Review</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Send to Corey for review?
+          </p>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDesignCompleteDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => markDesignComplete.mutate()}
+              disabled={markDesignComplete.isPending}
+            >
+              {markDesignComplete.isPending ? "Sending..." : "Confirm"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
