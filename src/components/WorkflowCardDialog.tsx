@@ -14,7 +14,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarWidget } from "@/components/ui/calendar";
 import { Clock, ExternalLink, FileText, Pencil, Send, Calendar } from "lucide-react";
-import MetricsEntryPanel from "@/components/MetricsEntryPanel";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import ApprovalActions from "@/components/ApprovalActions";
@@ -505,12 +504,7 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
                 </div>
               )}
 
-              {/* Metrics Entry for SS */}
-              {isSSRole && post.client_id && (
-                <MetricsEntryPanel postId={post.id} clientId={post.client_id} />
-              )}
-
-              <div className="flex gap-2 pt-2">
+<div className="flex gap-2 pt-2">
                 {isSSRole && (
                   <Button variant="outline" onClick={() => setEditing(true)}>
                     <Pencil className="h-4 w-4 mr-2" />Edit
