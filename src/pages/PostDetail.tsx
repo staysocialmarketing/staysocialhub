@@ -21,6 +21,7 @@ import {
 import type { Database } from "@/integrations/supabase/types";
 import { compressImage } from "@/lib/imageUtils";
 import { cn } from "@/lib/utils";
+import { PlatformBadge } from "@/components/PlatformBadge";
 
 type ApprovalType = Database["public"]["Enums"]["approval_type"];
 type PostImage = Database["public"]["Tables"]["post_images"]["Row"];
@@ -34,14 +35,6 @@ const PLATFORM_LABELS: Record<string, string> = {
   tiktok: "TikTok",
 };
 
-const platformColors: Record<string, string> = {
-  instagram: "bg-pink-500/10 text-pink-600",
-  facebook: "bg-blue-500/10 text-blue-600",
-  linkedin: "bg-sky-500/10 text-sky-600",
-  google: "bg-emerald-500/10 text-emerald-600",
-  email: "bg-violet-500/10 text-violet-600",
-  tiktok: "bg-purple-500/10 text-purple-600",
-};
 
 export default function PostDetail() {
   const { postId } = useParams<{ postId: string }>();
@@ -406,9 +399,16 @@ export default function PostDetail() {
         </Button>
         <div className="flex-1 min-w-0">
           <h2 className="text-2xl font-bold text-foreground truncate">{post.title}</h2>
-          <p className="text-sm text-muted-foreground">
-            {(post as any).clients?.name} · {post.platform || "No platform"}
-          </p>
+          <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+            <span className="text-sm text-muted-foreground">{(post as any).clients?.name}</span>
+            {post.platform ? (
+              post.platform.split(",").map((p: string) => (
+                <PlatformBadge key={p} platform={p.trim()} />
+              ))
+            ) : (
+              <span className="text-sm text-muted-foreground">No platform</span>
+            )}
+          </div>
         </div>
         {isSSAdmin && (
           <Button
@@ -804,7 +804,14 @@ export default function PostDetail() {
               </div>
               <div>
                 <Label className="text-muted-foreground text-xs">Platform</Label>
-                <p className="mt-1">{post.platform || "—"}</p>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {post.platform
+                    ? post.platform.split(",").map((p: string) => (
+                        <PlatformBadge key={p} platform={p.trim()} />
+                      ))
+                    : <span className="text-sm text-muted-foreground">—</span>
+                  }
+                </div>
               </div>
               {isSSRole && (post as any).assigned_to_user_id && (
                 <div>

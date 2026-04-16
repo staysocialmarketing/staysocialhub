@@ -15,28 +15,12 @@ import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 import ApprovalActions from "@/components/ApprovalActions";
 import ApprovalBatchManager from "@/components/ApprovalBatchManager";
+import { PlatformBadge } from "@/components/PlatformBadge";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/ui/empty-state";
 
 type PostStatus = Database["public"]["Enums"]["post_status"];
 
-const platformColors: Record<string, string> = {
-  instagram: "bg-pink-500/10 text-pink-600",
-  facebook: "bg-blue-500/10 text-blue-600",
-  linkedin: "bg-sky-500/10 text-sky-600",
-  tiktok: "bg-purple-500/10 text-purple-600",
-  google: "bg-emerald-500/10 text-emerald-600",
-  email: "bg-violet-500/10 text-violet-600",
-};
-
-const PLATFORM_LABELS: Record<string, string> = {
-  instagram: "Instagram",
-  facebook: "Facebook",
-  linkedin: "LinkedIn",
-  tiktok: "TikTok",
-  google: "Google",
-  email: "Email",
-};
 
 function getDueDateColor(dueAt: string | null) {
   if (!dueAt) return null;
@@ -84,20 +68,17 @@ function PostCard({ post, onClick, showClient = false, children }: {
                 const pc = (post as any).platform_content as Record<string, any> | null;
                 const keys = pc && Object.keys(pc).length > 0 ? Object.keys(pc) : null;
                 if (keys) {
-                  return keys.map(k => (
-                    <Badge key={k} variant="secondary" className={`text-[10px] border-0 ${platformColors[k] || "bg-muted"}`}>
-                      {PLATFORM_LABELS[k] ?? k}
-                    </Badge>
+                  return keys.map(k => <PlatformBadge key={k} platform={k} />);
+                }
+                if (post.platform) {
+                  return post.platform.split(",").map((p: string) => (
+                    <PlatformBadge key={p} platform={p.trim()} />
                   ));
                 }
-                return (
-                  <>
-                    {post.platform?.split(",").map((p: string) => (
-                      <Badge key={p} variant="secondary" className={`text-[10px] border-0 ${platformColors[p.trim().toLowerCase()] || "bg-muted"}`}>{p.trim()}</Badge>
-                    ))}
-                    {isEmail && <Badge variant="secondary" className="text-[10px] bg-blue-500/10 text-blue-600 border-0">Email</Badge>}
-                  </>
-                );
+                if (isEmail) {
+                  return <PlatformBadge platform="email" />;
+                }
+                return null;
               })()}
             </div>
             <div className="flex items-center justify-between text-xs text-muted-foreground">
