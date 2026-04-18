@@ -23,6 +23,7 @@ import { compressImage } from "@/lib/imageUtils";
 import { cn } from "@/lib/utils";
 import { PlatformBadge } from "@/components/PlatformBadge";
 import ApprovalActions from "@/components/ApprovalActions";
+import ImageLightbox from "@/components/ImageLightbox";
 
 type ApprovalType = Database["public"]["Enums"]["approval_type"];
 type PostImage = Database["public"]["Tables"]["post_images"]["Row"];
