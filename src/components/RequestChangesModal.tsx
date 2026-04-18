@@ -7,15 +7,10 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
-const CHANGE_OPTIONS = [
-  { id: "design", label: "Design change" },
-  { id: "content", label: "Content / caption change" },
-  { id: "other", label: "Other / leave note" },
-];
+type FixType = "content" | "design";
 
 interface RequestChangesModalProps {
   postId: string;
@@ -27,31 +22,17 @@ interface RequestChangesModalProps {
 export default function RequestChangesModal({ postId, postTitle, open, onOpenChange }: RequestChangesModalProps) {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
-  const [selected, setSelected] = useState<string[]>([]);
+  const [fixType, setFixType] = useState<FixType>("content");
   const [note, setNote] = useState("");
 
   const submitChanges = useMutation({
     mutationFn: async () => {
       if (!profile) throw new Error("Not logged in");
-      if (selected.length === 0) throw new Error("Please select at least one option");
 
-      // Build comment body
-      const parts: string[] = ["📝 Changes requested:"];
-      selected.forEach(s => {
-        const opt = CHANGE_OPTIONS.find(o => o.id === s);
-        if (opt) parts.push(`• ${opt.label}`);
-      });
-      if (note.trim()) parts.push(`\nNote: ${note.trim()}`);
-      const body = parts.join("\n");
+      const prefix = fixType === "design" ? "[Design Fix]" : "[Content Fix]";
+      const body = note.trim() ? `${prefix}\n${note.trim()}` : prefix;
 
-      // Insert comment
-      await supabase.from("comments").insert({
-        post_id: postId,
-        user_id: profile.id,
-        body,
-      });
-
-      // Record in approvals table
+      await supabase.from("comments").insert({ post_id: postId, user_id: profile.id, body });
       await supabase.from("approvals").insert({
         post_id: postId,
         user_id: profile.id,
@@ -59,10 +40,10 @@ export default function RequestChangesModal({ postId, postTitle, open, onOpenCha
         note: body,
       });
 
-      // Return post to corey_review for SS team follow-up
+      const newStatus = fixType === "design" ? "design" : "corey_review";
       const { error } = await supabase
         .from("posts")
-        .update({ status_column: "corey_review" as any })
+        .update({ status_column: newStatus as any })
         .eq("id", postId);
       if (error) throw error;
     },
@@ -70,17 +51,17 @@ export default function RequestChangesModal({ postId, postTitle, open, onOpenCha
       queryClient.invalidateQueries({ queryKey: ["workflow-posts"] });
       queryClient.invalidateQueries({ queryKey: ["approval-posts"] });
       queryClient.invalidateQueries({ queryKey: ["client-approval-posts"] });
-      toast.success("Changes requested — returned to Corey Review");
-      setSelected([]);
+      toast.success(
+        fixType === "design"
+          ? "Design fix requested — returned to Design"
+          : "Changes requested — returned to Corey Review"
+      );
+      setFixType("content");
       setNote("");
       onOpenChange(false);
     },
     onError: (err: any) => toast.error(err.message || "Failed to request changes"),
   });
-
-  const toggle = (id: string) => {
-    setSelected(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
-  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -91,16 +72,36 @@ export default function RequestChangesModal({ postId, postTitle, open, onOpenCha
         <p className="text-sm text-muted-foreground">
           Select what needs to change for <span className="font-medium text-foreground">"{postTitle}"</span>
         </p>
-        <div className="space-y-3 mt-2">
-          {CHANGE_OPTIONS.map(opt => (
-            <label key={opt.id} className="flex items-center gap-3 cursor-pointer">
-              <Checkbox checked={selected.includes(opt.id)} onCheckedChange={() => toggle(opt.id)} />
-              <Label className="cursor-pointer">{opt.label}</Label>
-            </label>
-          ))}
+        <div className="grid grid-cols-2 gap-2 mt-2">
+          <button
+            type="button"
+            onClick={() => setFixType("content")}
+            className={cn(
+              "rounded-xl border-2 p-3 text-sm text-left transition-colors",
+              fixType === "content"
+                ? "border-primary bg-primary/5 text-primary"
+                : "border-border text-muted-foreground hover:border-primary/50"
+            )}
+          >
+            <div className="font-semibold">Content Fix</div>
+            <div className="text-xs opacity-70 mt-0.5">Caption, copy, or other text</div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setFixType("design")}
+            className={cn(
+              "rounded-xl border-2 p-3 text-sm text-left transition-colors",
+              fixType === "design"
+                ? "border-primary bg-primary/5 text-primary"
+                : "border-border text-muted-foreground hover:border-primary/50"
+            )}
+          >
+            <div className="font-semibold">Design Fix</div>
+            <div className="text-xs opacity-70 mt-0.5">Image, layout, or visual</div>
+          </button>
         </div>
         <Textarea
-          placeholder="Add a note (optional unless 'Other' is selected)..."
+          placeholder="Add a note (optional)..."
           value={note}
           onChange={e => setNote(e.target.value)}
           rows={3}
@@ -110,7 +111,7 @@ export default function RequestChangesModal({ postId, postTitle, open, onOpenCha
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button
             onClick={() => submitChanges.mutate()}
-            disabled={selected.length === 0 || (selected.includes("other") && !note.trim()) || submitChanges.isPending}
+            disabled={submitChanges.isPending}
           >
             {submitChanges.isPending ? "Submitting..." : "Request Changes"}
           </Button>

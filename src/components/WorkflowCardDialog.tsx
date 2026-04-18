@@ -13,7 +13,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarWidget } from "@/components/ui/calendar";
-import { Clock, ExternalLink, FileText, Pencil, Send, Calendar } from "lucide-react";
+import { Clock, ExternalLink, FileText, Pencil, Send, Calendar, Image as ImageIcon } from "lucide-react";
+import ImageLightbox from "@/components/ImageLightbox";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import ApprovalActions from "@/components/ApprovalActions";
@@ -56,6 +57,7 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
   const [reqType, setReqType] = useState("");
   const [reqPriority, setReqPriority] = useState("");
   const [reqStatus, setReqStatus] = useState("");
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const isEmail = contentType === "email_campaign";
 
@@ -79,6 +81,23 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
     },
     enabled: !!post.request_id,
   });
+
+  const { data: postImages = [] } = useQuery({
+    queryKey: ["post-images-dialog", post.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("post_images")
+        .select("url, alt_text, position")
+        .eq("post_id", post.id)
+        .order("position", { ascending: true });
+      if (error) return [];
+      return data || [];
+    },
+  });
+
+  const imagesToShow: string[] = postImages.length > 0
+    ? postImages.map((img: any) => img.url)
+    : post.creative_url ? [post.creative_url] : [];
 
   const resetFields = () => {
     setTitle(post.title);
@@ -184,7 +203,7 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
     onError: () => toast.error("Failed to schedule"),
   });
 
-  const showAdminApproval = isSSAdmin && post.status_column === "internal_review";
+  const showAdminApproval = isSSAdmin && post.status_column === "corey_review";
   const showClientApproval = (isClientAdmin || isClientAssistant) && post.status_column === "client_approval";
   const showSendActions = isSSAdmin && post.status_column === "ready_to_send";
 
@@ -210,6 +229,20 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
         </DialogHeader>
 
         <div className="space-y-4 mt-2">
+          {imagesToShow.length > 0 && (
+            <div className={imagesToShow.length === 1 ? "w-full" : "grid grid-cols-2 gap-2"}>
+              {imagesToShow.map((url: string, i: number) => (
+                <button
+                  key={i}
+                  className="aspect-video bg-muted rounded-lg overflow-hidden hover:opacity-90 transition-opacity w-full"
+                  onClick={() => setLightboxUrl(url)}
+                >
+                  <img src={url} alt="" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Approval actions */}
           {showAdminApproval && (
             <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
@@ -519,5 +552,11 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
         </div>
       </DialogContent>
     </Dialog>
+
+    <ImageLightbox
+      open={!!lightboxUrl}
+      onOpenChange={(o) => { if (!o) setLightboxUrl(null); }}
+      imageUrl={lightboxUrl}
+    />
   );
 }

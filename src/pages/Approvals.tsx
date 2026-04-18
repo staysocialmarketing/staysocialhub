@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 import ApprovalActions from "@/components/ApprovalActions";
 import ApprovalBatchManager from "@/components/ApprovalBatchManager";
+import ImageLightbox from "@/components/ImageLightbox";
 import { PlatformBadge } from "@/components/PlatformBadge";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -37,6 +38,7 @@ function PostCard({ post, onClick, showClient = false, children }: {
   const dueDateColor = getDueDateColor(post.due_at);
   const isEmail = post.content_type === "email_campaign";
   const isCoreyReview = post.status_column === "corey_review";
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   return (
     <div className="space-y-1.5">
       <Tooltip>
@@ -48,9 +50,12 @@ function PostCard({ post, onClick, showClient = false, children }: {
               </Badge>
             )}
             {post.creative_url ? (
-              <div className="aspect-video bg-muted rounded-xl overflow-hidden">
+              <button
+                className="aspect-video bg-muted rounded-xl overflow-hidden w-full hover:opacity-90 transition-opacity"
+                onClick={(e) => { e.stopPropagation(); setLightboxUrl(post.creative_url); }}
+              >
                 <img src={post.creative_url} alt="" className="w-full h-full object-cover" />
-              </div>
+              </button>
             ) : (
               <div className="aspect-video bg-muted/50 rounded-xl flex items-center justify-center">
                 {isEmail ? <Mail className="h-6 w-6 text-muted-foreground/30" /> : <ImageIcon className="h-6 w-6 text-muted-foreground/30" />}
@@ -106,6 +111,11 @@ function PostCard({ post, onClick, showClient = false, children }: {
         </TooltipContent>
       </Tooltip>
       {children}
+      <ImageLightbox
+        open={!!lightboxUrl}
+        onOpenChange={(o) => { if (!o) setLightboxUrl(null); }}
+        imageUrl={lightboxUrl}
+      />
     </div>
   );
 }

@@ -35,9 +35,9 @@ const PRIMARY_COLUMNS: { key: PostStatus; label: string }[] = [
   { key: "idea", label: "New" },
   { key: "ai_draft" as PostStatus, label: "AI Draft" },
   { key: "design" as PostStatus, label: "Design" },
-  { key: "in_progress" as PostStatus, label: "In Progress" },
-  { key: "internal_review", label: "Review" },
-  { key: "corey_review" as PostStatus, label: "Corey" },
+  { key: "in_progress" as PostStatus, label: "In Process" },
+  { key: "corey_review" as PostStatus, label: "Corey Review" },
+  { key: "client_approval" as PostStatus, label: "Client Approval" },
 ];
 
 
@@ -125,6 +125,20 @@ export default function Workflow() {
       return data || [];
     },
     enabled: !!profile,
+  });
+
+  const { data: schedulingPosts = [] } = useQuery({
+    queryKey: ["scheduling-posts"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("posts")
+        .select("*, clients(name), assigned_user:assigned_to_user_id(name)")
+        .in("status_column", ["ready_to_schedule", "ready_to_send"])
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!profile && isSSAdmin,
   });
 
   const clients = allClients;
@@ -242,6 +256,22 @@ export default function Workflow() {
     onError: () => toast.error("Failed to send"),
   });
 
+  const markScheduled = useMutation({
+    mutationFn: async (postId: string) => {
+      const { error } = await supabase
+        .from("posts")
+        .update({ status_column: "scheduled" as PostStatus })
+        .eq("id", postId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["scheduling-posts"] });
+      queryClient.invalidateQueries({ queryKey: ["workflow-posts"] });
+      toast.success("Marked as scheduled");
+    },
+    onError: () => toast.error("Failed to update status"),
+  });
+
   const handleDragStart = (e: React.DragEvent, postId: string, currentStatus: PostStatus) => {
     e.dataTransfer.setData("postId", postId);
     e.dataTransfer.setData("fromStatus", currentStatus);
@@ -275,7 +305,7 @@ export default function Workflow() {
   const renderCard = (post: any) => {
     const dueDateColor = getDueDateColor(post.due_at);
     const ct = post.content_type ? contentTypeConfig[post.content_type] : null;
-    const showApprovalActions = isSSAdmin && post.status_column === "internal_review";
+    const showApprovalActions = isSSAdmin && post.status_column === "corey_review";
     const showSendActions = isSSAdmin && post.status_column === "ready_to_send";
 
     return (
@@ -521,6 +551,86 @@ export default function Workflow() {
         </div>
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
+
+      {isSSAdmin && schedulingPosts.length > 0 && (
+        <div className="mt-6 shrink-0">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">Ready for Scheduling</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {schedulingPosts.length} post{schedulingPosts.length !== 1 ? "s" : ""} awaiting scheduling in GHL
+              </p>
+            </div>
+          </div>
+          <ScrollArea>
+            <div className="flex gap-3 pb-3">
+              {schedulingPosts.map((post: any) => {
+                const ct = post.content_type ? contentTypeConfig[post.content_type] : null;
+                const isReadyToSend = post.status_column === "ready_to_send";
+                return (
+                  <div
+                    key={post.id}
+                    className="w-[240px] shrink-0 card-elevated p-3.5 space-y-2.5 cursor-pointer hover:shadow-lifted transition-all"
+                    onClick={() => setSelectedPost(post)}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className="text-sm font-semibold text-foreground line-clamp-2 flex-1">{post.title}</h4>
+                      {isReadyToSend
+                        ? <Badge className="text-[10px] bg-blue-500/10 text-blue-600 border-0 shrink-0">Email</Badge>
+                        : <Badge className="text-[10px] bg-emerald-500/10 text-emerald-600 border-0 shrink-0">Social</Badge>
+                      }
+                    </div>
+                    {post.clients?.name && (
+                      <p className="text-xs text-muted-foreground">{post.clients.name}</p>
+                    )}
+                    {ct && (
+                      <Badge variant="secondary" className={`text-[10px] border-0 gap-1 ${ct.className}`}>
+                        {ct.icon} {ct.label}
+                      </Badge>
+                    )}
+                    {(() => {
+                      const pc = (post as any).platform_content as Record<string, any> | null;
+                      const keys = pc && Object.keys(pc).length > 0 ? Object.keys(pc) : null;
+                      const platforms = keys ?? (post.platform ? post.platform.split(",").map((p: string) => p.trim()) : null);
+                      return platforms ? (
+                        <div className="flex flex-wrap gap-1">
+                          {platforms.map((p: string) => <PlatformBadge key={p} platform={p} />)}
+                        </div>
+                      ) : null;
+                    })()}
+                    {post.scheduled_at && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {format(new Date(post.scheduled_at), "MMM d, yyyy")}
+                      </p>
+                    )}
+                    <div className="flex gap-2 pt-1" onClick={e => e.stopPropagation()}>
+                      <Button
+                        size="sm"
+                        className="flex-1 text-xs rounded-xl gap-1"
+                        onClick={() => markScheduled.mutate(post.id)}
+                        disabled={markScheduled.isPending}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" />Schedule in GHL
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs rounded-xl px-2.5"
+                        onClick={() => markScheduled.mutate(post.id)}
+                        disabled={markScheduled.isPending}
+                      >
+                        Done
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        </div>
+      )}
 
       {selectedPost && (
         <WorkflowCardDialog

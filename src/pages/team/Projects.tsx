@@ -298,10 +298,25 @@ export default function Projects() {
     return { completed, total: allTasks.length };
   };
 
+  const handleTaskDragStart = (e: React.DragEvent, taskId: string) => {
+    e.dataTransfer.setData("taskId", taskId);
+  };
+  const handleTaskDrop = (e: React.DragEvent, toStatus: string, projectId: string | null) => {
+    e.preventDefault();
+    const taskId = e.dataTransfer.getData("taskId");
+    const allTasks = Object.values(projectTasks).flat();
+    const task = allTasks.find(t => t.id === taskId);
+    if (!task || task.status === toStatus) return;
+    updateTaskStatus(taskId, toStatus, projectId);
+  };
+  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
+
   const renderTaskRow = (task: Task) => (
     <div
       key={task.id}
-      className={`flex items-center justify-between px-3 py-2.5 cursor-pointer hover:bg-muted/30 transition-colors group/task ${completingTaskIds.has(task.id) ? "animate-task-complete" : ""}`}
+      className={`flex items-center justify-between px-3 py-2.5 cursor-grab active:cursor-grabbing hover:bg-muted/30 transition-colors group/task ${completingTaskIds.has(task.id) ? "animate-task-complete" : ""}`}
+      draggable
+      onDragStart={e => { e.stopPropagation(); handleTaskDragStart(e, task.id); }}
       onClick={(e) => { e.stopPropagation(); setSelectedTask(task); }}
     >
       <div className="flex items-center gap-2.5 min-w-0">
@@ -485,7 +500,15 @@ export default function Projects() {
                                   {sub.description && (
                                     <p className="text-xs text-muted-foreground/50 py-1 line-clamp-2">{sub.description}</p>
                                   )}
-                                  {subTasks.map(renderTaskRow)}
+                                  {taskStatusColumns.map(col => {
+                                    const colTasks = subTasks.filter(t => t.status === col);
+                                    return (
+                                      <div key={col} className="rounded-lg min-h-[28px]" onDrop={e => handleTaskDrop(e, col, sub.id)} onDragOver={handleDragOver}>
+                                        {colTasks.length > 0 && <p className="text-[10px] font-semibold text-muted-foreground/40 uppercase tracking-wider px-1 pt-1">{taskStatusLabels[col]}</p>}
+                                        {colTasks.map(renderTaskRow)}
+                                      </div>
+                                    );
+                                  })}
                                   <Button
                                     size="sm"
                                     variant="ghost"
@@ -505,7 +528,15 @@ export default function Projects() {
                       <p className="text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-wider mb-2">Tasks</p>
                       {tasks.length > 0 ? (
                         <div className="divide-y divide-border/20">
-                          {tasks.map(renderTaskRow)}
+                          {taskStatusColumns.map(col => {
+                            const colTasks = tasks.filter(t => t.status === col);
+                            return (
+                              <div key={col} className="rounded-lg min-h-[28px]" onDrop={e => handleTaskDrop(e, col, project.id)} onDragOver={handleDragOver}>
+                                {colTasks.length > 0 && <p className="text-[10px] font-semibold text-muted-foreground/40 uppercase tracking-wider px-1 pt-1">{taskStatusLabels[col]}</p>}
+                                {colTasks.map(renderTaskRow)}
+                              </div>
+                            );
+                          })}
                         </div>
                       ) : (
                         <p className="text-xs text-muted-foreground/40 py-2">No tasks linked to this project.</p>

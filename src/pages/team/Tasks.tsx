@@ -190,6 +190,18 @@ export default function Tasks() {
     return true;
   });
 
+  const handleDragStart = (e: React.DragEvent, taskId: string) => {
+    e.dataTransfer.setData("taskId", taskId);
+  };
+  const handleDrop = (e: React.DragEvent, toStatus: string) => {
+    e.preventDefault();
+    const taskId = e.dataTransfer.getData("taskId");
+    const task = tasks.find(t => t.id === taskId);
+    if (!task || task.status === toStatus) return;
+    updateStatus(taskId, toStatus);
+  };
+  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
+
   return (
     <div className="p-4 sm:p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -248,7 +260,7 @@ export default function Tasks() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {statusColumns.map((col) => (
-            <div key={col} className="space-y-2.5 min-w-0">
+            <div key={col} className="space-y-2.5 min-w-0" onDrop={e => handleDrop(e, col)} onDragOver={handleDragOver}>
               <div className="flex items-center gap-2 pb-2">
                 <h2 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{statusLabels[col]}</h2>
                 <span className="text-[11px] font-medium text-muted-foreground/60 bg-muted/50 rounded-full px-1.5 py-0.5">{tasksByStatus(col).length}</span>
@@ -262,7 +274,9 @@ export default function Tasks() {
                   tasksByStatus(col).map((task) => (
                     <div
                       key={task.id}
-                      className={`card-elevated p-3.5 space-y-2.5 cursor-pointer hover:shadow-lifted transition-all group ${completingTaskIds.has(task.id) ? "animate-task-complete" : ""}`}
+                      className={`card-elevated p-3.5 space-y-2.5 cursor-grab active:cursor-grabbing hover:shadow-lifted transition-all group ${completingTaskIds.has(task.id) ? "animate-task-complete" : ""}`}
+                      draggable
+                      onDragStart={e => handleDragStart(e, task.id)}
                       onClick={() => setEditTask(task)}
                     >
                       <div className="flex items-start justify-between gap-2">

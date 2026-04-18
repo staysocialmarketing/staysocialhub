@@ -22,6 +22,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { compressImage } from "@/lib/imageUtils";
 import { cn } from "@/lib/utils";
 import { PlatformBadge } from "@/components/PlatformBadge";
+import ApprovalActions from "@/components/ApprovalActions";
 
 type ApprovalType = Database["public"]["Enums"]["approval_type"];
 type PostImage = Database["public"]["Tables"]["post_images"]["Row"];
@@ -439,6 +440,16 @@ export default function PostDetail() {
           </Badge>
         )}
       </div>
+
+      {((isSSAdmin && (post.status_column === "internal_review" || post.status_column === "corey_review")) ||
+        ((isClientAdmin || isClientAssistant) && post.status_column === "client_approval")) && (
+        <ApprovalActions
+          postId={post.id}
+          postTitle={post.title}
+          currentStatus={post.status_column}
+          contentType={post.content_type}
+        />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
@@ -922,34 +933,20 @@ export default function PostDetail() {
         </div>
       </div>
 
-      {/* Version Lightbox Dialog */}
-      <Dialog open={!!lightboxVersion} onOpenChange={() => setLightboxVersion(null)}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Version {lightboxVersion?.version_number}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {lightboxVersion?.creative_url ? (
-              /\.(mp4|webm|mov)$/i.test(lightboxVersion.creative_url) ? (
-                <video src={lightboxVersion.creative_url} controls className="w-full rounded-lg max-h-[70vh]" />
-              ) : (
-                <img src={lightboxVersion.creative_url} alt="" className="w-full rounded-lg object-contain max-h-[70vh]" />
-              )
-            ) : (
-              <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
-                <ImageIcon className="h-12 w-12 text-muted-foreground/30" />
-              </div>
-            )}
-            <div className="text-sm space-y-1">
-              <p className="text-muted-foreground">
-                Uploaded by {lightboxVersion?.users?.name || "Team"} · {lightboxVersion && new Date(lightboxVersion.created_at).toLocaleString()}
-              </p>
-              {lightboxVersion?.caption && <p className="text-foreground">{lightboxVersion.caption}</p>}
-              {lightboxVersion?.hashtags && <p className="text-muted-foreground">#{lightboxVersion.hashtags}</p>}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ImageLightbox
+        open={!!lightboxVersion}
+        onOpenChange={(o) => { if (!o) setLightboxVersion(null); }}
+        imageUrl={lightboxVersion?.creative_url ?? null}
+        title={lightboxVersion ? `Version ${lightboxVersion.version_number}` : undefined}
+      >
+        <div className="text-sm space-y-1">
+          <p className="text-white/60">
+            Uploaded by {lightboxVersion?.users?.name || "Team"} · {lightboxVersion && new Date(lightboxVersion.created_at).toLocaleString()}
+          </p>
+          {lightboxVersion?.caption && <p className="text-white/90">{lightboxVersion.caption}</p>}
+          {lightboxVersion?.hashtags && <p className="text-white/60">#{lightboxVersion.hashtags}</p>}
+        </div>
+      </ImageLightbox>
 
       {/* Design Complete Confirmation Dialog */}
       <Dialog open={designCompleteDialog} onOpenChange={setDesignCompleteDialog}>
