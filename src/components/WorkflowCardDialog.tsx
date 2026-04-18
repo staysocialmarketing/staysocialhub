@@ -215,6 +215,7 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
   const contentTypeLabel = CONTENT_TYPE_OPTIONS.find(t => t.value === contentType)?.label || contentType || "—";
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(o) => { if (!o) { setEditing(false); resetFields(); } onOpenChange(o); }}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -558,5 +559,6 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
       onOpenChange={(o) => { if (!o) setLightboxUrl(null); }}
       imageUrl={lightboxUrl}
     />
+    </>
   );
 }
