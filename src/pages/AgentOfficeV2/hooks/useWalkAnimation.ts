@@ -83,12 +83,14 @@ export function useWalkAnimation(homeKey: WaypointKey) {
       setAnim(prev => ({ ...prev, direction: seg.direction, walkState: 'walking', opacity: 1 }));
 
       if (seg.isStairTransition) {
-        stopFrameCycle();
+        // Keep frame cycle running so feet animate during the climb.
+        // Direction: up = back-facing (ascending), down = front-facing (descending).
         const kind: WalkState = seg.fromKey === 'stair_bottom' ? 'stair_up' : 'stair_down';
-        doStairTransition(kind, seg.toX, seg.toY, () => {
+        const climbDir: WalkDirection = kind === 'stair_up' ? 'up' : 'down';
+        setAnim(prev => ({ ...prev, direction: climbDir, walkState: kind }));
+        doStairTransition(kind, seg.fromX, seg.fromY, seg.toX, seg.toY, () => {
           currentKeyRef.current = seg.toKey;
           posRef.current        = { x: seg.toX, y: seg.toY };
-          startFrameCycle();
           advanceToSegment(idx + 1);
         });
         return;
@@ -130,24 +132,36 @@ export function useWalkAnimation(homeKey: WaypointKey) {
     advanceToSegment(0);
   }, [cancel, startFrameCycle, stopFrameCycle]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Stair transition — opacity fade-out, position teleport, fade-in ─────────
-  function doStairTransition(kind: WalkState, toX: number, toY: number, cb: Cb) {
+  // ── Stair transition — smooth position ease + cosine opacity dip ────────────
+  // Position eases fromX/Y → toX/Y over the full duration (ease-in-out).
+  // Opacity follows a cosine curve: 1.0 → 0.5 → 1.0 at the midpoint.
+  // Frame cycle is NOT stopped — feet keep animating during the climb.
+  function doStairTransition(
+    kind: WalkState,
+    fromX: number, fromY: number,
+    toX: number,   toY: number,
+    cb: Cb,
+  ) {
     const start = performance.now();
-    const half  = STAIR_DURATION_MS / 2;
+
+    function eio(t: number) {
+      return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    }
 
     function tick(now: number) {
-      const elapsed = now - start;
-      if (elapsed < half) {
-        const opacity = 1 - elapsed / half;
-        setAnim(prev => ({ ...prev, walkState: kind, opacity, frameIndex: 0 }));
-        rafRef.current = requestAnimationFrame(tick);
-      } else if (elapsed < STAIR_DURATION_MS) {
-        const opacity = (elapsed - half) / half;
-        setAnim(prev => ({ ...prev, x: toX, y: toY, walkState: kind, opacity }));
-        rafRef.current = requestAnimationFrame(tick);
-      } else {
+      const t = Math.min((now - start) / STAIR_DURATION_MS, 1);
+      // Cosine curve: 1.0 at t=0, dips to 0.5 at t=0.5, recovers to 1.0 at t=1
+      const opacity = 0.75 + 0.25 * Math.cos(2 * Math.PI * t);
+      const ease    = eio(t);
+      const nx      = fromX + (toX - fromX) * ease;
+      const ny      = fromY + (toY - fromY) * ease;
+
+      if (t >= 1) {
         setAnim(prev => ({ ...prev, x: toX, y: toY, walkState: kind, opacity: 1 }));
         cb();
+      } else {
+        setAnim(prev => ({ ...prev, x: nx, y: ny, walkState: kind, opacity }));
+        rafRef.current = requestAnimationFrame(tick);
       }
     }
     rafRef.current = requestAnimationFrame(tick);
