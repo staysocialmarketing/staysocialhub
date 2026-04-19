@@ -1,6 +1,10 @@
 import type { DeskConfig, DeskTier } from './constants/desks';
 import { TIER_DIMS } from './constants/desks';
 import { SPRITE_MAP, SPRITE_DIMS } from './sprites';
+import { AGENTS } from './constants/agents';
+import { DeskLamp } from './DeskLamp';
+import { DeskIndicator } from './DeskIndicator';
+import type { IndicatorType } from './DeskIndicator';
 
 interface DeskProps {
   desk: DeskConfig;
@@ -17,6 +21,15 @@ const ROLE_SUBTITLES: Record<string, string> = {
   corey: 'Founder · AI Systems Architect',
 };
 
+interface LampConfig { w: number; opacity: number; topStop: string }
+
+const LAMP_CONFIG: Record<DeskTier, LampConfig> = {
+  command:        { w: 120, opacity: 0.75, topStop: '#ffd88a' },
+  chief_of_staff: { w: 116, opacity: 0.65, topStop: '#ffc870' },
+  director:       { w: 90,  opacity: 0.5,  topStop: '#ffd88a' },
+  sub_agent:      { w: 64,  opacity: 0.5,  topStop: '#ffd88a' },
+};
+
 export function Desk({ desk }: DeskProps) {
   const { tier, x, y, monitors, isPlaceholder, label, key } = desk;
   const { w: dw, h: dh } = TIER_DIMS[tier];
@@ -24,9 +37,7 @@ export function Desk({ desk }: DeskProps) {
   const ghost = isPlaceholder ?? false;
 
   const SpriteComponent = SPRITE_MAP[key];
-  // All sprites are 48×60, visibleH=42 → spriteTop = y - 42, bottom 18px behind desk
   const dims = SPRITE_DIMS[key] ?? SPRITE_DIMS['_default'];
-
   const spriteX = x + Math.floor((dw - dims.w) / 2);
   const spriteY = y - dims.visibleH;
 
@@ -36,9 +47,25 @@ export function Desk({ desk }: DeskProps) {
 
   const roleSubtitle = ROLE_SUBTITLES[key];
 
+  const lampCfg = LAMP_CONFIG[tier];
+  // Placeholders (Forge, Pixel) get no lamp; active agents get configured opacity
+  const lampOpacity = ghost ? 0 : lampCfg.opacity;
+
+  const agentCfg = AGENTS[key];
+  const indicatorType: IndicatorType = agentCfg?.indicator ?? 'question';
+  const indicatorColor = agentCfg?.palette ?? '#2a3a50';
+
   return (
     <>
-      {/* Character sprite — rendered BEFORE desk so desk covers bottom 18px */}
+      {/* ── Lamp glow — renders FIRST (behind everything) ── */}
+      <DeskLamp
+        x={x} y={y} deskW={dw} deskH={dh}
+        lampW={lampCfg.w}
+        opacity={lampOpacity}
+        topStop={lampCfg.topStop}
+      />
+
+      {/* ── Character sprite — behind desk surface ── */}
       {SpriteComponent ? (
         <div
           style={{
@@ -70,7 +97,7 @@ export function Desk({ desk }: DeskProps) {
         />
       )}
 
-      {/* Desk surface — renders AFTER sprite, covers bottom 18px of sprite */}
+      {/* ── Desk surface — covers bottom 18px of sprite ── */}
       <div
         style={{
           position: 'absolute',
@@ -81,11 +108,10 @@ export function Desk({ desk }: DeskProps) {
           background: ghost ? '#13161c' : '#19263a',
           border: `1px solid ${ghost ? '#1c1f26' : '#22334a'}`,
           opacity: ghost ? 0.5 : 1,
-          imageRendering: 'pixelated',
         }}
       />
 
-      {/* Monitor screens */}
+      {/* ── Monitor screens ── */}
       {Array.from({ length: monitors }).map((_, i) => (
         <div
           key={i}
@@ -102,7 +128,15 @@ export function Desk({ desk }: DeskProps) {
         />
       ))}
 
-      {/* Agent name label */}
+      {/* ── Indicator badge — back-right corner, on top of desk ── */}
+      <DeskIndicator
+        type={indicatorType}
+        color={indicatorColor}
+        x={x} y={y} deskW={dw}
+        ghost={ghost}
+      />
+
+      {/* ── Agent name label ── */}
       <div
         style={{
           position: 'absolute',
@@ -124,7 +158,7 @@ export function Desk({ desk }: DeskProps) {
         {label}
       </div>
 
-      {/* Role subtitle */}
+      {/* ── Role subtitle (Corey only) ── */}
       {roleSubtitle && !ghost && (
         <div
           style={{
@@ -144,7 +178,7 @@ export function Desk({ desk }: DeskProps) {
         </div>
       )}
 
-      {/* Coming soon badge for placeholders */}
+      {/* ── Coming soon badge for placeholders ── */}
       {ghost && (
         <div
           style={{

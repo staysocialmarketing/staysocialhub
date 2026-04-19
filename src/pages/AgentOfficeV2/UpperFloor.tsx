@@ -1,50 +1,54 @@
 import { CANVAS_W, UPPER_FLOOR_H } from './constants/desks';
+import { HalifaxWindow } from './windows/HalifaxWindow';
+import { TorontoWindow } from './windows/TorontoWindow';
 
-// Layout constants (all canvas-absolute)
-const BACK_WALL_H = 22;
+// Layout constants
+const BACK_WALL_H = 125;  // dominant back wall — houses the city windows
 const ROOM_Y      = BACK_WALL_H;
-const ROOM_H      = UPPER_FLOOR_H - BACK_WALL_H; // 208px
+const ROOM_H      = UPPER_FLOOR_H - BACK_WALL_H; // 135px
 
-// 3 windows in the back wall
-const WINDOWS = [
-  { x: 260, w: 60 },
-  { x: 440, w: 60 },
-  { x: 640, w: 60 },
-];
+// ── Feature city windows — inside back wall ──────────────────────────────────
+const WIN_W = 200;
+const WIN_H = 90;
+const WIN_Y = 10;  // 10px from top, well within back wall
 
-// Meeting table: 320×60 centered — enlarged to feel proportional to 48×60 sprites
+// Centre both windows in the room interior (x=188..772 = 584px wide)
+// Total occupied: 200+60+200=460. Margin each side=(584-460)/2=62.
+const HALIFAX_X  = 188 + 62;        // 250
+const TORONTO_X  = HALIFAX_X + WIN_W + 60; // 510  (right edge 710 < 772 ✓)
+
+// Meeting table — centred in canvas, below back wall
 const TABLE_W = 320;
 const TABLE_H = 60;
 const TABLE_X = (CANVAS_W - TABLE_W) / 2; // 320
-const TABLE_Y = 80;
+const TABLE_Y = 148;
 
-// Chair dimensions — scaled up with table
+// Chair dimensions
 const CHAIR_W = 26;
 const CHAIR_H = 14;
 
 // 4 chairs per side, evenly spaced across TABLE_W
-// Margin=43, gap=43: [43][26][43][26][43][26][43][26][44] ≈ 320
 const CHAIR_XS = [
   TABLE_X + 43,   // 363
   TABLE_X + 112,  // 432
   TABLE_X + 181,  // 501
   TABLE_X + 250,  // 570
 ];
-const TOP_CHAIR_Y    = TABLE_Y - CHAIR_H - 3; // 63
-const BOTTOM_CHAIR_Y = TABLE_Y + TABLE_H + 3; // 143
+const TOP_CHAIR_Y    = TABLE_Y - CHAIR_H - 3; // 131
+const BOTTOM_CHAIR_Y = TABLE_Y + TABLE_H + 3; // 211
 
-// Whiteboard: left room wall area
+// Whiteboard — on left room wall
 const WB_X = 192;
-const WB_Y = 34;
+const WB_Y = 70;
 const WB_W = 12;
-const WB_H = 72;
+const WB_H = 50;
 
 const ACTIVE_CAMPAIGN = 'Premiere · Punta Cana Contest';
 
-// Two plants near window edges
+// Plants — flanking the city windows
 const PLANTS = [
-  { x: 228, y: 24 },
-  { x: 698, y: 24 },
+  { x: 215, y: 14 },  // left of Halifax window
+  { x: 735, y: 14 },  // right of Toronto window
 ];
 
 export function UpperFloor() {
@@ -62,7 +66,7 @@ export function UpperFloor() {
         }}
       />
 
-      {/* Back wall */}
+      {/* Back wall — dominant zone housing the city windows */}
       <div
         style={{
           position: 'absolute',
@@ -75,21 +79,75 @@ export function UpperFloor() {
         }}
       />
 
-      {/* Windows in back wall */}
-      {WINDOWS.map((win, i) => (
-        <div
-          key={i}
-          style={{
-            position: 'absolute',
-            left: win.x,
-            top: 4,
-            width: win.w,
-            height: 14,
-            background: 'linear-gradient(to bottom, #a8d0e8, #7ab5d8)',
-            opacity: 0.65,
-          }}
-        />
-      ))}
+      {/* ── Halifax window ── */}
+      <div
+        style={{
+          position: 'absolute',
+          left: HALIFAX_X - 2,
+          top: WIN_Y - 2,
+          width: WIN_W + 4,
+          height: WIN_H + 4,
+          border: '2px solid #3a4e68',
+          background: '#050c18',
+          boxShadow: '0 0 8px rgba(0,0,0,0.6)',
+        }}
+      >
+        <HalifaxWindow />
+      </div>
+
+      {/* Halifax city label */}
+      <div
+        style={{
+          position: 'absolute',
+          left: HALIFAX_X + WIN_W / 2,
+          top: WIN_Y + WIN_H + 6,
+          transform: 'translateX(-50%)',
+          color: '#4a6882',
+          fontSize: 7,
+          fontFamily: "'Courier New', monospace",
+          letterSpacing: '0.22em',
+          textTransform: 'uppercase',
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+        }}
+      >
+        Halifax
+      </div>
+
+      {/* ── Toronto window ── */}
+      <div
+        style={{
+          position: 'absolute',
+          left: TORONTO_X - 2,
+          top: WIN_Y - 2,
+          width: WIN_W + 4,
+          height: WIN_H + 4,
+          border: '2px solid #3a4e68',
+          background: '#050c18',
+          boxShadow: '0 0 8px rgba(0,0,0,0.6)',
+        }}
+      >
+        <TorontoWindow />
+      </div>
+
+      {/* Toronto city label */}
+      <div
+        style={{
+          position: 'absolute',
+          left: TORONTO_X + WIN_W / 2,
+          top: WIN_Y + WIN_H + 6,
+          transform: 'translateX(-50%)',
+          color: '#4a6882',
+          fontSize: 7,
+          fontFamily: "'Courier New', monospace",
+          letterSpacing: '0.22em',
+          textTransform: 'uppercase',
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+        }}
+      >
+        Toronto
+      </div>
 
       {/* Room floor tile */}
       <div
@@ -133,7 +191,7 @@ export function UpperFloor() {
         }}
       />
 
-      {/* Whiteboard */}
+      {/* Whiteboard — on left room wall */}
       <div
         style={{
           position: 'absolute',
@@ -145,8 +203,6 @@ export function UpperFloor() {
           border: '1px solid #b0a898',
         }}
       />
-
-      {/* Campaign name on whiteboard (rotated to fit vertically) */}
       <div
         style={{
           position: 'absolute',
@@ -212,7 +268,7 @@ export function UpperFloor() {
         />
       ))}
 
-      {/* Small plants near windows */}
+      {/* Plants flanking the city windows */}
       {PLANTS.map((p, i) => (
         <div key={i} style={{ position: 'absolute', left: 0, top: 0 }}>
           <div

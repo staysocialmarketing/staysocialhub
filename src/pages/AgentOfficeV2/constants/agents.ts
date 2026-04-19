@@ -1,3 +1,5 @@
+import type { IndicatorType } from '../DeskIndicator';
+
 export type MemberType = 'ai' | 'human';
 
 export interface AgentConfig {
@@ -6,7 +8,8 @@ export interface AgentConfig {
   role: string;
   memberType: MemberType;
   isPlaceholder: boolean;
-  palette: string;       // primary colour, used for indicator badge in Phase 3
+  palette: string;       // primary colour — badge border + icon tint
+  indicator: IndicatorType;
 }
 
 export const AGENTS: Record<string, AgentConfig> = {
@@ -17,6 +20,7 @@ export const AGENTS: Record<string, AgentConfig> = {
     memberType: 'human',
     isPlaceholder: false,
     palette: '#c48a12',
+    indicator: 'crown',
   },
   lev: {
     key: 'lev',
@@ -25,6 +29,7 @@ export const AGENTS: Record<string, AgentConfig> = {
     memberType: 'ai',
     isPlaceholder: false,
     palette: '#d4822a',
+    indicator: 'briefcase',
   },
   scout: {
     key: 'scout',
@@ -33,6 +38,7 @@ export const AGENTS: Record<string, AgentConfig> = {
     memberType: 'ai',
     isPlaceholder: false,
     palette: '#3d8a52',
+    indicator: 'magnifying_glass',
   },
   quill: {
     key: 'quill',
@@ -41,6 +47,7 @@ export const AGENTS: Record<string, AgentConfig> = {
     memberType: 'ai',
     isPlaceholder: false,
     palette: '#7a1a2e',
+    indicator: 'social_stack',
   },
   ember: {
     key: 'ember',
@@ -48,7 +55,8 @@ export const AGENTS: Record<string, AgentConfig> = {
     role: 'Email Strategist',
     memberType: 'ai',
     isPlaceholder: false,
-    palette: '#7a4808',
+    palette: '#9a6018',
+    indicator: 'envelope',
   },
   forge: {
     key: 'forge',
@@ -57,6 +65,7 @@ export const AGENTS: Record<string, AgentConfig> = {
     memberType: 'ai',
     isPlaceholder: true,
     palette: '#1e3a5a',
+    indicator: 'code_brackets',
   },
   pixel: {
     key: 'pixel',
@@ -65,6 +74,7 @@ export const AGENTS: Record<string, AgentConfig> = {
     memberType: 'ai',
     isPlaceholder: true,
     palette: '#0a4a8c',
+    indicator: 'bullseye',
   },
   gavin: {
     key: 'gavin',
@@ -72,7 +82,8 @@ export const AGENTS: Record<string, AgentConfig> = {
     role: 'Creative Director',
     memberType: 'human',
     isPlaceholder: false,
-    palette: '#5a3820',
+    palette: '#7a4e30',
+    indicator: 'video_camera',
   },
   tristan: {
     key: 'tristan',
@@ -80,6 +91,7 @@ export const AGENTS: Record<string, AgentConfig> = {
     role: 'Sales Director',
     memberType: 'human',
     isPlaceholder: false,
-    palette: '#b84a18',
+    palette: '#2a8a48',
+    indicator: 'handshake',
   },
 };

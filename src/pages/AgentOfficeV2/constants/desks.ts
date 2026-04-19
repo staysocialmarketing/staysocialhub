@@ -1,8 +1,8 @@
 // Canvas dimensions
 export const CANVAS_W = 960;
 export const CANVAS_H = 840;
-export const UPPER_FLOOR_H = 230;
-export const MAIN_FLOOR_Y = 238; // after 8px divider (UPPER_FLOOR_H + 8)
+export const UPPER_FLOOR_H = 260;
+export const MAIN_FLOOR_Y = 268; // after 8px divider (UPPER_FLOOR_H + 8)
 export const COMMON_AREA_Y = 690; // shared strip at bottom of main floor (150px tall)
 
 // Desk tiers
@@ -118,6 +118,6 @@ export const DESKS: DeskConfig[] = [
 
 // Meeting room seat coordinates — updated to match enlarged table (Phase 7)
 export const MEETING_SEATS = [
-  { x: 376, y: 70 }, { x: 445, y: 70 }, { x: 514, y: 70 }, { x: 583, y: 70 },
-  { x: 376, y: 150 }, { x: 445, y: 150 }, { x: 514, y: 150 }, { x: 583, y: 150 },
+  { x: 376, y: 138 }, { x: 445, y: 138 }, { x: 514, y: 138 }, { x: 583, y: 138 },
+  { x: 376, y: 218 }, { x: 445, y: 218 }, { x: 514, y: 218 }, { x: 583, y: 218 },
 ];
