@@ -4,9 +4,9 @@ import { Desk } from '../Desk';
 const CREATIVE_KEYS = ['gavin', 'future_creative'];
 const creativeDesks = DESKS.filter(d => CREATIVE_KEYS.includes(d.key));
 
-const PLANT_Y = 455;
-const NOOK_Y  = 510;
-const NOOK_H  = 88;
+const PLANT_Y = 530;
+const NOOK_Y  = 565;
+const NOOK_H  = 100;
 
 export function CreativeStudioPod() {
   const podLeft = CREATIVE_POD_X;

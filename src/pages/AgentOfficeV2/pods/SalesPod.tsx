@@ -4,9 +4,9 @@ import { Desk } from '../Desk';
 const SALES_KEYS = ['tristan', 'future_sales'];
 const salesDesks = DESKS.filter(d => SALES_KEYS.includes(d.key));
 
-const PLANT_Y  = 455;
-const COFFEE_Y = 510;
-const COFFEE_H = 88;
+const PLANT_Y  = 530;
+const COFFEE_Y = 565;
+const COFFEE_H = 100;
 
 export function SalesPod() {
   const podLeft = SALES_POD_X;

@@ -1,5 +1,6 @@
 import type { DeskConfig, DeskTier } from './constants/desks';
 import { TIER_DIMS } from './constants/desks';
+import { SPRITE_MAP, SPRITE_DIMS } from './sprites';
 
 interface DeskProps {
   desk: DeskConfig;
@@ -12,48 +13,64 @@ const MONITOR_SIZES: Record<DeskTier, { w: number; h: number }> = {
   sub_agent:      { w: 20, h: 12 },
 };
 
-// Sprite placeholder circle diameters per tier
-const CIRCLE_D: Record<DeskTier, number> = {
-  command:        22,
-  chief_of_staff: 20,
-  director:       18,
-  sub_agent:      14,
+const ROLE_SUBTITLES: Record<string, string> = {
+  corey: 'Founder · AI Systems Architect',
 };
 
 export function Desk({ desk }: DeskProps) {
-  const { tier, x, y, monitors, isPlaceholder, label } = desk;
+  const { tier, x, y, monitors, isPlaceholder, label, key } = desk;
   const { w: dw, h: dh } = TIER_DIMS[tier];
   const { w: mw, h: mh } = MONITOR_SIZES[tier];
-  const circleD = CIRCLE_D[tier];
   const ghost = isPlaceholder ?? false;
 
-  // Circle: centered above desk, gap of 8px between circle bottom and desk top
-  const circleX = x + Math.floor((dw - circleD) / 2);
-  const circleY = y - circleD - 8;
+  const SpriteComponent = SPRITE_MAP[key];
+  // All sprites are 48×60, visibleH=42 → spriteTop = y - 42, bottom 18px behind desk
+  const dims = SPRITE_DIMS[key] ?? SPRITE_DIMS['_default'];
 
-  // Monitors: evenly spaced across top of desk (4px from desk top edge)
+  const spriteX = x + Math.floor((dw - dims.w) / 2);
+  const spriteY = y - dims.visibleH;
+
   const monGap = 3;
   const totalMonW = monitors * mw + (monitors - 1) * monGap;
   const monStartX = x + Math.floor((dw - totalMonW) / 2);
 
+  const roleSubtitle = ROLE_SUBTITLES[key];
+
   return (
     <>
-      {/* Sprite placeholder circle */}
-      <div
-        style={{
-          position: 'absolute',
-          left: circleX,
-          top: circleY,
-          width: circleD,
-          height: circleD,
-          borderRadius: '50%',
-          background: ghost ? '#1e2228' : '#263344',
-          border: `1px solid ${ghost ? '#262b35' : '#344860'}`,
-          opacity: ghost ? 0.45 : 0.9,
-        }}
-      />
+      {/* Character sprite — rendered BEFORE desk so desk covers bottom 18px */}
+      {SpriteComponent ? (
+        <div
+          style={{
+            position: 'absolute',
+            left: spriteX,
+            top: spriteY,
+            width: dims.w,
+            height: dims.h,
+            opacity: ghost ? 0.55 : 1,
+            filter: ghost ? 'grayscale(0.5)' : 'none',
+            imageRendering: 'pixelated',
+          }}
+        >
+          <SpriteComponent />
+        </div>
+      ) : (
+        <div
+          style={{
+            position: 'absolute',
+            left: x + Math.floor((dw - 14) / 2),
+            top: y - 22,
+            width: 14,
+            height: 14,
+            borderRadius: '50%',
+            background: ghost ? '#1e2228' : '#263344',
+            border: `1px solid ${ghost ? '#262b35' : '#344860'}`,
+            opacity: ghost ? 0.55 : 0.9,
+          }}
+        />
+      )}
 
-      {/* Desk surface */}
+      {/* Desk surface — renders AFTER sprite, covers bottom 18px of sprite */}
       <div
         style={{
           position: 'absolute',
@@ -90,7 +107,7 @@ export function Desk({ desk }: DeskProps) {
         style={{
           position: 'absolute',
           left: x + Math.floor(dw / 2),
-          top: y + dh + 5,
+          top: y + dh + 6,
           transform: 'translateX(-50%)',
           color: ghost ? '#2c3040' : '#6eb5e0',
           fontSize: 8,
@@ -106,6 +123,26 @@ export function Desk({ desk }: DeskProps) {
       >
         {label}
       </div>
+
+      {/* Role subtitle */}
+      {roleSubtitle && !ghost && (
+        <div
+          style={{
+            position: 'absolute',
+            left: x + Math.floor(dw / 2),
+            top: y + dh + 17,
+            transform: 'translateX(-50%)',
+            color: '#3a5a78',
+            fontSize: 6,
+            fontFamily: "'Courier New', monospace",
+            letterSpacing: '0.05em',
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+          }}
+        >
+          {roleSubtitle}
+        </div>
+      )}
 
       {/* Coming soon badge for placeholders */}
       {ghost && (

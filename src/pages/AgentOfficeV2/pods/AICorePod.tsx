@@ -66,21 +66,21 @@ export function AICorePod() {
         <defs>
           <style>{`
             .hier-line {
-              stroke: #1e3a5a;
-              stroke-width: 1;
-              stroke-dasharray: 3 3;
+              stroke: #2a6090;
+              stroke-width: 1.5;
+              stroke-dasharray: 4 3;
               fill: none;
             }
           `}</style>
         </defs>
 
-        {/* Corey → Lev: split into stub above label and segment below label zone */}
+        {/* Corey → Lev: stub below desk, resume below Corey's subtitle zone */}
         <line className="hier-line"
           x1={coreyBtm.x} y1={coreyBtm.y}
-          x2={coreyBtm.x} y2={coreyBtm.y + 4}
+          x2={coreyBtm.x} y2={coreyBtm.y + 5}
         />
         <line className="hier-line"
-          x1={levTop.x} y1={levTop.y - 22}
+          x1={levTop.x} y1={levTop.y - 42}
           x2={levTop.x} y2={levTop.y}
         />
 

@@ -1,10 +1,9 @@
 import { CANVAS_W, UPPER_FLOOR_H } from './constants/desks';
-import { MEETING_SEATS } from './constants/desks';
 
 // Layout constants (all canvas-absolute)
 const BACK_WALL_H = 22;
 const ROOM_Y      = BACK_WALL_H;
-const ROOM_H      = UPPER_FLOOR_H - BACK_WALL_H;
+const ROOM_H      = UPPER_FLOOR_H - BACK_WALL_H; // 208px
 
 // 3 windows in the back wall
 const WINDOWS = [
@@ -13,20 +12,26 @@ const WINDOWS = [
   { x: 640, w: 60 },
 ];
 
-// Meeting table: 280×44 centered
-const TABLE_X = (CANVAS_W - 280) / 2; // 340
-const TABLE_Y = 90;
-const TABLE_W = 280;
-const TABLE_H = 44;
+// Meeting table: 320×60 centered — enlarged to feel proportional to 48×60 sprites
+const TABLE_W = 320;
+const TABLE_H = 60;
+const TABLE_X = (CANVAS_W - TABLE_W) / 2; // 320
+const TABLE_Y = 80;
 
-// Chair dimensions
-const CHAIR_W = 22;
-const CHAIR_H = 12;
+// Chair dimensions — scaled up with table
+const CHAIR_W = 26;
+const CHAIR_H = 14;
 
-// Top and bottom chairs share these x positions (4 chairs, evenly spaced)
-const CHAIR_XS = [TABLE_X + 28, TABLE_X + 98, TABLE_X + 168, TABLE_X + 238];
-const TOP_CHAIR_Y    = TABLE_Y - CHAIR_H - 2;   // 76
-const BOTTOM_CHAIR_Y = TABLE_Y + TABLE_H + 2;   // 136
+// 4 chairs per side, evenly spaced across TABLE_W
+// Margin=43, gap=43: [43][26][43][26][43][26][43][26][44] ≈ 320
+const CHAIR_XS = [
+  TABLE_X + 43,   // 363
+  TABLE_X + 112,  // 432
+  TABLE_X + 181,  // 501
+  TABLE_X + 250,  // 570
+];
+const TOP_CHAIR_Y    = TABLE_Y - CHAIR_H - 3; // 63
+const BOTTOM_CHAIR_Y = TABLE_Y + TABLE_H + 3; // 143
 
 // Whiteboard: left room wall area
 const WB_X = 192;
@@ -34,7 +39,6 @@ const WB_Y = 34;
 const WB_W = 12;
 const WB_H = 72;
 
-// Campaign label on whiteboard (from Phase 5 constants; hardcoded here for Phase 1)
 const ACTIVE_CAMPAIGN = 'Premiere · Punta Cana Contest';
 
 // Two plants near window edges
@@ -211,7 +215,6 @@ export function UpperFloor() {
       {/* Small plants near windows */}
       {PLANTS.map((p, i) => (
         <div key={i} style={{ position: 'absolute', left: 0, top: 0 }}>
-          {/* Pot */}
           <div
             style={{
               position: 'absolute',
@@ -223,7 +226,6 @@ export function UpperFloor() {
               border: '1px solid #3a2a18',
             }}
           />
-          {/* Leaves */}
           <div
             style={{
               position: 'absolute',
