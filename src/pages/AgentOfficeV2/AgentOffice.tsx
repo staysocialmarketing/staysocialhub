@@ -5,6 +5,7 @@ import { CANVAS_W, CANVAS_H, UPPER_FLOOR_H } from './constants/desks';
 import { UpperFloor } from './UpperFloor';
 import { MainFloor } from './MainFloor';
 import { Staircase } from './Staircase';
+import { AgentStatusProvider } from './hooks/useAgentStatus';
 
 // Shared canvas — used by both the gated route and the dev-preview route.
 export function AgentOfficeCanvas({ devPreview = false }: { devPreview?: boolean }) {
@@ -58,21 +59,23 @@ export function AgentOfficeCanvas({ devPreview = false }: { devPreview?: boolean
             imageRendering: 'pixelated',
           }}
         >
-          <UpperFloor />
-          <div
-            style={{
-              position: 'absolute',
-              left: 0,
-              top: UPPER_FLOOR_H,
-              width: CANVAS_W,
-              height: 6,
-              background: '#080e1c',
-              borderTop: '1px solid #1a2840',
-              borderBottom: '1px solid #0e1830',
-            }}
-          />
-          <MainFloor />
-          <Staircase />
+          <AgentStatusProvider>
+            <UpperFloor />
+            <div
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: UPPER_FLOOR_H,
+                width: CANVAS_W,
+                height: 6,
+                background: '#080e1c',
+                borderTop: '1px solid #1a2840',
+                borderBottom: '1px solid #0e1830',
+              }}
+            />
+            <MainFloor />
+            <Staircase />
+          </AgentStatusProvider>
         </div>
       </div>
     </div>

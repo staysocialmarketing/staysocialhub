@@ -1,5 +1,6 @@
 import { DESKS, TIER_DIMS, CANVAS_W, CANVAS_H, AI_CORE_POD_X, AI_CORE_POD_W, MAIN_FLOOR_Y } from '../constants/desks';
 import { Desk } from '../Desk';
+import { useAgentStatuses } from '../hooks/useAgentStatus';
 
 const AI_KEYS = ['corey', 'lev', 'scout', 'quill', 'ember', 'forge', 'pixel', 'future_ai'];
 const aiDesks = DESKS.filter(d => AI_KEYS.includes(d.key));
@@ -22,6 +23,10 @@ const branchY    = levBtm.y + 19;                                             //
 const subTopCtr  = subRow3.map(d => ({ x: d.x + sW / 2, y: d.y }));
 
 export function AICorePod() {
+  const statuses = useAgentStatuses();
+  const coreyState = statuses['corey'] ?? 'offline';
+  const levBoost = (coreyState === 'active' || coreyState === 'processing') ? 0.1 : 0;
+
   return (
     <>
       {/* Pod background */}
@@ -105,9 +110,9 @@ export function AICorePod() {
         ))}
       </svg>
 
-      {/* All AI desks */}
+      {/* All AI desks — Lev gets Corey's sync boost */}
       {aiDesks.map(desk => (
-        <Desk key={desk.key} desk={desk} />
+        <Desk key={desk.key} desk={desk} lampBoost={desk.key === 'lev' ? levBoost : 0} />
       ))}
     </>
   );

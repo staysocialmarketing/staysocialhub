@@ -1,3 +1,4 @@
+import './monitor-animations.css';
 import type { DeskConfig, DeskTier } from './constants/desks';
 import { TIER_DIMS } from './constants/desks';
 import { SPRITE_MAP, SPRITE_DIMS } from './sprites';
@@ -5,9 +6,12 @@ import { AGENTS } from './constants/agents';
 import { DeskLamp } from './DeskLamp';
 import { DeskIndicator } from './DeskIndicator';
 import type { IndicatorType } from './DeskIndicator';
+import { useAgentStatuses } from './hooks/useAgentStatus';
+import type { AgentState } from './hooks/useAgentStatus';
 
 interface DeskProps {
   desk: DeskConfig;
+  lampBoost?: number;  // additive lamp opacity boost (used for Lev↔Corey sync)
 }
 
 const MONITOR_SIZES: Record<DeskTier, { w: number; h: number }> = {
@@ -21,20 +25,46 @@ const ROLE_SUBTITLES: Record<string, string> = {
   corey: 'Founder · AI Systems Architect',
 };
 
-interface LampConfig { w: number; opacity: number; topStop: string }
+interface LampConfig { w: number; topStop: string }
 
 const LAMP_CONFIG: Record<DeskTier, LampConfig> = {
-  command:        { w: 120, opacity: 0.75, topStop: '#ffd88a' },
-  chief_of_staff: { w: 116, opacity: 0.65, topStop: '#ffc870' },
-  director:       { w: 90,  opacity: 0.5,  topStop: '#ffd88a' },
-  sub_agent:      { w: 64,  opacity: 0.5,  topStop: '#ffd88a' },
+  command:        { w: 120, topStop: '#ffd88a' },
+  chief_of_staff: { w: 116, topStop: '#ffc870' },
+  director:       { w: 90,  topStop: '#ffd88a' },
+  sub_agent:      { w: 64,  topStop: '#ffd88a' },
 };
 
-export function Desk({ desk }: DeskProps) {
+// Monitor background per state
+function monitorBg(state: AgentState): string {
+  switch (state) {
+    case 'active':      return '#07091a'; // subtle — stripes via CSS class
+    case 'processing':  return '#0a1428'; // pulsed via CSS class
+    case 'offline':     return '#000000';
+    case 'placeholder': return '#060606';
+    default:            return '#040608'; // idle — very dim
+  }
+}
+
+function monitorClass(state: AgentState, ghost: boolean): string {
+  if (ghost) return '';
+  if (state === 'processing') return 'monitor-processing';
+  if (state === 'active')     return 'monitor-active';
+  return '';
+}
+
+function activeBackgroundImage(): string {
+  return 'repeating-linear-gradient(180deg, transparent 0px, transparent 3px, rgba(14,34,68,0.55) 3px, rgba(14,34,68,0.55) 4px)';
+}
+
+export function Desk({ desk, lampBoost = 0 }: DeskProps) {
   const { tier, x, y, monitors, isPlaceholder, label, key } = desk;
   const { w: dw, h: dh } = TIER_DIMS[tier];
   const { w: mw, h: mh } = MONITOR_SIZES[tier];
   const ghost = isPlaceholder ?? false;
+
+  // Resolve live state — ghost desks are always 'placeholder'
+  const allStatuses = useAgentStatuses();
+  const agentState: AgentState = ghost ? 'placeholder' : (allStatuses[key] ?? 'offline');
 
   const SpriteComponent = SPRITE_MAP[key];
   const dims = SPRITE_DIMS[key] ?? SPRITE_DIMS['_default'];
@@ -48,8 +78,6 @@ export function Desk({ desk }: DeskProps) {
   const roleSubtitle = ROLE_SUBTITLES[key];
 
   const lampCfg = LAMP_CONFIG[tier];
-  // Placeholders (Forge, Pixel) get no lamp; active agents get configured opacity
-  const lampOpacity = ghost ? 0 : lampCfg.opacity;
 
   const agentCfg = AGENTS[key];
   const indicatorType: IndicatorType = agentCfg?.indicator ?? 'question';
@@ -57,15 +85,16 @@ export function Desk({ desk }: DeskProps) {
 
   return (
     <>
-      {/* ── Lamp glow — renders FIRST (behind everything) ── */}
+      {/* ── Lamp glow — behind everything ── */}
       <DeskLamp
         x={x} y={y} deskW={dw} deskH={dh}
         lampW={lampCfg.w}
-        opacity={lampOpacity}
+        state={agentState}
+        opacityBoost={lampBoost}
         topStop={lampCfg.topStop}
       />
 
-      {/* ── Character sprite — behind desk surface ── */}
+      {/* ── Character sprite ── */}
       {SpriteComponent ? (
         <div
           style={{
@@ -97,7 +126,7 @@ export function Desk({ desk }: DeskProps) {
         />
       )}
 
-      {/* ── Desk surface — covers bottom 18px of sprite ── */}
+      {/* ── Desk surface ── */}
       <div
         style={{
           position: 'absolute',
@@ -115,20 +144,24 @@ export function Desk({ desk }: DeskProps) {
       {Array.from({ length: monitors }).map((_, i) => (
         <div
           key={i}
+          className={monitorClass(agentState, ghost)}
           style={{
             position: 'absolute',
             left: monStartX + i * (mw + monGap),
             top: y + 4,
             width: mw,
             height: mh,
-            background: ghost ? '#060606' : '#07091a',
+            backgroundColor: ghost ? '#060606' : monitorBg(agentState),
+            backgroundImage: (!ghost && agentState === 'active')
+              ? activeBackgroundImage()
+              : undefined,
             border: '1px solid #182030',
             opacity: ghost ? 0.35 : 1,
           }}
         />
       ))}
 
-      {/* ── Indicator badge — back-right corner, on top of desk ── */}
+      {/* ── Indicator badge ── */}
       <DeskIndicator
         type={indicatorType}
         color={indicatorColor}
