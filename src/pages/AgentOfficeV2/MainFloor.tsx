@@ -3,6 +3,9 @@ import { AICorePod } from './pods/AICorePod';
 import { CreativeStudioPod } from './pods/CreativeStudioPod';
 import { SalesPod } from './pods/SalesPod';
 import { CommonArea } from './CommonArea';
+import { ScoutWalkTest } from './ScoutWalkTest';
+
+const WALK_TEST = new URLSearchParams(window.location.search).has('walk_test');
 
 // Back wall window strip on the main floor
 const BACK_WALL_H = 22;
@@ -83,6 +86,9 @@ export function MainFloor() {
 
       {/* Shared common area strip */}
       <CommonArea />
+
+      {/* Dev walk test — active when ?walk_test=1 */}
+      {WALK_TEST && <ScoutWalkTest />}
     </>
   );
 }
