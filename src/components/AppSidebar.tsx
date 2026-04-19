@@ -283,9 +283,7 @@ export function AppSidebar() {
                 )}
                 <CollapsibleContent>
                   <SidebarGroupContent>{renderMenuItems(
-                    isSSTeam && !isSSAdmin
-                      ? menuSection.filter(i => i.title !== "Approvals")
-                      : menuSection
+                    menuSection
                   )}</SidebarGroupContent>
                 </CollapsibleContent>
               </SidebarGroup>

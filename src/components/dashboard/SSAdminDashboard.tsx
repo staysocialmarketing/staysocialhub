@@ -29,12 +29,13 @@ import {
 // ─── Status pipeline config ───────────────────────────────────────────────────
 
 const PIPELINE_GROUPS = [
-  { label: "AI Draft",    statuses: ["ai_draft"],                              color: "bg-violet-500/10 text-violet-600" },
-  { label: "In Progress", statuses: ["new_requests","idea","in_progress","writing","design"], color: "bg-blue-500/10 text-blue-600" },
-  { label: "Review",      statuses: ["internal_review","corey_review"],        color: "bg-amber-500/10 text-amber-600" },
-  { label: "Client",      statuses: ["client_approval","ready_for_client_batch"], color: "bg-orange-500/10 text-orange-600" },
-  { label: "Scheduled",   statuses: ["scheduled","ready_to_schedule","approved"], color: "bg-emerald-500/10 text-emerald-600" },
-  { label: "Published",   statuses: ["published","sent","complete"],           color: "bg-primary/10 text-primary" },
+  { label: "New",               statuses: ["idea"],                             color: "bg-slate-500/10 text-slate-600" },
+  { label: "AI Draft",          statuses: ["ai_draft"],                         color: "bg-violet-500/10 text-violet-600" },
+  { label: "Design",            statuses: ["design"],                           color: "bg-fuchsia-500/10 text-fuchsia-600" },
+  { label: "In Process",        statuses: ["in_progress"],                      color: "bg-blue-500/10 text-blue-600" },
+  { label: "Corey Review",      statuses: ["corey_review"],                     color: "bg-amber-500/10 text-amber-600" },
+  { label: "Client Approval",   statuses: ["client_approval"],                  color: "bg-orange-500/10 text-orange-600" },
+  { label: "Ready to Schedule", statuses: ["ready_to_schedule","ready_to_send"], color: "bg-emerald-500/10 text-emerald-600" },
 ] as const;
 
 function useGreeting(userId?: string): string {
