@@ -8,7 +8,7 @@ const WALK_SPEED        = 200;   // px / second — ~4 s to cross the full floor
 const FRAME_INTERVAL_MS = 125;   // 8 fps walk cycle
 const STAIR_DURATION_MS = 700;   // total fade-out + fade-in for stair climb
 
-export type WalkState = 'idle' | 'walking' | 'stair_up' | 'stair_down';
+export type WalkState = 'idle' | 'walking' | 'stair_up' | 'stair_down' | 'seated_meeting';
 
 export interface WalkAnimationState {
   x:          number;

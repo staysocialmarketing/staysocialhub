@@ -15,6 +15,7 @@ import { SPRITE_MAP, SPRITE_DIMS } from './sprites';
 import { AGENT_HOME_WAYPOINT } from './constants/waypoints';
 import { useWalkAnimation } from './hooks/useWalkAnimation';
 import { WalkingCharacter } from './WalkingCharacter';
+import { StatusLabel } from './StatusLabel';
 import { CoreySprite }   from './sprites/CoreySprite';
 import { LevSprite }     from './sprites/LevSprite';
 import { ScoutSprite }   from './sprites/ScoutSprite';
@@ -119,6 +120,17 @@ export function CharacterLayer() {
           anim={walk.anim}
           frameSet={FRAME_SETS[key]}
           zIndex={20}
+        />
+      ))}
+
+      {/* ── Status labels — rendered after sprites so they always sit on top ── */}
+      {walkers.map(({ key, walk }) => (
+        <StatusLabel
+          key={`lbl-${key}`}
+          agentKey={key}
+          walkState={walk.anim.walkState}
+          x={walk.anim.x}
+          y={walk.anim.y}
         />
       ))}
 

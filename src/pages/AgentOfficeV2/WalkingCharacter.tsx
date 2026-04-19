@@ -48,7 +48,7 @@ function getFrame(
 }
 
 export function WalkingCharacter({ anim, frameSet, zIndex = 10 }: WalkingCharacterProps) {
-  const isWalking = anim.walkState !== 'idle';
+  const isWalking = anim.walkState === 'walking' || anim.walkState === 'stair_up' || anim.walkState === 'stair_down';
   const { Component, flipX } = getFrame(frameSet, anim.direction, anim.frameIndex, isWalking);
 
   // Centre the sprite on the waypoint coordinate
