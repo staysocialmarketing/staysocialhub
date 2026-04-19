@@ -40,8 +40,14 @@ const BOTTOM_CHAIR_Y = TABLE_Y + TABLE_H + 3; // 211
 // Whiteboard — on left room wall
 const WB_X = 192;
 const WB_Y = 70;
-const WB_W = 12;
+const WB_W = 38;
 const WB_H = 50;
+
+// Door opening — bottom-center of room, aligned with staircase
+const DOOR_W = 30;
+const DOOR_H = 50;
+const DOOR_X = CANVAS_W / 2 - DOOR_W / 2; // 465
+const DOOR_Y = UPPER_FLOOR_H - DOOR_H - 4; // 206
 
 const ACTIVE_CAMPAIGN = 'Premiere · Punta Cana Contest';
 
@@ -203,25 +209,33 @@ export function UpperFloor() {
           border: '1px solid #b0a898',
         }}
       />
+      {/* Campaign label — two centered lines */}
       <div
         style={{
           position: 'absolute',
-          left: WB_X - 2,
-          top: WB_Y + WB_H / 2,
-          width: WB_H,
-          transform: 'translateX(-50%) rotate(-90deg)',
-          transformOrigin: 'center center',
+          left: WB_X + WB_W / 2,
+          top: WB_Y + WB_H / 2 - 5,
+          transform: 'translateX(-50%)',
           color: '#3a3028',
-          fontSize: 6,
+          fontSize: 5,
           fontFamily: "'Courier New', monospace",
           whiteSpace: 'nowrap',
           textAlign: 'center',
-          lineHeight: 1,
+          lineHeight: 1.5,
           pointerEvents: 'none',
         }}
       >
-        {ACTIVE_CAMPAIGN}
+        <div>Premiere</div>
+        <div>Punta Cana</div>
       </div>
+
+      {/* Door frame — bottom-center of room, above staircase landing */}
+      {/* Lintel */}
+      <div style={{ position: 'absolute', left: DOOR_X - 2, top: DOOR_Y, width: DOOR_W + 4, height: 2, background: '#4a3520' }} />
+      {/* Left pillar */}
+      <div style={{ position: 'absolute', left: DOOR_X - 2, top: DOOR_Y, width: 2, height: DOOR_H + 4, background: '#4a3520' }} />
+      {/* Right pillar */}
+      <div style={{ position: 'absolute', left: DOOR_X + DOOR_W, top: DOOR_Y, width: 2, height: DOOR_H + 4, background: '#4a3520' }} />
 
       {/* Meeting table */}
       <div
