@@ -1,8 +1,7 @@
-import { CANVAS_W, UPPER_FLOOR_H } from './constants/desks';
+import { UPPER_FLOOR_H, COL_STAIR } from './constants/desks';
 
-// Staircase connects upper floor bottom-center to main floor
-// Steps descend from y=UPPER_FLOOR_H-24 down to y=UPPER_FLOOR_H+6
-const STAIR_CX = CANVAS_W / 2; // 480 — center of canvas
+// Staircase connects upper floor door to main floor at COL_STAIR=700
+const STAIR_CX = COL_STAIR; // 700 — clear of all desk columns
 const STAIR_W  = 48;
 const STAIR_X  = STAIR_CX - STAIR_W / 2; // 456
 

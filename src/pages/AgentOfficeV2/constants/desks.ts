@@ -3,7 +3,7 @@ export const CANVAS_W = 960;
 export const CANVAS_H = 840;
 export const UPPER_FLOOR_H = 260;
 export const MAIN_FLOOR_Y = 268; // after 8px divider (UPPER_FLOOR_H + 8)
-export const COMMON_AREA_Y = 690; // shared strip at bottom of main floor (150px tall)
+export const COMMON_AREA_Y = 705; // shared strip at bottom of main floor (135px tall)
 
 // Desk tiers
 export type DeskTier = 'command' | 'chief_of_staff' | 'director' | 'sub_agent';
@@ -29,9 +29,9 @@ export const TIER_DIMS: Record<DeskTier, { w: number; h: number }> = {
 // Sprites are 48×60px with visibleH=42 (bottom 18px behind desk surface).
 // spriteTop = y - 42. Spacing ensures no label-to-sprite overlap between rows.
 export const ROW1_Y = 305; // Corey + wing directors (sprite top = 263)
-export const ROW2_Y = 425; // Lev                   (sprite top = 383, clears ROW1 labels)
-export const ROW3_Y = 530; // Scout / Quill / Ember  (sprite top = 488, clears ROW2 labels)
-export const ROW4_Y = 622; // Forge / Pixel          (sprite top = 580, clears ROW3 labels)
+export const ROW2_Y = 460; // Lev                   (sprite top = 418, clears ROW1 labels)
+export const ROW3_Y = 565; // Scout / Quill / Ember  (sprite top = 523, clears ROW2 labels)
+export const ROW4_Y = 657; // Forge / Pixel          (sprite top = 615, clears ROW3 labels)
 
 // Wing pods: future hire slots sit lower than the director, tighter to the nook below
 export const WING_FUTURE_Y = 440;
@@ -40,19 +40,18 @@ export const WING_FUTURE_Y = 440;
 export const CREATIVE_POD_X = 12;
 export const CREATIVE_POD_W = 188;
 export const AI_CORE_POD_X  = 220;
-export const AI_CORE_POD_W  = 520;
+export const AI_CORE_POD_W  = 440; // right edge = 660, staircase at 700 is outside pod
 export const SALES_POD_X    = 760;
 export const SALES_POD_W    = 188;
-// 12+188+20+520+20+188+12 = 960 ✓
+export const COL_STAIR      = 700; // staircase column — in gap between AI Core (660) and Sales (760)
 
-// ── AI Core desk zone: 320px centered inside 520px pod ─────────────────────
-// zone_x = 220 + (520-320)/2 = 320
+// ── AI Core desk zone: hardcoded to keep Corey/Lev centered on COL_C=480 ───
 const AI_ZONE_X = 320;
 
-// 3 sub-agents × 60px with margin=30, gap=40: [30][60][40][60][40][60][30] = 320 ✓
-const AI_SUB_1 = AI_ZONE_X + 30;  // 350
-const AI_SUB_2 = AI_ZONE_X + 130; // 450
-const AI_SUB_3 = AI_ZONE_X + 230; // 550
+// Sub-agents spread to give 80px desk-to-desk gaps (sprite=48px → 32px clearance each side)
+const AI_SUB_1 = 310;  // center_x = 340 (COL_L)
+const AI_SUB_2 = 450;  // center_x = 480 (COL_C)
+const AI_SUB_3 = 590;  // center_x = 620 (COL_R)
 
 export const DESKS: DeskConfig[] = [
   // ── AI Core Pod ──────────────────────────────────────────────────────────

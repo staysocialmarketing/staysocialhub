@@ -1,4 +1,4 @@
-import { CANVAS_W, UPPER_FLOOR_H } from './constants/desks';
+import { CANVAS_W, UPPER_FLOOR_H, COL_STAIR } from './constants/desks';
 import { HalifaxWindow } from './windows/HalifaxWindow';
 import { TorontoWindow } from './windows/TorontoWindow';
 
@@ -43,10 +43,10 @@ const WB_Y = 70;
 const WB_W = 38;
 const WB_H = 50;
 
-// Door opening — bottom-center of room, aligned with staircase
+// Door opening — aligned with staircase at COL_STAIR=700
 const DOOR_W = 30;
 const DOOR_H = 50;
-const DOOR_X = CANVAS_W / 2 - DOOR_W / 2; // 465
+const DOOR_X = COL_STAIR - DOOR_W / 2; // 685
 const DOOR_Y = UPPER_FLOOR_H - DOOR_H - 4; // 206
 
 const ACTIVE_CAMPAIGN = 'Premiere · Punta Cana Contest';

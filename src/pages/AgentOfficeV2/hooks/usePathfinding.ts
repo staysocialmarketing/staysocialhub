@@ -23,8 +23,13 @@ function segmentDirection(dx: number, dy: number): WalkDirection {
 
 // Returns ordered path segments with pixel positions + directions.
 // The stair_bottom ↔ meeting_entry edge is flagged as isStairTransition.
-export function buildPath(start: WaypointKey, end: WaypointKey): PathSegment[] {
-  const keys = findWaypointPath(start, end);
+// `blocked` is forwarded to BFS for dynamic character avoidance.
+export function buildPath(
+  start: WaypointKey,
+  end: WaypointKey,
+  blocked?: ReadonlySet<WaypointKey>,
+): PathSegment[] {
+  const keys = findWaypointPath(start, end, blocked);
   if (keys.length < 2) return [];
 
   const segments: PathSegment[] = [];
