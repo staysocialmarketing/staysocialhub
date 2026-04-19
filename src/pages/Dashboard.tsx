@@ -66,6 +66,30 @@ const TASK_STATUS_LABELS: Record<string, string> = {
   waiting: "Waiting", review: "Review", complete: "Complete",
 };
 
+const POST_STATUS_COLORS: Record<string, string> = {
+  idea:              "bg-slate-500/10 text-slate-600",
+  ai_draft:          "bg-violet-500/10 text-violet-600",
+  writing:           "bg-blue-500/10 text-blue-600",
+  design:            "bg-fuchsia-500/10 text-fuchsia-600",
+  in_progress:       "bg-blue-500/10 text-blue-600",
+  corey_review:      "bg-amber-500/10 text-amber-600",
+  internal_review:   "bg-amber-500/10 text-amber-600",
+  client_approval:   "bg-orange-500/10 text-orange-600",
+  request_changes:   "bg-red-500/10 text-red-600",
+  ready_to_schedule: "bg-emerald-500/10 text-emerald-600",
+  ready_to_send:     "bg-emerald-500/10 text-emerald-600",
+  scheduled:         "bg-green-500/10 text-green-600",
+  published:         "bg-green-500/10 text-green-600",
+  sent:              "bg-green-500/10 text-green-600",
+};
+
+function getPostThumbnail(post: any): string | null {
+  if (post.post_images?.length) {
+    return [...post.post_images].sort((a: any, b: any) => a.position - b.position)[0].url;
+  }
+  return post.creative_url || null;
+}
+
 // ─── Work Queue Dashboard (Admin + Team) ─────────────────────────────────────
 
 function WorkQueueDashboard() {
@@ -169,6 +193,22 @@ function WorkQueueDashboard() {
     enabled: !!profile,
   });
 
+  const { data: myPosts = [] } = useQuery({
+    queryKey: ["wq-my-posts", profile?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("posts")
+        .select("id, title, platform, status_column, due_at, created_at, creative_url, clients(name), post_images(id, url, position)")
+        .eq("assigned_to_user_id", profile!.id)
+        .not("status_column", "in", '("published","sent","complete")')
+        .order("due_at", { ascending: true, nullsFirst: false })
+        .order("created_at", { ascending: true })
+        .limit(10);
+      return data || [];
+    },
+    enabled: !!profile,
+  });
+
   const taskCount = myTasks.length;
   const requestCount = myRequests.length;
   const approvalCount = approvalsWaiting.length;
@@ -216,6 +256,49 @@ function WorkQueueDashboard() {
         <StatCard label="Approvals" value={approvalCount} icon={<CheckSquare className="h-4 w-4" />} onClick={() => navigate("/approvals")} />
         <StatCard label="Overdue" value={overdueCount} icon={<AlertTriangle className="h-4 w-4" />} accent="destructive" onClick={() => navigate("/team/tasks?filter=overdue")} />
       </div>
+
+      {/* My Posts */}
+      <section>
+        <SectionHeader title="My Posts" icon={<FileEdit className="h-5 w-5" />} />
+        {myPosts.length === 0 ? (
+          <EmptyState title="No posts assigned to you right now" compact />
+        ) : (
+          <div className="card-elevated divide-y divide-border/40">
+            {myPosts.map((post: any) => {
+              const thumb = getPostThumbnail(post);
+              const overdue = post.due_at && isPast(new Date(post.due_at));
+              return (
+                <div key={post.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors">
+                  {thumb ? (
+                    <img src={thumb} alt="" className="h-9 w-12 rounded-md object-cover shrink-0 bg-muted" />
+                  ) : (
+                    <div className="h-9 w-12 rounded-md bg-muted shrink-0 flex items-center justify-center">
+                      <FileEdit className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{post.title}</p>
+                    {post.clients?.name && (
+                      <Badge variant="outline" className="text-[10px] mt-0.5">{post.clients.name}</Badge>
+                    )}
+                  </div>
+                  <Badge className={`text-[10px] border-0 shrink-0 hidden sm:inline-flex capitalize ${POST_STATUS_COLORS[post.status_column] || "bg-muted text-muted-foreground"}`}>
+                    {post.status_column.replace(/_/g, " ")}
+                  </Badge>
+                  {post.due_at && (
+                    <span className={`text-[11px] shrink-0 font-medium ${overdue ? "text-destructive" : "text-muted-foreground"}`}>
+                      {format(new Date(post.due_at), "MMM d")}
+                    </span>
+                  )}
+                  <Button size="sm" variant="ghost" className="h-7 px-2.5 text-xs shrink-0" onClick={() => navigate(`/approvals/${post.id}`)}>
+                    Open
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       {/* Tasks */}
       <section>
@@ -364,6 +447,22 @@ function ClientDashboard() {
       if (!profile?.client_id) return 0;
       const { count } = await supabase.from("posts").select("id", { count: "exact", head: true }).eq("status_column", "sent").eq("client_id", profile.client_id).eq("content_type", "email_campaign");
       return count || 0;
+    },
+    enabled: !!profile?.client_id,
+  });
+
+  const { data: approvalPosts = [] } = useQuery({
+    queryKey: ["client-approval-posts", profile?.client_id],
+    queryFn: async () => {
+      if (!profile?.client_id) return [];
+      const { data } = await supabase
+        .from("posts")
+        .select("id, title, platform, creative_url, post_images(id, url, position)")
+        .eq("client_id", profile.client_id)
+        .eq("status_column", "client_approval")
+        .order("created_at", { ascending: false })
+        .limit(20);
+      return data || [];
     },
     enabled: !!profile?.client_id,
   });
@@ -582,6 +681,51 @@ function ClientDashboard() {
         )}
         <input ref={captureFileRef} type="file" multiple className="hidden" onChange={handleCaptureFile} />
       </div>
+
+      {/* Ready for Review — hidden when empty */}
+      {approvalPosts.length > 0 && (
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <span className="text-orange-500"><CheckSquare className="h-5 w-5" /></span>
+              <div>
+                <h3 className="text-base font-semibold text-foreground">Ready for Your Review</h3>
+                <p className="text-xs text-muted-foreground">Content waiting for your approval</p>
+              </div>
+            </div>
+            <Badge className="bg-orange-500/10 text-orange-600 border-0 text-xs">{approvalPosts.length} waiting</Badge>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x">
+            {approvalPosts.map((post: any) => {
+              const thumb = getPostThumbnail(post);
+              const platforms = post.platform ? post.platform.split(",").map((p: string) => p.trim()).filter(Boolean) : [];
+              return (
+                <div key={post.id} className="card-elevated flex-shrink-0 w-52 snap-start flex flex-col overflow-hidden">
+                  <div className="h-28 bg-muted flex items-center justify-center overflow-hidden">
+                    {thumb
+                      ? <img src={thumb} alt="" className="w-full h-full object-cover" />
+                      : <CheckSquare className="h-8 w-8 text-muted-foreground/30" />
+                    }
+                  </div>
+                  <div className="p-3 flex flex-col gap-2 flex-1">
+                    <p className="text-sm font-medium text-foreground line-clamp-2 leading-snug">{post.title}</p>
+                    {platforms.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {platforms.slice(0, 2).map((p: string) => (
+                          <Badge key={p} variant="secondary" className="text-[10px]">{p}</Badge>
+                        ))}
+                      </div>
+                    )}
+                    <Button size="sm" className="mt-auto w-full text-xs h-8" onClick={() => navigate(`/approvals/${post.id}`)}>
+                      Review
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Quick Actions — big touch-friendly cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
