@@ -5,7 +5,10 @@ import { CANVAS_W, CANVAS_H, UPPER_FLOOR_H } from './constants/desks';
 import { UpperFloor } from './UpperFloor';
 import { MainFloor } from './MainFloor';
 import { Staircase } from './Staircase';
+import { CharacterLayer } from './CharacterLayer';
 import { AgentStatusProvider } from './hooks/useAgentStatus';
+import { OfficeHeader } from './OfficeHeader';
+import { OfficeFooter } from './OfficeFooter';
 
 // Shared canvas — used by both the gated route and the dev-preview route.
 export function AgentOfficeCanvas({ devPreview = false }: { devPreview?: boolean }) {
@@ -75,6 +78,9 @@ export function AgentOfficeCanvas({ devPreview = false }: { devPreview?: boolean
             />
             <MainFloor />
             <Staircase />
+            <CharacterLayer />
+            <OfficeHeader />
+            <OfficeFooter />
           </AgentStatusProvider>
         </div>
       </div>
