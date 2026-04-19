@@ -1,6 +1,7 @@
 
 import { useState, useRef, useCallback, useMemo } from "react";
 import { SSAdminDashboard } from "@/components/dashboard/SSAdminDashboard";
+import DesignerDashboard from "@/components/dashboard/DesignerDashboard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientFilter } from "@/contexts/ClientFilterContext";
 import { Button } from "@/components/ui/button";
@@ -780,9 +781,10 @@ function RecentActivitySection({ clientId }: { clientId: string | null | undefin
 // ─── Main Dashboard ──────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { isSSRole, isSSAdmin, loading } = useAuth();
+  const { isSSRole, isSSAdmin, roles, loading } = useAuth();
   if (loading) return <div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (isSSAdmin) return <SSAdminDashboard />;
+  if (roles.includes("ss_ops")) return <DesignerDashboard />;
   if (isSSRole)  return <WorkQueueDashboard />;
   return <ClientDashboard />;
 }
