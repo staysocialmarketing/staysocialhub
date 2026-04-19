@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ClientFilterProvider } from "@/contexts/ClientFilterContext";
 import { AppLayout } from "@/components/AppLayout";
@@ -43,14 +43,22 @@ import Tasks from "./pages/team/Tasks";
 import UniversalInbox from "./pages/team/UniversalInbox";
 import CorporateStrategy from "./pages/admin/CorporateStrategy";
 import AgentOffice from "./pages/admin/AgentOffice";
+import AgentOfficeV2, { AgentOfficeCanvas } from "./pages/AgentOfficeV2/AgentOffice";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth();
+  const location = useLocation();
   if (loading) return <div className="min-h-screen flex items-center justify-center"><p className="text-muted-foreground">Loading...</p></div>;
-  if (!session) return <Navigate to="/auth" replace />;
+  if (!session) {
+    // sessionStorage survives the OAuth round-trip; Supabase strips URL query params
+    // when it calls replaceState after code exchange, so ?returnTo= won't survive.
+    const dest = location.pathname + location.search;
+    if (dest !== '/' && dest !== '/auth') sessionStorage.setItem('auth_return_to', dest);
+    return <Navigate to="/auth" replace />;
+  }
   return <>{children}</>;
 }
 
@@ -71,7 +79,11 @@ function SSAdminRoute({ children }: { children: React.ReactNode }) {
 function AuthRoute() {
   const { session, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center"><p className="text-muted-foreground">Loading...</p></div>;
-  if (session) return <Navigate to="/dashboard" replace />;
+  if (session) {
+    const returnTo = sessionStorage.getItem('auth_return_to') || '/dashboard';
+    sessionStorage.removeItem('auth_return_to');
+    return <Navigate to={returnTo} replace />;
+  }
   return <Auth />;
 }
 
@@ -86,6 +98,12 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<AuthRoute />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            {/* TODO: DELETE before launch — public dev preview, no auth guard */}
+            <Route path="/agent-office-v2-preview" element={
+              <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+                <AgentOfficeCanvas devPreview />
+              </div>
+            } />
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/workflow" element={<AdminRoute><Workflow /></AdminRoute>} />
@@ -123,6 +141,7 @@ const App = () => (
               <Route path="/team/inbox" element={<AdminRoute><UniversalInbox /></AdminRoute>} />
               <Route path="/corporate/strategy" element={<AdminRoute><CorporateStrategy /></AdminRoute>} />
               <Route path="/agent-office" element={<AdminRoute><AgentOffice /></AdminRoute>} />
+              <Route path="/agent-office-v2" element={<AdminRoute><AgentOfficeV2 /></AdminRoute>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

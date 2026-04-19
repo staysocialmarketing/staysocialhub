@@ -2127,15 +2127,31 @@ export default function AgentOffice() {
             ● IN SESSION
           </span>
         )}
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{
-            width: 6, height: 6,
-            background: connected ? "#3fb950" : "#f85149",
-            animation: connected ? "ao-status-dot 2s ease-in-out infinite" : "none",
-          }}/>
-          <span style={{ fontSize: 9, color: connected ? "#3fb950" : "#f85149", letterSpacing: 1 }}>
-            {connected ? "LIVE" : "OFFLINE"}
-          </span>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 16 }}>
+          {isSSAdmin && (
+            <a
+              href="/agent-office-v2"
+              style={{
+                fontSize: 9, letterSpacing: 2, textTransform: "uppercase",
+                color: "#f97316", textDecoration: "none", opacity: 0.7,
+                border: "1px solid #f9731640", padding: "2px 8px",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
+              onMouseLeave={e => (e.currentTarget.style.opacity = "0.7")}
+            >
+              Preview v2 →
+            </a>
+          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{
+              width: 6, height: 6,
+              background: connected ? "#3fb950" : "#f85149",
+              animation: connected ? "ao-status-dot 2s ease-in-out infinite" : "none",
+            }}/>
+            <span style={{ fontSize: 9, color: connected ? "#3fb950" : "#f85149", letterSpacing: 1 }}>
+              {connected ? "LIVE" : "OFFLINE"}
+            </span>
+          </div>
         </div>
       </div>
 

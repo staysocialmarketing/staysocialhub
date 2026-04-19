@@ -18,7 +18,9 @@ export default function Auth() {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: `${window.location.origin}/dashboard` },
+        // Always land on /auth — AuthRoute reads sessionStorage to restore the
+        // intended destination after Supabase strips URL params post code-exchange.
+        options: { redirectTo: `${window.location.origin}/auth` },
       });
       if (error) throw error;
     } catch (err: any) {

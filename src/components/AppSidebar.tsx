@@ -29,6 +29,7 @@ import {
   FileText,
   BookOpen,
   Monitor,
+  Layers,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -88,6 +89,7 @@ const manageSection = [
 
 const adminSection = [
   { title: "Agent Office", url: "/agent-office", icon: Monitor },
+  { title: "Agent Office v2", url: "/agent-office-v2", icon: Layers },
   { title: "Users", url: "/admin/users", icon: Users },
   { title: "Meeting Notes", url: "/admin/meeting-notes", icon: FileText },
   { title: "Automations", url: "/admin/automations", icon: Zap },
@@ -164,6 +166,16 @@ export function AppSidebar() {
   }, [actualIsSSAdmin]);
 
   const isInternalUser = isSSAdmin || isSSTeam;
+
+  // DEBUG — remove after confirming sidebar state
+  console.log('[AppSidebar]', {
+    isSSAdmin,
+    actualIsSSAdmin,
+    isSSTeam,
+    isInternalUser,
+    adminSectionOpen: isSectionOpen("admin"),
+    sidebarCollapsed: collapsed,
+  });
 
   const ssUsers = allUsers.filter((u) => u.roles.some((r) => ["ss_admin", "ss_producer", "ss_ops", "ss_team"].includes(r)));
   const clientUsers = allUsers.filter((u) => u.roles.some((r) => ["client_admin", "client_assistant"].includes(r)));
@@ -359,9 +371,11 @@ export function AppSidebar() {
                     )}
                     <CollapsibleContent>
                       <SidebarGroupContent>{renderMenuItems(
-                        isSSAdmin
-                          ? adminSection
-                          : adminSection.filter(i => i.title !== "Users" && i.title !== "Versions"),
+                        adminSection.filter(i => {
+                          if (i.title === "Users" || i.title === "Versions") return isSSAdmin;
+                          if (i.title === "Agent Office v2") return actualIsSSAdmin;
+                          return true;
+                        }),
                         isSSAdmin && pendingCount > 0 ? { Users: pendingCount } : undefined
                       )}</SidebarGroupContent>
                     </CollapsibleContent>
