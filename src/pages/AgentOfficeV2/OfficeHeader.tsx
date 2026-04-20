@@ -7,7 +7,7 @@ export const HEADER_H = 36;
 const CURRENT_FLOOR = 1;
 
 const TEXT: React.CSSProperties = {
-  color: '#4a6882',
+  color: '#56748e',
   fontSize: 8,
   fontFamily: "'Courier New', monospace",
   letterSpacing: '0.14em',
@@ -37,8 +37,8 @@ export function OfficeHeader({ inSession = false }: OfficeHeaderProps) {
       position: 'absolute',
       left: 0, top: 0,
       width: CANVAS_W, height: HEADER_H,
-      background: '#080e1c',
-      borderBottom: '1px solid #1a2840',
+      background: '#161c2a',
+      borderBottom: '1px solid #2e3c54',
       zIndex: 50,
       display: 'flex',
       alignItems: 'center',

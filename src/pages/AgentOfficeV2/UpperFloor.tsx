@@ -68,7 +68,7 @@ export function UpperFloor() {
           top: 0,
           width: CANVAS_W,
           height: UPPER_FLOOR_H,
-          background: '#0e1422',
+          background: '#222836',
         }}
       />
 
@@ -80,8 +80,8 @@ export function UpperFloor() {
           top: 0,
           width: CANVAS_W,
           height: BACK_WALL_H,
-          background: '#080e18',
-          borderBottom: '1px solid #18243c',
+          background: '#1c222c',
+          borderBottom: '1px solid #2c3850',
         }}
       />
 
@@ -108,7 +108,7 @@ export function UpperFloor() {
           left: HALIFAX_X + WIN_W / 2,
           top: WIN_Y + WIN_H + 6,
           transform: 'translateX(-50%)',
-          color: '#4a6882',
+          color: '#56748e',
           fontSize: 7,
           fontFamily: "'Courier New', monospace",
           letterSpacing: '0.22em',
@@ -143,7 +143,7 @@ export function UpperFloor() {
           left: TORONTO_X + WIN_W / 2,
           top: WIN_Y + WIN_H + 6,
           transform: 'translateX(-50%)',
-          color: '#4a6882',
+          color: '#56748e',
           fontSize: 7,
           fontFamily: "'Courier New', monospace",
           letterSpacing: '0.22em',
@@ -168,10 +168,10 @@ export function UpperFloor() {
       >
         <defs>
           <pattern id="meeting-room-check" x="0" y="0" width="16" height="16" patternUnits="userSpaceOnUse">
-            <rect x="0" y="0" width="8" height="8" fill="#111627" />
-            <rect x="8" y="0" width="8" height="8" fill="#0c111f" />
-            <rect x="0" y="8" width="8" height="8" fill="#0c111f" />
-            <rect x="8" y="8" width="8" height="8" fill="#111627" />
+            <rect x="0" y="0" width="8" height="8" fill="#252a3b" />
+            <rect x="8" y="0" width="8" height="8" fill="#202533" />
+            <rect x="0" y="8" width="8" height="8" fill="#202533" />
+            <rect x="8" y="8" width="8" height="8" fill="#252a3b" />
           </pattern>
         </defs>
         <rect width="100%" height="100%" fill="url(#meeting-room-check)" />
@@ -185,8 +185,8 @@ export function UpperFloor() {
           top: ROOM_Y,
           width: 4,
           height: ROOM_H,
-          background: '#0c1220',
-          borderRight: '1px solid #1a2840',
+          background: '#202634',
+          borderRight: '1px solid #2e3c54',
         }}
       />
 
@@ -198,8 +198,8 @@ export function UpperFloor() {
           top: ROOM_Y,
           width: 4,
           height: ROOM_H,
-          background: '#0c1220',
-          borderLeft: '1px solid #1a2840',
+          background: '#202634',
+          borderLeft: '1px solid #2e3c54',
         }}
       />
 
@@ -266,8 +266,8 @@ export function UpperFloor() {
             top: TOP_CHAIR_Y,
             width: CHAIR_W,
             height: CHAIR_H,
-            background: '#1a2030',
-            border: '1px solid #243040',
+            background: '#2e3444',
+            border: '1px solid #384454',
           }}
         />
       ))}
@@ -282,8 +282,8 @@ export function UpperFloor() {
             top: BOTTOM_CHAIR_Y,
             width: CHAIR_W,
             height: CHAIR_H,
-            background: '#1a2030',
-            border: '1px solid #243040',
+            background: '#2e3444',
+            border: '1px solid #384454',
           }}
         />
       ))}

@@ -26,7 +26,7 @@ export function MainFloor() {
           top: MAIN_FLOOR_Y,
           width: CANVAS_W,
           height: CANVAS_H - MAIN_FLOOR_Y,
-          background: '#0d1520',
+          background: '#212934',
         }}
       />
 
@@ -38,8 +38,8 @@ export function MainFloor() {
           top: MAIN_FLOOR_Y,
           width: CANVAS_W,
           height: BACK_WALL_H,
-          background: '#0a1018',
-          borderBottom: '1px solid #1a2840',
+          background: '#1e242c',
+          borderBottom: '1px solid #2e3c54',
         }}
       />
 
@@ -72,10 +72,10 @@ export function MainFloor() {
       >
         <defs>
           <pattern id="main-floor-check" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
-            <rect x="0"  y="0"  width="10" height="10" fill="#0f1825" />
-            <rect x="10" y="0"  width="10" height="10" fill="#0b121b" />
-            <rect x="0"  y="10" width="10" height="10" fill="#0b121b" />
-            <rect x="10" y="10" width="10" height="10" fill="#0f1825" />
+            <rect x="0"  y="0"  width="10" height="10" fill="#232c39" />
+            <rect x="10" y="0"  width="10" height="10" fill="#1f262f" />
+            <rect x="0"  y="10" width="10" height="10" fill="#1f262f" />
+            <rect x="10" y="10" width="10" height="10" fill="#232c39" />
           </pattern>
         </defs>
         <rect width="100%" height="100%" fill="url(#main-floor-check)" />

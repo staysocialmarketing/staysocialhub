@@ -24,8 +24,8 @@ export function SalesPod() {
           top: podTop,
           width: podW,
           height: podH,
-          background: '#0f1620',
-          borderLeft: '1px solid #1a2436',
+          background: '#232a34',
+          borderLeft: '1px solid #2e384a',
         }}
       />
 
@@ -83,8 +83,8 @@ export function SalesPod() {
           top: COFFEE_Y,
           width: podW - 24,
           height: COFFEE_H,
-          background: '#0c1018',
-          border: '1px solid #182030',
+          background: '#20242c',
+          border: '1px solid #2c3444',
         }}
       />
       <div

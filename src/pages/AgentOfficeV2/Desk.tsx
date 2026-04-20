@@ -1,7 +1,6 @@
 import './monitor-animations.css';
 import type { DeskConfig, DeskTier } from './constants/desks';
 import { TIER_DIMS } from './constants/desks';
-import { SPRITE_MAP, SPRITE_DIMS } from './sprites';
 import { AGENTS } from './constants/agents';
 import { DeskLamp } from './DeskLamp';
 import { DeskIndicator } from './DeskIndicator';
@@ -66,11 +65,6 @@ export function Desk({ desk, lampBoost = 0 }: DeskProps) {
   const allStatuses = useAgentStatuses();
   const agentState: AgentState = ghost ? 'placeholder' : (allStatuses[key] ?? 'offline');
 
-  const SpriteComponent = SPRITE_MAP[key];
-  const dims = SPRITE_DIMS[key] ?? SPRITE_DIMS['_default'];
-  const spriteX = x + Math.floor((dw - dims.w) / 2);
-  const spriteY = y - dims.visibleH;
-
   const monGap = 3;
   const totalMonW = monitors * mw + (monitors - 1) * monGap;
   const monStartX = x + Math.floor((dw - totalMonW) / 2);
@@ -94,38 +88,6 @@ export function Desk({ desk, lampBoost = 0 }: DeskProps) {
         topStop={lampCfg.topStop}
       />
 
-      {/* ── Character sprite ── */}
-      {SpriteComponent ? (
-        <div
-          style={{
-            position: 'absolute',
-            left: spriteX,
-            top: spriteY,
-            width: dims.w,
-            height: dims.h,
-            opacity: ghost ? 0.55 : 1,
-            filter: ghost ? 'grayscale(0.5)' : 'none',
-            imageRendering: 'pixelated',
-          }}
-        >
-          <SpriteComponent />
-        </div>
-      ) : (
-        <div
-          style={{
-            position: 'absolute',
-            left: x + Math.floor((dw - 14) / 2),
-            top: y - 22,
-            width: 14,
-            height: 14,
-            borderRadius: '50%',
-            background: ghost ? '#1e2228' : '#263344',
-            border: `1px solid ${ghost ? '#262b35' : '#344860'}`,
-            opacity: ghost ? 0.55 : 0.9,
-          }}
-        />
-      )}
-
       {/* ── Desk surface ── */}
       <div
         style={{
@@ -134,8 +96,8 @@ export function Desk({ desk, lampBoost = 0 }: DeskProps) {
           top: y,
           width: dw,
           height: dh,
-          background: ghost ? '#13161c' : '#19263a',
-          border: `1px solid ${ghost ? '#1c1f26' : '#22334a'}`,
+          background: ghost ? '#272a30' : '#2d3a4e',
+          border: `1px solid ${ghost ? '#303338' : '#36475e'}`,
           opacity: ghost ? 0.5 : 1,
         }}
       />
@@ -155,7 +117,7 @@ export function Desk({ desk, lampBoost = 0 }: DeskProps) {
             backgroundImage: (!ghost && agentState === 'active')
               ? activeBackgroundImage()
               : undefined,
-            border: '1px solid #182030',
+            border: '1px solid #2c3444',
             opacity: ghost ? 0.35 : 1,
           }}
         />
@@ -184,7 +146,7 @@ export function Desk({ desk, lampBoost = 0 }: DeskProps) {
           whiteSpace: 'nowrap',
           textTransform: 'uppercase',
           lineHeight: 1,
-          textShadow: ghost ? 'none' : '0 0 6px #0d1520, 0 0 12px #0d1520',
+          textShadow: ghost ? 'none' : '0 0 6px #212934, 0 0 12px #212934',
           pointerEvents: 'none',
         }}
       >

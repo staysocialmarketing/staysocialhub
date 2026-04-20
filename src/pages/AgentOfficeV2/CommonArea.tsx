@@ -73,7 +73,7 @@ export function CommonArea() {
           top: COMMON_AREA_Y,
           width: CANVAS_W,
           height: STRIP_H,
-          background: '#0b1118',
+          background: '#1f252c',
         }}
       />
 
@@ -85,13 +85,13 @@ export function CommonArea() {
           top: COMMON_AREA_Y,
           width: CANVAS_W,
           height: 1,
-          background: '#1a2840',
+          background: '#2e3c54',
         }}
       />
 
       {/* Vertical section separators (align with pod walls) */}
-      <div style={{ position: 'absolute', left: CREATIVE_POD_X + CREATIVE_POD_W, top: COMMON_AREA_Y + 1, width: 1, height: STRIP_H - 1, background: '#1a2436' }} />
-      <div style={{ position: 'absolute', left: SALES_POD_X, top: COMMON_AREA_Y + 1, width: 1, height: STRIP_H - 1, background: '#1a2436' }} />
+      <div style={{ position: 'absolute', left: CREATIVE_POD_X + CREATIVE_POD_W, top: COMMON_AREA_Y + 1, width: 1, height: STRIP_H - 1, background: '#2e384a' }} />
+      <div style={{ position: 'absolute', left: SALES_POD_X, top: COMMON_AREA_Y + 1, width: 1, height: STRIP_H - 1, background: '#2e384a' }} />
 
       {/* ── LOUNGE ─────────────────────────────────────────────────────────── */}
 
@@ -157,8 +157,8 @@ export function CommonArea() {
           top: CTABLE_Y + 2,
           width: 18,
           height: 6,
-          background: '#0d1520',
-          border: '1px solid #1a2636',
+          background: '#212934',
+          border: '1px solid #2e3a4a',
         }}
       />
 
@@ -209,8 +209,8 @@ export function CommonArea() {
               top:  GRID_Y + row * (FRAME_H + FRAME_GAP_Y),
               width: FRAME_W,
               height: FRAME_H,
-              background: '#0a0e18',
-              border: '1px solid #1a2436',
+              background: '#1e222c',
+              border: '1px solid #2e384a',
             }}
           />
         ))
