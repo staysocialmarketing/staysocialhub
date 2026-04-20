@@ -11,6 +11,7 @@
  * Upper floor — 2 panels flanking Halifax (x=250-450) and Toronto (x=510-710) windows
  */
 import { CANVAS_W, MAIN_FLOOR_Y } from './constants/desks';
+import { useLighting } from './hooks/LightingContext';
 
 const BACK_WALL_H = 22;   // matches MainFloor.tsx local constant
 
@@ -55,7 +56,7 @@ function PanelStrip({ cx, gradId }: { cx: number; gradId: string }) {
         y={0}
         width={PANEL_W}
         height={PANEL_H}
-        style={{ fill: 'var(--ceiling-panel, #dae6f0)', stroke: '#a8c8e0', strokeWidth: 0.5 }}
+        style={{ fill: '#dae6f0', stroke: '#a8c8e0', strokeWidth: 0.5 }}
         rx={2}
       />
       {/* Specular shine — thin white highlight on face */}
@@ -73,8 +74,9 @@ function PanelStrip({ cx, gradId }: { cx: number; gradId: string }) {
 
 // ── Main export ────────────────────────────────────────────────────────────
 export function CeilingFixtures() {
+  const { mode } = useLighting();
   return (
-    <div style={{ opacity: 'var(--ceiling-opacity, 1)' as React.CSSProperties['opacity'] }}>
+    <div style={{ opacity: mode === 'day' ? 1 : 0.15, transition: 'opacity 500ms ease' }}>
       {/* ── Main floor panels (4×) ──────────────────────────────────────── */}
       <svg
         style={{

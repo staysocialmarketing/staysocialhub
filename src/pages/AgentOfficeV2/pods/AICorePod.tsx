@@ -1,6 +1,8 @@
 import { DESKS, TIER_DIMS, CANVAS_W, CANVAS_H, AI_CORE_POD_X, AI_CORE_POD_W, MAIN_FLOOR_Y } from '../constants/desks';
 import { Desk } from '../Desk';
 import { useAgentStatuses } from '../hooks/useAgentStatus';
+import { useLighting } from '../hooks/LightingContext';
+import { DAY, NIGHT } from '../lighting-palette';
 
 const AI_KEYS = ['corey', 'lev', 'scout', 'quill', 'ember', 'forge', 'pixel', 'future_ai'];
 const aiDesks = DESKS.filter(d => AI_KEYS.includes(d.key));
@@ -24,6 +26,8 @@ const subTopCtr  = subRow3.map(d => ({ x: d.x + sW / 2, y: d.y }));
 
 export function AICorePod() {
   const statuses = useAgentStatuses();
+  const { mode } = useLighting();
+  const C = mode === 'day' ? DAY : NIGHT;
   const coreyState = statuses['corey'] ?? 'offline';
   const levBoost = (coreyState === 'active' || coreyState === 'processing') ? 0.1 : 0;
 
@@ -37,9 +41,10 @@ export function AICorePod() {
           top: MAIN_FLOOR_Y,
           width: AI_CORE_POD_W,
           height: CANVAS_H - MAIN_FLOOR_Y,
-          background: '#1e2535',
-          borderLeft:  '1px solid #2b3749',
-          borderRight: '1px solid #2b3749',
+          background: C.podAiBg,
+          borderLeft:  `1px solid ${C.podAiBorder}`,
+          borderRight: `1px solid ${C.podAiBorder}`,
+          transition: 'background-color 500ms ease, border-color 500ms ease',
         }}
       />
 

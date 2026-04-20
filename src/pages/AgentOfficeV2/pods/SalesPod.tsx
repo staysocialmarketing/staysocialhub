@@ -1,5 +1,7 @@
 import { DESKS, CANVAS_H, SALES_POD_X, SALES_POD_W, MAIN_FLOOR_Y } from '../constants/desks';
 import { Desk } from '../Desk';
+import { useLighting } from '../hooks/LightingContext';
+import { DAY, NIGHT } from '../lighting-palette';
 
 const SALES_KEYS = ['tristan', 'future_sales'];
 const salesDesks = DESKS.filter(d => SALES_KEYS.includes(d.key));
@@ -9,6 +11,8 @@ const COFFEE_Y = 565;
 const COFFEE_H = 100;
 
 export function SalesPod() {
+  const { mode } = useLighting();
+  const C = mode === 'day' ? DAY : NIGHT;
   const podLeft = SALES_POD_X;
   const podW    = SALES_POD_W;
   const podTop  = MAIN_FLOOR_Y;
@@ -24,8 +28,9 @@ export function SalesPod() {
           top: podTop,
           width: podW,
           height: podH,
-          background: '#1c232d',
-          borderLeft: '1px solid #27313f',
+          background: C.podWingBg,
+          borderLeft: `1px solid ${C.podWingBorder}`,
+          transition: 'background-color 500ms ease, border-color 500ms ease',
         }}
       />
 
@@ -83,8 +88,9 @@ export function SalesPod() {
           top: COFFEE_Y,
           width: podW - 24,
           height: COFFEE_H,
-          background: '#191d25',
-          border: '1px solid #252d3d',
+          background: C.nookBg,
+          border: `1px solid ${C.nookBorder}`,
+          transition: 'background-color 500ms ease, border-color 500ms ease',
         }}
       />
       <div

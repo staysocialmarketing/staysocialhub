@@ -5,6 +5,8 @@ import {
   AI_CORE_POD_X, AI_CORE_POD_W,
   SALES_POD_X, SALES_POD_W,
 } from './constants/desks';
+import { useLighting } from './hooks/LightingContext';
+import { DAY, NIGHT } from './lighting-palette';
 
 const STRIP_H = CANVAS_H - COMMON_AREA_Y; // 150px
 
@@ -63,6 +65,9 @@ const LABEL_STYLE: React.CSSProperties = {
 };
 
 export function CommonArea() {
+  const { mode } = useLighting();
+  const C = mode === 'day' ? DAY : NIGHT;
+
   return (
     <>
       {/* Strip background */}
@@ -73,7 +78,8 @@ export function CommonArea() {
           top: COMMON_AREA_Y,
           width: CANVAS_W,
           height: STRIP_H,
-          background: '#181e25',
+          background: C.commonBg,
+          transition: 'background-color 500ms ease',
         }}
       />
 
@@ -85,13 +91,14 @@ export function CommonArea() {
           top: COMMON_AREA_Y,
           width: CANVAS_W,
           height: 1,
-          background: '#27354d',
+          background: C.commonDivider,
+          transition: 'background-color 500ms ease',
         }}
       />
 
       {/* Vertical section separators (align with pod walls) */}
-      <div style={{ position: 'absolute', left: CREATIVE_POD_X + CREATIVE_POD_W, top: COMMON_AREA_Y + 1, width: 1, height: STRIP_H - 1, background: '#27313f' }} />
-      <div style={{ position: 'absolute', left: SALES_POD_X, top: COMMON_AREA_Y + 1, width: 1, height: STRIP_H - 1, background: '#27313f' }} />
+      <div style={{ position: 'absolute', left: CREATIVE_POD_X + CREATIVE_POD_W, top: COMMON_AREA_Y + 1, width: 1, height: STRIP_H - 1, background: C.commonSep, transition: 'background-color 500ms ease' }} />
+      <div style={{ position: 'absolute', left: SALES_POD_X, top: COMMON_AREA_Y + 1, width: 1, height: STRIP_H - 1, background: C.commonSep, transition: 'background-color 500ms ease' }} />
 
       {/* ── LOUNGE ─────────────────────────────────────────────────────────── */}
 
@@ -157,8 +164,9 @@ export function CommonArea() {
           top: CTABLE_Y + 2,
           width: 18,
           height: 6,
-          background: '#1a222d',
-          border: '1px solid #27354d',
+          background: C.laptopBg,
+          border: `1px solid ${C.commonDivider}`,
+          transition: 'background-color 500ms ease, border-color 500ms ease',
         }}
       />
 
@@ -209,8 +217,9 @@ export function CommonArea() {
               top:  GRID_Y + row * (FRAME_H + FRAME_GAP_Y),
               width: FRAME_W,
               height: FRAME_H,
-              background: '#171b21',
-              border: '1px solid #27313f',
+              background: C.clientFrameBg,
+              border: `1px solid ${C.commonSep}`,
+              transition: 'background-color 500ms ease, border-color 500ms ease',
             }}
           />
         ))

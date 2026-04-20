@@ -3,6 +3,8 @@ import { AICorePod } from './pods/AICorePod';
 import { CreativeStudioPod } from './pods/CreativeStudioPod';
 import { SalesPod } from './pods/SalesPod';
 import { CommonArea } from './CommonArea';
+import { useLighting } from './hooks/LightingContext';
+import { DAY, NIGHT } from './lighting-palette';
 
 // Back wall window strip on the main floor
 const BACK_WALL_H = 22;
@@ -16,6 +18,9 @@ const MAIN_WINDOWS = [
 ];
 
 export function MainFloor() {
+  const { mode } = useLighting();
+  const C = mode === 'day' ? DAY : NIGHT;
+
   return (
     <>
       {/* Main floor background */}
@@ -26,7 +31,8 @@ export function MainFloor() {
           top: MAIN_FLOOR_Y,
           width: CANVAS_W,
           height: CANVAS_H - MAIN_FLOOR_Y,
-          background: '#1a222d',
+          background: C.floorBg,
+          transition: 'background-color 500ms ease',
         }}
       />
 
@@ -38,9 +44,10 @@ export function MainFloor() {
           top: MAIN_FLOOR_Y,
           width: CANVAS_W,
           height: BACK_WALL_H,
-          background: '#171d25',
+          background: C.backWallBg,
           backgroundImage: 'repeating-linear-gradient(90deg, transparent 0px, transparent 49px, #232933 49px, #232933 50px)',
-          borderBottom: '1px solid #27354d',
+          borderBottom: `1px solid ${C.backWallBorder}`,
+          transition: 'background-color 500ms ease, border-color 500ms ease',
         }}
       />
 

@@ -7,6 +7,7 @@ import { MainFloor } from './MainFloor';
 import { Staircase } from './Staircase';
 import { CharacterLayer } from './CharacterLayer';
 import { AgentStatusProvider } from './hooks/useAgentStatus';
+import { LightingProvider } from './hooks/LightingContext';
 import { OfficeHeader } from './OfficeHeader';
 import { OfficeFooter } from './OfficeFooter';
 import { CeilingFixtures } from './CeilingFixtures';
@@ -61,10 +62,9 @@ export function AgentOfficeCanvas({ devPreview = false }: { devPreview?: boolean
             transformOrigin: 'top left',
             fontFamily: "'Courier New', Courier, monospace",
             imageRendering: 'pixelated',
-            '--ceiling-panel':  '#dae6f0',
-            '--ceiling-opacity': '1',
           } as React.CSSProperties}
         >
+          <LightingProvider>
           <AgentStatusProvider>
             <UpperFloor />
             <div
@@ -86,6 +86,7 @@ export function AgentOfficeCanvas({ devPreview = false }: { devPreview?: boolean
             <OfficeHeader />
             <OfficeFooter />
           </AgentStatusProvider>
+          </LightingProvider>
         </div>
       </div>
     </div>

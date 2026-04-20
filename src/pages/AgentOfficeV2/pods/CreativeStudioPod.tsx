@@ -1,5 +1,7 @@
 import { DESKS, CANVAS_H, CREATIVE_POD_X, CREATIVE_POD_W, MAIN_FLOOR_Y } from '../constants/desks';
 import { Desk } from '../Desk';
+import { useLighting } from '../hooks/LightingContext';
+import { DAY, NIGHT } from '../lighting-palette';
 
 const CREATIVE_KEYS = ['gavin', 'future_creative'];
 const creativeDesks = DESKS.filter(d => CREATIVE_KEYS.includes(d.key));
@@ -9,6 +11,8 @@ const NOOK_Y  = 565;
 const NOOK_H  = 100;
 
 export function CreativeStudioPod() {
+  const { mode } = useLighting();
+  const C = mode === 'day' ? DAY : NIGHT;
   const podLeft = CREATIVE_POD_X;
   const podW    = CREATIVE_POD_W;
   const podTop  = MAIN_FLOOR_Y;
@@ -24,8 +28,9 @@ export function CreativeStudioPod() {
           top: podTop,
           width: podW,
           height: podH,
-          background: '#1c232d',
-          borderRight: '1px solid #27313f',
+          background: C.podWingBg,
+          borderRight: `1px solid ${C.podWingBorder}`,
+          transition: 'background-color 500ms ease, border-color 500ms ease',
         }}
       />
 
@@ -83,8 +88,9 @@ export function CreativeStudioPod() {
           top: NOOK_Y,
           width: podW - 24,
           height: NOOK_H,
-          background: '#191d25',
-          border: '1px solid #252d3d',
+          background: C.nookBg,
+          border: `1px solid ${C.nookBorder}`,
+          transition: 'background-color 500ms ease, border-color 500ms ease',
         }}
       />
       <div

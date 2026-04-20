@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { CANVAS_W, CANVAS_H, DESKS } from './constants/desks';
 import { useAgentStatuses } from './hooks/useAgentStatus';
+import { useLighting } from './hooks/LightingContext';
+import { DAY, NIGHT } from './lighting-palette';
 
 export const FOOTER_H = 32;
 
@@ -37,6 +39,8 @@ function Stat({ n, label }: { n: number; label: string }) {
 
 export function OfficeFooter() {
   const statuses   = useAgentStatuses();
+  const { mode }   = useLighting();
+  const C          = mode === 'day' ? DAY : NIGHT;
   const [time, setTime] = useState(() => formatTime(new Date()));
 
   useEffect(() => {
@@ -52,8 +56,9 @@ export function OfficeFooter() {
       position: 'absolute',
       left: 0, top: CANVAS_H - FOOTER_H,
       width: CANVAS_W, height: FOOTER_H,
-      background: '#161c2a',
-      borderTop: '1px solid #2e3c54',
+      background: C.chromeBg,
+      borderTop: `1px solid ${C.chromeBorder}`,
+      transition: 'background-color 500ms ease, border-color 500ms ease',
       zIndex: 50,
       display: 'flex',
       alignItems: 'center',

@@ -1,5 +1,7 @@
 import './monitor-animations.css';
 import { CANVAS_W } from './constants/desks';
+import { useLighting } from './hooks/LightingContext';
+import { DAY, NIGHT } from './lighting-palette';
 
 export const HEADER_H = 36;
 
@@ -31,14 +33,18 @@ export function OfficeHeader({ inSession = false }: OfficeHeaderProps) {
   const dotClass  = inSession ? 'dot-session' : 'dot-live';
   const dotColor  = inSession ? '#3b82f6' : '#22c55e';
   const dotLabel  = inSession ? 'In Session' : 'Live';
+  const { mode, toggleMode } = useLighting();
+  const isNight = mode === 'night';
+  const C = mode === 'day' ? DAY : NIGHT;
 
   return (
     <div style={{
       position: 'absolute',
       left: 0, top: 0,
       width: CANVAS_W, height: HEADER_H,
-      background: '#161c2a',
-      borderBottom: '1px solid #2e3c54',
+      background: C.chromeBg,
+      borderBottom: `1px solid ${C.chromeBorder}`,
+      transition: 'background-color 500ms ease, border-color 500ms ease',
       zIndex: 50,
       display: 'flex',
       alignItems: 'center',
@@ -53,12 +59,32 @@ export function OfficeHeader({ inSession = false }: OfficeHeaderProps) {
         </span>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-        <div
-          className={dotClass}
-          style={{ width: 6, height: 6, borderRadius: '50%', background: dotColor, flexShrink: 0 }}
-        />
-        <span style={{ ...TEXT, color: dotColor }}>{dotLabel}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <button
+          onClick={toggleMode}
+          aria-label={isNight ? 'Switch to day mode' : 'Switch to night mode'}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '0 2px',
+            display: 'flex',
+            alignItems: 'center',
+            fontSize: 13,
+            lineHeight: 1,
+            color: isNight ? '#e0e8f0' : '#ffb64a',
+            transition: 'color 300ms ease',
+          }}
+        >
+          {isNight ? '☽' : '☀'}
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <div
+            className={dotClass}
+            style={{ width: 6, height: 6, borderRadius: '50%', background: dotColor, flexShrink: 0 }}
+          />
+          <span style={{ ...TEXT, color: dotColor }}>{dotLabel}</span>
+        </div>
       </div>
     </div>
   );

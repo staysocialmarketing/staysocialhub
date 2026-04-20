@@ -1,6 +1,10 @@
 import { CANVAS_W, UPPER_FLOOR_H, COL_STAIR } from './constants/desks';
 import { HalifaxWindow } from './windows/HalifaxWindow';
+import { HalifaxNightWindow } from './windows/HalifaxNightWindow';
 import { TorontoWindow } from './windows/TorontoWindow';
+import { TorontoNightWindow } from './windows/TorontoNightWindow';
+import { useLighting } from './hooks/LightingContext';
+import { DAY, NIGHT } from './lighting-palette';
 
 // Layout constants
 const BACK_WALL_H = 125;  // dominant back wall — houses the city windows
@@ -58,6 +62,9 @@ const PLANTS = [
 ];
 
 export function UpperFloor() {
+  const { mode } = useLighting();
+  const C = mode === 'day' ? DAY : NIGHT;
+
   return (
     <>
       {/* Upper floor background */}
@@ -68,7 +75,8 @@ export function UpperFloor() {
           top: 0,
           width: CANVAS_W,
           height: UPPER_FLOOR_H,
-          background: '#1b212f',
+          background: C.upperBg,
+          transition: 'background-color 500ms ease',
         }}
       />
 
@@ -80,8 +88,9 @@ export function UpperFloor() {
           top: 0,
           width: CANVAS_W,
           height: BACK_WALL_H,
-          background: 'linear-gradient(to bottom, #10161e, #151b25)',
-          borderBottom: '1px solid #253149',
+          background: mode === 'day' ? 'linear-gradient(to bottom, #10161e, #151b25)' : C.upperWallBg,
+          borderBottom: `1px solid ${C.upperWallBorder}`,
+          transition: 'background-color 500ms ease, border-color 500ms ease',
         }}
       />
 
@@ -98,7 +107,12 @@ export function UpperFloor() {
           boxShadow: '0 0 8px rgba(0,0,0,0.6)',
         }}
       >
-        <HalifaxWindow />
+        <div style={{ position: 'absolute', inset: 0, opacity: mode === 'day' ? 1 : 0, transition: 'opacity 800ms ease' }}>
+          <HalifaxWindow />
+        </div>
+        <div style={{ position: 'absolute', inset: 0, opacity: mode === 'night' ? 1 : 0, transition: 'opacity 800ms ease' }}>
+          <HalifaxNightWindow />
+        </div>
       </div>
 
       {/* Halifax city label */}
@@ -133,7 +147,12 @@ export function UpperFloor() {
           boxShadow: '0 0 8px rgba(0,0,0,0.6)',
         }}
       >
-        <TorontoWindow />
+        <div style={{ position: 'absolute', inset: 0, opacity: mode === 'day' ? 1 : 0, transition: 'opacity 800ms ease' }}>
+          <TorontoWindow />
+        </div>
+        <div style={{ position: 'absolute', inset: 0, opacity: mode === 'night' ? 1 : 0, transition: 'opacity 800ms ease' }}>
+          <TorontoNightWindow />
+        </div>
       </div>
 
       {/* Toronto city label */}
@@ -185,8 +204,9 @@ export function UpperFloor() {
           top: ROOM_Y,
           width: 4,
           height: ROOM_H,
-          background: '#191f2d',
-          borderRight: '1px solid #27354d',
+          background: C.meetWallBg,
+          borderRight: `1px solid ${C.meetWallBorder}`,
+          transition: 'background-color 500ms ease, border-color 500ms ease',
         }}
       />
 
@@ -198,8 +218,9 @@ export function UpperFloor() {
           top: ROOM_Y,
           width: 4,
           height: ROOM_H,
-          background: '#191f2d',
-          borderLeft: '1px solid #27354d',
+          background: C.meetWallBg,
+          borderLeft: `1px solid ${C.meetWallBorder}`,
+          transition: 'background-color 500ms ease, border-color 500ms ease',
         }}
       />
 
