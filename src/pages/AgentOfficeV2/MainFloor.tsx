@@ -3,9 +3,6 @@ import { AICorePod } from './pods/AICorePod';
 import { CreativeStudioPod } from './pods/CreativeStudioPod';
 import { SalesPod } from './pods/SalesPod';
 import { CommonArea } from './CommonArea';
-import { ScoutWalkTest } from './ScoutWalkTest';
-
-const WALK_TEST = new URLSearchParams(window.location.search).has('walk_test');
 
 // Back wall window strip on the main floor
 const BACK_WALL_H = 22;
@@ -62,22 +59,27 @@ export function MainFloor() {
         />
       ))}
 
-      {/* Floor tile pattern overlay */}
-      <div
+      {/* SVG checkerboard floor — visible in walkable corridors between pods */}
+      <svg
         style={{
           position: 'absolute',
           left: 0,
           top: MAIN_FLOOR_Y + BACK_WALL_H,
           width: CANVAS_W,
           height: CANVAS_H - MAIN_FLOOR_Y - BACK_WALL_H,
-          backgroundImage: `
-            linear-gradient(rgba(30,42,64,0.3) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(30,42,64,0.3) 1px, transparent 1px)
-          `,
-          backgroundSize: '32px 32px',
           pointerEvents: 'none',
         }}
-      />
+      >
+        <defs>
+          <pattern id="main-floor-check" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+            <rect x="0"  y="0"  width="10" height="10" fill="#0f1825" />
+            <rect x="10" y="0"  width="10" height="10" fill="#0b121b" />
+            <rect x="0"  y="10" width="10" height="10" fill="#0b121b" />
+            <rect x="10" y="10" width="10" height="10" fill="#0f1825" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#main-floor-check)" />
+      </svg>
 
       {/* Three pods */}
       <CreativeStudioPod />
@@ -87,8 +89,6 @@ export function MainFloor() {
       {/* Shared common area strip */}
       <CommonArea />
 
-      {/* Dev walk test — active when ?walk_test=1 */}
-      {WALK_TEST && <ScoutWalkTest />}
     </>
   );
 }

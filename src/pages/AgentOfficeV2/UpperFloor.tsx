@@ -155,21 +155,27 @@ export function UpperFloor() {
         Toronto
       </div>
 
-      {/* Room floor tile */}
-      <div
+      {/* SVG checkerboard floor — finer 16px cells, slightly warmer for meeting room carpet feel */}
+      <svg
         style={{
           position: 'absolute',
           left: 0,
           top: ROOM_Y,
           width: CANVAS_W,
           height: ROOM_H,
-          backgroundImage: `
-            linear-gradient(rgba(24,36,60,0.35) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(24,36,60,0.35) 1px, transparent 1px)
-          `,
-          backgroundSize: '24px 24px',
+          pointerEvents: 'none',
         }}
-      />
+      >
+        <defs>
+          <pattern id="meeting-room-check" x="0" y="0" width="16" height="16" patternUnits="userSpaceOnUse">
+            <rect x="0" y="0" width="8" height="8" fill="#111627" />
+            <rect x="8" y="0" width="8" height="8" fill="#0c111f" />
+            <rect x="0" y="8" width="8" height="8" fill="#0c111f" />
+            <rect x="8" y="8" width="8" height="8" fill="#111627" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#meeting-room-check)" />
+      </svg>
 
       {/* Left room wall */}
       <div
