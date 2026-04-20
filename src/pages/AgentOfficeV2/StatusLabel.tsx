@@ -13,9 +13,9 @@ import { memo, useRef } from 'react';
 import { useAgentStatuses } from './hooks/useAgentStatus';
 import type { WalkState } from './hooks/useWalkAnimation';
 
-const SPRITE_VISIBLE_H = 42; // px above feet that are visible above desk surface
-const GAP              = 8;  // px between label bottom and visible sprite top
-const LABEL_H          = 18; // approximate label height for top-offset calculation
+const SPRITE_H = 60; // full sprite height; top is at y - SPRITE_H (not y - visibleH)
+const GAP      = 14; // px between label bottom edge and sprite top edge
+const LABEL_H  = 18; // approximate label height for top-offset calculation
 
 interface LabelConfig {
   text:   string;
@@ -56,9 +56,9 @@ export const StatusLabel = memo(function StatusLabel({ agentKey, walkState, x, y
   if (config !== null) lastCfgRef.current = config;
   const display = config ?? lastCfgRef.current;
 
-  // Position: label bottom sits GAP px above the visible sprite top.
-  // top = (y - SPRITE_VISIBLE_H - GAP) - LABEL_H
-  const top  = Math.round(y - SPRITE_VISIBLE_H - GAP - LABEL_H);
+  // Sprite top is at y - SPRITE_H. Label bottom floats GAP px above that.
+  // top = (y - SPRITE_H - GAP) - LABEL_H
+  const top  = Math.round(y - SPRITE_H - GAP - LABEL_H);
   const left = Math.round(x);
 
   return (
