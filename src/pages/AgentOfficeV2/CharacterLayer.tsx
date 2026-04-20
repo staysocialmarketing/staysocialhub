@@ -7,7 +7,9 @@
  * Static placeholder agents (forge, pixel) are rendered as ghost sprites at
  * fixed desk positions.
  *
- * Walk test (?walk_test in URL): Scout loops desk→aisle→stair→aisle→desk.
+ * Walk test (?walk_test=<char>): runs that character's round-trip to meeting room.
+ * ?walk_test=all: all 7 walk simultaneously with staggered starts.
+ * ?walk_test=scout: runs the original Scout full-route loop.
  */
 import { useEffect, useRef } from 'react';
 import { DESKS, TIER_DIMS } from './constants/desks';
@@ -24,54 +26,54 @@ import { EmberSprite }   from './sprites/EmberSprite';
 import { GavinSprite }   from './sprites/GavinSprite';
 import { TristanSprite } from './sprites/TristanSprite';
 import { ScoutWalkDown, ScoutWalkLeft, ScoutWalkUp } from './sprites/ScoutWalkFrames';
+import { CoreyWalkDown, CoreyWalkLeft, CoreyWalkUp } from './sprites/CoreyWalkFrames';
+import { LevWalkDown, LevWalkLeft, LevWalkUp }       from './sprites/LevWalkFrames';
+import { QuillWalkDown, QuillWalkLeft, QuillWalkUp } from './sprites/QuillWalkFrames';
+import { EmberWalkDown, EmberWalkLeft, EmberWalkUp } from './sprites/EmberWalkFrames';
+import { GavinWalkDown, GavinWalkLeft, GavinWalkUp } from './sprites/GavinWalkFrames';
+import { TristanWalkDown, TristanWalkLeft, TristanWalkUp } from './sprites/TristanWalkFrames';
 import type { FrameSet } from './WalkingCharacter';
 import type { WaypointKey } from './constants/waypoints';
 
-const WALK_TEST = new URLSearchParams(window.location.search).has('walk_test');
+const WALK_TEST_CHAR = new URLSearchParams(window.location.search).get('walk_test') ?? '';
+const WALK_TEST      = WALK_TEST_CHAR !== '';
 
-// Frame set for agents without dedicated walk frames yet — idle sprite fills all slots
 function idleFrameSet(Sprite: () => JSX.Element): FrameSet {
   const frames = [Sprite, Sprite, Sprite, Sprite] as Array<() => JSX.Element>;
   return { down: frames, left: frames, up: frames, idle: Sprite };
 }
 
 const FRAME_SETS: Record<string, FrameSet> = {
-  corey:   idleFrameSet(CoreySprite),
-  lev:     idleFrameSet(LevSprite),
-  scout:   { down: ScoutWalkDown, left: ScoutWalkLeft, up: ScoutWalkUp, idle: ScoutSprite },
-  quill:   idleFrameSet(QuillSprite),
-  ember:   idleFrameSet(EmberSprite),
-  gavin:   idleFrameSet(GavinSprite),
-  tristan: idleFrameSet(TristanSprite),
+  corey:   { down: CoreyWalkDown,   left: CoreyWalkLeft,   up: CoreyWalkUp,   idle: CoreySprite },
+  lev:     { down: LevWalkDown,     left: LevWalkLeft,     up: LevWalkUp,     idle: LevSprite },
+  scout:   { down: ScoutWalkDown,   left: ScoutWalkLeft,   up: ScoutWalkUp,   idle: ScoutSprite },
+  quill:   { down: QuillWalkDown,   left: QuillWalkLeft,   up: QuillWalkUp,   idle: QuillSprite },
+  ember:   { down: EmberWalkDown,   left: EmberWalkLeft,   up: EmberWalkUp,   idle: EmberSprite },
+  gavin:   { down: GavinWalkDown,   left: GavinWalkLeft,   up: GavinWalkUp,   idle: GavinSprite },
+  tristan: { down: TristanWalkDown, left: TristanWalkLeft, up: TristanWalkUp, idle: TristanSprite },
 };
 
-// Scout walk-test route — full round-trip including stair transition to upper floor.
-// BFS fills segments between each checkpoint; stair_bottom↔meeting_entry triggers the climb animation.
+// Scout's original full-route loop (used when ?walk_test=scout)
 const SCOUT_ROUTE: WaypointKey[] = [
-  'desk_scout',    // (340, 583) start
-  'an_l',          // (340, 415) north to aisle
-  'an_c',          // (480, 415) east along aisle
-  'an_stair',      // (700, 415) east to staircase aisle node
-  'stair_bottom',  // (700, 284) north up stair
-  'meeting_entry', // (700, 228) ← ASCENDING STAIR TRANSITION triggers here
-  'mr_corridor',   // (480, 228) west to meeting room hub
-  'table_corridor',// (480, 138) north
-  'seat_0',        // (376, 138) west — seated at meeting table
-  'table_corridor',// return north corridor
-  'mr_corridor',   // south to hub
-  'meeting_entry', // east back to stair landing
-  'stair_bottom',  // ← DESCENDING STAIR TRANSITION triggers here
-  'an_stair',      // (700, 415) south back to aisle
-  'an_c',          // (480, 415) west
-  'an_l',          // (340, 415) west
-  'desk_scout',    // (340, 583) south home
+  'desk_scout', 'an_l', 'an_c', 'an_stair', 'stair_bottom',
+  'meeting_entry', 'mr_corridor', 'table_corridor', 'seat_0',
+  'table_corridor', 'mr_corridor', 'meeting_entry', 'stair_bottom',
+  'an_stair', 'an_c', 'an_l', 'desk_scout',
 ];
 
-// Placeholder (ghost) agent keys that are static — no walk hook needed
-const GHOST_KEYS = ['forge', 'pixel'];
+// Per-character meeting-room round-trips (BFS fills segments automatically)
+const CHAR_ROUTES: Record<string, WaypointKey[]> = {
+  corey:   ['desk_corey',   'seat_4', 'desk_corey'],
+  lev:     ['desk_lev',     'seat_5', 'desk_lev'],
+  scout:   SCOUT_ROUTE,
+  quill:   ['desk_quill',   'seat_6', 'desk_quill'],
+  ember:   ['desk_ember',   'seat_7', 'desk_ember'],
+  gavin:   ['desk_gavin',   'seat_1', 'desk_gavin'],
+  tristan: ['desk_tristan', 'seat_2', 'desk_tristan'],
+};
 
-// Lookup desk config by key
-const DESK_MAP = Object.fromEntries(DESKS.map(d => [d.key, d]));
+const GHOST_KEYS = ['forge', 'pixel'];
+const DESK_MAP   = Object.fromEntries(DESKS.map(d => [d.key, d]));
 
 export function CharacterLayer() {
   // ── Walk animation hooks — one per walkable agent (hooks must be unconditional) ──
@@ -93,22 +95,42 @@ export function CharacterLayer() {
     { key: 'tristan', walk: tristanWalk },
   ];
 
-  // ── Walk test — Scout loops when ?walk_test is present ────────────────────
-  const routeIdxRef = useRef(0);
-  const mountedRef  = useRef(false);
+  const mountedRef = useRef(false);
 
   useEffect(() => {
     if (!WALK_TEST) return;
     if (mountedRef.current) return;
     mountedRef.current = true;
-    const timer = setTimeout(step, 800);
-    return () => clearTimeout(timer);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function step() {
-    routeIdxRef.current = (routeIdxRef.current + 1) % SCOUT_ROUTE.length;
-    scoutWalk.walkTo(SCOUT_ROUTE[routeIdxRef.current], () => setTimeout(step, 800));
-  }
+    const walkMap: Record<string, typeof coreyWalk> = {
+      corey:   coreyWalk,
+      lev:     levWalk,
+      scout:   scoutWalk,
+      quill:   quillWalk,
+      ember:   emberWalk,
+      gavin:   gavinWalk,
+      tristan: tristanWalk,
+    };
+
+    function runLoop(key: string) {
+      const walkHook = walkMap[key];
+      const route    = CHAR_ROUTES[key];
+      if (!walkHook || !route) return;
+      let idx = 0;
+      const step = () => {
+        idx = (idx + 1) % route.length;
+        walkHook.walkTo(route[idx], () => setTimeout(step, 800));
+      };
+      step();
+    }
+
+    if (WALK_TEST_CHAR === 'all') {
+      const keys = ['corey', 'lev', 'scout', 'quill', 'ember', 'gavin', 'tristan'];
+      keys.forEach((key, i) => setTimeout(() => runLoop(key), 800 + i * 1400));
+    } else {
+      setTimeout(() => runLoop(WALK_TEST_CHAR), 800);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>
@@ -165,5 +187,4 @@ export function CharacterLayer() {
   );
 }
 
-// Re-export home waypoint map for convenience
 export { AGENT_HOME_WAYPOINT };
