@@ -24,8 +24,8 @@ export function CreativeStudioPod() {
           top: podTop,
           width: podW,
           height: podH,
-          background: '#232a34',
-          borderRight: '1px solid #2e384a',
+          background: '#1c232d',
+          borderRight: '1px solid #27313f',
         }}
       />
 
@@ -69,8 +69,8 @@ export function CreativeStudioPod() {
             width: 12,
             height: 12,
             borderRadius: '50% 50% 0 0',
-            background: '#1a5222',
-            opacity: 0.8,
+            background: '#2e7838',
+            opacity: 0.9,
           }}
         />
       </div>
@@ -83,8 +83,8 @@ export function CreativeStudioPod() {
           top: NOOK_Y,
           width: podW - 24,
           height: NOOK_H,
-          background: '#20242c',
-          border: '1px solid #2c3444',
+          background: '#191d25',
+          border: '1px solid #252d3d',
         }}
       />
       <div
@@ -109,9 +109,13 @@ export function CreativeStudioPod() {
       <svg
         style={{ position: 'absolute', left: podLeft + 4, top: 487, width: 28, height: 52, pointerEvents: 'none' }}
       >
-        <rect width="28" height="52" fill="#1a2436" stroke="#2a3c52" strokeWidth="1" />
+        <rect width="28" height="52" fill="#2a3448" stroke="#3a4e66" strokeWidth="1" />
+        {/* Top highlight — gives dimension */}
+        <rect x="1" y="1" width="26" height="1" fill="#4a6278" />
+        {/* Bottom shadow */}
+        <rect x="1" y="50" width="26" height="1" fill="#1c2a40" />
         {/* Drawer divider */}
-        <rect x="1" y="25" width="26" height="1" fill="#2a3c52" />
+        <rect x="1" y="25" width="26" height="1" fill="#3a4e66" />
         {/* Top drawer pull */}
         <rect x="11" y="10" width="6" height="4" fill="#d97706" stroke="#b45309" strokeWidth="0.5" rx="1" />
         {/* Bottom drawer pull */}

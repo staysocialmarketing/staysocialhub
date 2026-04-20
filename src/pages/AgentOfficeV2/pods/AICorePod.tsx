@@ -37,9 +37,9 @@ export function AICorePod() {
           top: MAIN_FLOOR_Y,
           width: AI_CORE_POD_W,
           height: CANVAS_H - MAIN_FLOOR_Y,
-          background: '#252c3c',
-          borderLeft:  '1px solid #323e50',
-          borderRight: '1px solid #323e50',
+          background: '#1e2535',
+          borderLeft:  '1px solid #2b3749',
+          borderRight: '1px solid #2b3749',
         }}
       />
 

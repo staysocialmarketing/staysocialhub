@@ -26,7 +26,7 @@ export function MainFloor() {
           top: MAIN_FLOOR_Y,
           width: CANVAS_W,
           height: CANVAS_H - MAIN_FLOOR_Y,
-          background: '#212934',
+          background: '#1a222d',
         }}
       />
 
@@ -38,8 +38,9 @@ export function MainFloor() {
           top: MAIN_FLOOR_Y,
           width: CANVAS_W,
           height: BACK_WALL_H,
-          background: '#1e242c',
-          borderBottom: '1px solid #2e3c54',
+          background: '#171d25',
+          backgroundImage: 'repeating-linear-gradient(90deg, transparent 0px, transparent 49px, #232933 49px, #232933 50px)',
+          borderBottom: '1px solid #27354d',
         }}
       />
 
@@ -83,7 +84,7 @@ export function MainFloor() {
 
       {/* Plant — staircase corridor (gap between AI Core x=660 and Sales x=760, clear of walk path) */}
       <div style={{ position: 'absolute', left: 722, top: 630, width: 8,  height: 6,  background: '#4a3020', border: '1px solid #3a2818', pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', left: 720, top: 620, width: 12, height: 10, borderRadius: '50% 50% 0 0', background: '#1a5222', opacity: 0.8, pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', left: 720, top: 620, width: 12, height: 10, borderRadius: '50% 50% 0 0', background: '#2e7838', opacity: 0.9, pointerEvents: 'none' }} />
 
       {/* Three pods */}
       <CreativeStudioPod />

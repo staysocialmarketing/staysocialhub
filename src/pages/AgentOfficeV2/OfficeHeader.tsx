@@ -7,7 +7,7 @@ export const HEADER_H = 36;
 const CURRENT_FLOOR = 1;
 
 const TEXT: React.CSSProperties = {
-  color: '#56748e',
+  color: '#527080',
   fontSize: 8,
   fontFamily: "'Courier New', monospace",
   letterSpacing: '0.14em',

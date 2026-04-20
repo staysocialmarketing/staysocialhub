@@ -73,7 +73,7 @@ export function CommonArea() {
           top: COMMON_AREA_Y,
           width: CANVAS_W,
           height: STRIP_H,
-          background: '#1f252c',
+          background: '#181e25',
         }}
       />
 
@@ -85,13 +85,13 @@ export function CommonArea() {
           top: COMMON_AREA_Y,
           width: CANVAS_W,
           height: 1,
-          background: '#2e3c54',
+          background: '#27354d',
         }}
       />
 
       {/* Vertical section separators (align with pod walls) */}
-      <div style={{ position: 'absolute', left: CREATIVE_POD_X + CREATIVE_POD_W, top: COMMON_AREA_Y + 1, width: 1, height: STRIP_H - 1, background: '#2e384a' }} />
-      <div style={{ position: 'absolute', left: SALES_POD_X, top: COMMON_AREA_Y + 1, width: 1, height: STRIP_H - 1, background: '#2e384a' }} />
+      <div style={{ position: 'absolute', left: CREATIVE_POD_X + CREATIVE_POD_W, top: COMMON_AREA_Y + 1, width: 1, height: STRIP_H - 1, background: '#27313f' }} />
+      <div style={{ position: 'absolute', left: SALES_POD_X, top: COMMON_AREA_Y + 1, width: 1, height: STRIP_H - 1, background: '#27313f' }} />
 
       {/* ── LOUNGE ─────────────────────────────────────────────────────────── */}
 
@@ -157,8 +157,8 @@ export function CommonArea() {
           top: CTABLE_Y + 2,
           width: 18,
           height: 6,
-          background: '#212934',
-          border: '1px solid #2e3a4a',
+          background: '#1a222d',
+          border: '1px solid #27354d',
         }}
       />
 
@@ -182,14 +182,14 @@ export function CommonArea() {
           width: 12,
           height: 12,
           borderRadius: '50% 50% 0 0',
-          background: '#1a5222',
-          opacity: 0.85,
+          background: '#2e7838',
+          opacity: 0.9,
         }}
       />
 
       {/* Second lounge plant — right side of couch */}
       <div style={{ position: 'absolute', left: COUCH_X + COUCH_W + 8,     top: COUCH_Y + 12, width: 8,  height: 6,  background: '#4a3020', border: '1px solid #3a2818' }} />
-      <div style={{ position: 'absolute', left: COUCH_X + COUCH_W + 6,     top: COUCH_Y + 2,  width: 12, height: 12, borderRadius: '50% 50% 0 0', background: '#1a5222', opacity: 0.8 }} />
+      <div style={{ position: 'absolute', left: COUCH_X + COUCH_W + 6,     top: COUCH_Y + 2,  width: 12, height: 12, borderRadius: '50% 50% 0 0', background: '#2e7838', opacity: 0.9 }} />
 
       {/* ── CLIENT WALL ────────────────────────────────────────────────────── */}
 
@@ -209,8 +209,8 @@ export function CommonArea() {
               top:  GRID_Y + row * (FRAME_H + FRAME_GAP_Y),
               width: FRAME_W,
               height: FRAME_H,
-              background: '#1e222c',
-              border: '1px solid #2e384a',
+              background: '#171b21',
+              border: '1px solid #27313f',
             }}
           />
         ))

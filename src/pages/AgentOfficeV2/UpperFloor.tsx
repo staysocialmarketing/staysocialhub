@@ -68,7 +68,7 @@ export function UpperFloor() {
           top: 0,
           width: CANVAS_W,
           height: UPPER_FLOOR_H,
-          background: '#222836',
+          background: '#1b212f',
         }}
       />
 
@@ -80,8 +80,8 @@ export function UpperFloor() {
           top: 0,
           width: CANVAS_W,
           height: BACK_WALL_H,
-          background: '#1c222c',
-          borderBottom: '1px solid #2c3850',
+          background: 'linear-gradient(to bottom, #10161e, #151b25)',
+          borderBottom: '1px solid #253149',
         }}
       />
 
@@ -108,7 +108,7 @@ export function UpperFloor() {
           left: HALIFAX_X + WIN_W / 2,
           top: WIN_Y + WIN_H + 6,
           transform: 'translateX(-50%)',
-          color: '#56748e',
+          color: '#527080',
           fontSize: 7,
           fontFamily: "'Courier New', monospace",
           letterSpacing: '0.22em',
@@ -143,7 +143,7 @@ export function UpperFloor() {
           left: TORONTO_X + WIN_W / 2,
           top: WIN_Y + WIN_H + 6,
           transform: 'translateX(-50%)',
-          color: '#56748e',
+          color: '#527080',
           fontSize: 7,
           fontFamily: "'Courier New', monospace",
           letterSpacing: '0.22em',
@@ -185,8 +185,8 @@ export function UpperFloor() {
           top: ROOM_Y,
           width: 4,
           height: ROOM_H,
-          background: '#202634',
-          borderRight: '1px solid #2e3c54',
+          background: '#191f2d',
+          borderRight: '1px solid #27354d',
         }}
       />
 
@@ -198,8 +198,8 @@ export function UpperFloor() {
           top: ROOM_Y,
           width: 4,
           height: ROOM_H,
-          background: '#202634',
-          borderLeft: '1px solid #2e3c54',
+          background: '#191f2d',
+          borderLeft: '1px solid #27354d',
         }}
       />
 
@@ -266,8 +266,8 @@ export function UpperFloor() {
             top: TOP_CHAIR_Y,
             width: CHAIR_W,
             height: CHAIR_H,
-            background: '#2e3444',
-            border: '1px solid #384454',
+            background: '#272d3d',
+            border: '1px solid #313d4d',
           }}
         />
       ))}
@@ -282,8 +282,8 @@ export function UpperFloor() {
             top: BOTTOM_CHAIR_Y,
             width: CHAIR_W,
             height: CHAIR_H,
-            background: '#2e3444',
-            border: '1px solid #384454',
+            background: '#272d3d',
+            border: '1px solid #313d4d',
           }}
         />
       ))}
@@ -292,17 +292,17 @@ export function UpperFloor() {
       <svg
         style={{ position: 'absolute', left: 860, top: 18, width: 22, height: 22, pointerEvents: 'none' }}
       >
-        <circle cx="11" cy="11" r="10" fill="#0a1020" stroke="#2a3c58" strokeWidth="1" />
+        <circle cx="11" cy="11" r="10" fill="#d8d0b8" stroke="#4a6888" strokeWidth="1" />
         {/* Tick marks at 12, 3, 6, 9 */}
-        <line x1="11" y1="2"  x2="11" y2="5"  stroke="#4a6882" strokeWidth="1" />
-        <line x1="20" y1="11" x2="17" y2="11" stroke="#4a6882" strokeWidth="1" />
-        <line x1="11" y1="20" x2="11" y2="17" stroke="#4a6882" strokeWidth="1" />
-        <line x1="2"  y1="11" x2="5"  y2="11" stroke="#4a6882" strokeWidth="1" />
+        <line x1="11" y1="2"  x2="11" y2="5"  stroke="#38485a" strokeWidth="1" />
+        <line x1="20" y1="11" x2="17" y2="11" stroke="#38485a" strokeWidth="1" />
+        <line x1="11" y1="20" x2="11" y2="17" stroke="#38485a" strokeWidth="1" />
+        <line x1="2"  y1="11" x2="5"  y2="11" stroke="#38485a" strokeWidth="1" />
         {/* Hour hand ~10 o'clock */}
-        <line x1="11" y1="11" x2="7"  y2="5"  stroke="#8aaccc" strokeWidth="1.5" strokeLinecap="round" />
+        <line x1="11" y1="11" x2="7"  y2="5"  stroke="#1a2438" strokeWidth="1.5" strokeLinecap="round" />
         {/* Minute hand ~2 o'clock */}
-        <line x1="11" y1="11" x2="15" y2="6"  stroke="#8aaccc" strokeWidth="1"   strokeLinecap="round" />
-        <circle cx="11" cy="11" r="1" fill="#8aaccc" />
+        <line x1="11" y1="11" x2="15" y2="6"  stroke="#1a2438" strokeWidth="1"   strokeLinecap="round" />
+        <circle cx="11" cy="11" r="1" fill="#2a3448" />
       </svg>
 
       {/* Plants flanking the city windows */}
@@ -327,7 +327,7 @@ export function UpperFloor() {
               width: 12,
               height: 10,
               borderRadius: '50% 50% 0 0',
-              background: '#1e5c28',
+              background: '#357040',
             }}
           />
         </div>
@@ -335,7 +335,10 @@ export function UpperFloor() {
 
       {/* Small plant — near left room wall below whiteboard */}
       <div style={{ position: 'absolute', left: 194, top: 134, width: 8,  height: 6,  background: '#4a3020', border: '1px solid #3a2818' }} />
-      <div style={{ position: 'absolute', left: 192, top: 126, width: 12, height: 10, borderRadius: '50% 50% 0 0', background: '#1a5222', opacity: 0.8 }} />
+      <div style={{ position: 'absolute', left: 192, top: 126, width: 12, height: 10, borderRadius: '50% 50% 0 0', background: '#2e7838', opacity: 0.9 }} />
+
+      {/* Chair rail — subtle horizontal architectural line at 40% of back wall height */}
+      <div style={{ position: 'absolute', left: 0, top: 50, width: CANVAS_W, height: 1, background: '#253040', pointerEvents: 'none' }} />
 
       {/* Meeting room label */}
       <div

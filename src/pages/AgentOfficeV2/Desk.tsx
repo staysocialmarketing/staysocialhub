@@ -117,7 +117,7 @@ export function Desk({ desk, lampBoost = 0 }: DeskProps) {
             backgroundImage: (!ghost && agentState === 'active')
               ? activeBackgroundImage()
               : undefined,
-            border: '1px solid #2c3444',
+            border: '1px solid #252d3d',
             opacity: ghost ? 0.35 : 1,
           }}
         />

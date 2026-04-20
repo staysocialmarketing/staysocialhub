@@ -24,8 +24,8 @@ export function SalesPod() {
           top: podTop,
           width: podW,
           height: podH,
-          background: '#232a34',
-          borderLeft: '1px solid #2e384a',
+          background: '#1c232d',
+          borderLeft: '1px solid #27313f',
         }}
       />
 
@@ -69,8 +69,8 @@ export function SalesPod() {
             width: 12,
             height: 12,
             borderRadius: '50% 50% 0 0',
-            background: '#1a5222',
-            opacity: 0.8,
+            background: '#2e7838',
+            opacity: 0.9,
           }}
         />
       </div>
@@ -83,8 +83,8 @@ export function SalesPod() {
           top: COFFEE_Y,
           width: podW - 24,
           height: COFFEE_H,
-          background: '#20242c',
-          border: '1px solid #2c3444',
+          background: '#191d25',
+          border: '1px solid #252d3d',
         }}
       />
       <div
@@ -109,44 +109,46 @@ export function SalesPod() {
       <svg
         style={{ position: 'absolute', left: podLeft + podW - 22, top: 470, width: 20, height: 88, pointerEvents: 'none' }}
       >
-        <rect width="20" height="88" fill="#161c28" stroke="#2a3448" strokeWidth="1" />
-        {/* Shelf boards */}
-        <rect x="0" y="28" width="20" height="3" fill="#2a3448" />
-        <rect x="0" y="58" width="20" height="3" fill="#2a3448" />
+        <rect width="20" height="88" fill="#26201a" stroke="#3c3228" strokeWidth="1" />
+        {/* Shelf boards — warm brown */}
+        <rect x="0" y="28" width="20" height="3" fill="#3a3028" />
+        <rect x="0" y="58" width="20" height="3" fill="#3a3028" />
         {/* Books — shelf 1 */}
-        <rect x="2"  y="2"  width="3" height="24" fill="#1e3a6a" />
-        <rect x="6"  y="4"  width="4" height="22" fill="#4a7840" />
-        <rect x="11" y="2"  width="3" height="24" fill="#8a4a20" />
-        <rect x="15" y="5"  width="3" height="21" fill="#2a5060" />
+        <rect x="2"  y="2"  width="3" height="24" fill="#1c44a0" />
+        <rect x="6"  y="4"  width="4" height="22" fill="#3a9040" />
+        <rect x="11" y="2"  width="3" height="24" fill="#a86228" />
+        <rect x="15" y="5"  width="3" height="21" fill="#2a7090" />
         {/* Books — shelf 2 */}
-        <rect x="2"  y="33" width="4" height="23" fill="#2a5060" />
-        <rect x="7"  y="35" width="3" height="21" fill="#8a4a20" />
-        <rect x="11" y="33" width="4" height="23" fill="#1e3a6a" />
-        <rect x="16" y="35" width="2" height="21" fill="#4a7840" />
+        <rect x="2"  y="33" width="4" height="23" fill="#2a7090" />
+        <rect x="7"  y="35" width="3" height="21" fill="#a86228" />
+        <rect x="11" y="33" width="4" height="23" fill="#1c44a0" />
+        <rect x="16" y="35" width="2" height="21" fill="#3a9040" />
         {/* Books — shelf 3 */}
-        <rect x="2"  y="63" width="3" height="21" fill="#4a7840" />
-        <rect x="6"  y="63" width="4" height="21" fill="#1e3a6a" />
-        <rect x="11" y="65" width="3" height="19" fill="#8a4a20" />
-        <rect x="15" y="63" width="3" height="21" fill="#2a5060" />
+        <rect x="2"  y="63" width="3" height="21" fill="#3a9040" />
+        <rect x="6"  y="63" width="4" height="21" fill="#1c44a0" />
+        <rect x="11" y="65" width="3" height="19" fill="#a86228" />
+        <rect x="15" y="63" width="3" height="21" fill="#2a7090" />
       </svg>
 
       {/* Pixel espresso machine — inside coffee station nook */}
       <svg
         style={{ position: 'absolute', left: 784, top: 577, width: 22, height: 22, pointerEvents: 'none' }}
       >
-        {/* Machine body */}
-        <rect width="18" height="14" fill="#1a2030" stroke="#283040" strokeWidth="1" />
+        {/* Machine body — chrome grey */}
+        <rect width="18" height="14" fill="#3a4050" stroke="#50586a" strokeWidth="1" />
+        {/* Top edge highlight */}
+        <rect x="1" y="1" width="16" height="1" fill="#505868" />
         {/* Front panel inset */}
-        <rect x="2" y="2" width="8" height="5" fill="#0a1020" stroke="#1e2c3c" strokeWidth="0.5" />
-        {/* Indicator light */}
-        <rect x="12" y="3" width="3" height="3" fill="#1a6030" />
+        <rect x="2" y="2" width="8" height="5" fill="#282e3a" stroke="#3a4252" strokeWidth="0.5" />
+        {/* Indicator light — bright green */}
+        <rect x="12" y="3" width="3" height="3" fill="#22c55e" />
         {/* Drip tray */}
-        <rect x="0" y="14" width="18" height="3" fill="#141c28" stroke="#202c3c" strokeWidth="1" />
-        {/* Cup */}
-        <rect x="6" y="15" width="5" height="4" fill="#0d1520" stroke="#283848" strokeWidth="0.5" />
-        {/* Steam arm */}
-        <rect x="16" y="2" width="2" height="10" fill="#1e2a3c" />
-        <rect x="16" y="2" width="5" height="2" fill="#1e2a3c" />
+        <rect x="0" y="14" width="18" height="3" fill="#2a3040" stroke="#38404e" strokeWidth="1" />
+        {/* Cup — dark espresso */}
+        <rect x="6" y="15" width="5" height="4" fill="#1a1412" stroke="#2a2420" strokeWidth="0.5" />
+        {/* Steam arm — darker chrome */}
+        <rect x="16" y="2" width="2" height="10" fill="#454c5c" />
+        <rect x="16" y="2" width="5" height="2" fill="#454c5c" />
       </svg>
 
       {/* Sales desks */}
