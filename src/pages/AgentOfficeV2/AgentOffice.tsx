@@ -9,6 +9,7 @@ import { CharacterLayer } from './CharacterLayer';
 import { AgentStatusProvider } from './hooks/useAgentStatus';
 import { OfficeHeader } from './OfficeHeader';
 import { OfficeFooter } from './OfficeFooter';
+import { CeilingFixtures } from './CeilingFixtures';
 
 // Shared canvas — used by both the gated route and the dev-preview route.
 export function AgentOfficeCanvas({ devPreview = false }: { devPreview?: boolean }) {
@@ -60,7 +61,9 @@ export function AgentOfficeCanvas({ devPreview = false }: { devPreview?: boolean
             transformOrigin: 'top left',
             fontFamily: "'Courier New', Courier, monospace",
             imageRendering: 'pixelated',
-          }}
+            '--ceiling-panel':  '#dae6f0',
+            '--ceiling-opacity': '1',
+          } as React.CSSProperties}
         >
           <AgentStatusProvider>
             <UpperFloor />
@@ -78,6 +81,7 @@ export function AgentOfficeCanvas({ devPreview = false }: { devPreview?: boolean
             />
             <MainFloor />
             <Staircase />
+            <CeilingFixtures />
             <CharacterLayer />
             <OfficeHeader />
             <OfficeFooter />
