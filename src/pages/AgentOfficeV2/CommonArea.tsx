@@ -187,6 +187,10 @@ export function CommonArea() {
         }}
       />
 
+      {/* Second lounge plant — right side of couch */}
+      <div style={{ position: 'absolute', left: COUCH_X + COUCH_W + 8,     top: COUCH_Y + 12, width: 8,  height: 6,  background: '#4a3020', border: '1px solid #3a2818' }} />
+      <div style={{ position: 'absolute', left: COUCH_X + COUCH_W + 6,     top: COUCH_Y + 2,  width: 12, height: 12, borderRadius: '50% 50% 0 0', background: '#1a5222', opacity: 0.8 }} />
+
       {/* ── CLIENT WALL ────────────────────────────────────────────────────── */}
 
       {/* Section label */}

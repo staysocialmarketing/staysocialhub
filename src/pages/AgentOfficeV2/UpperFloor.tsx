@@ -288,6 +288,23 @@ export function UpperFloor() {
         />
       ))}
 
+      {/* Wall clock — right side of back wall, between Toronto window and right edge */}
+      <svg
+        style={{ position: 'absolute', left: 860, top: 18, width: 22, height: 22, pointerEvents: 'none' }}
+      >
+        <circle cx="11" cy="11" r="10" fill="#0a1020" stroke="#2a3c58" strokeWidth="1" />
+        {/* Tick marks at 12, 3, 6, 9 */}
+        <line x1="11" y1="2"  x2="11" y2="5"  stroke="#4a6882" strokeWidth="1" />
+        <line x1="20" y1="11" x2="17" y2="11" stroke="#4a6882" strokeWidth="1" />
+        <line x1="11" y1="20" x2="11" y2="17" stroke="#4a6882" strokeWidth="1" />
+        <line x1="2"  y1="11" x2="5"  y2="11" stroke="#4a6882" strokeWidth="1" />
+        {/* Hour hand ~10 o'clock */}
+        <line x1="11" y1="11" x2="7"  y2="5"  stroke="#8aaccc" strokeWidth="1.5" strokeLinecap="round" />
+        {/* Minute hand ~2 o'clock */}
+        <line x1="11" y1="11" x2="15" y2="6"  stroke="#8aaccc" strokeWidth="1"   strokeLinecap="round" />
+        <circle cx="11" cy="11" r="1" fill="#8aaccc" />
+      </svg>
+
       {/* Plants flanking the city windows */}
       {PLANTS.map((p, i) => (
         <div key={i} style={{ position: 'absolute', left: 0, top: 0 }}>
@@ -315,6 +332,10 @@ export function UpperFloor() {
           />
         </div>
       ))}
+
+      {/* Small plant — near left room wall below whiteboard */}
+      <div style={{ position: 'absolute', left: 194, top: 134, width: 8,  height: 6,  background: '#4a3020', border: '1px solid #3a2818' }} />
+      <div style={{ position: 'absolute', left: 192, top: 126, width: 12, height: 10, borderRadius: '50% 50% 0 0', background: '#1a5222', opacity: 0.8 }} />
 
       {/* Meeting room label */}
       <div

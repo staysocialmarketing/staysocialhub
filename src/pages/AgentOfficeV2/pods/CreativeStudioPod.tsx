@@ -105,6 +105,19 @@ export function CreativeStudioPod() {
         Recording Nook
       </div>
 
+      {/* Filing cabinet — left wall, below future hire slot */}
+      <svg
+        style={{ position: 'absolute', left: podLeft + 4, top: 487, width: 28, height: 52, pointerEvents: 'none' }}
+      >
+        <rect width="28" height="52" fill="#1a2436" stroke="#2a3c52" strokeWidth="1" />
+        {/* Drawer divider */}
+        <rect x="1" y="25" width="26" height="1" fill="#2a3c52" />
+        {/* Top drawer pull */}
+        <rect x="11" y="10" width="6" height="4" fill="#d97706" stroke="#b45309" strokeWidth="0.5" rx="1" />
+        {/* Bottom drawer pull */}
+        <rect x="11" y="35" width="6" height="4" fill="#d97706" stroke="#b45309" strokeWidth="0.5" rx="1" />
+      </svg>
+
       {/* Creative desks */}
       {creativeDesks.map(desk => (
         <Desk key={desk.key} desk={desk} />

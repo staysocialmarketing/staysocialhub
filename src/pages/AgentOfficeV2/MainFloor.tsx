@@ -81,6 +81,10 @@ export function MainFloor() {
         <rect width="100%" height="100%" fill="url(#main-floor-check)" />
       </svg>
 
+      {/* Plant — staircase corridor (gap between AI Core x=660 and Sales x=760, clear of walk path) */}
+      <div style={{ position: 'absolute', left: 722, top: 630, width: 8,  height: 6,  background: '#4a3020', border: '1px solid #3a2818', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', left: 720, top: 620, width: 12, height: 10, borderRadius: '50% 50% 0 0', background: '#1a5222', opacity: 0.8, pointerEvents: 'none' }} />
+
       {/* Three pods */}
       <CreativeStudioPod />
       <AICorePod />
