@@ -43,7 +43,6 @@ export default function VoiceCallPanel({
 
   const conversation = useConversation({
     onConnect: () => {
-      console.log("EL onConnect — session established");
       hasStartedRef.current = true;
       isStartingRef.current = false;
       sessionStartTimeRef.current = Date.now();
@@ -57,7 +56,6 @@ export default function VoiceCallPanel({
     },
     onDisconnect: () => {
       const elapsed = Date.now() - sessionStartTimeRef.current;
-      console.log("EL onDisconnect — hasStarted:", hasStartedRef.current, "transcript:", transcriptRef.current.length, "elapsed:", elapsed);
       isStartingRef.current = false;
       if (connectionTimeoutRef.current) {
         clearTimeout(connectionTimeoutRef.current);
@@ -75,7 +73,6 @@ export default function VoiceCallPanel({
       }
     },
     onMessage: (message: any) => {
-      console.log("EL onMessage", JSON.stringify(message));
       // Format 1: typed events
       if (message.type === "user_transcript") {
         const userText = message.user_transcription_event?.user_transcript;
@@ -163,7 +160,6 @@ export default function VoiceCallPanel({
       // Hard connection timeout — fail after 12s if onConnect never fires
       connectionTimeoutRef.current = setTimeout(() => {
         if (isStartingRef.current || !hasStartedRef.current) {
-          console.log("[VoiceCallPanel] Connection timeout — 12s elapsed");
           toast.error("Voice connection timed out. Please try again.");
           isStartingRef.current = false;
           setIsConnecting(false);
