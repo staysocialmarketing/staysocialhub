@@ -1,0 +1,69 @@
+name: Deploy Supabase Edge Functions
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Reason for manual deploy (optional)"
+        required: false
+        default: "Manual deploy triggered from GitHub Actions UI"
+
+jobs:
+  deploy:
+    name: Deploy Edge Functions
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: List functions to deploy
+        run: |
+          echo "=========================================="
+          echo "  Supabase Edge Functions — Deploy Job"
+          echo "=========================================="
+          echo ""
+          echo "Project ref: ktyjtbivycjkklkrcudb"
+          echo ""
+          echo "Functions found in supabase/functions/:"
+          for fn in supabase/functions/*/; do
+            fn_name=$(basename "$fn")
+            echo "  • $fn_name"
+          done
+          echo ""
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Trigger: Manual dispatch"
+            echo "Reason:  ${{ github.event.inputs.reason }}"
+          else
+            echo "Trigger: Push to main"
+            echo "Commit:  ${{ github.sha }}"
+            echo "Author:  ${{ github.actor }}"
+          fi
+          echo ""
+          echo "Starting deployment..."
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy all edge functions
+        run: supabase functions deploy --project-ref ktyjtbivycjkklkrcudb
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Deployment complete
+        run: |
+          echo ""
+          echo "=========================================="
+          echo "  All edge functions deployed successfully"
+          echo "=========================================="
+          echo ""
+          echo "Deployed functions:"
+          for fn in supabase/functions/*/; do
+            fn_name=$(basename "$fn")
+            echo "  ✓ $fn_name"
+          done
