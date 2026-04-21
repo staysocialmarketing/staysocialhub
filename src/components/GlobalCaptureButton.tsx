@@ -130,11 +130,7 @@ export function GlobalCaptureButton() {
     const transcript = voiceTranscriptRef.current.join("\n");
     voiceTranscriptRef.current = [];
 
-    console.log("[HubAssistant] Finalizing voice run. Transcript length:", transcript.length);
-    console.log("[HubAssistant] Transcript preview:", transcript.slice(0, 200));
-
     if (!transcript.trim()) {
-      console.log("[HubAssistant] Empty transcript — no actions to extract");
       toast.warning("Call ended but no speech was detected. Make sure your microphone is working and speak clearly.", { duration: 6000 });
       voiceRunStateRef.current = "idle";
       setAssistantView("chat");
@@ -168,7 +164,6 @@ export function GlobalCaptureButton() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated");
 
-      console.log("[HubAssistant] Sending extract_actions request...");
       const resp = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/hub-assistant`,
         {
@@ -185,11 +180,8 @@ export function GlobalCaptureButton() {
         }
       );
 
-      console.log("[HubAssistant] extract_actions response status:", resp.status);
-
       if (!resp.ok) {
         const errData = await resp.json().catch(() => ({}));
-        console.error("[HubAssistant] extract_actions error:", errData);
         toast.error(errData.error || "Failed to process conversation", { id: toastId });
         voiceRunStateRef.current = "error";
         setAssistantView("chat");
@@ -198,7 +190,6 @@ export function GlobalCaptureButton() {
       }
 
       const data = await resp.json();
-      console.log("[HubAssistant] Extracted actions:", JSON.stringify(data.actions));
       const actions = data.actions || [];
 
       if (actions.length === 0) {
@@ -230,7 +221,6 @@ export function GlobalCaptureButton() {
   const conversation = useConversation({
     onMessage: (message: any) => {
       lastMessageTimeRef.current = Date.now();
-      console.log("[HubAssistant] onMessage type:", message.type, JSON.stringify(message).slice(0, 200));
       // Capture all possible transcript formats from ElevenLabs
       if (message.type === "user_transcript" && message.user_transcription_event?.user_transcript) {
         voiceTranscriptRef.current.push(`User: ${message.user_transcription_event.user_transcript}`);
@@ -242,10 +232,6 @@ export function GlobalCaptureButton() {
       if (message.type === "agent_response" && message.agent_response_event?.agent_response) {
         voiceTranscriptRef.current.push(`Assistant: ${message.agent_response_event.agent_response}`);
       }
-      // Catch-all: log any message with text content for debugging
-      if (message.message || message.text) {
-        console.log("[HubAssistant] Additional message content:", message.message || message.text);
-      }
     },
     onError: (error: any) => {
       console.error("Voice agent error:", error);
@@ -253,7 +239,6 @@ export function GlobalCaptureButton() {
       voiceRunStateRef.current = "error";
     },
     onConnect: () => {
-      console.log("[HubAssistant] onConnect — session established");
       voiceRunStateRef.current = "live";
       setVoiceConnecting(false);
       setConnectingElapsed(0);
@@ -263,7 +248,6 @@ export function GlobalCaptureButton() {
       }
     },
     onDisconnect: () => {
-      console.log("[HubAssistant] onDisconnect — voiceRunState:", voiceRunStateRef.current, "transcript items:", voiceTranscriptRef.current.length, "transcripts:", voiceTranscriptRef.current.slice(0, 3));
       // Clear idle timer
       if (idleTimerRef.current) {
         clearInterval(idleTimerRef.current);
@@ -294,7 +278,6 @@ export function GlobalCaptureButton() {
     // Don't reset if voice run is in progress (ending/extracting/executing)
     const runState = voiceRunStateRef.current;
     if (runState === "ending" || runState === "extracting" || runState === "executing") {
-      console.log("[HubAssistant] resetAll blocked — voice run state:", runState);
       return;
     }
     setMode(null);
@@ -623,7 +606,6 @@ export function GlobalCaptureButton() {
           // Fallback: if onDisconnect doesn't fire within 2s, finalize anyway
           setTimeout(() => {
             if (!voiceRunFinalizedRef.current) {
-              console.log("[HubAssistant] Fallback finalize after idle timeout");
               finalizeVoiceRun();
             }
           }, 2000);
@@ -633,7 +615,6 @@ export function GlobalCaptureButton() {
       // Hard connection timeout — fail after 12s if onConnect never fires
       const connectionTimeout = setTimeout(() => {
         if (voiceRunStateRef.current === "connecting") {
-          console.log("[HubAssistant] Connection timeout — 12s elapsed");
           toast.error("Voice connection timed out. Please try again.");
           voiceRunStateRef.current = "idle";
           setAssistantView("chat");
@@ -677,7 +658,6 @@ export function GlobalCaptureButton() {
   }, [conversation, location.pathname, finalizeVoiceRun]);
 
   const endVoiceCall = useCallback(async () => {
-    console.log("[HubAssistant] endVoiceCall called — transcript length:", voiceTranscriptRef.current.length);
     voiceRunStateRef.current = "ending";
     toast.loading("Call ended. Processing...", { id: "voice-processing", duration: Infinity });
     if (idleTimerRef.current) {
@@ -690,7 +670,6 @@ export function GlobalCaptureButton() {
     // Fallback: if onDisconnect doesn't fire within 2s, force finalize unconditionally
     setTimeout(() => {
       if (!voiceRunFinalizedRef.current) {
-        console.log("[HubAssistant] Fallback finalize after endVoiceCall");
         finalizeVoiceRun();
       }
     }, 2000);

@@ -98,12 +98,6 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<AuthRoute />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            {/* TODO: DELETE before launch — public dev preview, no auth guard */}
-            <Route path="/agent-office-v2-preview" element={
-              <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-                <AgentOfficeCanvas devPreview />
-              </div>
-            } />
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/workflow" element={<AdminRoute><Workflow /></AdminRoute>} />
