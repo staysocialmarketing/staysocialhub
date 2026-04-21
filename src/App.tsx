@@ -45,6 +45,7 @@ import UniversalInbox from "./pages/team/UniversalInbox";
 import CorporateStrategy from "./pages/admin/CorporateStrategy";
 import AgentOffice from "./pages/admin/AgentOffice";
 import AgentOfficeV2, { AgentOfficeCanvas } from "./pages/AgentOfficeV2/AgentOffice";
+import AdminWorkspace from "./pages/admin/AdminWorkspace";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -138,6 +139,7 @@ const App = () => (
               <Route path="/corporate/strategy" element={<AdminRoute><CorporateStrategy /></AdminRoute>} />
               <Route path="/agent-office" element={<AdminRoute><AgentOffice /></AdminRoute>} />
               <Route path="/agent-office-v2" element={<AdminRoute><AgentOfficeV2 /></AdminRoute>} />
+              <Route path="/admin/workspace" element={<SSAdminRoute><AdminWorkspace /></SSAdminRoute>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -31,6 +31,7 @@ import {
   BookOpen,
   Monitor,
   Layers,
+  Briefcase,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -89,6 +90,7 @@ const manageSection = [
 ];
 
 const adminSection = [
+  { title: "Workspace", url: "/admin/workspace", icon: Briefcase },
   { title: "Agent Office", url: "/agent-office", icon: Monitor },
   { title: "Agent Office v2", url: "/agent-office-v2", icon: Layers },
   { title: "Users", url: "/admin/users", icon: Users },
@@ -362,6 +364,7 @@ export function AppSidebar() {
                     <CollapsibleContent>
                       <SidebarGroupContent>{renderMenuItems(
                         adminSection.filter(i => {
+                          if (i.title === "Workspace") return isSSAdmin;
                           if (i.title === "Users") return isSSAdmin || isSSManager;
                           if (i.title === "Plans" || i.title === "Versions") return isSSAdmin;
                           if (i.title === "Agent Office v2") return actualIsSSAdmin;
