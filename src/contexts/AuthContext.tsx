@@ -18,6 +18,7 @@ interface AuthContextType {
   session: Session | null;
   user: User | null;
   profile: UserProfile | null;
+  realProfile: UserProfile | null;
   roles: AppRole[];
   loading: boolean;
   isSSRole: boolean;
@@ -28,6 +29,7 @@ interface AuthContextType {
   isClientAssistant: boolean;
   actualIsSSAdmin: boolean;
   isViewingAs: boolean;
+  isImpersonating: boolean;
   viewAsUserId: string | null;
   setViewAs: (userId: string | null) => void;
   signOut: () => Promise<void>;
@@ -37,6 +39,7 @@ const AuthContext = createContext<AuthContextType>({
   session: null,
   user: null,
   profile: null,
+  realProfile: null,
   roles: [],
   loading: true,
   isSSRole: false,
@@ -47,6 +50,7 @@ const AuthContext = createContext<AuthContextType>({
   isClientAssistant: false,
   actualIsSSAdmin: false,
   isViewingAs: false,
+  isImpersonating: false,
   viewAsUserId: null,
   setViewAs: () => {},
   signOut: async () => {},
@@ -242,6 +246,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         session,
         user,
         profile,
+        realProfile,
         roles,
         loading,
         isSSRole,
@@ -252,6 +257,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isClientAssistant,
         actualIsSSAdmin,
         isViewingAs,
+        isImpersonating: isViewingAs,
         viewAsUserId,
         setViewAs,
         signOut,

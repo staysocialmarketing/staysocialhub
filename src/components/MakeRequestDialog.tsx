@@ -34,7 +34,7 @@ export default function MakeRequestDialog({
   prefillNotes = "",
   onSuccess,
 }: MakeRequestDialogProps) {
-  const { profile, isSSRole } = useAuth();
+  const { profile, realProfile, isSSRole, isImpersonating } = useAuth();
   const queryClient = useQueryClient();
   const [clientId, setClientId] = useState("");
   const [type, setType] = useState<RequestType>("social_post");
@@ -99,8 +99,9 @@ export default function MakeRequestDialog({
         topic: topic.trim(),
         notes: notes.trim() || null,
         created_by_user_id: profile.id,
+        submitted_on_behalf_by: isImpersonating ? realProfile!.id : null,
         attachments_url,
-      });
+      } as any);
       if (reqErr) throw reqErr;
 
       toast.success("Request created and added to workflow!");

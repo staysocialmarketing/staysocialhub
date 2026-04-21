@@ -34,7 +34,7 @@ const statusConfig: Record<string, { label: string; className: string }> = {
 };
 
 export default function Requests() {
-  const { profile, isSSRole, isSSAdmin } = useAuth();
+  const { profile, realProfile, isSSRole, isSSAdmin, isImpersonating } = useAuth();
   const { selectedClientId: globalClientId } = useClientFilter();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -144,8 +144,9 @@ export default function Requests() {
         preferred_publish_window: form.preferred_publish_window || null,
         priority: form.priority,
         created_by_user_id: profile!.id,
+        submitted_on_behalf_by: isImpersonating ? realProfile!.id : null,
         attachments_url,
-      });
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => {
