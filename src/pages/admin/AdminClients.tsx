@@ -46,6 +46,7 @@ export default function AdminClients() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
+  const [newPlanId, setNewPlanId] = useState("");
   const [whatsNewClient, setWhatsNewClient] = useState<string | null>(null);
   const [marketplaceItems, setMarketplaceItems] = useState<any[]>([]);
 
@@ -217,7 +218,9 @@ export default function AdminClients() {
 
   const createClient = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("clients").insert({ name });
+      const payload: { name: string; plan_id?: string } = { name };
+      if (newPlanId) payload.plan_id = newPlanId;
+      const { error } = await supabase.from("clients").insert(payload);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -225,6 +228,7 @@ export default function AdminClients() {
       toast.success("Client created");
       setOpen(false);
       setName("");
+      setNewPlanId("");
     },
     onError: () => toast.error("Failed to create client"),
   });
@@ -381,6 +385,16 @@ export default function AdminClients() {
               <DialogHeader><DialogTitle>New Client</DialogTitle></DialogHeader>
               <div className="space-y-4 mt-2">
                 <div><Label>Client Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Business name" className="rounded-xl" /></div>
+                <div>
+                  <Label>Plan <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                  <Select value={newPlanId || "__none__"} onValueChange={(v) => setNewPlanId(v === "__none__" ? "" : v)}>
+                    <SelectTrigger className="rounded-xl"><SelectValue placeholder="No plan" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">No plan</SelectItem>
+                      {plans.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <Button className="w-full" onClick={() => createClient.mutate()} disabled={!name}>Create Client</Button>
               </div>
             </DialogContent>

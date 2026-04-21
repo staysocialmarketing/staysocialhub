@@ -24,10 +24,11 @@ function timeAgo(dateStr: string): string {
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
-const ALL_ROLES: AppRole[] = ["ss_admin", "ss_team", "client_admin", "client_assistant"];
+const ALL_ROLES: AppRole[] = ["ss_admin", "ss_manager", "ss_team", "client_admin", "client_assistant"];
 
 const roleLabels: Record<AppRole, string> = {
   ss_admin: "SS Admin",
+  ss_manager: "SS Manager",
   ss_team: "SS Team",
   ss_producer: "SS Team",
   ss_ops: "SS Team",
@@ -37,7 +38,8 @@ const roleLabels: Record<AppRole, string> = {
 
 export default function AdminUsers() {
   const queryClient = useQueryClient();
-  const { isSSAdmin } = useAuth();
+  const { isSSAdmin, isSSManager } = useAuth();
+  const canManageUsers = isSSAdmin || isSSManager;
   const [addingRoleFor, setAddingRoleFor] = useState<string | null>(null);
   const [newDomain, setNewDomain] = useState("");
 
@@ -109,6 +111,7 @@ export default function AdminUsers() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      queryClient.invalidateQueries({ queryKey: ["sidebar-users"] });
       toast.success("Role added");
       setAddingRoleFor(null);
     },
@@ -134,6 +137,7 @@ export default function AdminUsers() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      queryClient.invalidateQueries({ queryKey: ["sidebar-users"] });
       toast.success("Client updated");
     },
     onError: (err: any) => toast.error(err.message || "Failed to update client"),
@@ -227,7 +231,7 @@ export default function AdminUsers() {
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs text-orange-400/70">No role —</span>
-                  {isSSAdmin && addingRoleFor === u.id ? (
+                  {canManageUsers && addingRoleFor === u.id ? (
                     <Select onValueChange={(v) => addRole.mutate({ userId: u.id, role: v as AppRole })}>
                       <SelectTrigger className="h-7 w-40 text-xs rounded-lg border-orange-500/30">
                         <SelectValue placeholder="Assign role…" />
@@ -239,7 +243,7 @@ export default function AdminUsers() {
                       </SelectContent>
                     </Select>
                   ) : (
-                    isSSAdmin && (
+                    canManageUsers && (
                       <Button
                         size="sm"
                         className="h-7 px-3 text-xs bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border border-orange-500/30 rounded-lg"
@@ -250,7 +254,7 @@ export default function AdminUsers() {
                       </Button>
                     )
                   )}
-                  {isSSAdmin && (
+                  {canManageUsers && (
                     <div className="flex items-center gap-2 ml-auto">
                       <Building2 className="h-4 w-4 text-muted-foreground" />
                       <Select
@@ -304,14 +308,14 @@ export default function AdminUsers() {
                       <button
                         onClick={() => removeRole.mutate({ roleId: r.id })}
                         className="ml-0.5 hover:text-destructive"
-                        disabled={!isSSAdmin}
-                        style={{ visibility: isSSAdmin ? "visible" : "hidden" }}
+                        disabled={!canManageUsers}
+                        style={{ visibility: canManageUsers ? "visible" : "hidden" }}
                       >
                         <X className="h-3 w-3" />
                       </button>
                     </Badge>
                   ))}
-                  {isSSAdmin && addingRoleFor === u.id ? (
+                  {canManageUsers && addingRoleFor === u.id ? (
                     <Select onValueChange={(v) => addRole.mutate({ userId: u.id, role: v as AppRole })}>
                       <SelectTrigger className="h-7 w-36 text-xs rounded-lg">
                         <SelectValue placeholder="Select role" />
@@ -323,7 +327,7 @@ export default function AdminUsers() {
                       </SelectContent>
                     </Select>
                   ) : (
-                    isSSAdmin && availableRoles.length > 0 && (
+                    canManageUsers && availableRoles.length > 0 && (
                       <Button variant="ghost" size="sm" className="h-6 px-2 text-xs rounded-lg" onClick={() => setAddingRoleFor(u.id)}>
                         <Plus className="h-3 w-3 mr-1" />Add Role
                       </Button>
@@ -331,7 +335,7 @@ export default function AdminUsers() {
                   )}
                 </div>
 
-                {isSSAdmin && (
+                {canManageUsers && (
                   <div className="flex items-center gap-2">
                     <Building2 className="h-4 w-4 text-muted-foreground" />
                     <Select
@@ -350,7 +354,7 @@ export default function AdminUsers() {
                     </Select>
                   </div>
                 )}
-                {!isSSAdmin && u.client_id && (
+                {!canManageUsers && u.client_id && (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Building2 className="h-4 w-4" />
                     <span>{clients.find((c) => c.id === u.client_id)?.name || "Assigned client"}</span>

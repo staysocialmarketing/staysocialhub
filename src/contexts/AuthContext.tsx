@@ -22,6 +22,7 @@ interface AuthContextType {
   loading: boolean;
   isSSRole: boolean;
   isSSAdmin: boolean;
+  isSSManager: boolean;
   isSSTeam: boolean;
   isClientAdmin: boolean;
   isClientAssistant: boolean;
@@ -40,6 +41,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   isSSRole: false,
   isSSAdmin: false,
+  isSSManager: false,
   isSSTeam: false,
   isClientAdmin: false,
   isClientAssistant: false,
@@ -227,8 +229,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const profile = isViewingAs ? viewAsProfile : realProfile;
   const roles = isViewingAs ? viewAsRoles : realRoles;
 
-  const isSSRole = roles.some((r) => r === "ss_admin" || r === "ss_producer" || r === "ss_ops" || r === "ss_team");
+  const isSSRole = roles.some((r) => r === "ss_admin" || r === "ss_producer" || r === "ss_ops" || r === "ss_team" || r === "ss_manager");
   const isSSAdmin = roles.includes("ss_admin");
+  const isSSManager = roles.includes("ss_manager");
   const isSSTeam = roles.includes("ss_team") || roles.includes("ss_producer") || roles.includes("ss_ops");
   const isClientAdmin = roles.includes("client_admin");
   const isClientAssistant = roles.includes("client_assistant");
@@ -243,6 +246,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         isSSRole,
         isSSAdmin,
+        isSSManager,
         isSSTeam,
         isClientAdmin,
         isClientAssistant,

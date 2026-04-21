@@ -86,6 +86,28 @@ export default function WhatsNew() {
     } else {
       setRequestedAddons((prev) => new Set(prev).add(itemName));
       toast({ title: "Request Sent!", description: `We'll be in touch about ${itemName}.` });
+
+      // Notify ss_admin users of the new request
+      try {
+        const { data: adminRoles } = await supabase
+          .from("user_roles")
+          .select("user_id")
+          .eq("role", "ss_admin");
+        if (adminRoles && adminRoles.length > 0) {
+          const clientName = profile?.client_id ? (
+            await supabase.from("clients").select("name").eq("id", profile.client_id).single()
+          ).data?.name : null;
+          const notificationRows = adminRoles.map((r) => ({
+            user_id: r.user_id,
+            title: "New marketplace request",
+            body: `${clientName || "A client"} requested ${itemName}`,
+            link: "/admin/marketplace",
+          }));
+          await supabase.from("notifications").insert(notificationRows as any);
+        }
+      } catch {
+        // Notification failure is non-blocking — request was already submitted
+      }
     }
   };
 
