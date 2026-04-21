@@ -105,9 +105,9 @@ const clientMenuSections = [
 ];
 
 export function MobileMenu({ onNavigate }: MobileMenuProps) {
-  const { isSSAdmin, isSSTeam, isSSRole, profile, signOut, actualIsSSAdmin, isViewingAs, viewAsUserId, setViewAs } = useAuth();
+  const { isSSAdmin, isSSTeam, isSSManager, isSSRole, profile, signOut, actualIsSSAdmin, isViewingAs, viewAsUserId, setViewAs } = useAuth();
   const location = useLocation();
-  const isInternalUser = isSSAdmin || isSSTeam;
+  const isInternalUser = isSSAdmin || isSSTeam || isSSManager;
 
   const [allUsers, setAllUsers] = useState<Array<{ id: string; name: string | null; email: string; roles: string[] }>>([]);
 

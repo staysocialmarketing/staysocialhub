@@ -165,7 +165,7 @@ export function AppSidebar() {
     },
   });
 
-  const isInternalUser = isSSAdmin || isSSTeam;
+  const isInternalUser = isSSAdmin || isSSTeam || isSSManager;
 
   const ssUsers = allUsers.filter((u) => u.roles.some((r) => ["ss_admin", "ss_producer", "ss_ops", "ss_team"].includes(r)));
   const clientUsers = allUsers.filter((u) => u.roles.some((r) => ["client_admin", "client_assistant"].includes(r)));
