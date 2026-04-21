@@ -29,6 +29,7 @@ interface UserEntry {
 
 const ROLE_LABELS: Record<AppRole, string> = {
   ss_admin: "SS Admin",
+  ss_manager: "Manager",
   ss_producer: "Producer",
   ss_ops: "Ops",
   ss_team: "SS Team",
@@ -38,6 +39,7 @@ const ROLE_LABELS: Record<AppRole, string> = {
 
 const ROLE_COLORS: Record<AppRole, string> = {
   ss_admin: "bg-violet-500/10 text-violet-600 border-violet-200",
+  ss_manager: "bg-purple-500/10 text-purple-600 border-purple-200",
   ss_producer: "bg-blue-500/10 text-blue-600 border-blue-200",
   ss_ops: "bg-cyan-500/10 text-cyan-600 border-cyan-200",
   ss_team: "bg-indigo-500/10 text-indigo-600 border-indigo-200",
@@ -91,11 +93,11 @@ export function ViewAsDropdown() {
   if (!actualIsSSAdmin) return null;
 
   const ssUsers = allUsers.filter((u) =>
-    u.roles.some((r) => ["ss_admin", "ss_producer", "ss_ops", "ss_team"].includes(r))
+    u.roles.some((r) => ["ss_admin", "ss_manager", "ss_producer", "ss_ops", "ss_team"].includes(r))
   );
   const clientUsers = allUsers.filter((u) =>
     u.roles.some((r) => ["client_admin", "client_assistant"].includes(r)) &&
-    !u.roles.some((r) => ["ss_admin", "ss_producer", "ss_ops", "ss_team"].includes(r))
+    !u.roles.some((r) => ["ss_admin", "ss_manager", "ss_producer", "ss_ops", "ss_team"].includes(r))
   );
 
   const viewingAsUser = isViewingAs
