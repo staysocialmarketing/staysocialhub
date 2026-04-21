@@ -1,5 +1,6 @@
+import React, { useState } from "react";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import orangeLogo from "@/assets/orange_with_black.png";
 import {
@@ -91,6 +92,7 @@ const adminSection = [
   { title: "Agent Office", url: "/agent-office", icon: Monitor },
   { title: "Agent Office v2", url: "/agent-office-v2", icon: Layers },
   { title: "Users", url: "/admin/users", icon: Users },
+  { title: "Plans", url: "/admin/plans", icon: ClipboardList },
   { title: "Meeting Notes", url: "/admin/meeting-notes", icon: FileText },
   { title: "Automations", url: "/admin/automations", icon: Zap },
   { title: "Versions", url: "/admin/versions", icon: Tag },
@@ -114,7 +116,7 @@ const clientAISection = [
 const clientAccountSection = [
   { title: "My Profile", url: "/profile", icon: UserCircle },
   { title: "My Plan", url: "/plan", icon: ClipboardList },
-  { title: "What's New", url: "/whats-new", icon: Eye },
+  { title: "Marketplace", url: "/whats-new", icon: Eye },
 ];
 
 interface UserWithRole {
@@ -127,9 +129,8 @@ interface UserWithRole {
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const { profile, isSSAdmin, isSSTeam, actualIsSSAdmin, isViewingAs, viewAsUserId, setViewAs, signOut } = useAuth();
+  const { profile, isSSAdmin, isSSManager, isSSTeam, actualIsSSAdmin, isViewingAs, viewAsUserId, setViewAs, signOut } = useAuth();
   const navigate = useNavigate();
-  const [allUsers, setAllUsers] = useState<UserWithRole[]>([]);
 
   // Collapsible section state with localStorage persistence
   const [sectionState, setSectionState] = useState<Record<string, boolean>>(() => {
@@ -148,22 +149,21 @@ export function AppSidebar() {
     });
   };
 
-  useEffect(() => {
-    if (!actualIsSSAdmin) return;
-    const fetchUsers = async () => {
+  const { data: allUsers = [] } = useQuery<UserWithRole[]>({
+    queryKey: ["sidebar-users"],
+    enabled: actualIsSSAdmin,
+    queryFn: async () => {
       const { data: users } = await supabase.from("users").select("id, name, email");
       const { data: roles } = await supabase.from("user_roles").select("user_id, role");
-      if (users && roles) {
-        const roleMap: Record<string, string[]> = {};
-        roles.forEach((r) => {
-          if (!roleMap[r.user_id]) roleMap[r.user_id] = [];
-          roleMap[r.user_id].push(r.role);
-        });
-        setAllUsers(users.map((u) => ({ ...u, roles: roleMap[u.id] || [] })));
-      }
-    };
-    fetchUsers();
-  }, [actualIsSSAdmin]);
+      if (!users || !roles) return [];
+      const roleMap: Record<string, string[]> = {};
+      roles.forEach((r) => {
+        if (!roleMap[r.user_id]) roleMap[r.user_id] = [];
+        roleMap[r.user_id].push(r.role);
+      });
+      return users.map((u) => ({ ...u, roles: roleMap[u.id] || [] }));
+    },
+  });
 
   const isInternalUser = isSSAdmin || isSSTeam;
 
@@ -362,11 +362,12 @@ export function AppSidebar() {
                     <CollapsibleContent>
                       <SidebarGroupContent>{renderMenuItems(
                         adminSection.filter(i => {
-                          if (i.title === "Users" || i.title === "Versions") return isSSAdmin;
+                          if (i.title === "Users") return isSSAdmin || isSSManager;
+                          if (i.title === "Plans" || i.title === "Versions") return isSSAdmin;
                           if (i.title === "Agent Office v2") return actualIsSSAdmin;
                           return true;
                         }),
-                        isSSAdmin && pendingCount > 0 ? { Users: pendingCount } : undefined
+                        (isSSAdmin || isSSManager) && pendingCount > 0 ? { Users: pendingCount } : undefined
                       )}</SidebarGroupContent>
                     </CollapsibleContent>
                   </SidebarGroup>

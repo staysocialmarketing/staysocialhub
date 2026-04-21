@@ -26,6 +26,7 @@ import AdminUsers from "./pages/admin/AdminUsers";
 import AdminProfileUpdates from "./pages/admin/AdminProfileUpdates";
 import AdminContent from "./pages/admin/AdminContent";
 import AdminMarketplace from "./pages/admin/AdminMarketplace";
+import AdminPlans from "./pages/admin/AdminPlans";
 import AdminMedia from "./pages/admin/AdminMedia";
 import AdminVersions from "./pages/admin/AdminVersions";
 import ClientStrategy from "./pages/admin/ClientStrategy";
@@ -114,10 +115,11 @@ const App = () => (
               <Route path="/plan" element={<Plan />} />
               <Route path="/whats-new" element={<WhatsNew />} />
               <Route path="/admin/clients" element={<AdminRoute><AdminClients /></AdminRoute>} />
-              <Route path="/admin/users" element={<SSAdminRoute><AdminUsers /></SSAdminRoute>} />
+              <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
               <Route path="/admin/profile-updates" element={<AdminRoute><AdminProfileUpdates /></AdminRoute>} />
               <Route path="/admin/content" element={<AdminRoute><AdminContent /></AdminRoute>} />
               <Route path="/admin/marketplace" element={<AdminRoute><AdminMarketplace /></AdminRoute>} />
+              <Route path="/admin/plans" element={<SSAdminRoute><AdminPlans /></SSAdminRoute>} />
               <Route path="/admin/media" element={<AdminRoute><AdminMedia /></AdminRoute>} />
               <Route path="/admin/versions" element={<SSAdminRoute><AdminVersions /></SSAdminRoute>} />
               <Route path="/admin/client-strategy/:clientId" element={<AdminRoute><ClientStrategy /></AdminRoute>} />
