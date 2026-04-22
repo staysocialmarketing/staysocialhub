@@ -132,9 +132,9 @@ const AGENTS = [
 ];
 
 const QUICK_LINKS = [
-  { label: "GitHub", url: "https://github.com/staysocialmarketing/staysocialhub", icon: Github, description: "staysocialhub repo" },
+  { label: "GitHub", url: "https://github.com/staysocialmarketing", icon: Github, description: "staysocialmarketing org" },
   { label: "Supabase", url: "https://supabase.com/dashboard/project/ktyjtbivycjkklkrcudb", icon: Database, description: "Project dashboard" },
-  { label: "Vercel", url: "https://vercel.com", icon: Zap, description: "Deployments" },
+  { label: "Vercel", url: "https://vercel.com/staysocialmarketing", icon: Zap, description: "Deployments" },
   { label: "GoHighLevel", url: "https://app.gohighlevel.com", icon: Globe, description: "CRM & Automation" },
   { label: "Anthropic Console", url: "https://console.anthropic.com", icon: Terminal, description: "AI usage & keys" },
   { label: "ElevenLabs", url: "https://elevenlabs.io", icon: Bot, description: "Voice AI" },
@@ -833,3 +833,4 @@ export default function AdminWorkspace() {
     </div>
   );
 }
+
