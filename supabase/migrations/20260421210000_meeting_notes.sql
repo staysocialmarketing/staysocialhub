@@ -49,6 +49,13 @@ create policy "ss_admin_write_meeting_notes"
       where ur.user_id = auth.uid()
         and ur.role = 'ss_admin'
     )
+  )
+  with check (
+    exists (
+      select 1 from public.user_roles ur
+      where ur.user_id = auth.uid()
+        and ur.role = 'ss_admin'
+    )
   );
 
 -- Service role (used by edge functions) bypasses RLS automatically.
