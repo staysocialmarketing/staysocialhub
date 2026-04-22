@@ -1,4 +1,3 @@
-SHA: 94a8d7137c4660fae51c02e741124ef93d2ecff8
 /**
  * agent-bridge — Supabase Edge Function
  *
