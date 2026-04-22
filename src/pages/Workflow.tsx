@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/imageUtils";
 import type { Database } from "@/integrations/supabase/types";
 import WorkflowCardDialog from "@/components/WorkflowCardDialog";
-import { PlatformBadge } from "@/components/PlatformBadge";
+import { PlatformBadges } from "@/components/PlatformBadge";
 import ApprovalActions from "@/components/ApprovalActions";
 import { CONTENT_TYPE_OPTIONS, AUDIENCE_OPTIONS } from "@/lib/workflowUtils";
 import FilterBar, { useFilterBar, applyDueDateFilter, PRIORITY_FILTER_OPTIONS, DUE_DATE_FILTER_OPTIONS } from "@/components/FilterBar";
@@ -342,13 +342,9 @@ export default function Workflow() {
           </div>
           {(() => {
             const pc = (post as any).platform_content as Record<string, any> | null;
-            const keys = pc && Object.keys(pc).length > 0 ? Object.keys(pc) : null;
-            const platforms = keys ?? (post.platform ? post.platform.split(",").map((p: string) => p.trim()) : null);
-            return platforms ? (
-              <div className="flex flex-wrap gap-1">
-                {platforms.map((p: string) => <PlatformBadge key={p} platform={p} />)}
-              </div>
-            ) : null;
+            const platformKeys = pc && Object.keys(pc).length > 0 ? Object.keys(pc) : null;
+            const platformValue = platformKeys ?? post.platform;
+            return platformValue ? <PlatformBadges platformStr={platformValue} /> : null;
           })()}
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <div className="flex items-center gap-2">
@@ -590,13 +586,9 @@ export default function Workflow() {
                     )}
                     {(() => {
                       const pc = (post as any).platform_content as Record<string, any> | null;
-                      const keys = pc && Object.keys(pc).length > 0 ? Object.keys(pc) : null;
-                      const platforms = keys ?? (post.platform ? post.platform.split(",").map((p: string) => p.trim()) : null);
-                      return platforms ? (
-                        <div className="flex flex-wrap gap-1">
-                          {platforms.map((p: string) => <PlatformBadge key={p} platform={p} />)}
-                        </div>
-                      ) : null;
+                      const platformKeys = pc && Object.keys(pc).length > 0 ? Object.keys(pc) : null;
+                      const platformValue = platformKeys ?? post.platform;
+                      return platformValue ? <PlatformBadges platformStr={platformValue} /> : null;
                     })()}
                     {post.scheduled_at && (
                       <p className="text-xs text-muted-foreground flex items-center gap-1">

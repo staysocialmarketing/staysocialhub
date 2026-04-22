@@ -16,7 +16,7 @@ import type { Database } from "@/integrations/supabase/types";
 import ApprovalActions from "@/components/ApprovalActions";
 import ApprovalBatchManager from "@/components/ApprovalBatchManager";
 import ImageLightbox from "@/components/ImageLightbox";
-import { PlatformBadge } from "@/components/PlatformBadge";
+import { PlatformBadges } from "@/components/PlatformBadge";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -71,19 +71,9 @@ function PostCard({ post, onClick, showClient = false, children }: {
             <div className="flex flex-wrap gap-1">
               {(() => {
                 const pc = (post as any).platform_content as Record<string, any> | null;
-                const keys = pc && Object.keys(pc).length > 0 ? Object.keys(pc) : null;
-                if (keys) {
-                  return keys.map(k => <PlatformBadge key={k} platform={k} />);
-                }
-                if (post.platform) {
-                  return post.platform.split(",").map((p: string) => (
-                    <PlatformBadge key={p} platform={p.trim()} />
-                  ));
-                }
-                if (isEmail) {
-                  return <PlatformBadge platform="email" />;
-                }
-                return null;
+                const platformKeys = pc && Object.keys(pc).length > 0 ? Object.keys(pc) : null;
+                const platformValue = platformKeys ?? post.platform ?? (isEmail ? "email" : null);
+                return platformValue ? <PlatformBadges platformStr={platformValue} /> : null;
               })()}
             </div>
             <div className="flex items-center justify-between text-xs text-muted-foreground">
