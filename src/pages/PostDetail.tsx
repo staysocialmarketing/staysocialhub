@@ -442,8 +442,8 @@ export default function PostDetail() {
         )}
       </div>
 
-      {((isSSAdmin && (post.status_column === "internal_review" || post.status_column === "corey_review")) ||
-        ((isClientAdmin || isClientAssistant) && post.status_column === "client_approval")) && (
+      {((isSSAdmin && post.status_column === "corey_review") ||
+        (canApprove && post.status_column === "client_approval")) && (
         <ApprovalActions
           postId={post.id}
           postTitle={post.title}
@@ -1041,3 +1041,5 @@ export default function PostDetail() {
     </div>
   );
 }
+
+
