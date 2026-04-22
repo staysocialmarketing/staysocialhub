@@ -166,17 +166,28 @@ Deno.serve(async (req: Request) => {
              null)
           : null);
 
+      // Build platform_content from flat fields if not explicitly provided,
+      // ensuring the NOT NULL constraint on the column is always satisfied.
+      const resolvedPlatformContent = platform_content ?? (platform
+        ? {
+            [platform.toLowerCase()]: {
+              caption: caption ?? "",
+              ...(hashtags ? { hashtags } : {}),
+            },
+          }
+        : { post: { caption: caption ?? "" } });
+
       const { data, error } = await db
         .from("posts")
         .insert({
           client_id,
           title,
-          platform:         resolvedPlatform  ?? null,
-          caption:          resolvedCaption   ?? null,
-          hashtags:         hashtags          ?? null,
+          platform:         resolvedPlatform         ?? null,
+          caption:          resolvedCaption           ?? null,
+          hashtags:         hashtags                  ?? null,
           status_column:    postStatus,
-          platform_content: platform_content  ?? null,
-          content_type:     content_type      ?? null,
+          platform_content: resolvedPlatformContent,
+          content_type:     content_type              ?? null,
         })
         .select("id, title, platform, platform_content, content_type, status_column, created_at")
         .single();
