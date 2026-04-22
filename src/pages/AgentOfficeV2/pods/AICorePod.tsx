@@ -24,12 +24,21 @@ const levBtm     = { x: levDesk.x   + lW / 2, y: levDesk.y + lH };          // (
 const branchY    = levBtm.y + 19;                                             // 335
 const subTopCtr  = subRow3.map(d => ({ x: d.x + sW / 2, y: d.y }));
 
+// Sub-agent keys for active count (Lev dot cluster)
+const SUB_AGENT_KEYS = ['scout', 'quill', 'ember', 'forge'];
+
 export function AICorePod() {
   const statuses = useAgentStatuses();
   const { mode } = useLighting();
   const C = mode === 'day' ? DAY : NIGHT;
   const coreyState = statuses['corey'] ?? 'offline';
   const levBoost = (coreyState === 'active' || coreyState === 'processing') ? 0.1 : 0;
+
+  // Count active sub-agents for Lev's dot cluster
+  const activeSubAgentCount = SUB_AGENT_KEYS.filter(k => {
+    const s = statuses[k];
+    return s === 'active' || s === 'processing';
+  }).length;
 
   return (
     <>
@@ -74,50 +83,62 @@ export function AICorePod() {
         overflow="visible"
       >
         <defs>
+          {/* Branch lines: light dashed — Lev → sub-agents */}
           <style>{`
-            .hier-line {
+            .hier-branch {
               stroke: #2a6090;
-              stroke-width: 1.5;
+              stroke-width: 1;
               stroke-dasharray: 4 3;
+              fill: none;
+            }
+            .hier-command {
+              stroke: #3a80b8;
+              stroke-width: 2.5;
+              stroke-dasharray: none;
               fill: none;
             }
           `}</style>
         </defs>
 
-        {/* Corey → Lev: stub below desk, resume below Corey's subtitle zone */}
-        <line className="hier-line"
+        {/* Corey → Lev: heavier solid stroke (command line) */}
+        <line className="hier-command"
           x1={coreyBtm.x} y1={coreyBtm.y}
           x2={coreyBtm.x} y2={coreyBtm.y + 5}
         />
-        <line className="hier-line"
+        <line className="hier-command"
           x1={levTop.x} y1={levTop.y - 42}
           x2={levTop.x} y2={levTop.y}
         />
 
-        {/* Lev → branch */}
-        <line className="hier-line"
+        {/* Lev → branch: lighter dashed */}
+        <line className="hier-branch"
           x1={levBtm.x} y1={levBtm.y}
           x2={levBtm.x} y2={branchY}
         />
 
         {/* Horizontal branch across row-3 sub-agents */}
-        <line className="hier-line"
+        <line className="hier-branch"
           x1={subTopCtr[0].x} y1={branchY}
           x2={subTopCtr[2].x} y2={branchY}
         />
 
         {/* Branch → Scout, Quill, Ember */}
         {subTopCtr.map((pt, i) => (
-          <line key={i} className="hier-line"
+          <line key={i} className="hier-branch"
             x1={pt.x} y1={branchY}
             x2={pt.x} y2={pt.y}
           />
         ))}
       </svg>
 
-      {/* All AI desks — Lev gets Corey's sync boost */}
+      {/* All AI desks — Lev gets Corey's sync boost + active sub-agent count */}
       {aiDesks.map(desk => (
-        <Desk key={desk.key} desk={desk} lampBoost={desk.key === 'lev' ? levBoost : 0} />
+        <Desk
+          key={desk.key}
+          desk={desk}
+          lampBoost={desk.key === 'lev' ? levBoost : 0}
+          activeSubAgentCount={desk.key === 'lev' ? activeSubAgentCount : undefined}
+        />
       ))}
     </>
   );

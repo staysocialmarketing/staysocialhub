@@ -46,11 +46,16 @@ function MagnifyingGlassIcon() {
 }
 
 function SocialStackIcon() {
+  // Three overlapping platform tiles — front tile is fully opaque,
+  // back tiles are slightly offset and dimmed to read as layered/stacked.
   return (
     <>
-      <rect x="0" y="0" width="4.2" height="4.2" rx="1" fill="currentColor"/>
-      <rect x="5.8" y="0" width="4.2" height="4.2" rx="0.5" fill="currentColor"/>
-      <rect x="2.9" y="5.8" width="4.2" height="4.2" rx="0.5" fill="currentColor"/>
+      {/* Back-left tile */}
+      <rect x="0" y="1.5" width="5" height="5" rx="1.2" fill="currentColor" opacity="0.45"/>
+      {/* Back-right tile */}
+      <rect x="3.5" y="0" width="5" height="5" rx="1.2" fill="currentColor" opacity="0.6"/>
+      {/* Front-center tile — fully opaque, overlaps both */}
+      <rect x="1.8" y="3.2" width="5" height="5" rx="1.2" fill="currentColor"/>
     </>
   );
 }
