@@ -239,9 +239,11 @@ function AdminApprovals() {
         <p className="text-muted-foreground mt-1">Review team work and track client approvals</p>
       </div>
 
-      <SectionBlock title="Internal Review" icon={<CheckCircle className="h-5 w-5 text-primary" />} count={internalReview.length}>
-        {renderGrid(internalReview, true)}
-      </SectionBlock>
+      {internalReview.length > 0 && (
+        <SectionBlock title="Internal Review" icon={<CheckCircle className="h-5 w-5 text-primary" />} count={internalReview.length}>
+          {renderGrid(internalReview, false)}
+        </SectionBlock>
+      )}
 
       <SectionBlock title="Corey Review" icon={<Eye className="h-5 w-5 text-amber-500" />} count={coreyReview.length}>
         {renderGrid(coreyReview, false, true)}
@@ -405,3 +407,4 @@ export default function Approvals() {
   const { isSSRole } = useAuth();
   return isSSRole ? <AdminApprovals /> : <ClientApprovals />;
 }
+
