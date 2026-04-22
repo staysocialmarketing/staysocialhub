@@ -8,6 +8,7 @@ import { Staircase } from './Staircase';
 import { CharacterLayer } from './CharacterLayer';
 import { AgentStatusProvider } from './hooks/useAgentStatus';
 import { LightingProvider } from './hooks/LightingContext';
+import { MeetingProvider } from './hooks/MeetingContext';
 import { OfficeHeader } from './OfficeHeader';
 import { OfficeFooter } from './OfficeFooter';
 import { CeilingFixtures } from './CeilingFixtures';
@@ -65,6 +66,7 @@ export function AgentOfficeCanvas({ devPreview = false }: { devPreview?: boolean
           } as React.CSSProperties}
         >
           <LightingProvider>
+          <MeetingProvider>
           <AgentStatusProvider>
             <UpperFloor />
             <div
@@ -86,6 +88,7 @@ export function AgentOfficeCanvas({ devPreview = false }: { devPreview?: boolean
             <OfficeHeader />
             <OfficeFooter />
           </AgentStatusProvider>
+          </MeetingProvider>
           </LightingProvider>
         </div>
       </div>

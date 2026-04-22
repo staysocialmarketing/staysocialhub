@@ -16,6 +16,7 @@ import { DESKS, TIER_DIMS } from './constants/desks';
 import { SPRITE_MAP, SPRITE_DIMS } from './sprites';
 import { AGENT_HOME_WAYPOINT } from './constants/waypoints';
 import { useWalkAnimation } from './hooks/useWalkAnimation';
+import { useMeeting } from './hooks/MeetingContext';
 import { WalkingCharacter } from './WalkingCharacter';
 import { StatusLabel } from './StatusLabel';
 import { CoreySprite }   from './sprites/CoreySprite';
@@ -62,6 +63,7 @@ const SCOUT_ROUTE: WaypointKey[] = [
 ];
 
 // Per-character meeting-room round-trips (BFS fills segments automatically)
+// Used only by the legacy ?walk_test URL param — keeps it working as a dev fallback.
 const CHAR_ROUTES: Record<string, WaypointKey[]> = {
   corey:   ['desk_corey',   'seat_4', 'desk_corey'],
   lev:     ['desk_lev',     'seat_5', 'desk_lev'],
@@ -71,6 +73,20 @@ const CHAR_ROUTES: Record<string, WaypointKey[]> = {
   gavin:   ['desk_gavin',   'seat_1', 'desk_gavin'],
   tristan: ['desk_tristan', 'seat_2', 'desk_tristan'],
 };
+
+// One-way: desk → meeting seat (used by MeetingContext triggerMeeting)
+const MEETING_SEATS_FOR: Record<string, WaypointKey> = {
+  corey:   'seat_4',
+  lev:     'seat_5',
+  quill:   'seat_6',
+  ember:   'seat_7',
+  gavin:   'seat_1',
+  tristan: 'seat_2',
+  scout:   'seat_0',
+};
+
+// One-way: seat → home desk (used by MeetingContext endMeeting)
+const HOME_DESK_FOR: Record<string, WaypointKey> = AGENT_HOME_WAYPOINT as Record<string, WaypointKey>;
 
 const GHOST_KEYS = ['forge', 'pixel'];
 const DESK_MAP   = Object.fromEntries(DESKS.map(d => [d.key, d]));
@@ -95,8 +111,12 @@ export function CharacterLayer() {
     { key: 'tristan', walk: tristanWalk },
   ];
 
-  const mountedRef = useRef(false);
+  const { meetingState, _onAllSeated, _onAllDispersed } = useMeeting();
 
+  const mountedRef      = useRef(false);
+  const prevMeetingRef  = useRef<typeof meetingState>('idle');
+
+  // ── Legacy walk-test (URL param) ─────────────────────────────────────────
   useEffect(() => {
     if (!WALK_TEST) return;
     if (mountedRef.current) return;
@@ -131,6 +151,54 @@ export function CharacterLayer() {
       setTimeout(() => runLoop(WALK_TEST_CHAR), 800);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── MeetingContext-driven walks ───────────────────────────────────────────
+  useEffect(() => {
+    if (meetingState === prevMeetingRef.current) return;
+    prevMeetingRef.current = meetingState;
+
+    const walkMap: Record<string, typeof coreyWalk> = {
+      corey:   coreyWalk,
+      lev:     levWalk,
+      scout:   scoutWalk,
+      quill:   quillWalk,
+      ember:   emberWalk,
+      gavin:   gavinWalk,
+      tristan: tristanWalk,
+    };
+
+    const keys = ['corey', 'lev', 'scout', 'quill', 'ember', 'gavin', 'tristan'];
+
+    if (meetingState === 'calling') {
+      // Walk everyone to their seats with staggered starts
+      let seated = 0;
+      keys.forEach((key, i) => {
+        const target = MEETING_SEATS_FOR[key];
+        if (!target) return;
+        setTimeout(() => {
+          walkMap[key].walkTo(target, () => {
+            seated += 1;
+            if (seated === keys.length) _onAllSeated();
+          });
+        }, i * 600);
+      });
+    }
+
+    if (meetingState === 'dispersing') {
+      // Walk everyone back to their desks with staggered starts
+      let dispersed = 0;
+      keys.forEach((key, i) => {
+        const target = HOME_DESK_FOR[key];
+        if (!target) return;
+        setTimeout(() => {
+          walkMap[key].walkTo(target, () => {
+            dispersed += 1;
+            if (dispersed === keys.length) _onAllDispersed();
+          });
+        }, i * 600);
+      });
+    }
+  }, [meetingState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>
