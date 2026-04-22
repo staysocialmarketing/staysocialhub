@@ -39,7 +39,6 @@ function isRealMeeting(transcript: string): { real: boolean; reason: string } {
   }
 
   // Check for multiple speaker turns — look for "Name: ..." or "Name (HH:MM):" patterns
-  const speakerPattern = /^[A-Z][a-zA-Z\s]{1,30}[:(]/;
   const speakers = new Set<string>();
   for (const line of contentLines) {
     const m = line.match(/^([A-Z][a-zA-Z\s]{1,30})[:(]/);
@@ -61,9 +60,7 @@ function isRealMeeting(transcript: string): { real: boolean; reason: string } {
 
 function routeToAgent(
   title: string,
-  summary: string,
-  decisions: unknown[],
-  actionItems: unknown[]
+  summary: string
 ): string {
   const text = `${title} ${summary}`.toLowerCase();
 
@@ -187,9 +184,7 @@ ${transcript.slice(0, 12000)}`;
 
   const routed_to = routeToAgent(
     extracted.title,
-    extracted.summary,
-    extracted.decisions,
-    extracted.action_items
+    extracted.summary
   );
 
   return { ...extracted, routed_to };
@@ -212,11 +207,14 @@ serve(async (req) => {
 
   try {
     // ── Auth: accept either user JWT or internal API key ────────────────────
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     const AGENT_BRIDGE_API_KEY = Deno.env.get("AGENT_BRIDGE_API_KEY");
 
+    if (!SUPABASE_URL || !SERVICE_KEY) {
+      return reply({ error: "Supabase environment not configured" }, 500);
+    }
     if (!ANTHROPIC_API_KEY) {
       return reply({ error: "ANTHROPIC_API_KEY not configured" }, 500);
     }
