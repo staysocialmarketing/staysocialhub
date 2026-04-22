@@ -13,12 +13,16 @@ export const STATE_OPACITY: Record<AgentState, number> = {
   placeholder: 0,
 };
 
-// Hardlocked regardless of DB — enforced here so all consumers get correct state
-const PLACEHOLDER_KEYS = new Set(['forge', 'pixel']);
+// Keys that start as placeholders but activate when DB status transitions away from 'placeholder'
+const INITIALLY_PLACEHOLDER_KEYS = new Set(['forge', 'pixel']);
 
 function resolveState(rawStatus: string, key: string): AgentState {
-  if (PLACEHOLDER_KEYS.has(key)) return 'placeholder';
   const s = (rawStatus ?? '').toLowerCase();
+  // Allow forge/pixel to activate when DB status is a live state (not 'placeholder' / missing)
+  if (INITIALLY_PLACEHOLDER_KEYS.has(key)) {
+    if (!rawStatus || s === 'placeholder') return 'placeholder';
+    // Fall through to normal resolution — they're now live
+  }
   if (s === 'active')     return 'active';
   if (s === 'processing') return 'processing';
   if (s === 'offline')    return 'offline';

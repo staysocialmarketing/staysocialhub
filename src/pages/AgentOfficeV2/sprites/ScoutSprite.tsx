@@ -25,11 +25,12 @@ export function ScoutSprite() {
     <svg width={W} height={Ht} viewBox={`0 0 ${W} ${Ht}`}
       shapeRendering="crispEdges" style={{ imageRendering:'pixelated', display:'block' }}>
 
-      {/* ── Hair: short dark, side part on left ── */}
+      {/* ── Hair: short dark, side part on left — asymmetric highlight reads "moving fast" ── */}
       {r(4, 0, 8, 1, HD)}
       {r(3, 1, 10, 1, H)}
       {r(2, 2, 12, 1, H)}
-      {r(3, 1, 3, 2, HH)}  {/* left part highlight */}
+      {r(3, 1, 2, 2, HH)}  {/* left part highlight — shorter */}
+      {r(8, 0, 3, 1, HH)}  {/* offset right highlight — asymmetric, dynamic */}
       {r(2, 3, 2, 4, H)}
       {r(12, 3, 2, 4, H)}
       {r(2, 3, 1, 4, HD)}

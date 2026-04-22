@@ -48,8 +48,10 @@ export function EmberSprite() {
       {r(9, 5, 2, 2, EY)}
       <rect x={6*P} y={5*P} width={1} height={1} fill="#fff" />
       <rect x={10*P} y={5*P} width={1} height={1} fill="#fff" />
-      {/* Neutral, upright mouth */}
+      {/* Very faint upward curve — composed, not cheerful */}
       {r(6, 8, 4, 1, SD)}
+      <rect x={6*P} y={8*P} width={1} height={1} fill={SH} opacity={0.5} />
+      <rect x={9*P} y={8*P} width={1} height={1} fill={SH} opacity={0.5} />
       {/* Amber earring stud — right side, earlobe row */}
       {r(12, 8, 1, 1, TH)}
 
