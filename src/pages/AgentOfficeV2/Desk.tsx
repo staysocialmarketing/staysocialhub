@@ -299,7 +299,7 @@ export function Desk({ desk, lampBoost = 0, activeSubAgentCount }: DeskProps) {
       />
 
       {/* ── Pixel: live indicator dot ── */}
-      {key === 'pixel' && (
+      {key === 'pixel' && !isGhost && (
         <div
           className={
             agentState === 'active' || agentState === 'processing'
