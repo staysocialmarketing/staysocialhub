@@ -1,6 +1,7 @@
 import './monitor-animations.css';
 import { CANVAS_W } from './constants/desks';
 import { useLighting } from './hooks/LightingContext';
+import { useMeeting } from './hooks/MeetingContext';
 import { DAY, NIGHT } from './lighting-palette';
 
 export const HEADER_H = 36;
@@ -30,12 +31,16 @@ interface OfficeHeaderProps {
 }
 
 export function OfficeHeader({ inSession = false }: OfficeHeaderProps) {
-  const dotClass  = inSession ? 'dot-session' : 'dot-live';
-  const dotColor  = inSession ? '#3b82f6' : '#22c55e';
-  const dotLabel  = inSession ? 'In Session' : 'Live';
   const { mode, toggleMode } = useLighting();
   const isNight = mode === 'night';
   const C = mode === 'day' ? DAY : NIGHT;
+  const { meetingState, triggerMeeting, endMeeting } = useMeeting();
+  const isInSession = meetingState === 'active' || meetingState === 'calling' || inSession;
+  const dotClass  = isInSession ? 'dot-session' : 'dot-live';
+  const dotColor  = isInSession ? '#3b82f6' : '#22c55e';
+  const dotLabel  = isInSession ? 'In Session' : 'Live';
+  const isMeetingActive  = meetingState === 'active';
+  const isMeetingBusy    = meetingState === 'calling' || meetingState === 'dispersing';
 
   return (
     <div style={{
@@ -60,6 +65,39 @@ export function OfficeHeader({ inSession = false }: OfficeHeaderProps) {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* ── Call to Meeting button ──────────────────────────────────────── */}
+        <button
+          onClick={isMeetingActive ? endMeeting : triggerMeeting}
+          disabled={isMeetingBusy}
+          aria-label={isMeetingActive ? 'End meeting' : 'Call all agents to meeting'}
+          style={{
+            background: 'none',
+            border: `1px solid ${isMeetingActive ? '#3b82f6' : C.chromeBorder}`,
+            borderRadius: 3,
+            cursor: isMeetingBusy ? 'default' : 'pointer',
+            padding: '2px 6px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            opacity: isMeetingBusy ? 0.5 : 1,
+            transition: 'border-color 300ms ease, opacity 300ms ease',
+          }}
+        >
+          <span style={{ fontSize: 10, lineHeight: 1 }}>
+            {isMeetingActive ? '🚪' : '📋'}
+          </span>
+          <span style={{
+            ...TEXT,
+            color: isMeetingActive ? '#3b82f6' : C.chromeBorder,
+            transition: 'color 300ms ease',
+          }}>
+            {isMeetingBusy
+              ? (meetingState === 'calling' ? 'Calling…' : 'Dispersing…')
+              : (isMeetingActive ? 'End Meeting' : 'Call to Meeting')}
+          </span>
+        </button>
+
+        {/* ── Day / night toggle ──────────────────────────────────────────── */}
         <button
           onClick={toggleMode}
           aria-label={isNight ? 'Switch to day mode' : 'Switch to night mode'}
