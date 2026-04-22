@@ -85,8 +85,11 @@ Deno.serve(async (req: Request) => {
   const route = url.pathname.split("/").filter(Boolean).at(-1);
 
   // ── Supabase admin client (bypasses RLS — Lev is a trusted agent) ─────────
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !serviceKey) {
+    return err("Server misconfiguration: Supabase environment not configured", 500);
+  }
   const db = createClient(supabaseUrl, serviceKey);
 
   // ── GET routes ────────────────────────────────────────────────────────────
@@ -102,10 +105,20 @@ Deno.serve(async (req: Request) => {
     return json({ success: true, clients: data ?? [], count: (data ?? []).length });
   }
 
+  // Block POST to a GET-only route
+  if (req.method === "POST" && route === "list-clients") {
+    return err("Method not allowed — use GET for /list-clients", 405);
+  }
+
+  // Reject unknown GET routes
+  if (req.method === "GET") {
+    return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /tag-user, POST /read-posts`, 404);
+  }
+
   // ── POST routes ───────────────────────────────────────────────────────────
 
   if (req.method !== "POST") {
-    return err("Method not allowed — use POST (or GET for /list-clients)", 405);
+    return err("Method not allowed — use GET /list-clients or POST routes", 405);
   }
 
   let body: Record<string, unknown>;
@@ -264,6 +277,6 @@ Deno.serve(async (req: Request) => {
 
     // ────────────────────────────────────────────────────────────────────────
     default:
-      return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, /update-post-status, /tag-user, /read-posts`, 404);
+      return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /tag-user, POST /read-posts`, 404);
   }
 });
