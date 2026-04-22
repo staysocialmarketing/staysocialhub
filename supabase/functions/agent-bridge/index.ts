@@ -1,3 +1,4 @@
+SHA: 94a8d7137c4660fae51c02e741124ef93d2ecff8
 /**
  * agent-bridge — Supabase Edge Function
  *
@@ -168,14 +169,26 @@ Deno.serve(async (req: Request) => {
 
       // Build platform_content from flat fields if not explicitly provided,
       // ensuring the NOT NULL constraint on the column is always satisfied.
-      const resolvedPlatformContent = platform_content ?? (platform
-        ? {
-            [platform.toLowerCase()]: {
-              caption: caption ?? "",
-              ...(hashtags ? { hashtags } : {}),
-            },
-          }
-        : { post: { caption: caption ?? "" } });
+      // platform may be a comma-separated string (e.g. "Instagram, Facebook"),
+      // so split it into individual keys rather than using it as a single key.
+      const normalizedPlatforms = (platform ?? "")
+        .split(",")
+        .map((p) => p.trim().toLowerCase())
+        .filter(Boolean);
+
+      const resolvedPlatformContent =
+        platform_content ??
+        (normalizedPlatforms.length > 0
+          ? Object.fromEntries(
+              normalizedPlatforms.map((p) => [
+                p,
+                {
+                  caption: caption ?? "",
+                  ...(hashtags ? { hashtags } : {}),
+                },
+              ])
+            )
+          : { post: { caption: caption ?? "" } });
 
       const { data, error } = await db
         .from("posts")
@@ -291,3 +304,4 @@ Deno.serve(async (req: Request) => {
       return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /tag-user, POST /read-posts`, 404);
   }
 });
+
