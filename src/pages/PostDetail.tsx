@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner";
 import {
   ArrowLeft, ChevronLeft, ChevronRight, Calendar, Hash, MessageSquare, Image as ImageIcon,
-  Check, FileEdit, AlertTriangle, Save, Upload, Sparkles, X, Trash2,
+  Check, FileEdit, AlertTriangle, Save, Upload, Sparkles, X, Trash2, Pencil,
 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { compressImage } from "@/lib/imageUtils";
@@ -52,6 +52,16 @@ export default function PostDetail() {
   const [lightboxVersion, setLightboxVersion] = useState<any>(null);
   const [deleteDialog, setDeleteDialog] = useState(false);
   const [designCompleteDialog, setDesignCompleteDialog] = useState(false);
+
+  // Editable caption state
+  const [editingCaption, setEditingCaption] = useState(false);
+  const [captionDraft, setCaptionDraft] = useState("");
+  const [savingCaption, setSavingCaption] = useState(false);
+  const captionTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Image lightbox / delete state
+  const [lightboxImage, setLightboxImage] = useState<PostImage | null>(null);
+  const [deleteImageDialog, setDeleteImageDialog] = useState<PostImage | null>(null);
 
   // Fetch post
   const { data: post, isLoading } = useQuery({
@@ -162,6 +172,34 @@ export default function PostDetail() {
     },
     onError: () => toast.error("Failed to save notes"),
   });
+
+  // Save platform caption
+  const savePlatformCaption = async (platform: string, newCaption: string) => {
+    if (!post) return;
+    setSavingCaption(true);
+    try {
+      const existing = ((post as any).platform_content as Record<string, any>) ?? {};
+      const updated = {
+        ...existing,
+        [platform]: {
+          ...existing[platform],
+          caption: newCaption,
+        },
+      };
+      const { error } = await supabase
+        .from("posts")
+        .update({ platform_content: updated } as any)
+        .eq("id", postId!);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["post-detail", postId] });
+      setEditingCaption(false);
+      toast.success("Caption saved");
+    } catch {
+      toast.error("Failed to save caption");
+    } finally {
+      setSavingCaption(false);
+    }
+  };
 
   // Submit approval
   const submitApproval = useMutation({
@@ -484,7 +522,7 @@ export default function PostDetail() {
             <CardContent className="p-4 pt-0">
               {postImages.length > 0 ? (
                 isSSRole ? (
-                  /* SS: editable grid with delete controls */
+                  /* SS: editable grid with lightbox + delete controls */
                   <div className={cn(
                     "gap-2",
                     postImages.length === 1 ? "flex" : "grid grid-cols-2"
@@ -494,19 +532,23 @@ export default function PostDetail() {
                         <img
                           src={img.url}
                           alt={img.alt_text ?? ""}
+                          onClick={() => setLightboxImage(img)}
                           className={cn(
-                            "rounded-lg object-cover w-full",
+                            "rounded-lg object-cover w-full cursor-pointer",
                             postImages.length === 1 ? "max-h-[500px] object-contain" : "aspect-square"
                           )}
                         />
-                        <button
-                          type="button"
-                          onClick={() => deleteImage(img)}
-                          disabled={deletingImageId === img.id}
-                          className="absolute top-1.5 right-1.5 h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
+                        {isSSAdmin && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setDeleteImageDialog(img); }}
+                            disabled={deletingImageId === img.id}
+                            className="absolute top-1.5 right-1.5 h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+                            title="Delete image"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        )}
                         {idx === 0 && postImages.length > 1 && (
                           <span className="absolute bottom-1.5 left-1.5 text-[10px] bg-black/60 text-white px-1.5 py-0.5 rounded">
                             Primary
@@ -521,7 +563,7 @@ export default function PostDetail() {
                     ))}
                   </div>
                 ) : (
-                  /* Client: swipeable gallery */
+                  /* Client: swipeable gallery with lightbox */
                   <div
                     className="relative select-none"
                     onTouchStart={(e) => setSwipeStartX(e.touches[0].clientX)}
@@ -534,7 +576,8 @@ export default function PostDetail() {
                     <img
                       src={postImages[Math.min(activeImageIdx, postImages.length - 1)]?.url}
                       alt={postImages[Math.min(activeImageIdx, postImages.length - 1)]?.alt_text ?? ""}
-                      className="w-full rounded-lg object-contain max-h-[500px]"
+                      onClick={() => setLightboxImage(postImages[Math.min(activeImageIdx, postImages.length - 1)])}
+                      className="w-full rounded-lg object-contain max-h-[500px] cursor-pointer"
                     />
                     {postImages.length > 1 && (
                       <>
@@ -609,7 +652,7 @@ export default function PostDetail() {
                       <button
                         key={tabKey}
                         type="button"
-                        onClick={() => setActivePlatformTab(tabKey)}
+                        onClick={() => { setActivePlatformTab(tabKey); setEditingCaption(false); }}
                         className={cn(
                           "px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
                           effectiveTab === tabKey
@@ -652,12 +695,55 @@ export default function PostDetail() {
                         </div>
                       );
                     }
+                    // Editable caption for non-email platforms
+                    const captionValue = tabData.caption || "";
                     return (
-                      <div>
-                        <p className="text-sm text-foreground whitespace-pre-wrap">
-                          {tabData.caption || "No caption yet"}
-                        </p>
-                        {tabData.hashtags && (
+                      <div className="space-y-2">
+                        {editingCaption ? (
+                          <div className="space-y-2">
+                            <Textarea
+                              ref={captionTextareaRef}
+                              value={captionDraft}
+                              onChange={(e) => setCaptionDraft(e.target.value)}
+                              className="min-h-[120px] text-sm resize-none focus-visible:ring-primary"
+                              autoFocus
+                            />
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                disabled={savingCaption}
+                                onClick={() => savePlatformCaption(effectiveTab, captionDraft)}
+                              >
+                                <Save className="h-3 w-3 mr-1" />
+                                {savingCaption ? "Saving..." : "Save"}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled={savingCaption}
+                                onClick={() => setEditingCaption(false)}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div
+                            className="group relative cursor-pointer rounded-md px-2 py-1.5 -mx-2 hover:bg-muted/50 transition-colors"
+                            onClick={() => {
+                              setCaptionDraft(captionValue);
+                              setEditingCaption(true);
+                              setTimeout(() => captionTextareaRef.current?.focus(), 0);
+                            }}
+                            title="Click to edit caption"
+                          >
+                            <p className="text-sm text-foreground whitespace-pre-wrap">
+                              {captionValue || <span className="text-muted-foreground italic">No caption yet — click to add</span>}
+                            </p>
+                            <Pencil className="absolute top-2 right-2 h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                        )}
+                        {tabData.hashtags && !editingCaption && (
                           <>
                             <Separator className="my-3" />
                             <div className="flex items-center gap-1 text-sm text-muted-foreground">
@@ -948,6 +1034,43 @@ export default function PostDetail() {
           {lightboxVersion?.hashtags && <p className="text-white/60">#{lightboxVersion.hashtags}</p>}
         </div>
       </ImageLightbox>
+
+      {/* Post Image Lightbox */}
+      <ImageLightbox
+        open={!!lightboxImage}
+        onOpenChange={(o) => { if (!o) setLightboxImage(null); }}
+        imageUrl={lightboxImage?.url ?? null}
+        imageAlt={lightboxImage?.alt_text ?? ""}
+      />
+
+      {/* Delete Image Confirmation Dialog */}
+      <Dialog open={!!deleteImageDialog} onOpenChange={(o) => { if (!o) setDeleteImageDialog(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove Image</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Remove this image? This cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteImageDialog(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!!deletingImageId}
+              onClick={async () => {
+                if (deleteImageDialog) {
+                  await deleteImage(deleteImageDialog);
+                  setDeleteImageDialog(null);
+                }
+              }}
+            >
+              {deletingImageId ? "Removing..." : "Remove"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Design Complete Confirmation Dialog */}
       <Dialog open={designCompleteDialog} onOpenChange={setDesignCompleteDialog}>
