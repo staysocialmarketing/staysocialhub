@@ -178,7 +178,15 @@ export default function PostDetail() {
     if (!post) return;
     setSavingCaption(true);
     try {
-      const existing = ((post as any).platform_content as Record<string, any>) ?? {};
+      // Re-fetch the latest platform_content from the DB to avoid clobbering concurrent edits
+      const { data: freshPost, error: fetchError } = await supabase
+        .from("posts")
+        .select("platform_content")
+        .eq("id", postId!)
+        .single();
+      if (fetchError) throw fetchError;
+
+      const existing = ((freshPost as any).platform_content as Record<string, any>) ?? {};
       const updated = {
         ...existing,
         [platform]: {
@@ -336,8 +344,8 @@ export default function PostDetail() {
     }
   };
 
-  // Delete an image from post_images
-  const deleteImage = async (img: Pick<PostImage, "id" | "storage_path" | "url">) => {
+  // Delete an image from post_images — returns true on success, false on failure
+  const deleteImage = async (img: Pick<PostImage, "id" | "storage_path" | "url">): Promise<boolean> => {
     setDeletingImageId(img.id);
     try {
       await supabase.storage.from("creative-assets").remove([img.storage_path]);
@@ -360,8 +368,10 @@ export default function PostDetail() {
       queryClient.invalidateQueries({ queryKey: ["post-images", postId] });
       queryClient.invalidateQueries({ queryKey: ["post-detail", postId] });
       toast.success("Image removed");
+      return true;
     } catch {
       toast.error("Failed to remove image");
+      return false;
     } finally {
       setDeletingImageId(null);
     }
@@ -529,15 +539,24 @@ export default function PostDetail() {
                   )}>
                     {postImages.map((img, idx) => (
                       <div key={img.id} className="relative group">
-                        <img
-                          src={img.url}
-                          alt={img.alt_text ?? ""}
-                          onClick={() => setLightboxImage(img)}
+                        <button
+                          type="button"
                           className={cn(
-                            "rounded-lg object-cover w-full cursor-pointer",
-                            postImages.length === 1 ? "max-h-[500px] object-contain" : "aspect-square"
+                            "block w-full p-0 border-0 bg-transparent cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg",
+                            postImages.length === 1 ? "" : "aspect-square"
                           )}
-                        />
+                          onClick={() => setLightboxImage(img)}
+                          aria-label={img.alt_text ? `View full size: ${img.alt_text}` : "View full size image"}
+                        >
+                          <img
+                            src={img.url}
+                            alt={img.alt_text ?? ""}
+                            className={cn(
+                              "rounded-lg object-cover w-full",
+                              postImages.length === 1 ? "max-h-[500px] object-contain" : "aspect-square"
+                            )}
+                          />
+                        </button>
                         {isSSAdmin && (
                           <button
                             type="button"
@@ -573,12 +592,20 @@ export default function PostDetail() {
                       if (delta < -50) setActiveImageIdx(i => Math.max(0, i - 1));
                     }}
                   >
-                    <img
-                      src={postImages[Math.min(activeImageIdx, postImages.length - 1)]?.url}
-                      alt={postImages[Math.min(activeImageIdx, postImages.length - 1)]?.alt_text ?? ""}
+                    <button
+                      type="button"
+                      className="block w-full p-0 border-0 bg-transparent cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg"
                       onClick={() => setLightboxImage(postImages[Math.min(activeImageIdx, postImages.length - 1)])}
-                      className="w-full rounded-lg object-contain max-h-[500px] cursor-pointer"
-                    />
+                      aria-label={postImages[Math.min(activeImageIdx, postImages.length - 1)]?.alt_text
+                        ? `View full size: ${postImages[Math.min(activeImageIdx, postImages.length - 1)].alt_text}`
+                        : "View full size image"}
+                    >
+                      <img
+                        src={postImages[Math.min(activeImageIdx, postImages.length - 1)]?.url}
+                        alt={postImages[Math.min(activeImageIdx, postImages.length - 1)]?.alt_text ?? ""}
+                        className="w-full rounded-lg object-contain max-h-[500px]"
+                      />
+                    </button>
                     {postImages.length > 1 && (
                       <>
                         <button
@@ -729,13 +756,24 @@ export default function PostDetail() {
                           </div>
                         ) : (
                           <div
-                            className="group relative cursor-pointer rounded-md px-2 py-1.5 -mx-2 hover:bg-muted/50 transition-colors"
+                            role="button"
+                            tabIndex={0}
+                            className="group relative cursor-pointer rounded-md px-2 py-1.5 -mx-2 hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                             onClick={() => {
                               setCaptionDraft(captionValue);
                               setEditingCaption(true);
                               setTimeout(() => captionTextareaRef.current?.focus(), 0);
                             }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                setCaptionDraft(captionValue);
+                                setEditingCaption(true);
+                                setTimeout(() => captionTextareaRef.current?.focus(), 0);
+                              }
+                            }}
                             title="Click to edit caption"
+                            aria-label="Edit caption"
                           >
                             <p className="text-sm text-foreground whitespace-pre-wrap">
                               {captionValue || <span className="text-muted-foreground italic">No caption yet — click to add</span>}
@@ -1061,8 +1099,8 @@ export default function PostDetail() {
               disabled={!!deletingImageId}
               onClick={async () => {
                 if (deleteImageDialog) {
-                  await deleteImage(deleteImageDialog);
-                  setDeleteImageDialog(null);
+                  const success = await deleteImage(deleteImageDialog);
+                  if (success) setDeleteImageDialog(null);
                 }
               }}
             >
