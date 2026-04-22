@@ -157,6 +157,9 @@ export function CharacterLayer() {
     if (meetingState === prevMeetingRef.current) return;
     prevMeetingRef.current = meetingState;
 
+    let cancelled = false;
+    const timers: Array<ReturnType<typeof window.setTimeout>> = [];
+
     const walkMap: Record<string, typeof coreyWalk> = {
       corey:   coreyWalk,
       lev:     levWalk,
@@ -175,12 +178,13 @@ export function CharacterLayer() {
       keys.forEach((key, i) => {
         const target = MEETING_SEATS_FOR[key];
         if (!target) return;
-        setTimeout(() => {
+        timers.push(setTimeout(() => {
+          if (cancelled) return;
           walkMap[key].walkTo(target, () => {
             seated += 1;
             if (seated === keys.length) _onAllSeated();
           });
-        }, i * 600);
+        }, i * 600));
       });
     }
 
@@ -190,14 +194,20 @@ export function CharacterLayer() {
       keys.forEach((key, i) => {
         const target = HOME_DESK_FOR[key];
         if (!target) return;
-        setTimeout(() => {
+        timers.push(setTimeout(() => {
+          if (cancelled) return;
           walkMap[key].walkTo(target, () => {
             dispersed += 1;
             if (dispersed === keys.length) _onAllDispersed();
           });
-        }, i * 600);
+        }, i * 600));
       });
     }
+
+    return () => {
+      cancelled = true;
+      timers.forEach(clearTimeout);
+    };
   }, [meetingState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (

@@ -42,11 +42,11 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const _onAllSeated = useCallback(() => {
-    setMeetingState('active');
+    setMeetingState(s => (s === 'calling' ? 'active' : s));
   }, []);
 
   const _onAllDispersed = useCallback(() => {
-    setMeetingState('idle');
+    setMeetingState(s => (s === 'dispersing' ? 'idle' : s));
   }, []);
 
   return (

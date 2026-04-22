@@ -31,13 +31,14 @@ interface OfficeHeaderProps {
 }
 
 export function OfficeHeader({ inSession = false }: OfficeHeaderProps) {
-  const dotClass  = inSession ? 'dot-session' : 'dot-live';
-  const dotColor  = inSession ? '#3b82f6' : '#22c55e';
-  const dotLabel  = inSession ? 'In Session' : 'Live';
   const { mode, toggleMode } = useLighting();
   const isNight = mode === 'night';
   const C = mode === 'day' ? DAY : NIGHT;
   const { meetingState, triggerMeeting, endMeeting } = useMeeting();
+  const isInSession = meetingState === 'active' || meetingState === 'calling' || inSession;
+  const dotClass  = isInSession ? 'dot-session' : 'dot-live';
+  const dotColor  = isInSession ? '#3b82f6' : '#22c55e';
+  const dotLabel  = isInSession ? 'In Session' : 'Live';
   const isMeetingActive  = meetingState === 'active';
   const isMeetingBusy    = meetingState === 'calling' || meetingState === 'dispersing';
 
