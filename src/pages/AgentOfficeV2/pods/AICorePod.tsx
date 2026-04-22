@@ -25,7 +25,7 @@ const branchY    = levBtm.y + 19;                                             //
 const subTopCtr  = subRow3.map(d => ({ x: d.x + sW / 2, y: d.y }));
 
 // Sub-agent keys for active count (Lev dot cluster)
-const SUB_AGENT_KEYS = ['scout', 'quill', 'ember'];
+const SUB_AGENT_KEYS = ['scout', 'quill', 'ember', 'forge'];
 
 export function AICorePod() {
   const statuses = useAgentStatuses();

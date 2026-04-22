@@ -132,7 +132,7 @@ export function Desk({ desk, lampBoost = 0, activeSubAgentCount }: DeskProps) {
   // Forge/Pixel start as 'placeholder' but activate when DB transitions to a live state.
   // Other agents fall back to 'offline' when no DB entry is present.
   const allStatuses = useAgentStatuses();
-  const isInitiallyPlaceholder = agentCfg?.isPlaceholder ?? false;
+  const isInitiallyPlaceholder = desk.isPlaceholder ?? agentCfg?.isPlaceholder ?? false;
   const agentState: AgentState = allStatuses[key] ?? (isInitiallyPlaceholder ? 'placeholder' : 'offline');
 
   // Ghost rendering is entirely driven by live agentState
