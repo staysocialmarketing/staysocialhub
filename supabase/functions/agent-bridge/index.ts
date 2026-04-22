@@ -9,6 +9,7 @@
  *   POST /update-post-status   — move a post to a new status
  *   POST /tag-user             — assign or set reviewer on a post
  *   POST /read-posts           — fetch posts for a client (with optional status filter)
+ *   GET  /list-clients         — return all clients (id, name)
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -62,7 +63,7 @@ Deno.serve(async (req: Request) => {
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers": "content-type, x-api-key",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       },
     });
   }
@@ -83,8 +84,28 @@ Deno.serve(async (req: Request) => {
   // The path will be something like /agent-bridge/create-post
   const route = url.pathname.split("/").filter(Boolean).at(-1);
 
+  // ── Supabase admin client (bypasses RLS — Lev is a trusted agent) ─────────
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const db = createClient(supabaseUrl, serviceKey);
+
+  // ── GET routes ────────────────────────────────────────────────────────────
+
+  // ────────────────────────────────────────────────────────────────────────
+  if (req.method === "GET" && route === "list-clients") {
+    const { data, error } = await db
+      .from("clients")
+      .select("id, name")
+      .order("name", { ascending: true });
+
+    if (error) return err(error.message, 500);
+    return json({ success: true, clients: data ?? [], count: (data ?? []).length });
+  }
+
+  // ── POST routes ───────────────────────────────────────────────────────────
+
   if (req.method !== "POST") {
-    return err("Method not allowed — use POST", 405);
+    return err("Method not allowed — use POST (or GET for /list-clients)", 405);
   }
 
   let body: Record<string, unknown>;
@@ -93,11 +114,6 @@ Deno.serve(async (req: Request) => {
   } catch {
     return err("Invalid JSON body");
   }
-
-  // ── Supabase admin client (bypasses RLS — Lev is a trusted agent) ─────────
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const db = createClient(supabaseUrl, serviceKey);
 
   // ── Dispatch ──────────────────────────────────────────────────────────────
   switch (route) {
@@ -248,6 +264,6 @@ Deno.serve(async (req: Request) => {
 
     // ────────────────────────────────────────────────────────────────────────
     default:
-      return err(`Unknown route "/${route}". Valid routes: /create-post, /update-post-status, /tag-user, /read-posts`, 404);
+      return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, /update-post-status, /tag-user, /read-posts`, 404);
   }
 });
