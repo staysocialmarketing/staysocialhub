@@ -22,9 +22,9 @@ const HALIFAX_X  = 188 + 62;        // 250
 const TORONTO_X  = HALIFAX_X + WIN_W + 60; // 510  (right edge 710 < 772 ✓)
 
 // Meeting table — centred in canvas, below back wall
-const TABLE_W = 320;
+const TABLE_W = 380;
 const TABLE_H = 60;
-const TABLE_X = (CANVAS_W - TABLE_W) / 2; // 320
+const TABLE_X = (CANVAS_W - TABLE_W) / 2; // 450 (center x = 640)
 const TABLE_Y = 148;
 
 // Chair dimensions
@@ -33,10 +33,10 @@ const CHAIR_H = 14;
 
 // 4 chairs per side, evenly spaced across TABLE_W
 const CHAIR_XS = [
-  TABLE_X + 43,   // 363
-  TABLE_X + 112,  // 432
-  TABLE_X + 181,  // 501
-  TABLE_X + 250,  // 570
+  TABLE_X + 51,   // 501
+  TABLE_X + 133,  // 583
+  TABLE_X + 215,  // 665
+  TABLE_X + 297,  // 747
 ];
 const TOP_CHAIR_Y    = TABLE_Y - CHAIR_H - 3; // 131
 const BOTTOM_CHAIR_Y = TABLE_Y + TABLE_H + 3; // 211

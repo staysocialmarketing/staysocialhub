@@ -50,7 +50,7 @@ const AI_ZONE_X = 320;
 
 // Sub-agents spread to give 80px desk-to-desk gaps (sprite=48px → 32px clearance each side)
 const AI_SUB_1 = 310;  // center_x = 340 (COL_L)
-const AI_SUB_2 = 450;  // center_x = 480 (COL_C)
+const AI_SUB_2 = 610;  // center_x = 640 (COL_C)
 const AI_SUB_3 = 590;  // center_x = 620 (COL_R)
 
 export const DESKS: DeskConfig[] = [
@@ -115,8 +115,8 @@ export const DESKS: DeskConfig[] = [
   },
 ];
 
-// Meeting room seat coordinates — updated to match enlarged table (Phase 7)
+// Meeting room seat coordinates — updated to match enlarged table (380px wide, center x=640)
 export const MEETING_SEATS = [
-  { x: 376, y: 138 }, { x: 445, y: 138 }, { x: 514, y: 138 }, { x: 583, y: 138 },
-  { x: 376, y: 218 }, { x: 445, y: 218 }, { x: 514, y: 218 }, { x: 583, y: 218 },
+  { x: 514, y: 138 }, { x: 596, y: 138 }, { x: 678, y: 138 }, { x: 760, y: 138 },
+  { x: 514, y: 218 }, { x: 596, y: 218 }, { x: 678, y: 218 }, { x: 760, y: 218 },
 ];
