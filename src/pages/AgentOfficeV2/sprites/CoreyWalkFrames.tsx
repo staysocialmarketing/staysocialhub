@@ -10,6 +10,7 @@ const Ht = 20 * P;
 
 const H  = '#2a1608'; const HH = '#5a3a20'; const HD = '#180c04';
 const S  = '#e8c8a8'; const SH = '#f4d8bc'; const SD = '#c8a488'; const EY = '#1a0a04';
+const ST = '#b89070'; // stubble shadow — jaw shadow strip
 const N  = '#2a3450'; const NH = '#3e4a68'; const ND = '#1a2238';
 const GP = '#c48a12';
 const DP = '#080c14';
@@ -73,6 +74,8 @@ const headLeft: R[] = [
   // Stubble (side profile: jaw shadow strip)
   r(5,9,4,1,ST),
   r(5,9,5,1,S), r(5,9,1,1,SD), r(9,9,1,1,SD),
+  // Stubble (side profile: jaw shadow strip)
+  r(6,9,3,1,ST),
   r(1,10,12,1,NH), r(1,10,1,6,ND), r(12,10,1,6,ND),
   r(5,10,3,1,N),
   r(2,11,10,5,N), r(3,11,8,1,NH),

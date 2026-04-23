@@ -63,7 +63,7 @@ export const AGENTS: Record<string, AgentConfig> = {
     name: 'Forge',
     role: 'Lead Developer',
     memberType: 'ai',
-    isPlaceholder: false,  // DB: active — renders as live agent, not ghost
+    isPlaceholder: false,
     palette: '#1e3a5a',
     indicator: 'code_brackets',
   },
@@ -72,7 +72,7 @@ export const AGENTS: Record<string, AgentConfig> = {
     name: 'Pixel',
     role: 'Ads Strategist',
     memberType: 'ai',
-    isPlaceholder: false,  // DB: processing — renders as live agent, not ghost
+    isPlaceholder: false,
     palette: '#0a4a8c',
     indicator: 'bullseye',
   },

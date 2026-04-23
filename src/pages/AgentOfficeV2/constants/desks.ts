@@ -48,10 +48,10 @@ export const COL_STAIR      = 960; // staircase column — gap between AI Core (
 // ── AI Core desk zone: Corey/Lev centered on COL_C=640 ────────────────────
 const AI_ZONE_X = 480;  // zone left; Corey desk x = 480+(320-140)/2 = 570
 
-// Sub-agents spread across AI Core pod (3 columns, 100px apart)
-const AI_SUB_1 = 440;  // centre_x = 470
-const AI_SUB_2 = 570;  // centre_x = 600 (≈ COL_C)
-const AI_SUB_3 = 700;  // centre_x = 730
+// Sub-agents spread to give 80px desk-to-desk gaps (sprite=48px → 32px clearance each side)
+const AI_SUB_1 = 310;  // center_x = 340 (COL_L)
+const AI_SUB_2 = 610;  // center_x = 640 (COL_C)
+const AI_SUB_3 = 590;  // center_x = 620 (COL_R)
 
 export const DESKS: DeskConfig[] = [
   // ── AI Core Pod ──────────────────────────────────────────────────────────
@@ -115,9 +115,8 @@ export const DESKS: DeskConfig[] = [
   },
 ];
 
-// Meeting room seat coordinates — centred in 1280px canvas (table centred at x=640)
-// Table: 320px wide centred → x=480..800; seats at x+43, +112, +181, +250
+// Meeting room seat coordinates — updated to match enlarged table (380px wide, center x=640)
 export const MEETING_SEATS = [
-  { x: 523, y: 138 }, { x: 592, y: 138 }, { x: 661, y: 138 }, { x: 730, y: 138 },
-  { x: 523, y: 218 }, { x: 592, y: 218 }, { x: 661, y: 218 }, { x: 730, y: 218 },
+  { x: 514, y: 138 }, { x: 596, y: 138 }, { x: 678, y: 138 }, { x: 760, y: 138 },
+  { x: 514, y: 218 }, { x: 596, y: 218 }, { x: 678, y: 218 }, { x: 760, y: 218 },
 ];

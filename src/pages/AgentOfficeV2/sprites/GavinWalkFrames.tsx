@@ -9,11 +9,11 @@ const W  = 16 * P;
 const Ht = 20 * P;
 
 const S  = '#a86830'; const SH = '#c07840'; const SD = '#8a5220'; const EY = '#100802';
+const GL = '#3a3020'; // glasses frame
+const BD = '#6a3c18'; // beard
 const T  = '#5a3820'; const TH = '#7a4e30'; const TD = '#3a2214';
 const GP = TD; // pants same dark earth
 const DP = '#080c14';
-const BD = '#7a4a1a';  // beard warm brown
-const GL = '#333333';  // glasses dark grey
 
 type R = [number, number, number, number, string];
 function r(x: number, y: number, w: number, h: number, fill: string): R { return [x, y, w, h, fill]; }
@@ -43,11 +43,10 @@ const headFront: R[] = [
   r(2,3,2,4,S), r(12,3,2,4,S),             // bald sides (skin)
   r(2,3,1,4,SD), r(13,3,1,4,SD),
   r(3,3,10,7,S), r(3,3,1,7,SD), r(12,3,1,7,SD), r(4,3,8,2,SH),
-  r(4,6,3,1,SH), r(9,6,3,1,SH), r(4,5,2,2,EY), r(9,5,2,2,EY),
-  // Glasses: two 3×2 rects + 1px bridge
-  r(4,5,3,2,GL), r(9,5,3,2,GL), r(7,5,2,1,GL),
-  // Pupils over glasses
-  r(5,5,1,1,EY), r(10,5,1,1,EY),
+  r(4,6,3,1,SH), r(9,6,3,1,SH),
+  // Glasses frames (drawn before eyes so pupils paint over interior)
+  r(4,5,3,2,GL), r(8,5,1,1,GL), r(9,5,2,2,GL), // left lens, bridge, right lens
+  r(4,5,2,2,EY), r(9,5,2,2,EY),
   r(6,8,4,1,SD),
   // Short brown beard: strip below mouth
   r(5,9,6,1,BD), r(6,9,4,1,'#6a3a10'),
@@ -78,12 +77,13 @@ const headLeft: R[] = [
   r(3,0,9,1,SD), r(3,1,9,2,S), r(4,0,6,1,SH), r(4,1,8,1,SH),
   r(11,1,3,5,S), r(13,1,1,5,SD),   // bald "trailing" = skin, not hair
   r(3,2,9,7,S), r(3,2,1,7,SD), r(4,2,7,2,SH),
-  r(3,5,1,1,SD), r(5,5,1,2,EY), r(11,6,1,2,SD), r(5,8,2,1,SD),
-  // Glasses (side profile: one 3×2 frame visible)
-  r(5,5,3,2,GL), r(6,5,1,1,EY),
-  // Beard (side profile: jaw strip)
-  r(5,9,4,1,BD),
+  r(3,5,1,1,SD),
+  // Glasses frame (side profile — one lens visible)
+  r(4,5,3,2,GL), // left lens frame
+  r(5,5,1,2,EY), r(11,6,1,2,SD), r(5,8,2,1,SD),
   r(5,9,5,1,S), r(5,9,1,1,SD), r(9,9,1,1,SD),
+  // Beard (side profile: jaw strip)
+  r(6,9,3,1,BD),
   r(2,10,10,1,TH), r(2,10,1,6,TD), r(11,10,1,6,TD),
   r(5,10,3,1,T),
   r(3,11,8,5,T), r(4,11,6,1,TH),

@@ -12,6 +12,7 @@ const Ht = 20 * P;
 const H  = '#100c08'; const HH = '#1e1814';
 const S  = '#2e1a0c'; const SH = '#4a2e18'; const SD = '#1c0e06'; const EY = '#0a0604';
 const T  = '#b84a18'; const TH = '#d45e22'; const TD = '#7a2e0a';
+const BRD = '#0e0806'; // beard (very dark, near-black for deep skin tone)
 const TP = '#1a0a08'; // very dark pants (contrast with bold shirt)
 const DP = '#080c14';
 const BRD = '#1a1a1a';  // short black beard
@@ -79,6 +80,8 @@ const headLeft: R[] = [
   // Beard (side profile: jaw strip)
   r(5,9,4,1,BRD),
   r(5,9,5,1,S), r(5,9,1,1,SD), r(9,9,1,1,SD),
+  // Beard (side profile: jaw strip)
+  r(6,9,3,1,BRD),
   r(1,10,12,1,TH), r(1,10,1,6,TD), r(13,10,1,6,TD),
   r(5,10,3,1,T),
   r(2,11,10,5,T), r(3,11,8,1,TH),

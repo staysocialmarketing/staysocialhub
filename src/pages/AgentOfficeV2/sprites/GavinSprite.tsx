@@ -11,6 +11,7 @@ const EY = "#100802";
 const T  = "#5a3820";  // warm earth
 const TH = "#7a4e30";
 const TD = "#3a2214";
+const GL = "#3a3020";  // glasses frame
 
 const BD = "#7a4a1a";  // beard warm brown
 const GL = "#333333";  // glasses dark grey
@@ -45,6 +46,10 @@ export function GavinSprite() {
       {r(4, 3, 8, 2, SH)}
       {r(4, 6, 3, 1, SH)}
       {r(9, 6, 3, 1, SH)}
+      {/* Glasses frames (drawn before eyes so pupils paint over interior) */}
+      {r(4, 5, 3, 2, GL)} {/* left lens frame */}
+      {r(8, 5, 1, 1, GL)} {/* bridge */}
+      {r(9, 5, 2, 2, GL)} {/* right lens frame */}
       {/* Eyes: quiet, thoughtful */}
       {r(4, 5, 2, 2, EY)}
       {r(9, 5, 2, 2, EY)}
