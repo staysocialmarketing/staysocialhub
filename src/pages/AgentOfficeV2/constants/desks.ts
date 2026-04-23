@@ -51,7 +51,7 @@ const AI_ZONE_X = 480;  // zone left; Corey desk x = 480+(320-140)/2 = 570
 // Sub-agents spread to give 80px desk-to-desk gaps (sprite=48px → 32px clearance each side)
 const AI_SUB_1 = 310;  // center_x = 340 (COL_L)
 const AI_SUB_2 = 610;  // center_x = 640 (COL_C)
-const AI_SUB_3 = 590;  // center_x = 620 (COL_R)
+const AI_SUB_3 = AI_SUB_2 + TIER_DIMS.sub_agent.w + 80;  // 750 — clears AI_SUB_2 desk (610+60+80)
 
 export const DESKS: DeskConfig[] = [
   // ── AI Core Pod ──────────────────────────────────────────────────────────
@@ -115,8 +115,9 @@ export const DESKS: DeskConfig[] = [
   },
 ];
 
-// Meeting room seat coordinates — updated to match enlarged table (380px wide, center x=640)
+// Meeting room seat coordinates — updated for enlarged table (380px wide, centred at x=640)
+// Table: left edge = 640−190 = 450, right edge = 830. 4 seats per row, evenly spaced (~95px apart).
 export const MEETING_SEATS = [
-  { x: 514, y: 138 }, { x: 596, y: 138 }, { x: 678, y: 138 }, { x: 760, y: 138 },
-  { x: 514, y: 218 }, { x: 596, y: 218 }, { x: 678, y: 218 }, { x: 760, y: 218 },
+  { x: 498, y: 138 }, { x: 593, y: 138 }, { x: 688, y: 138 }, { x: 783, y: 138 },
+  { x: 498, y: 218 }, { x: 593, y: 218 }, { x: 688, y: 218 }, { x: 783, y: 218 },
 ];

@@ -12,10 +12,9 @@ const Ht = 20 * P;
 const H  = '#100c08'; const HH = '#1e1814';
 const S  = '#2e1a0c'; const SH = '#4a2e18'; const SD = '#1c0e06'; const EY = '#0a0604';
 const T  = '#b84a18'; const TH = '#d45e22'; const TD = '#7a2e0a';
-const BRD = '#0e0806'; // beard (very dark, near-black for deep skin tone)
+const BRD = '#1a1a1a'; // short black beard
 const TP = '#1a0a08'; // very dark pants (contrast with bold shirt)
 const DP = '#080c14';
-const BRD = '#1a1a1a';  // short black beard
 
 type R = [number, number, number, number, string];
 function r(x: number, y: number, w: number, h: number, fill: string): R { return [x, y, w, h, fill]; }
@@ -77,10 +76,8 @@ const headLeft: R[] = [
   r(11,1,4,5,H), r(14,1,2,5,H),  // wider trailing afro in profile
   r(3,2,9,7,S), r(3,2,1,7,SD), r(4,2,7,2,SH),
   r(3,5,1,1,SD), r(5,5,1,2,EY), r(11,6,1,2,SD), r(5,8,2,1,SD),
-  // Beard (side profile: jaw strip)
-  r(5,9,4,1,BRD),
   r(5,9,5,1,S), r(5,9,1,1,SD), r(9,9,1,1,SD),
-  // Beard (side profile: jaw strip)
+  // Beard (side profile: jaw strip — after skin so it shows)
   r(6,9,3,1,BRD),
   r(1,10,12,1,TH), r(1,10,1,6,TD), r(13,10,1,6,TD),
   r(5,10,3,1,T),

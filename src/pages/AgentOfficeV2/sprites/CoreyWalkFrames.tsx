@@ -10,11 +10,10 @@ const Ht = 20 * P;
 
 const H  = '#2a1608'; const HH = '#5a3a20'; const HD = '#180c04';
 const S  = '#e8c8a8'; const SH = '#f4d8bc'; const SD = '#c8a488'; const EY = '#1a0a04';
-const ST = '#b89070'; // stubble shadow — jaw shadow strip
+const ST = '#4a2a10';  // stubble shadow — subtle
 const N  = '#2a3450'; const NH = '#3e4a68'; const ND = '#1a2238';
 const GP = '#c48a12';
 const DP = '#080c14';
-const ST = '#4a2a10';  // stubble shadow — subtle
 
 type R = [number, number, number, number, string];
 function r(x: number, y: number, w: number, h: number, fill: string): R { return [x, y, w, h, fill]; }
@@ -71,10 +70,8 @@ const headLeft: R[] = [
   r(11,1,3,5,H), r(13,1,1,5,HD),
   r(3,2,10,7,S), r(3,2,1,7,SD), r(4,2,8,2,SH),
   r(3,5,1,1,SD), r(5,5,1,2,EY), r(11,6,1,2,SD), r(5,8,2,1,SD),
-  // Stubble (side profile: jaw shadow strip)
-  r(5,9,4,1,ST),
   r(5,9,5,1,S), r(5,9,1,1,SD), r(9,9,1,1,SD),
-  // Stubble (side profile: jaw shadow strip)
+  // Stubble (side profile: jaw shadow strip — after skin so it shows)
   r(6,9,3,1,ST),
   r(1,10,12,1,NH), r(1,10,1,6,ND), r(12,10,1,6,ND),
   r(5,10,3,1,N),
