@@ -163,16 +163,13 @@ function MarkAsScheduledButton({ postId }: { postId: string }) {
     mutationFn: async () => {
       const { data, error } = await supabase
         .from("posts")
-        .update({ status_column: "scheduled" as any })
+        .update({ status_column: "scheduled" as PostStatus })
         .eq("id", postId)
         .eq("status_column", "approved")
         .select("id")
         .maybeSingle();
       if (error) throw error;
-      if (!data) {
-        toast.error("Post already moved — refresh to see current status.");
-        return;
-      }
+      if (!data) throw new Error("Post not found or already past approved state");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["approval-posts"] });
