@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  MessageSquare, Calendar, Image as ImageIcon, Hash, Clock, CheckCircle, Mail, Eye, Send,
+  MessageSquare, Calendar, Image as ImageIcon, Hash, Clock, CheckCircle, Mail, Eye, Send, CalendarClock,
 } from "lucide-react";
 import { format, isToday, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -155,6 +155,39 @@ function StrategicCommentButton({ postId, postTitle }: { postId: string; postTit
   );
 }
 
+// ─── MARK AS SCHEDULED (admin only) ────────────────────────────────
+function MarkAsScheduledButton({ postId }: { postId: string }) {
+  const queryClient = useQueryClient();
+
+  const markScheduled = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("posts")
+        .update({ status_column: "scheduled" as any })
+        .eq("id", postId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["approval-posts"] });
+      toast.success("Marked as scheduled");
+    },
+    onError: (err: any) => toast.error(err.message || "Failed to update status"),
+  });
+
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      className="w-full gap-1.5 mt-1 text-xs rounded-xl border-blue-500/40 text-blue-600 hover:bg-blue-500/10"
+      onClick={(e) => { e.stopPropagation(); markScheduled.mutate(); }}
+      disabled={markScheduled.isPending}
+    >
+      <CalendarClock className="h-3.5 w-3.5" />
+      Mark as Scheduled
+    </Button>
+  );
+}
+
 function SectionBlock({ title, icon, count, children }: { title: string; icon?: React.ReactNode; count: number; children: React.ReactNode }) {
   return (
     <section className="space-y-3">
@@ -178,7 +211,7 @@ function AdminApprovals() {
       const { data, error } = await supabase
         .from("posts")
         .select("*, comments(id), assigned_user:assigned_to_user_id(name), clients(name)")
-        .in("status_column", ["internal_review", "corey_review", "ready_for_client_batch", "client_approval", "ready_to_schedule", "ready_to_send", "scheduled", "published", "sent", "complete"])
+        .in("status_column", ["internal_review", "corey_review", "ready_for_client_batch", "client_approval", "approved", "ready_to_schedule", "ready_to_send", "scheduled", "published", "sent", "complete"])
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -189,6 +222,7 @@ function AdminApprovals() {
   const coreyReview = posts.filter((p: any) => p.status_column === "corey_review");
   const readyForClientBatch = posts.filter((p: any) => p.status_column === "ready_for_client_batch");
   const clientApproval = posts.filter((p: any) => p.status_column === "client_approval");
+  const approvedPosts = posts.filter((p: any) => p.status_column === "approved");
   const readyToSchedule = posts.filter((p: any) => p.status_column === "ready_to_schedule");
   const readyToSend = posts.filter((p: any) => p.status_column === "ready_to_send");
   const scheduled = posts.filter((p: any) => p.status_column === "scheduled");
@@ -249,6 +283,22 @@ function AdminApprovals() {
       <SectionBlock title="Client Approval" count={clientApproval.length}>
         {renderGrid(clientApproval, true)}
       </SectionBlock>
+
+      {approvedPosts.length > 0 && (
+        <SectionBlock title="Approved — Awaiting Schedule" icon={<CalendarClock className="h-5 w-5 text-blue-500" />} count={approvedPosts.length}>
+          {approvedPosts.length === 0 ? (
+            <EmptyState title="Nothing here yet" compact />
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {approvedPosts.map((post: any) => (
+                <PostCard key={post.id} post={post} onClick={() => navigate(`/approvals/${post.id}`)} showClient>
+                  {isSSAdmin && <MarkAsScheduledButton postId={post.id} />}
+                </PostCard>
+              ))}
+            </div>
+          )}
+        </SectionBlock>
+      )}
 
       {readyToSchedule.length > 0 && (
         <SectionBlock title="Ready to Schedule" icon={<Calendar className="h-5 w-5 text-primary" />} count={readyToSchedule.length}>
