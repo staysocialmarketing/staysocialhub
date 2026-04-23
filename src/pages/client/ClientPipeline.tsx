@@ -102,22 +102,33 @@ function PipelineCard({
   const approve = useMutation({
     mutationFn: async () => {
       if (!profile) throw new Error("Not logged in");
-      await supabase.from("approvals").insert({
+      const { error: insertError } = await supabase.from("approvals").insert({
         post_id: post.id,
         user_id: profile.id,
         type: "approve" as any,
       });
-      const { error } = await supabase
+      if (insertError) throw insertError;
+      const { data, error } = await supabase
         .from("posts")
         .update({ status_column: "approved" as PostStatus } as any)
-        .eq("id", post.id);
+        .eq("id", post.id)
+        .eq("status_column", "client_approval")
+        .select("id")
+        .single();
       if (error) throw error;
+      if (!data) throw new Error("POST_ALREADY_MOVED");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["client-pipeline"] });
       toast.success("Approved! Content is now in queue.");
     },
-    onError: (err: any) => toast.error(err.message || "Failed to approve"),
+    onError: (err: any) => {
+      if (err.message === "POST_ALREADY_MOVED") {
+        toast.error("Post status has already changed — refresh to see the latest.");
+      } else {
+        toast.error(err.message || "Failed to approve");
+      }
+    },
   });
 
   return (

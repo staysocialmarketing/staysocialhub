@@ -161,17 +161,27 @@ function MarkAsScheduledButton({ postId }: { postId: string }) {
 
   const markScheduled = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("posts")
         .update({ status_column: "scheduled" as any })
-        .eq("id", postId);
+        .eq("id", postId)
+        .eq("status_column", "approved")
+        .select("id")
+        .single();
       if (error) throw error;
+      if (!data) throw new Error("POST_ALREADY_MOVED");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["approval-posts"] });
       toast.success("Marked as scheduled");
     },
-    onError: (err: any) => toast.error(err.message || "Failed to update status"),
+    onError: (err: any) => {
+      if (err.message === "POST_ALREADY_MOVED") {
+        toast.error("Post has already moved on — refresh to see the latest status.");
+      } else {
+        toast.error(err.message || "Failed to update status");
+      }
+    },
   });
 
   return (
