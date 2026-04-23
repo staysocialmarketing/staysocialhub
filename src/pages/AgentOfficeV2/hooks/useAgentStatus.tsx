@@ -14,7 +14,8 @@ export const STATE_OPACITY: Record<AgentState, number> = {
 };
 
 // Keys that start as placeholders but activate when DB status transitions away from 'placeholder'
-const INITIALLY_PLACEHOLDER_KEYS = new Set(['forge', 'pixel']);
+// (forge and pixel are now live — isPlaceholder: false in agents.ts)
+const INITIALLY_PLACEHOLDER_KEYS = new Set<string>();
 
 function resolveState(rawStatus: string, key: string): AgentState {
   const s = (rawStatus ?? '').toLowerCase();

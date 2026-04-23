@@ -1,14 +1,14 @@
 import { MEETING_SEATS } from './desks';
 
 // ---------------------------------------------------------------------------
-// Column x-positions — vertical corridors agents walk along
+// Column x-positions — vertical corridors agents walk along (1280px canvas)
 // ---------------------------------------------------------------------------
-export const COL_W     = 106;   // Gavin / creative-pod centre
-export const COL_L     = 340;   // Scout column
-export const COL_C     = 480;   // Corey / Lev / Quill
-export const COL_R     = 620;   // Ember column
-export const COL_STAIR = 700;   // Staircase column (gap between AI Core pod and Sales pod)
-export const COL_E     = 854;   // Tristan / sales-pod centre
+export const COL_W     = 132;   // Gavin / creative-pod centre (87 + 45)
+export const COL_L     = 470;   // Scout column (440 + 30)
+export const COL_C     = 640;   // Corey / Lev / Quill (centred in AI Core pod)
+export const COL_R     = 730;   // Ember column (700 + 30)
+export const COL_STAIR = 960;   // Staircase column (gap between AI Core pod and Sales pod)
+export const COL_E     = 1148;  // Tristan / sales-pod centre (1103 + 45)
 
 // Horizontal aisle y-position — clear corridor between ROW1 bottom (~351) and ROW2 top (460)
 export const AISLE_N_Y = 415;

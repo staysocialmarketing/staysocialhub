@@ -15,6 +15,8 @@ const T  = "#b84a18";  // bold warm shirt
 const TH = "#d45e22";
 const TD = "#7a2e0a";
 
+const BRD = "#1a1a1a";  // short black beard
+
 export function TristanSprite() {
   const P = 3, W = 16 * P, Ht = 20 * P;
   const r = (x: number, y: number, w: number, h: number, fill: string) => (
@@ -51,6 +53,9 @@ export function TristanSprite() {
       {r(6, 8, 4, 1, SD)}
       {r(6, 8, 1, 1, SH)}
       {r(9, 8, 1, 1, SH)}
+      {/* Short black beard: 3–4px strip below mouth */}
+      {r(5, 9, 6, 1, BRD)}
+      {r(6, 9, 4, 1, "#0a0a0a")} {/* slightly darker center */}
 
       {/* ── Neck ── */}
       {r(6, 10, 4, 1, S)}

@@ -12,6 +12,7 @@ const Ht = 20 * P;
 const H  = '#100c08'; const HH = '#1e1814';
 const S  = '#2e1a0c'; const SH = '#4a2e18'; const SD = '#1c0e06'; const EY = '#0a0604';
 const T  = '#b84a18'; const TH = '#d45e22'; const TD = '#7a2e0a';
+const BRD = '#1a1a1a'; // short black beard
 const TP = '#1a0a08'; // very dark pants (contrast with bold shirt)
 const DP = '#080c14';
 
@@ -43,6 +44,8 @@ const headFront: R[] = [
   r(3,3,10,7,S), r(3,3,1,7,SD), r(12,3,1,7,SD), r(4,3,8,2,SH),
   r(4,6,3,1,SH), r(9,6,3,1,SH), r(4,5,2,2,EY), r(9,5,2,2,EY),
   r(6,8,4,1,SD), r(6,8,1,1,SH), r(9,8,1,1,SH),
+  // Short black beard: strip below mouth
+  r(5,9,6,1,BRD), r(6,9,4,1,'#0a0a0a'),
   // Neck
   r(6,10,4,1,S), r(6,10,1,1,SD), r(9,10,1,1,SD),
   // Full-width shoulders (stocky)
@@ -74,6 +77,8 @@ const headLeft: R[] = [
   r(3,2,9,7,S), r(3,2,1,7,SD), r(4,2,7,2,SH),
   r(3,5,1,1,SD), r(5,5,1,2,EY), r(11,6,1,2,SD), r(5,8,2,1,SD),
   r(5,9,5,1,S), r(5,9,1,1,SD), r(9,9,1,1,SD),
+  // Beard (side profile: jaw strip — after skin so it shows)
+  r(6,9,3,1,BRD),
   r(1,10,12,1,TH), r(1,10,1,6,TD), r(13,10,1,6,TD),
   r(5,10,3,1,T),
   r(2,11,10,5,T), r(3,11,8,1,TH),
@@ -105,6 +110,8 @@ const headBack: R[] = [
   r(4,0,4,1,HH), r(1,1,1,3,HH), r(14,1,1,3,HH),
   r(1,4,2,3,H), r(13,4,2,3,H),
   r(6,9,4,1,SD),
+  // Beard: visible on sides of jaw from back view
+  r(4,9,2,1,BRD), r(10,9,2,1,BRD),
   r(6,10,4,1,S), r(6,10,1,1,SD), r(9,10,1,1,SD),
   r(0,11,16,1,TH), r(0,11,1,1,TD), r(15,11,1,1,TD), r(6,11,4,1,T),
   r(1,12,14,4,T), r(1,12,1,4,TD), r(14,12,1,4,TD), r(2,12,12,1,TH),

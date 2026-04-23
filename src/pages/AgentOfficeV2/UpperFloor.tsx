@@ -16,15 +16,15 @@ const WIN_W = 200;
 const WIN_H = 90;
 const WIN_Y = 10;  // 10px from top, well within back wall
 
-// Centre both windows in the room interior (x=188..772 = 584px wide)
-// Total occupied: 200+60+200=460. Margin each side=(584-460)/2=62.
-const HALIFAX_X  = 188 + 62;        // 250
-const TORONTO_X  = HALIFAX_X + WIN_W + 60; // 510  (right edge 710 < 772 ✓)
+// Centre both windows in the room interior (x=188..1092 = 904px wide)
+// Total occupied: 200+100+200=500. Margin each side=(904-500)/2=202.
+const HALIFAX_X  = 188 + 202;       // 390
+const TORONTO_X  = HALIFAX_X + WIN_W + 100; // 690  (right edge 890 < 1092 ✓)
 
 // Meeting table — centred in canvas, below back wall
-const TABLE_W = 320;
+const TABLE_W = 380;
 const TABLE_H = 60;
-const TABLE_X = (CANVAS_W - TABLE_W) / 2; // 320
+const TABLE_X = (CANVAS_W - TABLE_W) / 2; // 450 (center x = 640)
 const TABLE_Y = 148;
 
 // Chair dimensions
@@ -33,10 +33,10 @@ const CHAIR_H = 14;
 
 // 4 chairs per side, evenly spaced across TABLE_W
 const CHAIR_XS = [
-  TABLE_X + 43,   // 363
-  TABLE_X + 112,  // 432
-  TABLE_X + 181,  // 501
-  TABLE_X + 250,  // 570
+  TABLE_X + 51,   // 501
+  TABLE_X + 133,  // 583
+  TABLE_X + 215,  // 665
+  TABLE_X + 297,  // 747
 ];
 const TOP_CHAIR_Y    = TABLE_Y - CHAIR_H - 3; // 131
 const BOTTOM_CHAIR_Y = TABLE_Y + TABLE_H + 3; // 211
@@ -47,18 +47,18 @@ const WB_Y = 70;
 const WB_W = 38;
 const WB_H = 50;
 
-// Door opening — aligned with staircase at COL_STAIR=700
+// Door opening — aligned with staircase at COL_STAIR=960
 const DOOR_W = 30;
 const DOOR_H = 50;
-const DOOR_X = COL_STAIR - DOOR_W / 2; // 685
+const DOOR_X = COL_STAIR - DOOR_W / 2; // 945
 const DOOR_Y = UPPER_FLOOR_H - DOOR_H - 4; // 206
 
 const ACTIVE_CAMPAIGN = 'Premiere · Punta Cana Contest';
 
 // Plants — flanking the city windows
 const PLANTS = [
-  { x: 215, y: 14 },  // left of Halifax window
-  { x: 735, y: 14 },  // right of Toronto window
+  { x: 355, y: 14 },  // left of Halifax window (HALIFAX_X - 35)
+  { x: 905, y: 14 },  // right of Toronto window (TORONTO_X + WIN_W + 15)
 ];
 
 export function UpperFloor() {
@@ -214,7 +214,7 @@ export function UpperFloor() {
       <div
         style={{
           position: 'absolute',
-          left: 772,
+          left: 1092,
           top: ROOM_Y,
           width: 4,
           height: ROOM_H,
@@ -311,7 +311,7 @@ export function UpperFloor() {
 
       {/* Wall clock — right side of back wall, between Toronto window and right edge */}
       <svg
-        style={{ position: 'absolute', left: 860, top: 18, width: 22, height: 22, pointerEvents: 'none' }}
+        style={{ position: 'absolute', left: 1120, top: 18, width: 22, height: 22, pointerEvents: 'none' }}
       >
         <circle cx="11" cy="11" r="10" fill="#d8d0b8" stroke="#4a6888" strokeWidth="1" />
         {/* Tick marks at 12, 3, 6, 9 */}
@@ -360,6 +360,21 @@ export function UpperFloor() {
 
       {/* Chair rail — subtle horizontal architectural line at 40% of back wall height */}
       <div style={{ position: 'absolute', left: 0, top: 50, width: CANVAS_W, height: 1, background: '#253040', pointerEvents: 'none' }} />
+
+      {/* Wall shelf — left side between whiteboard and Halifax window */}
+      <div style={{ position: 'absolute', left: 240, top: 58, width: 120, height: 3, background: '#2a3040', border: '1px solid #3a4050', pointerEvents: 'none', opacity: 0.7 }} />
+      {/* Shelf items: small book spines */}
+      <div style={{ position: 'absolute', left: 244, top: 46, width: 6, height: 12, background: '#4a2818', border: '1px solid #2a1808', pointerEvents: 'none', opacity: 0.8 }} />
+      <div style={{ position: 'absolute', left: 252, top: 48, width: 5, height: 10, background: '#183040', border: '1px solid #0e2030', pointerEvents: 'none', opacity: 0.8 }} />
+      <div style={{ position: 'absolute', left: 259, top: 47, width: 6, height: 11, background: '#2a3018', border: '1px solid #1a2008', pointerEvents: 'none', opacity: 0.8 }} />
+      <div style={{ position: 'absolute', left: 267, top: 49, width: 4, height: 9, background: '#381828', border: '1px solid #28081a', pointerEvents: 'none', opacity: 0.8 }} />
+
+      {/* Wall shelf — right side between Toronto window and clock */}
+      <div style={{ position: 'absolute', left: 910, top: 58, width: 120, height: 3, background: '#2a3040', border: '1px solid #3a4050', pointerEvents: 'none', opacity: 0.7 }} />
+      {/* Shelf items */}
+      <div style={{ position: 'absolute', left: 914, top: 46, width: 6, height: 12, background: '#18304a', border: '1px solid #0e2030', pointerEvents: 'none', opacity: 0.8 }} />
+      <div style={{ position: 'absolute', left: 922, top: 48, width: 5, height: 10, background: '#3a1820', border: '1px solid #280e18', pointerEvents: 'none', opacity: 0.8 }} />
+      <div style={{ position: 'absolute', left: 929, top: 47, width: 6, height: 11, background: '#182838', border: '1px solid #0e1828', pointerEvents: 'none', opacity: 0.8 }} />
 
       {/* Meeting room label */}
       <div
