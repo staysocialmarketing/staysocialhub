@@ -53,10 +53,6 @@ export function GavinSprite() {
       {r(9, 5, 2, 2, EY)}
       <rect x={5*P} y={5*P} width={1} height={1} fill="#fff" />
       <rect x={10*P} y={5*P} width={1} height={1} fill="#fff" />
-      {/* Glasses frames: two 3×2 rects + 1px bridge */}
-      {r(4, 5, 3, 2, GL)}
-      {r(9, 5, 3, 2, GL)}
-      {r(8, 5, 1, 1, GL)} {/* bridge */}
       {/* Eye pupils over glasses */}
       {r(5, 5, 1, 1, EY)}
       {r(10, 5, 1, 1, EY)}
