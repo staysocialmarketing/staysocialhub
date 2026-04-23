@@ -14,30 +14,29 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarWidget } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  MessageSquare, Calendar, Image as ImageIcon, Plus, Clock, FileText, Film, LayoutGrid, Play, Mail, Send, CheckCircle2,
+  MessageSquare, Calendar, Image as ImageIcon, Plus, Clock, FileText, Film, LayoutGrid, Play, Mail, Send, CheckCircle2, RotateCcw, ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
-import { format, isToday, startOfDay } from "date-fns";
+import { format, isToday, startOfDay, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/imageUtils";
 import type { Database } from "@/integrations/supabase/types";
 import WorkflowCardDialog from "@/components/WorkflowCardDialog";
 import { PlatformBadges } from "@/components/PlatformBadge";
 import ApprovalActions from "@/components/ApprovalActions";
-import { CONTENT_TYPE_OPTIONS, AUDIENCE_OPTIONS } from "@/lib/workflowUtils";
+import { CONTENT_TYPE_OPTIONS, AUDIENCE_OPTIONS, getStatusesForAdminColumn } from "@/lib/workflowUtils";
 import FilterBar, { useFilterBar, applyDueDateFilter, PRIORITY_FILTER_OPTIONS, DUE_DATE_FILTER_OPTIONS } from "@/components/FilterBar";
 import type { FilterConfig } from "@/components/FilterBar";
 import { useClientFilter } from "@/contexts/ClientFilterContext";
 
 type PostStatus = Database["public"]["Enums"]["post_status"];
 
+// client_approval is hidden from the kanban — it lives in Approval Batches (Approvals.tsx)
 const PRIMARY_COLUMNS: { key: PostStatus; label: string }[] = [
   { key: "idea", label: "New" },
   { key: "ai_draft" as PostStatus, label: "AI Draft" },
   { key: "design" as PostStatus, label: "Design" },
-  { key: "in_progress" as PostStatus, label: "In Process" },
   { key: "corey_review" as PostStatus, label: "Corey Review" },
-  { key: "client_approval" as PostStatus, label: "Client Approval" },
 ];
 
 
@@ -81,6 +80,7 @@ export default function Workflow() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<any>(null);
+  const [expandedPipelineGroup, setExpandedPipelineGroup] = useState<string | null>(null);
   const { data: allClients = [] } = useQuery({
     queryKey: ["all-clients"],
     queryFn: async () => {
@@ -127,13 +127,21 @@ export default function Workflow() {
     enabled: !!profile,
   });
 
-  const { data: schedulingPosts = [] } = useQuery({
-    queryKey: ["scheduling-posts"],
+  const PIPELINE_STATUSES = [
+    ...getStatusesForAdminColumn("batch_pending"),
+    ...getStatusesForAdminColumn("client_approval"),
+    ...getStatusesForAdminColumn("ready_to_schedule"),
+    ...getStatusesForAdminColumn("scheduled"),
+    "published" as PostStatus,
+  ] as const;
+
+  const { data: pipelinePosts = [] } = useQuery({
+    queryKey: ["pipeline-posts"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("posts")
         .select("*, clients(name), assigned_user:assigned_to_user_id(name)")
-        .in("status_column", ["ready_to_schedule", "ready_to_send"])
+        .in("status_column", [...PIPELINE_STATUSES])
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -265,7 +273,7 @@ export default function Workflow() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["scheduling-posts"] });
+      queryClient.invalidateQueries({ queryKey: ["pipeline-posts"] });
       queryClient.invalidateQueries({ queryKey: ["workflow-posts"] });
       toast.success("Marked as scheduled");
     },
@@ -337,6 +345,11 @@ export default function Workflow() {
             {post.request_id && (
               <Badge variant="secondary" className="text-[10px] gap-0.5 border-0">
                 <FileText className="h-2.5 w-2.5" />Request
+              </Badge>
+            )}
+            {(post.revision_count ?? 0) > 0 && (
+              <Badge variant="secondary" className="text-[10px] gap-0.5 border-0 bg-amber-500/10 text-amber-600">
+                <RotateCcw className="h-2.5 w-2.5" />R{post.revision_count}
               </Badge>
             )}
           </div>
@@ -548,81 +561,153 @@ export default function Workflow() {
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
 
-      {isSSAdmin && schedulingPosts.length > 0 && (
-        <div className="mt-6 shrink-0">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">Ready for Scheduling</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {schedulingPosts.length} post{schedulingPosts.length !== 1 ? "s" : ""} awaiting scheduling in GHL
-              </p>
+      {isSSAdmin && (() => {
+        const awaitingStatuses = [
+          ...getStatusesForAdminColumn("batch_pending"),
+          ...getStatusesForAdminColumn("client_approval"),
+        ];
+        const readyStatuses = getStatusesForAdminColumn("ready_to_schedule");
+        const sevenDaysAgo = subDays(new Date(), 7);
+
+        const groups = [
+          {
+            key: "awaiting_client",
+            label: "Awaiting client",
+            posts: pipelinePosts.filter((p: any) => awaitingStatuses.includes(p.status_column)),
+            accent: "text-amber-600",
+            pill: "bg-amber-500/10 text-amber-600 hover:bg-amber-500/20",
+          },
+          {
+            key: "ready_to_schedule",
+            label: "Ready to schedule",
+            posts: pipelinePosts.filter((p: any) => readyStatuses.includes(p.status_column)),
+            accent: "text-emerald-600",
+            pill: "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20",
+            hasActions: true,
+          },
+          {
+            key: "scheduled",
+            label: "Scheduled",
+            posts: pipelinePosts.filter((p: any) => p.status_column === "scheduled"),
+            accent: "text-blue-600",
+            pill: "bg-blue-500/10 text-blue-600 hover:bg-blue-500/20",
+          },
+          {
+            key: "published",
+            label: "Published this week",
+            posts: pipelinePosts.filter((p: any) =>
+              p.status_column === "published" &&
+              new Date(p.scheduled_at ?? p.created_at) >= sevenDaysAgo,
+            ),
+            accent: "text-violet-600",
+            pill: "bg-violet-500/10 text-violet-600 hover:bg-violet-500/20",
+          },
+        ];
+
+        const totalPipeline = groups.reduce((sum, g) => sum + g.posts.length, 0);
+        if (totalPipeline === 0) return null;
+
+        const expanded = groups.find(g => g.key === expandedPipelineGroup);
+
+        return (
+          <div className="mt-6 shrink-0">
+            <h2 className="text-xs font-bold text-foreground uppercase tracking-wider mb-3">Post-Approval Pipeline</h2>
+
+            {/* Stat row */}
+            <div className="flex flex-wrap gap-2">
+              {groups.map(group => (
+                <button
+                  key={group.key}
+                  type="button"
+                  onClick={() => setExpandedPipelineGroup(
+                    expandedPipelineGroup === group.key ? null : group.key,
+                  )}
+                  className={cn(
+                    "flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors border border-transparent",
+                    group.pill,
+                    expandedPipelineGroup === group.key && "ring-1 ring-current",
+                  )}
+                >
+                  <span className="text-base font-bold leading-none">{group.posts.length}</span>
+                  <span className="text-xs opacity-80">{group.label}</span>
+                  <ChevronDown className={cn(
+                    "h-3.5 w-3.5 opacity-60 transition-transform",
+                    expandedPipelineGroup === group.key && "rotate-180",
+                  )} />
+                </button>
+              ))}
             </div>
+
+            {/* Expanded post list */}
+            {expanded && (
+              <div className="mt-3 space-y-1.5">
+                {expanded.posts.length === 0 ? (
+                  <p className="text-xs text-muted-foreground px-1">No posts</p>
+                ) : expanded.posts.map((post: any) => {
+                  const ct = post.content_type ? contentTypeConfig[post.content_type] : null;
+                  const isReadyToSend = post.status_column === "ready_to_send";
+                  return (
+                    <div
+                      key={post.id}
+                      className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-muted/40 hover:bg-muted/70 cursor-pointer transition-colors"
+                      onClick={() => setSelectedPost(post)}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{post.title}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {post.clients?.name}
+                          {post.scheduled_at && (
+                            <span className="ml-2 opacity-70">
+                              · {format(new Date(post.scheduled_at), "MMM d")}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      {ct && (
+                        <Badge variant="secondary" className={`text-[10px] border-0 gap-1 shrink-0 ${ct.className}`}>
+                          {ct.icon}{ct.label}
+                        </Badge>
+                      )}
+                      {expanded.hasActions && (
+                        <div className="flex gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+                          {isReadyToSend ? (
+                            <Button
+                              size="sm"
+                              className="text-xs rounded-xl gap-1 h-7 px-2.5"
+                              onClick={() => sendNow.mutate(post.id)}
+                              disabled={sendNow.isPending}
+                            >
+                              <Send className="h-3 w-3" />Send
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              className="text-xs rounded-xl gap-1 h-7 px-2.5"
+                              onClick={() => markScheduled.mutate(post.id)}
+                              disabled={markScheduled.isPending}
+                            >
+                              <CheckCircle2 className="h-3 w-3" />Schedule in GHL
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs rounded-xl h-7 px-2.5"
+                            onClick={() => markScheduled.mutate(post.id)}
+                            disabled={markScheduled.isPending}
+                          >
+                            Done
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-          <ScrollArea>
-            <div className="flex gap-3 pb-3">
-              {schedulingPosts.map((post: any) => {
-                const ct = post.content_type ? contentTypeConfig[post.content_type] : null;
-                const isReadyToSend = post.status_column === "ready_to_send";
-                return (
-                  <div
-                    key={post.id}
-                    className="w-[240px] shrink-0 card-elevated p-3.5 space-y-2.5 cursor-pointer hover:shadow-lifted transition-all"
-                    onClick={() => setSelectedPost(post)}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <h4 className="text-sm font-semibold text-foreground line-clamp-2 flex-1">{post.title}</h4>
-                      {isReadyToSend
-                        ? <Badge className="text-[10px] bg-blue-500/10 text-blue-600 border-0 shrink-0">Email</Badge>
-                        : <Badge className="text-[10px] bg-emerald-500/10 text-emerald-600 border-0 shrink-0">Social</Badge>
-                      }
-                    </div>
-                    {post.clients?.name && (
-                      <p className="text-xs text-muted-foreground">{post.clients.name}</p>
-                    )}
-                    {ct && (
-                      <Badge variant="secondary" className={`text-[10px] border-0 gap-1 ${ct.className}`}>
-                        {ct.icon} {ct.label}
-                      </Badge>
-                    )}
-                    {(() => {
-                      const pc = (post as any).platform_content as Record<string, any> | null;
-                      const platformKeys = pc && Object.keys(pc).length > 0 ? Object.keys(pc) : null;
-                      const platformValue = platformKeys ?? post.platform;
-                      return platformValue ? <PlatformBadges platformStr={platformValue} /> : null;
-                    })()}
-                    {post.scheduled_at && (
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {format(new Date(post.scheduled_at), "MMM d, yyyy")}
-                      </p>
-                    )}
-                    <div className="flex gap-2 pt-1" onClick={e => e.stopPropagation()}>
-                      <Button
-                        size="sm"
-                        className="flex-1 text-xs rounded-xl gap-1"
-                        onClick={() => markScheduled.mutate(post.id)}
-                        disabled={markScheduled.isPending}
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5" />Schedule in GHL
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-xs rounded-xl px-2.5"
-                        onClick={() => markScheduled.mutate(post.id)}
-                        disabled={markScheduled.isPending}
-                      >
-                        Done
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
-        </div>
-      )}
+        );
+      })()}
 
       {selectedPost && (
         <WorkflowCardDialog

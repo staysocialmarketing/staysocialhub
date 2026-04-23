@@ -1,368 +1,246 @@
-import { useState } from "react";
+import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
+import { useClientFilter } from "@/contexts/ClientFilterContext";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { PlatformBadges } from "@/components/PlatformBadge";
-import RequestChangesModal from "@/components/RequestChangesModal";
-import { toast } from "sonner";
-import {
-  CheckCircle,
-  RotateCcw,
-  Image as ImageIcon,
-  Loader2,
-  Clock,
-  CalendarCheck,
-  Send,
-  Zap,
-} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { PlatformBadge } from "@/components/PlatformBadge";
+import ApprovalActions from "@/components/ApprovalActions";
+import { Clock, RotateCcw, AlertCircle } from "lucide-react";
+import { format, startOfDay, isToday } from "date-fns";
 import { cn } from "@/lib/utils";
+import {
+  CLIENT_PIPELINE_COLUMNS,
+  getStatusesForClientColumn,
+} from "@/lib/workflowUtils";
 import type { Database } from "@/integrations/supabase/types";
 
 type PostStatus = Database["public"]["Enums"]["post_status"];
 
-// ─── Stage config ─────────────────────────────────────────────────────────────
+const ALL_CLIENT_STATUSES = CLIENT_PIPELINE_COLUMNS
+  .flatMap((col) => getStatusesForClientColumn(col.key)) as PostStatus[];
 
-const IN_PROGRESS_STATUSES: PostStatus[] = [
-  "in_progress",
-  "writing",
-  "design",
-  "request_changes",
-] as PostStatus[];
-
-const STAGES = [
-  {
-    key: "in_progress",
-    label: "In Progress",
-    description: "Content being worked on",
-    icon: <Zap className="h-4 w-4" />,
-    color: "text-amber-500",
-    bgColor: "bg-amber-500/10",
-    borderColor: "border-amber-500/20",
-    statuses: IN_PROGRESS_STATUSES,
-  },
-  {
-    key: "client_approval",
-    label: "Content for Approval",
-    description: "Needs your review",
-    icon: <CheckCircle className="h-4 w-4" />,
-    color: "text-primary",
-    bgColor: "bg-primary/10",
-    borderColor: "border-primary/30",
-    statuses: ["client_approval"] as PostStatus[],
-    hasActions: true,
-  },
-  {
-    key: "in_queue",
-    label: "In Queue",
-    description: "Approved & ready to go",
-    icon: <Clock className="h-4 w-4" />,
-    color: "text-blue-500",
-    bgColor: "bg-blue-500/10",
-    borderColor: "border-blue-500/20",
-    statuses: ["approved", "ready_to_schedule", "scheduled"] as PostStatus[],
-  },
-  {
-    key: "posted",
-    label: "Posted",
-    description: "Live and published",
-    icon: <Send className="h-4 w-4" />,
-    color: "text-emerald-500",
-    bgColor: "bg-emerald-500/10",
-    borderColor: "border-emerald-500/20",
-    statuses: ["published"] as PostStatus[],
-  },
-] as const;
-
-// ─── Post Card ────────────────────────────────────────────────────────────────
+function getDueDateColor(dueAt: string | null) {
+  if (!dueAt) return null;
+  const due = startOfDay(new Date(dueAt));
+  const today = startOfDay(new Date());
+  if (due < today) return "text-destructive";
+  if (isToday(due)) return "text-warning";
+  return "text-muted-foreground";
+}
 
 function PipelineCard({
   post,
-  showActions,
+  showApprovalActions,
   canApprove,
 }: {
   post: any;
-  showActions?: boolean;
-  canApprove?: boolean;
-}) {
-  const navigate = useNavigate();
-  const { profile } = useAuth();
-  const queryClient = useQueryClient();
-  const [changesOpen, setChangesOpen] = useState(false);
-
-  const thumbnail =
-    post.creative_url ||
-    (post.post_images && post.post_images.length > 0
-      ? post.post_images[0].url
-      : null);
-
-  const approve = useMutation({
-    mutationFn: async () => {
-      if (!profile) throw new Error("Not logged in");
-      const { error: insertError } = await supabase.from("approvals").insert({
-        post_id: post.id,
-        user_id: profile.id,
-        type: "approve" as any,
-      });
-      if (insertError) throw insertError;
-      const { data, error } = await supabase
-        .from("posts")
-        .update({ status_column: "approved" as PostStatus } as any)
-        .eq("id", post.id)
-        .eq("status_column", "client_approval")
-        .select("id")
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) {
-        toast.error("Already approved — refresh to see current status.");
-        return;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["client-pipeline"] });
-      toast.success("Approved! Content is now in queue.");
-    },
-    onError: (err: any) => {
-      toast.error(err.message || "Failed to approve");
-    },
-  });
-
-  return (
-    <>
-      <Card
-        className="cursor-pointer hover:shadow-md transition-all duration-200 group"
-        onClick={() => navigate(`/approvals/${post.id}`)}
-      >
-        <CardContent className="p-0">
-          {/* Thumbnail */}
-          {thumbnail ? (
-            <div className="aspect-video rounded-t-xl overflow-hidden bg-muted">
-              <img
-                src={thumbnail}
-                alt={post.title}
-                className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-200"
-              />
-            </div>
-          ) : (
-            <div className="aspect-video rounded-t-xl bg-muted/60 flex items-center justify-center">
-              <ImageIcon className="h-8 w-8 text-muted-foreground/30" />
-            </div>
-          )}
-
-          <div className="p-3 space-y-2">
-            {/* Title */}
-            <h4 className="text-sm font-semibold text-foreground line-clamp-2 leading-snug">
-              {post.title}
-            </h4>
-
-            {/* Platform badges */}
-            {post.platform && (
-              <PlatformBadges platformStr={post.platform} />
-            )}
-
-            {/* Scheduled date if present */}
-            {post.scheduled_at && (
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <CalendarCheck className="h-3 w-3" />
-                <span>
-                  {new Date(post.scheduled_at).toLocaleDateString("en-CA", {
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </span>
-              </div>
-            )}
-
-            {/* Action buttons — only for "Content for Approval" stage */}
-            {showActions && canApprove && (
-              <div
-                className="flex gap-2 pt-1"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Button
-                  size="sm"
-                  className="flex-1 gap-1 min-h-[40px] text-xs"
-                  onClick={() => approve.mutate()}
-                  disabled={approve.isPending}
-                >
-                  {approve.isPending ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <CheckCircle className="h-3.5 w-3.5" />
-                  )}
-                  Approve
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1 gap-1 min-h-[40px] text-xs"
-                  onClick={() => setChangesOpen(true)}
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  Changes
-                </Button>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <RequestChangesModal
-        postId={post.id}
-        postTitle={post.title}
-        open={changesOpen}
-        onOpenChange={setChangesOpen}
-      />
-    </>
-  );
-}
-
-// ─── Stage Column ─────────────────────────────────────────────────────────────
-
-function StageColumn({
-  stage,
-  posts,
-  canApprove,
-}: {
-  stage: (typeof STAGES)[number];
-  posts: any[];
+  showApprovalActions: boolean;
   canApprove: boolean;
 }) {
+  const navigate = useNavigate();
+  const dueDateColor = getDueDateColor(post.due_at);
+  const platforms: string[] = (() => {
+    const pc = post.platform_content as Record<string, any> | null;
+    if (pc && Object.keys(pc).length > 0) return Object.keys(pc);
+    return post.platform ? post.platform.split(",").map((p: string) => p.trim()) : [];
+  })();
+
   return (
-    <div className="flex flex-col min-w-[260px] flex-1">
-      {/* Column header */}
+    <div className="space-y-1.5">
       <div
-        className={cn(
-          "rounded-xl border p-3 mb-3 flex items-center gap-2",
-          stage.bgColor,
-          stage.borderColor
-        )}
+        className="card-elevated p-3 space-y-2 cursor-pointer hover:shadow-lifted transition-all"
+        onClick={() => navigate(`/approvals/${post.id}`)}
       >
-        <span className={stage.color}>{stage.icon}</span>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className={cn("text-sm font-bold", stage.color)}>
-              {stage.label}
-            </h3>
+        {post.creative_url && (
+          <div className="aspect-video bg-muted rounded-xl overflow-hidden">
+            <img src={post.creative_url} alt="" className="w-full h-full object-cover" />
+          </div>
+        )}
+
+        <h4 className="text-sm font-semibold text-foreground line-clamp-2">{post.title}</h4>
+
+        {platforms.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {platforms.map((p) => <PlatformBadge key={p} platform={p} />)}
+          </div>
+        )}
+
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          {post.due_at && (
+            <span className={cn("flex items-center gap-1", dueDateColor)}>
+              <Clock className="h-3 w-3" />
+              {format(new Date(post.due_at), "MMM d")}
+            </span>
+          )}
+          {(post.revision_count ?? 0) > 0 && (
             <Badge
               variant="secondary"
-              className="text-[10px] h-4 px-1.5 shrink-0"
+              className="text-[10px] gap-0.5 border-0 bg-amber-500/10 text-amber-600 ml-auto"
             >
-              {posts.length}
+              <RotateCcw className="h-2.5 w-2.5" />R{post.revision_count}
             </Badge>
-          </div>
-          <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
-            {stage.description}
-          </p>
+          )}
         </div>
       </div>
 
-      {/* Cards */}
-      <div className="flex flex-col gap-3 flex-1">
-        {posts.length === 0 ? (
-          <div className="flex-1 rounded-xl border-2 border-dashed border-muted flex items-center justify-center py-10 text-center px-4">
-            <p className="text-xs text-muted-foreground">Nothing here yet</p>
-          </div>
-        ) : (
-          posts.map((post) => (
-            <PipelineCard
-              key={post.id}
-              post={post}
-              showActions={"hasActions" in stage && stage.hasActions}
-              canApprove={canApprove}
-            />
-          ))
-        )}
-      </div>
+      {showApprovalActions && canApprove && (
+        <ApprovalActions
+          postId={post.id}
+          postTitle={post.title}
+          currentStatus={post.status_column}
+          contentType={post.content_type}
+        />
+      )}
     </div>
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
-
 export default function ClientPipeline() {
-  const { profile, isClientAdmin, isClientAssistant } = useAuth();
+  const { profile, isClientAdmin, isClientAssistant, isImpersonating } = useAuth();
+  const { selectedClientId: globalClientId } = useClientFilter();
+  const forApprovalRef = useRef<HTMLDivElement>(null);
+
+  const clientId = globalClientId || profile?.client_id;
+
+  const { data: posts = [], isLoading } = useQuery({
+    queryKey: ["client-pipeline-posts", clientId],
+    queryFn: async () => {
+      if (!clientId) return [];
+      const { data, error } = await supabase
+        .from("posts")
+        .select("*, comments(id)")
+        .eq("client_id", clientId)
+        .in("status_column", ALL_CLIENT_STATUSES)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!clientId,
+  });
 
   const { data: clientSettings } = useQuery({
-    queryKey: ["client-settings-pipeline", profile?.client_id],
+    queryKey: ["client-settings", clientId],
     queryFn: async () => {
-      if (!profile?.client_id) return null;
+      if (!clientId) return null;
       const { data } = await supabase
         .from("clients")
         .select("assistants_can_approve")
-        .eq("id", profile.client_id)
+        .eq("id", clientId)
         .single();
       return data;
     },
-    enabled: !!profile?.client_id,
+    enabled: !!clientId,
   });
 
-  const canApprove =
-    isClientAdmin ||
-    (isClientAssistant && !!clientSettings?.assistants_can_approve);
+  // isImpersonating = admin in View As mode — block approvals to prevent accidental actions
+  const canApprove = !isImpersonating &&
+    (isClientAdmin || (isClientAssistant && !!clientSettings?.assistants_can_approve));
 
-  const allStatuses = STAGES.flatMap((s) => s.statuses as PostStatus[]);
+  const forApprovalCount = posts.filter(
+    (p: any) => p.status_column === "client_approval",
+  ).length;
 
-  const { data: posts = [], isLoading } = useQuery({
-    queryKey: ["client-pipeline", profile?.client_id],
-    queryFn: async () => {
-      if (!profile?.client_id) return [];
-      const { data, error } = await supabase
-        .from("posts")
-        .select("id, title, platform, status_column, scheduled_at, creative_url, post_images(url, position)")
-        .eq("client_id", profile.client_id)
-        .in("status_column", allStatuses)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      // Sort post_images by position so primary image is first
-      return (data || []).map((p: any) => ({
-        ...p,
-        post_images: (p.post_images || []).sort(
-          (a: any, b: any) => (a.position ?? 0) - (b.position ?? 0)
-        ),
-      }));
-    },
-    enabled: !!profile?.client_id,
-  });
-
-  const getPostsForStage = (stage: (typeof STAGES)[number]) =>
-    posts.filter((p: any) =>
-      (stage.statuses as readonly string[]).includes(p.status_column)
-    );
+  const columnData = CLIENT_PIPELINE_COLUMNS.map((col) => ({
+    ...col,
+    posts: posts.filter((p: any) =>
+      getStatusesForClientColumn(col.key).includes(p.status_column as PostStatus),
+    ),
+  }));
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     );
   }
 
   return (
-    <div className="p-4 sm:p-8 max-w-[1400px] mx-auto">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-foreground tracking-tight">
-          Content Pipeline
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Track your content from creation to publication
+    <div className="flex flex-col h-full p-4 sm:p-6 gap-5">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-foreground tracking-tight">Content Pipeline</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Your content, from brief to posted
         </p>
       </div>
 
-      {/* Kanban columns — horizontal scroll on small screens */}
-      <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 sm:mx-0 sm:px-0">
-        {STAGES.map((stage) => (
-          <StageColumn
-            key={stage.key}
-            stage={stage}
-            posts={getPostsForStage(stage)}
-            canApprove={canApprove}
-          />
-        ))}
-      </div>
+      {/* Approval banner */}
+      {forApprovalCount > 0 && (
+        <button
+          type="button"
+          className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-primary/8 border border-primary/20 hover:bg-primary/12 transition-colors text-left w-full"
+          onClick={() => forApprovalRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" })}
+        >
+          <AlertCircle className="h-5 w-5 text-primary shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground">
+              {forApprovalCount} post{forApprovalCount !== 1 ? "s" : ""} ready for your review
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Tap to jump to the For Approval column
+            </p>
+          </div>
+          <span className="text-xs font-medium text-primary shrink-0">Review →</span>
+        </button>
+      )}
+
+      {/* Kanban */}
+      <ScrollArea className="flex-1 min-h-0 -mx-4 sm:-mx-6">
+        <div
+          className="flex gap-3 px-4 sm:px-6 pb-4"
+          style={{ minWidth: CLIENT_PIPELINE_COLUMNS.length * 272 }}
+        >
+          {columnData.map((col) => {
+            const isForApproval = col.key === "for_approval";
+            return (
+              <div
+                key={col.key}
+                ref={isForApproval ? forApprovalRef : undefined}
+                className="w-[256px] sm:w-[272px] shrink-0 flex flex-col bg-muted/30 rounded-2xl"
+              >
+                <div className="px-4 py-3 flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
+                    {col.label}
+                  </h3>
+                  <Badge
+                    variant="secondary"
+                    className={cn(
+                      "text-[10px] h-5 min-w-[20px] justify-center",
+                      isForApproval && col.posts.length > 0 &&
+                        "bg-primary/10 text-primary",
+                    )}
+                  >
+                    {col.posts.length}
+                  </Badge>
+                </div>
+
+                <div className="px-2 pb-3 space-y-2 flex-1 min-h-[100px]">
+                  {col.posts.length === 0 ? (
+                    <div className="flex items-center justify-center h-16 text-[11px] text-muted-foreground/40 border border-dashed border-muted-foreground/15 rounded-xl">
+                      Nothing here yet
+                    </div>
+                  ) : (
+                    col.posts.map((post: any) => (
+                      <PipelineCard
+                        key={post.id}
+                        post={post}
+                        showApprovalActions={isForApproval}
+                        canApprove={canApprove}
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
     </div>
   );
 }

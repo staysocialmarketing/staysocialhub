@@ -1,3 +1,4 @@
+Initialising login role...
 export type Json =
   | string
   | number
@@ -11,6 +12,31 @@ export type Database = {
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
+  }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -56,6 +82,42 @@ export type Database = {
           },
         ]
       }
+      agent_morale: {
+        Row: {
+          agent_name: string
+          created_at: string | null
+          id: string
+          least_engaging: string | null
+          lev_summary: string | null
+          missing_context: string | null
+          most_engaging: string | null
+          suggestions: string | null
+          week_of: string
+        }
+        Insert: {
+          agent_name: string
+          created_at?: string | null
+          id?: string
+          least_engaging?: string | null
+          lev_summary?: string | null
+          missing_context?: string | null
+          most_engaging?: string | null
+          suggestions?: string | null
+          week_of: string
+        }
+        Update: {
+          agent_name?: string
+          created_at?: string | null
+          id?: string
+          least_engaging?: string | null
+          lev_summary?: string | null
+          missing_context?: string | null
+          most_engaging?: string | null
+          suggestions?: string | null
+          week_of?: string
+        }
+        Relationships: []
+      }
       agent_status: {
         Row: {
           id: string
@@ -63,6 +125,7 @@ export type Database = {
           role: string | null
           status: string
           task: string | null
+          task_tags: string[] | null
           updated_at: string
         }
         Insert: {
@@ -71,6 +134,7 @@ export type Database = {
           role?: string | null
           status?: string
           task?: string | null
+          task_tags?: string[] | null
           updated_at?: string
         }
         Update: {
@@ -79,7 +143,62 @@ export type Database = {
           role?: string | null
           status?: string
           task?: string | null
+          task_tags?: string[] | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      agent_updates: {
+        Row: {
+          agent_name: string
+          created_at: string | null
+          id: string
+          output_location: string | null
+          status: string | null
+          task_summary: string
+        }
+        Insert: {
+          agent_name: string
+          created_at?: string | null
+          id?: string
+          output_location?: string | null
+          status?: string | null
+          task_summary: string
+        }
+        Update: {
+          agent_name?: string
+          created_at?: string | null
+          id?: string
+          output_location?: string | null
+          status?: string | null
+          task_summary?: string
+        }
+        Relationships: []
+      }
+      agents: {
+        Row: {
+          activation_criteria: string | null
+          id: string
+          is_placeholder: boolean | null
+          member_type: string | null
+          name: string
+          role: string | null
+        }
+        Insert: {
+          activation_criteria?: string | null
+          id: string
+          is_placeholder?: boolean | null
+          member_type?: string | null
+          name: string
+          role?: string | null
+        }
+        Update: {
+          activation_criteria?: string | null
+          id?: string
+          is_placeholder?: boolean | null
+          member_type?: string | null
+          name?: string
+          role?: string | null
         }
         Relationships: []
       }
@@ -338,7 +457,7 @@ export type Database = {
             foreignKeyName: "brain_captures_converted_to_request_id_fkey"
             columns: ["converted_to_request_id"]
             isOneToOne: false
-            referencedRelation: "requests"
+            referencedRelation: "requests_archive"
             referencedColumns: ["id"]
           },
         ]
@@ -786,7 +905,7 @@ export type Database = {
             foreignKeyName: "comments_request_id_fkey"
             columns: ["request_id"]
             isOneToOne: false
-            referencedRelation: "requests"
+            referencedRelation: "requests_archive"
             referencedColumns: ["id"]
           },
           {
@@ -1127,6 +1246,39 @@ export type Database = {
         }
         Relationships: []
       }
+      open_items: {
+        Row: {
+          assigned_to: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          priority: string | null
+          status: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          priority?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          priority?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       plans: {
         Row: {
           created_at: string
@@ -1293,6 +1445,16 @@ export type Database = {
       }
       posts: {
         Row: {
+          agent_confidence: number | null
+          agent_status: string | null
+          ai_suggested_assignee: string | null
+          ai_suggested_client: string | null
+          ai_suggested_content_type: string | null
+          ai_suggested_next_action: string | null
+          ai_suggested_priority: string | null
+          ai_suggested_project: string | null
+          ai_suggested_subproject: string | null
+          ai_summary: string | null
           assigned_to_user_id: string | null
           audience: string | null
           campaign_link: string | null
@@ -1309,17 +1471,37 @@ export type Database = {
           internal_notes: string | null
           platform: string | null
           platform_content: Json
+          preferred_publish_window: string | null
           preview_text: string | null
+          priority: string | null
+          raw_attachment_url: string | null
+          raw_input_text: string | null
           request_id: string | null
+          request_notes: string | null
           reviewer_user_id: string | null
+          revision_count: number
           scheduled_at: string | null
           send_date: string | null
+          source: string
+          source_type: string | null
           status_column: Database["public"]["Enums"]["post_status"]
+          strategy_brief: Json | null
           subject_line: string | null
           tags: Json
           title: string
+          voice_transcript: string | null
         }
         Insert: {
+          agent_confidence?: number | null
+          agent_status?: string | null
+          ai_suggested_assignee?: string | null
+          ai_suggested_client?: string | null
+          ai_suggested_content_type?: string | null
+          ai_suggested_next_action?: string | null
+          ai_suggested_priority?: string | null
+          ai_suggested_project?: string | null
+          ai_suggested_subproject?: string | null
+          ai_summary?: string | null
           assigned_to_user_id?: string | null
           audience?: string | null
           campaign_link?: string | null
@@ -1336,17 +1518,37 @@ export type Database = {
           internal_notes?: string | null
           platform?: string | null
           platform_content?: Json
+          preferred_publish_window?: string | null
           preview_text?: string | null
+          priority?: string | null
+          raw_attachment_url?: string | null
+          raw_input_text?: string | null
           request_id?: string | null
+          request_notes?: string | null
           reviewer_user_id?: string | null
+          revision_count?: number
           scheduled_at?: string | null
           send_date?: string | null
+          source?: string
+          source_type?: string | null
           status_column?: Database["public"]["Enums"]["post_status"]
+          strategy_brief?: Json | null
           subject_line?: string | null
           tags?: Json
           title: string
+          voice_transcript?: string | null
         }
         Update: {
+          agent_confidence?: number | null
+          agent_status?: string | null
+          ai_suggested_assignee?: string | null
+          ai_suggested_client?: string | null
+          ai_suggested_content_type?: string | null
+          ai_suggested_next_action?: string | null
+          ai_suggested_priority?: string | null
+          ai_suggested_project?: string | null
+          ai_suggested_subproject?: string | null
+          ai_summary?: string | null
           assigned_to_user_id?: string | null
           audience?: string | null
           campaign_link?: string | null
@@ -1363,15 +1565,25 @@ export type Database = {
           internal_notes?: string | null
           platform?: string | null
           platform_content?: Json
+          preferred_publish_window?: string | null
           preview_text?: string | null
+          priority?: string | null
+          raw_attachment_url?: string | null
+          raw_input_text?: string | null
           request_id?: string | null
+          request_notes?: string | null
           reviewer_user_id?: string | null
+          revision_count?: number
           scheduled_at?: string | null
           send_date?: string | null
+          source?: string
+          source_type?: string | null
           status_column?: Database["public"]["Enums"]["post_status"]
+          strategy_brief?: Json | null
           subject_line?: string | null
           tags?: Json
           title?: string
+          voice_transcript?: string | null
         }
         Relationships: [
           {
@@ -1399,7 +1611,7 @@ export type Database = {
             foreignKeyName: "posts_request_id_fkey"
             columns: ["request_id"]
             isOneToOne: false
-            referencedRelation: "requests"
+            referencedRelation: "requests_archive"
             referencedColumns: ["id"]
           },
           {
@@ -1527,7 +1739,7 @@ export type Database = {
           },
         ]
       }
-      requests: {
+      requests_archive: {
         Row: {
           agent_confidence: number | null
           agent_status: string | null
@@ -1553,6 +1765,7 @@ export type Database = {
           source_type: string | null
           status: Database["public"]["Enums"]["request_status"]
           strategy_brief: Json | null
+          submitted_on_behalf_by: string | null
           task_id: string | null
           topic: string
           type: Database["public"]["Enums"]["request_type"]
@@ -1583,6 +1796,7 @@ export type Database = {
           source_type?: string | null
           status?: Database["public"]["Enums"]["request_status"]
           strategy_brief?: Json | null
+          submitted_on_behalf_by?: string | null
           task_id?: string | null
           topic: string
           type: Database["public"]["Enums"]["request_type"]
@@ -1613,6 +1827,7 @@ export type Database = {
           source_type?: string | null
           status?: Database["public"]["Enums"]["request_status"]
           strategy_brief?: Json | null
+          submitted_on_behalf_by?: string | null
           task_id?: string | null
           topic?: string
           type?: Database["public"]["Enums"]["request_type"]
@@ -1893,7 +2108,7 @@ export type Database = {
             foreignKeyName: "tasks_request_id_fkey"
             columns: ["request_id"]
             isOneToOne: false
-            referencedRelation: "requests"
+            referencedRelation: "requests_archive"
             referencedColumns: ["id"]
           },
         ]
@@ -1978,20 +2193,29 @@ export type Database = {
       }
       team_wins: {
         Row: {
+          agent: string | null
+          category: string | null
           created_at: string
-          created_by_user_id: string
+          created_by_user_id: string | null
+          description: string | null
           id: string
           title: string
         }
         Insert: {
+          agent?: string | null
+          category?: string | null
           created_at?: string
-          created_by_user_id: string
+          created_by_user_id?: string | null
+          description?: string | null
           id?: string
           title: string
         }
         Update: {
+          agent?: string | null
+          category?: string | null
           created_at?: string
-          created_by_user_id?: string
+          created_by_user_id?: string | null
+          description?: string | null
           id?: string
           title?: string
         }
@@ -2312,11 +2536,42 @@ export type Database = {
           },
         ]
       }
+      workspace_docs: {
+        Row: {
+          category: string
+          content: string
+          id: string
+          title: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          category?: string
+          content: string
+          id?: string
+          title: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          category?: string
+          content?: string
+          id?: string
+          title?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      acting_on_behalf_of_client: {
+        Args: { _client_id: string }
+        Returns: boolean
+      }
       can_access_client: { Args: { _client_id: string }; Returns: boolean }
       get_my_client_id: { Args: never; Returns: string }
       has_role: {
@@ -2345,6 +2600,7 @@ export type Database = {
         | "ss_producer"
         | "ss_ops"
         | "ss_team"
+        | "ss_manager"
       approval_type: "approve" | "approve_with_notes" | "request_changes"
       post_status:
         | "idea"
@@ -2503,6 +2759,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: [
@@ -2512,6 +2771,7 @@ export const Constants = {
         "ss_producer",
         "ss_ops",
         "ss_team",
+        "ss_manager",
       ],
       approval_type: ["approve", "approve_with_notes", "request_changes"],
       post_status: [

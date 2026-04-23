@@ -41,9 +41,15 @@ export default function RequestChangesModal({ postId, postTitle, open, onOpenCha
       });
 
       const newStatus = fixType === "design" ? "design" : "corey_review";
+      const { data: current, error: fetchErr } = await supabase
+        .from("posts")
+        .select("revision_count")
+        .eq("id", postId)
+        .single();
+      if (fetchErr) throw fetchErr;
       const { error } = await supabase
         .from("posts")
-        .update({ status_column: newStatus as any })
+        .update({ status_column: newStatus as any, revision_count: (current.revision_count ?? 0) + 1 })
         .eq("id", postId);
       if (error) throw error;
     },
@@ -51,6 +57,7 @@ export default function RequestChangesModal({ postId, postTitle, open, onOpenCha
       queryClient.invalidateQueries({ queryKey: ["workflow-posts"] });
       queryClient.invalidateQueries({ queryKey: ["approval-posts"] });
       queryClient.invalidateQueries({ queryKey: ["client-approval-posts"] });
+      queryClient.invalidateQueries({ queryKey: ["client-pipeline-posts"] });
       toast.success(
         fixType === "design"
           ? "Design fix requested — returned to Design"

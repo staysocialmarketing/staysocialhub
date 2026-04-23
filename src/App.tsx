@@ -18,6 +18,7 @@ import Plan from "./pages/Plan";
 import ContentLibrary from "./pages/ContentLibrary";
 import MarketingCalendar from "./pages/MarketingCalendar";
 import SuccessCenter from "./pages/client/SuccessCenter";
+import ClientPipeline from "./pages/client/ClientPipeline";
 import AIInterview from "./pages/client/AIInterview";
 import ContentGenerator from "./pages/client/ContentGenerator";
 import BrandTwinPage from "./pages/client/BrandTwin";
@@ -103,7 +104,8 @@ const App = () => (
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/workflow" element={<AdminRoute><Workflow /></AdminRoute>} />
-              <Route path="/approvals" element={<Approvals />} />
+              <Route path="/approvals" element={<AdminRoute><Approvals /></AdminRoute>} />
+              <Route path="/pipeline" element={<ClientPipeline />} />
               <Route path="/calendar" element={<MarketingCalendar />} />
               <Route path="/approvals/:postId" element={<PostDetail />} />
               <Route path="/requests" element={<Requests />} />

@@ -16,7 +16,7 @@ const ssTabItems = [
 
 const clientTabItems = [
   { label: "Home", icon: LayoutDashboard, path: "/dashboard" },
-  { label: "Approvals", icon: CheckSquare, path: "/approvals" },
+  { label: "Pipeline", icon: CheckSquare, path: "/pipeline" },
   { label: "Requests", icon: MessageSquarePlus, path: "/requests" },
   { label: "Calendar", icon: CalendarDays, path: "/calendar" },
   { label: "More", icon: Menu, path: "__menu__" },

@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 import ApprovalActions from "@/components/ApprovalActions";
 import ApprovalBatchManager from "@/components/ApprovalBatchManager";
+import { getStatusesForAdminColumn } from "@/lib/workflowUtils";
 import ImageLightbox from "@/components/ImageLightbox";
 import { PlatformBadges } from "@/components/PlatformBadge";
 import { toast } from "sonner";
@@ -226,8 +227,12 @@ function AdminApprovals() {
 
   const internalReview = posts.filter((p: any) => p.status_column === "internal_review");
   const coreyReview = posts.filter((p: any) => p.status_column === "corey_review");
-  const readyForClientBatch = posts.filter((p: any) => p.status_column === "ready_for_client_batch");
-  const clientApproval = posts.filter((p: any) => p.status_column === "client_approval");
+  const readyForClientBatch = posts.filter((p: any) =>
+    getStatusesForAdminColumn("batch_pending").includes(p.status_column),
+  );
+  const clientApproval = posts.filter((p: any) =>
+    getStatusesForAdminColumn("client_approval").includes(p.status_column),
+  );
   const approvedPosts = posts.filter((p: any) => p.status_column === "approved");
   const readyToSchedule = posts.filter((p: any) => p.status_column === "ready_to_schedule");
   const readyToSend = posts.filter((p: any) => p.status_column === "ready_to_send");

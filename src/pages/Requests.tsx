@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientFilter } from "@/contexts/ClientFilterContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -11,38 +12,36 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus, User, Target, ChevronRight } from "lucide-react";
-import type { Database } from "@/integrations/supabase/types";
-import RequestDetailDialog from "@/components/RequestDetailDialog";
+import { Plus, Target, ChevronRight } from "lucide-react";
 import { compressImage } from "@/lib/imageUtils";
-import { REQUEST_TYPE_OPTIONS } from "@/lib/workflowUtils";
+import { REQUEST_TYPE_OPTIONS, getColumnForView, CLIENT_PIPELINE_COLUMNS } from "@/lib/workflowUtils";
 import FilterBar, { useFilterBar, PRIORITY_FILTER_OPTIONS } from "@/components/FilterBar";
 import type { FilterConfig } from "@/components/FilterBar";
 import { EmptyState } from "@/components/ui/empty-state";
 
-type RequestType = Database["public"]["Enums"]["request_type"];
-type RequestStatus = Database["public"]["Enums"]["request_status"];
-
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ACCEPTED_FILE_TYPES = ".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.webp,.csv,.xlsx,.pptx,.txt";
 
-const statusConfig: Record<string, { label: string; className: string }> = {
-  open: { label: "Open", className: "bg-blue-500/10 text-blue-600" },
-  in_progress: { label: "In Progress", className: "bg-amber-500/10 text-amber-600" },
-  completed: { label: "Completed", className: "bg-emerald-500/10 text-emerald-600" },
-  cancelled: { label: "Cancelled", className: "bg-muted text-muted-foreground" },
+const clientStatusConfig: Record<string, string> = {
+  new: "bg-blue-500/10 text-blue-600",
+  in_progress: "bg-amber-500/10 text-amber-600",
+  for_approval: "bg-violet-500/10 text-violet-600",
+  in_queue: "bg-emerald-500/10 text-emerald-600",
+  posted: "bg-muted text-muted-foreground",
 };
 
+const statusFilterOptions = CLIENT_PIPELINE_COLUMNS.map((col) => ({ value: col.key, label: col.label }));
+
 export default function Requests() {
+  const navigate = useNavigate();
   const { profile, realProfile, isSSRole, isSSAdmin, isImpersonating } = useAuth();
   const { selectedClientId: globalClientId } = useClientFilter();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [form, setForm] = useState({
-    type: "social_post" as RequestType,
+    type: "social_post",
     topic: "",
     notes: "",
     preferred_publish_window: "",
@@ -70,26 +69,23 @@ export default function Requests() {
     enabled: isSSRole,
   });
 
-  const statusFilterOptions = [
-    { value: "open", label: "Open" },
-    { value: "in_progress", label: "In Progress" },
-    { value: "completed", label: "Completed" },
-    { value: "cancelled", label: "Cancelled" },
-  ];
-
   const filterConfigs: FilterConfig[] = [
     ...(isSSAdmin ? [{ key: "client", label: "Client", options: clients.map((c: any) => ({ value: c.id, label: c.name })) }] : []),
     { key: "requestType", label: "Type", options: REQUEST_TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label })) },
-    ...(isSSRole ? [{ key: "assignee", label: "Assigned To", options: ssUsers.map((u: any) => ({ value: u.id, label: (u as any).name || (u as any).email })) }] : []),
+    ...(isSSRole ? [{ key: "assignee", label: "Assigned To", options: ssUsers.map((u: any) => ({ value: u.id, label: u.name || u.email })) }] : []),
     { key: "priority", label: "Priority", options: PRIORITY_FILTER_OPTIONS },
     { key: "status", label: "Status", options: statusFilterOptions },
   ];
   const { values: filterValues, setValues: setFilterValues } = useFilterBar(filterConfigs, "requests");
 
-  const { data: requests = [], isLoading } = useQuery({
+  const { data: posts = [], isLoading } = useQuery({
     queryKey: ["requests", profile?.client_id, globalClientId],
     queryFn: async () => {
-      let query = supabase.from("requests").select("*, users!requests_created_by_user_id_fkey(name, email), clients(name)").order("created_at", { ascending: false });
+      let query = supabase
+        .from("posts")
+        .select("*, users!posts_created_by_user_id_fkey(name, email), clients(name)")
+        .eq("source", "client_request")
+        .order("created_at", { ascending: false });
       if (profile?.client_id) query = query.eq("client_id", profile.client_id);
       else if (globalClientId) query = query.eq("client_id", globalClientId);
       const { data, error } = await query;
@@ -99,12 +95,12 @@ export default function Requests() {
     enabled: !!profile,
   });
 
-  const filteredRequests = requests.filter((r: any) => {
-    if (filterValues.requestType !== "all" && r.type !== filterValues.requestType) return false;
-    if (filterValues.client !== "all" && r.client_id !== filterValues.client) return false;
-    if (filterValues.assignee !== "all" && r.assigned_to_user_id !== filterValues.assignee) return false;
-    if (filterValues.priority !== "all" && (r.priority || "normal") !== filterValues.priority) return false;
-    if (filterValues.status !== "all" && r.status !== filterValues.status) return false;
+  const filteredPosts = posts.filter((post: any) => {
+    if (filterValues.requestType !== "all" && post.content_type !== filterValues.requestType) return false;
+    if (filterValues.client !== "all" && post.client_id !== filterValues.client) return false;
+    if (filterValues.assignee !== "all" && post.assigned_to_user_id !== filterValues.assignee) return false;
+    if (filterValues.priority !== "all" && (post.priority || "normal") !== filterValues.priority) return false;
+    if (filterValues.status !== "all" && getColumnForView(post.status_column, "client")?.key !== filterValues.status) return false;
     return true;
   });
 
@@ -123,7 +119,7 @@ export default function Requests() {
       const clientId = isSSAdmin ? selectedClientId : profile?.client_id;
       if (!clientId) throw new Error("No client selected");
 
-      let attachments_url: string | null = null;
+      let creative_url: string | null = null;
       if (attachmentFile) {
         const compressed = await compressImage(attachmentFile);
         const ext = compressed.name.split(".").pop();
@@ -132,26 +128,28 @@ export default function Requests() {
         if (uploadError) {
           toast.warning("Attachment upload failed — request will be created without it");
         } else {
-          attachments_url = path;
+          creative_url = path;
         }
       }
 
-      const { error } = await supabase.from("requests").insert({
+      const { error } = await supabase.from("posts").insert({
+        source: "client_request",
+        status_column: "idea",
+        title: form.topic,
+        content_type: form.type,
         client_id: clientId,
-        type: form.type,
-        topic: form.topic,
-        notes: form.notes || null,
+        created_by_user_id: isImpersonating ? realProfile!.id : profile!.id,
+        request_notes: form.notes || null,
         preferred_publish_window: form.preferred_publish_window || null,
         priority: form.priority,
-        created_by_user_id: profile!.id,
-        submitted_on_behalf_by: isImpersonating ? realProfile!.id : null,
-        attachments_url,
+        creative_url,
       } as any);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["requests"] });
       queryClient.invalidateQueries({ queryKey: ["workflow-posts"] });
+      queryClient.invalidateQueries({ queryKey: ["client-pipeline-posts"] });
       toast.success("Request submitted!");
       setOpen(false);
       setForm({ type: "social_post", topic: "", notes: "", preferred_publish_window: "", priority: "normal" });
@@ -161,28 +159,11 @@ export default function Requests() {
     onError: (err: any) => toast.error(err.message || "Failed to submit request"),
   });
 
-  const updateStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: RequestStatus }) => {
-      const { error } = await supabase.from("requests").update({ status }).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["requests"] });
-      toast.success("Status updated");
-    },
-    onError: () => toast.error("Failed to update status"),
-  });
-
   const canCreate = !!profile?.client_id || isSSAdmin;
 
-  const getAssignedName = (userId: string | null) => {
-    if (!userId) return null;
-    const u = ssUsers.find((u: any) => u.id === userId);
-    return u ? ((u as any).name || (u as any).email) : null;
-  };
-
-  const getTypeLabel = (type: string) => {
-    return REQUEST_TYPE_OPTIONS.find((o) => o.value === type)?.label || type.replace("_", " ");
+  const getTypeLabel = (type: string | null) => {
+    if (!type) return "—";
+    return REQUEST_TYPE_OPTIONS.find((o) => o.value === type)?.label || type.replace(/_/g, " ");
   };
 
   return (
@@ -218,7 +199,7 @@ export default function Requests() {
                 )}
                 <div>
                   <Label>Request Type</Label>
-                  <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v as RequestType })}>
+                  <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {REQUEST_TYPE_OPTIONS.map((opt) => (
@@ -268,7 +249,7 @@ export default function Requests() {
         <div className="flex items-center justify-center py-20">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
         </div>
-      ) : filteredRequests.length === 0 ? (
+      ) : filteredPosts.length === 0 ? (
         <EmptyState
           title="No requests yet"
           description={canCreate ? "Create your first content request to get started." : "No requests to show."}
@@ -276,51 +257,33 @@ export default function Requests() {
         />
       ) : (
         <div className="card-elevated divide-y divide-border/40">
-          {filteredRequests.map((req: any) => {
-            const assignedName = isSSRole ? getAssignedName(req.assigned_to_user_id) : null;
-            const status = statusConfig[req.status] || statusConfig.open;
+          {filteredPosts.map((post: any) => {
+            const clientCol = getColumnForView(post.status_column, "client");
+            const statusLabel = clientCol?.label ?? post.status_column;
+            const statusClass = clientStatusConfig[clientCol?.key ?? ""] ?? "bg-muted text-muted-foreground";
             return (
               <div
-                key={req.id}
+                key={post.id}
                 className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/30 transition-colors cursor-pointer group"
-                onClick={() => setSelectedRequest(req)}
+                onClick={() => navigate(`/approvals/${post.id}`)}
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <h4 className="font-medium text-sm text-foreground truncate">{req.topic}</h4>
-                    {isSSRole && req.strategy_brief && typeof req.strategy_brief === "object" && Object.values(req.strategy_brief).some((v: any) => v && String(v).trim()) && (
+                    <h4 className="font-medium text-sm text-foreground truncate">{post.title}</h4>
+                    {isSSRole && post.strategy_brief && typeof post.strategy_brief === "object" && Object.values(post.strategy_brief).some((v: any) => v && String(v).trim()) && (
                       <Badge variant="secondary" className="text-[10px] gap-0.5 bg-primary/10 text-primary shrink-0">
                         <Target className="h-2.5 w-2.5" /> Strategy
                       </Badge>
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {req.clients?.name && <span className="font-medium">{req.clients.name} · </span>}
-                    {getTypeLabel(req.type)} · {new Date(req.created_at).toLocaleDateString()}
-                    {req.attachments_url && " · 📎"}
+                    {post.clients?.name && <span className="font-medium">{post.clients.name} · </span>}
+                    {getTypeLabel(post.content_type)} · {new Date(post.created_at).toLocaleDateString()}
+                    {post.creative_url && " · 📎"}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                  {assignedName && (
-                    <span className="text-[10px] text-muted-foreground hidden sm:inline">
-                      <User className="h-3 w-3 inline mr-0.5" />{assignedName}
-                    </span>
-                  )}
-                  {isSSRole ? (
-                    <Select value={req.status} onValueChange={(v) => updateStatus.mutate({ id: req.id, status: v as RequestStatus })}>
-                      <SelectTrigger className="h-7 text-[11px] w-[100px] border-0 bg-muted/50 rounded-lg">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="open">Open</SelectItem>
-                        <SelectItem value="in_progress">In Progress</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Badge className={`${status.className} border-0 text-[10px]`}>{status.label}</Badge>
-                  )}
+                <div className="flex items-center gap-2 shrink-0">
+                  <Badge className={`${statusClass} border-0 text-[10px]`}>{statusLabel}</Badge>
                   <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
                 </div>
               </div>
@@ -328,12 +291,6 @@ export default function Requests() {
           })}
         </div>
       )}
-
-      <RequestDetailDialog
-        request={selectedRequest}
-        open={!!selectedRequest}
-        onOpenChange={(open) => { if (!open) setSelectedRequest(null); }}
-      />
     </div>
   );
 }

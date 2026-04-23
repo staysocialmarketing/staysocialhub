@@ -746,7 +746,7 @@ function ClientDashboard() {
           <p className="text-xs text-muted-foreground mt-0.5">Email campaigns</p>
         </button>
         <button
-          onClick={() => navigate("/approvals")}
+          onClick={() => navigate("/pipeline")}
           className="card-elevated p-5 text-left hover:shadow-lifted transition-all group"
         >
           <CheckSquare className="h-6 w-6 text-primary mb-2 group-hover:scale-110 transition-transform" />
@@ -757,9 +757,9 @@ function ClientDashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
-        <StatCard label="Awaiting Approval" value={pendingApprovals} icon={<CheckSquare className="h-4 w-4" />} onClick={() => navigate("/approvals")} />
+        <StatCard label="Awaiting Approval" value={pendingApprovals} icon={<CheckSquare className="h-4 w-4" />} onClick={() => navigate("/pipeline")} />
         <StatCard label="Open Requests" value={openRequests} icon={<MessageSquarePlus className="h-4 w-4" />} onClick={() => navigate("/requests")} />
-        <StatCard label="Sent Campaigns" value={sentCampaigns} icon={<CheckCircle2 className="h-4 w-4" />} onClick={() => navigate("/approvals")} />
+        <StatCard label="Sent Campaigns" value={sentCampaigns} icon={<CheckCircle2 className="h-4 w-4" />} onClick={() => navigate("/pipeline")} />
       </div>
 
       {/* Recently Published */}
@@ -864,7 +864,7 @@ function RecentlyPublishedSection({ clientId }: { clientId: string | null | unde
           <div
             key={post.id}
             className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 cursor-pointer transition-colors"
-            onClick={() => navigate(`/approvals`)}
+            onClick={() => navigate(`/pipeline`)}
           >
             <div className="flex items-center gap-3">
               <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />

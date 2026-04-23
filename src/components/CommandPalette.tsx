@@ -92,7 +92,7 @@ export function CommandPalette() {
   const clientNavItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/" },
     { icon: Trophy, label: "Success Center", path: "/client/success" },
-    { icon: Megaphone, label: "Approvals", path: "/approvals" },
+    { icon: Megaphone, label: "Content Pipeline", path: "/pipeline" },
     { icon: FileText, label: "Requests", path: "/requests" },
     { icon: Image, label: "My Media", path: "/content-library" },
     { icon: UserCircle, label: "Profile", path: "/profile" },
@@ -112,7 +112,7 @@ export function CommandPalette() {
 
   const clientActions = [
     { icon: Plus, label: "Create Request", path: "/requests" },
-    { icon: Eye, label: "View Approvals", path: "/approvals" },
+    { icon: Eye, label: "View Pipeline", path: "/pipeline" },
   ];
 
   const actionItems = isSSRole ? ssActions : clientActions;

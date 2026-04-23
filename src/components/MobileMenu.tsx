@@ -4,7 +4,7 @@ import {
   MessageSquarePlus, FolderOpen, UserCircle, Sparkles, Eye,
   Inbox, FolderKanban, ListTodo, Lightbulb, Building2,
   ShoppingCart, Users, Tag, LogOut, Brain, Wand2, Palette,
-  BookOpen, Zap, FileText, Kanban,
+  BookOpen, Zap, FileText,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -80,8 +80,7 @@ const clientMenuSections = [
     items: [
       { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
       { title: "Success Center", url: "/client/success", icon: Sparkles },
-      { title: "Content Pipeline", url: "/client/pipeline", icon: Kanban },
-      { title: "Approvals", url: "/approvals", icon: CheckSquare },
+      { title: "Content Pipeline", url: "/pipeline", icon: CheckSquare },
       { title: "Calendar", url: "/calendar", icon: CalendarDays },
       { title: "Requests", url: "/requests", icon: MessageSquarePlus },
       { title: "My Media", url: "/content-library", icon: FolderOpen },
