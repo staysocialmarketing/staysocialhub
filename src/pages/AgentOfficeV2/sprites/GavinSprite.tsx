@@ -44,16 +44,16 @@ export function GavinSprite() {
       {r(4, 3, 8, 2, SH)}
       {r(4, 6, 3, 1, SH)}
       {r(9, 6, 3, 1, SH)}
-      {/* Glasses frames (drawn before eyes so pupils paint over interior) */}
+      {/* Glasses frames: two 3×2 lens boxes + 1px bridge (drawn before eyes so pupils paint over interior) */}
       {r(4, 5, 3, 2, GL)} {/* left lens frame */}
+      {r(9, 5, 3, 2, GL)} {/* right lens frame */}
       {r(8, 5, 1, 1, GL)} {/* bridge */}
-      {r(9, 5, 2, 2, GL)} {/* right lens frame */}
-      {/* Eyes: quiet, thoughtful */}
+      {/* Eyes: quiet, thoughtful — rendered over glasses interior */}
       {r(4, 5, 2, 2, EY)}
       {r(9, 5, 2, 2, EY)}
       <rect x={5*P} y={5*P} width={1} height={1} fill="#fff" />
       <rect x={10*P} y={5*P} width={1} height={1} fill="#fff" />
-      {/* Eye pupils over glasses */}
+      {/* Pupils */}
       {r(5, 5, 1, 1, EY)}
       {r(10, 5, 1, 1, EY)}
       {/* Subtle serene mouth */}
