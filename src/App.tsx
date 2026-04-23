@@ -21,6 +21,7 @@ import SuccessCenter from "./pages/client/SuccessCenter";
 import AIInterview from "./pages/client/AIInterview";
 import ContentGenerator from "./pages/client/ContentGenerator";
 import BrandTwinPage from "./pages/client/BrandTwin";
+import ClientPipeline from "./pages/client/ClientPipeline";
 import AdminClients from "./pages/admin/AdminClients";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminProfileUpdates from "./pages/admin/AdminProfileUpdates";
@@ -112,6 +113,7 @@ const App = () => (
               <Route path="/client/ai-interview" element={<AIInterview />} />
               <Route path="/client/generate" element={<ContentGenerator />} />
               <Route path="/client/brand-twin" element={<BrandTwinPage />} />
+              <Route path="/client/pipeline" element={<ClientPipeline />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/plan" element={<Plan />} />
               <Route path="/whats-new" element={<WhatsNew />} />
