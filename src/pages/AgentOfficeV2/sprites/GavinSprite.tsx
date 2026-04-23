@@ -11,7 +11,8 @@ const EY = "#100802";
 const T  = "#5a3820";  // warm earth
 const TH = "#7a4e30";
 const TD = "#3a2214";
-const GL = "#333333";  // glasses dark grey
+const GL = "#999999";  // glasses wire-frame silver
+const GL_LENS = "#d0e8f0"; // barely-visible lens tint
 const BD = "#7a4a1a";  // beard warm brown
 
 export function GavinSprite() {
@@ -44,9 +45,15 @@ export function GavinSprite() {
       {r(4, 3, 8, 2, SH)}
       {r(4, 6, 3, 1, SH)}
       {r(9, 6, 3, 1, SH)}
-      {/* Glasses frames: two 3×2 lens boxes + 1px bridge (drawn before eyes so pupils paint over interior) */}
-      {r(4, 5, 3, 2, GL)} {/* left lens frame */}
-      {r(9, 5, 3, 2, GL)} {/* right lens frame */}
+      {/* Wire-frame reading glasses: light tint fill + silver frame border only */}
+      {r(4, 5, 3, 2, GL_LENS)} {/* left lens light tint */}
+      {r(9, 5, 3, 2, GL_LENS)} {/* right lens light tint */}
+      {r(4, 5, 3, 1, GL)} {/* left lens top edge frame */}
+      {r(9, 5, 3, 1, GL)} {/* right lens top edge frame */}
+      {r(4, 6, 1, 1, GL)} {/* left lens left edge */}
+      {r(6, 6, 1, 1, GL)} {/* left lens right edge */}
+      {r(9, 6, 1, 1, GL)} {/* right lens left edge */}
+      {r(11, 6, 1, 1, GL)} {/* right lens right edge */}
       {r(8, 5, 1, 1, GL)} {/* bridge */}
       {/* Eyes: quiet, thoughtful — rendered over glasses interior */}
       {r(4, 5, 2, 2, EY)}

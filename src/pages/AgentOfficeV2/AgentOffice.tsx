@@ -23,13 +23,11 @@ export function AgentOfficeCanvas({ devPreview = false }: { devPreview?: boolean
     if (!el) return;
     const ro = new ResizeObserver(() => {
       const { width, height } = el.getBoundingClientRect();
-      // Scale to fill viewport width; fall back to height-constrained if canvas is too tall
-      const scaleW = width / CANVAS_W;
-      const scaleH = height / CANVAS_H;
-      const scale = scaleH < scaleW ? Math.min(scaleW, scaleH) : scaleW;
+      // Width-led scaling: canvas always fills the full available width
+      const scale = width / CANVAS_W;
       setTransform({
         scale,
-        x: Math.floor((width  - CANVAS_W * scale) / 2),
+        x: 0,
         y: Math.max(0, Math.floor((height - CANVAS_H * scale) / 2)),
       });
     });
@@ -38,7 +36,7 @@ export function AgentOfficeCanvas({ devPreview = false }: { devPreview?: boolean
   }, []);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#060810' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', overflow: 'hidden', background: '#060810' }}>
       {devPreview && (
         <div style={{
           background: '#7f1d1d',

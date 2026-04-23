@@ -48,10 +48,10 @@ export const COL_STAIR      = 960; // staircase column — gap between AI Core (
 // ── AI Core desk zone: Corey/Lev centered on COL_C=640 ────────────────────
 const AI_ZONE_X = 480;  // zone left; Corey desk x = 480+(320-140)/2 = 570
 
-// Sub-agents spread to give 80px desk-to-desk gaps (sprite=48px → 32px clearance each side)
-const AI_SUB_1 = 310;  // center_x = 340 (COL_L)
+// Sub-agents centred on routing columns: COL_L=470, COL_C=640, COL_R=730
+const AI_SUB_1 = 440;  // center_x = 470 (COL_L)
 const AI_SUB_2 = 610;  // center_x = 640 (COL_C)
-const AI_SUB_3 = AI_SUB_2 + TIER_DIMS.sub_agent.w + 80;  // 750 — clears AI_SUB_2 desk (610+60+80)
+const AI_SUB_3 = 700;  // center_x = 730 (COL_R)
 
 export const DESKS: DeskConfig[] = [
   // ── AI Core Pod ──────────────────────────────────────────────────────────
