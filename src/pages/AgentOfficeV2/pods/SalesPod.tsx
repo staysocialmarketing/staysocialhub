@@ -138,7 +138,7 @@ export function SalesPod() {
 
       {/* Pixel espresso machine — inside coffee station nook */}
       <svg
-        style={{ position: 'absolute', left: 784, top: 577, width: 22, height: 22, pointerEvents: 'none' }}
+        style={{ position: 'absolute', left: podLeft + 24, top: COFFEE_Y + 12, width: 22, height: 22, pointerEvents: 'none' }}
       >
         {/* Machine body — chrome grey */}
         <rect width="18" height="14" fill="#3a4050" stroke="#50586a" strokeWidth="1" />

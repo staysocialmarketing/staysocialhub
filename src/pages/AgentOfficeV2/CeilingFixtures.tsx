@@ -25,12 +25,13 @@ const HALO_CY_OFF = 26;   // halo ellipse centre offset below panel bottom
 // Halo gradient — cool LED tint
 const HALO_COLOR = '#c0d8e8';
 
-// Main floor: centres within Creative (≈106), AI Core left (≈360),
-//             AI Core right (≈550), Sales (≈854)
-const MAIN_PANELS: number[] = [106, 360, 550, 854];
+// Main floor: centres within Creative (≈132), AI Core left (≈470),
+//             AI Core centre (≈640), AI Core right (≈730), Sales (≈1148)
+const MAIN_PANELS: number[] = [132, 470, 640, 730, 1148];
 
-// Upper floor: left of Halifax window start (250) and right of Toronto end (710)
-const MEET_PANELS: number[] = [150, 820];
+// Upper floor: left of Halifax window (≈390) and right of Toronto window (≈790)
+// Plus flanking panels at canvas edges for 1280px width
+const MEET_PANELS: number[] = [200, 540, 740, 1080];
 
 // Canvas positions
 const MAIN_CEIL_Y = MAIN_FLOOR_Y + BACK_WALL_H; // 290 — top of main floor workspace

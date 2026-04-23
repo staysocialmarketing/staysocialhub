@@ -88,7 +88,9 @@ const MEETING_SEATS_FOR: Record<string, WaypointKey> = {
 // One-way: seat → home desk (used by MeetingContext endMeeting)
 const HOME_DESK_FOR: Record<string, WaypointKey> = AGENT_HOME_WAYPOINT as Record<string, WaypointKey>;
 
-const GHOST_KEYS = ['forge', 'pixel'];
+// Forge + Pixel: active agents but no walk frames — render as seated statics at their desks.
+// No ghost/grayscale treatment since DB status is active/processing (not placeholder).
+const STATIC_AGENT_KEYS = ['forge', 'pixel'];
 const DESK_MAP   = Object.fromEntries(DESKS.map(d => [d.key, d]));
 
 export function CharacterLayer() {
@@ -224,8 +226,8 @@ export function CharacterLayer() {
         />
       ))}
 
-      {/* ── Static ghost sprites (placeholders) ─────────────────────────── */}
-      {GHOST_KEYS.map(key => {
+      {/* ── Static agent sprites (Forge + Pixel: active but no walk cycle yet) ── */}
+      {STATIC_AGENT_KEYS.map(key => {
         const desk = DESK_MAP[key];
         if (!desk) return null;
         const SpriteComp = SPRITE_MAP[key];
@@ -241,8 +243,6 @@ export function CharacterLayer() {
               top:  desk.y - dims.visibleH,
               width: dims.w,
               height: dims.h,
-              opacity: 0.55,
-              filter: 'grayscale(0.5)',
               imageRendering: 'pixelated',
               pointerEvents: 'none',
             }}

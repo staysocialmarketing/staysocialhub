@@ -16,6 +16,7 @@ const N  = "#2a3450";  // navy base
 const NH = "#3e4a68";  // navy highlight
 const ND = "#1a2238";  // navy shadow
 const GP = "#c48a12";  // gold pin
+const ST = "#4a2a10";  // stubble/shadow — very dark, subtle
 
 export function CoreySprite() {
   const P = 3, W = 16 * P, Ht = 20 * P;
@@ -53,6 +54,8 @@ export function CoreySprite() {
       <rect x={10*P} y={5*P} width={1} height={1} fill="#fff" />
       {/* Mouth: neutral, grounded */}
       {r(6, 8, 3, 1, SD)}
+      {/* Very short dark shadow beard: 1–2px stubble under chin */}
+      {r(5, 9, 6, 1, ST)}
 
       {/* ── Neck ── */}
       {r(6, 10, 4, 1, S)}

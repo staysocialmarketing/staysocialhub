@@ -12,6 +12,8 @@ const S  = '#a86830'; const SH = '#c07840'; const SD = '#8a5220'; const EY = '#1
 const T  = '#5a3820'; const TH = '#7a4e30'; const TD = '#3a2214';
 const GP = TD; // pants same dark earth
 const DP = '#080c14';
+const BD = '#7a4a1a';  // beard warm brown
+const GL = '#333333';  // glasses dark grey
 
 type R = [number, number, number, number, string];
 function r(x: number, y: number, w: number, h: number, fill: string): R { return [x, y, w, h, fill]; }
@@ -42,7 +44,13 @@ const headFront: R[] = [
   r(2,3,1,4,SD), r(13,3,1,4,SD),
   r(3,3,10,7,S), r(3,3,1,7,SD), r(12,3,1,7,SD), r(4,3,8,2,SH),
   r(4,6,3,1,SH), r(9,6,3,1,SH), r(4,5,2,2,EY), r(9,5,2,2,EY),
+  // Glasses: two 3×2 rects + 1px bridge
+  r(4,5,3,2,GL), r(9,5,3,2,GL), r(7,5,2,1,GL),
+  // Pupils over glasses
+  r(5,5,1,1,EY), r(10,5,1,1,EY),
   r(6,8,4,1,SD),
+  // Short brown beard: strip below mouth
+  r(5,9,6,1,BD), r(6,9,4,1,'#6a3a10'),
   r(6,10,4,1,S), r(6,10,1,1,SD), r(9,10,1,1,SD),
   r(2,11,12,1,TH), r(2,11,1,1,TD), r(13,11,1,1,TD),
   r(6,11,4,2,T), r(7,11,2,1,TH),
@@ -71,6 +79,10 @@ const headLeft: R[] = [
   r(11,1,3,5,S), r(13,1,1,5,SD),   // bald "trailing" = skin, not hair
   r(3,2,9,7,S), r(3,2,1,7,SD), r(4,2,7,2,SH),
   r(3,5,1,1,SD), r(5,5,1,2,EY), r(11,6,1,2,SD), r(5,8,2,1,SD),
+  // Glasses (side profile: one 3×2 frame visible)
+  r(5,5,3,2,GL), r(6,5,1,1,EY),
+  // Beard (side profile: jaw strip)
+  r(5,9,4,1,BD),
   r(5,9,5,1,S), r(5,9,1,1,SD), r(9,9,1,1,SD),
   r(2,10,10,1,TH), r(2,10,1,6,TD), r(11,10,1,6,TD),
   r(5,10,3,1,T),
@@ -104,6 +116,8 @@ const headBack: R[] = [
   r(2,4,2,4,S), r(12,4,2,4,S),
   r(2,4,1,4,SD), r(13,4,1,4,SD),
   r(6,9,4,1,SD),
+  // Beard: visible on sides of jaw from back view
+  r(4,9,2,1,BD), r(10,9,2,1,BD),
   r(6,10,4,1,S), r(6,10,1,1,SD), r(9,10,1,1,SD),
   r(2,11,12,1,TH), r(2,11,1,1,TD), r(13,11,1,1,TD), r(6,11,4,1,T),
   r(2,12,12,4,T), r(2,12,1,4,TD), r(13,12,1,4,TD), r(3,12,10,1,TH),

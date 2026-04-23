@@ -23,11 +23,14 @@ export function AgentOfficeCanvas({ devPreview = false }: { devPreview?: boolean
     if (!el) return;
     const ro = new ResizeObserver(() => {
       const { width, height } = el.getBoundingClientRect();
-      const scale = Math.min(width / CANVAS_W, height / CANVAS_H);
+      // Scale to fill viewport width; fall back to height-constrained if canvas is too tall
+      const scaleW = width / CANVAS_W;
+      const scaleH = height / CANVAS_H;
+      const scale = scaleH < scaleW ? Math.min(scaleW, scaleH) : scaleW;
       setTransform({
         scale,
         x: Math.floor((width  - CANVAS_W * scale) / 2),
-        y: Math.floor((height - CANVAS_H * scale) / 2),
+        y: Math.max(0, Math.floor((height - CANVAS_H * scale) / 2)),
       });
     });
     ro.observe(el);

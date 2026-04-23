@@ -12,9 +12,9 @@ const WIN_Y       = MAIN_FLOOR_Y + 3;
 const WIN_H       = 14;
 
 const MAIN_WINDOWS = [
-  { x: 20,  w: 180 }, // Creative wing window
-  { x: 240, w: 480 }, // AI core window (wider)
-  { x: 760, w: 180 }, // Sales wing window
+  { x: 20,   w: 230 }, // Creative wing window
+  { x: 268,  w: 740 }, // AI core window (wider, matches AI_CORE_POD_X to AI_CORE right edge)
+  { x: 1028, w: 230 }, // Sales wing window
 ];
 
 export function MainFloor() {
@@ -89,9 +89,29 @@ export function MainFloor() {
         <rect width="100%" height="100%" fill="url(#main-floor-check)" />
       </svg>
 
-      {/* Plant — staircase corridor (gap between AI Core x=660 and Sales x=760, clear of walk path) */}
-      <div style={{ position: 'absolute', left: 722, top: 630, width: 8,  height: 6,  background: '#4a3020', border: '1px solid #3a2818', pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', left: 720, top: 620, width: 12, height: 10, borderRadius: '50% 50% 0 0', background: '#2e7838', opacity: 0.9, pointerEvents: 'none' }} />
+      {/* Plants — staircase corridor (gap between AI Core x=868 and Sales x=1028, centred at COL_STAIR=960) */}
+      <div style={{ position: 'absolute', left: 962, top: 630, width: 8,  height: 6,  background: '#4a3020', border: '1px solid #3a2818', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', left: 960, top: 620, width: 12, height: 10, borderRadius: '50% 50% 0 0', background: '#2e7838', opacity: 0.9, pointerEvents: 'none' }} />
+      {/* Second plant — other side of corridor */}
+      <div style={{ position: 'absolute', left: 922, top: 630, width: 8,  height: 6,  background: '#4a3020', border: '1px solid #3a2818', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', left: 920, top: 620, width: 12, height: 10, borderRadius: '50% 50% 0 0', background: '#357040', opacity: 0.9, pointerEvents: 'none' }} />
+
+      {/* Subtle wall panelling — vertical strips on the back wall */}
+      {[120, 260, 500, 780, 920, 1160].map((px, i) => (
+        <div
+          key={`panel-${i}`}
+          style={{
+            position: 'absolute',
+            left: px,
+            top: MAIN_FLOOR_Y + 2,
+            width: 1,
+            height: BACK_WALL_H - 4,
+            background: '#252e3d',
+            pointerEvents: 'none',
+            opacity: 0.6,
+          }}
+        />
+      ))}
 
       {/* Three pods */}
       <CreativeStudioPod />

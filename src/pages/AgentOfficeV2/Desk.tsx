@@ -168,10 +168,10 @@ export function Desk({ desk, lampBoost = 0, activeSubAgentCount }: DeskProps) {
         }}
       />
 
-      {/* ── Scout: faint compass rose in desk texture ── */}
+      {/* ── Scout: compass rose at front edge of desk ── */}
       {key === 'scout' && !isGhost && (
         <svg
-          style={{ position: 'absolute', left: x + Math.floor(dw / 2) - 5, top: y + Math.floor(dh / 2) - 5, pointerEvents: 'none', opacity: 0.10 }}
+          style={{ position: 'absolute', left: x + Math.floor(dw / 2) - 5, top: y + dh - 10, pointerEvents: 'none', opacity: 0.55, zIndex: 2 }}
           width={10} height={10}
         >
           {/* Cardinal lines */}
@@ -185,53 +185,56 @@ export function Desk({ desk, lampBoost = 0, activeSubAgentCount }: DeskProps) {
         </svg>
       )}
 
-      {/* ── Scout: paper stack next to desk ── */}
+      {/* ── Scout: paper stack at front edge of desk ── */}
       {key === 'scout' && !isGhost && (
         <div
           style={{
             position: 'absolute',
-            left: x + dw + 2,
-            top: y + dh - 6,
-            width: 8,
-            height: 4,
+            left: x + dw - 14,
+            top: y + dh - 5,
+            width: 10,
+            height: 5,
             background: '#ddd8c8',
             border: '1px solid #b8b0a0',
             pointerEvents: 'none',
+            zIndex: 2,
           }}
         />
       )}
 
-      {/* ── Ember: subject-line note (angled strip) ── */}
+      {/* ── Ember: subject-line note at front edge of desk ── */}
       {key === 'ember' && !isGhost && (
         <div
           style={{
             position: 'absolute',
-            left: x + 8,
-            top: y + 6,
+            left: x + 6,
+            top: y + dh - 6,
             width: 14,
-            height: 4,
+            height: 5,
             background: '#f0e8d8',
             border: '1px solid #c8b898',
-            transform: 'rotate(-4deg)',
+            transform: 'rotate(-3deg)',
             transformOrigin: 'left center',
             pointerEvents: 'none',
-            opacity: 0.9,
+            opacity: 0.95,
+            zIndex: 2,
           }}
         />
       )}
 
-      {/* ── Forge: mechanical keyboard ── */}
+      {/* ── Forge: mechanical keyboard at front edge of desk ── */}
       {key === 'forge' && !isGhost && (
         <div
           style={{
             position: 'absolute',
             left: x + Math.floor((dw - 30) / 2),
-            top: y + dh - 8,
+            top: y + dh - 7,
             width: 30,
-            height: 6,
+            height: 7,
             background: '#2a2c32',
             border: '1px solid #3a3e48',
             pointerEvents: 'none',
+            zIndex: 2,
           }}
         />
       )}
@@ -286,6 +289,76 @@ export function Desk({ desk, lampBoost = 0, activeSubAgentCount }: DeskProps) {
             border: '1px solid #3e3020',
             opacity: 0.85,
             pointerEvents: 'none',
+          }}
+        />
+      )}
+
+      {/* ── Quill: sticky note at front edge of desk ── */}
+      {key === 'quill' && !isGhost && (
+        <div
+          style={{
+            position: 'absolute',
+            left: x + dw - 12,
+            top: y + dh - 7,
+            width: 10,
+            height: 7,
+            background: '#f0d840',
+            border: '1px solid #c8b010',
+            pointerEvents: 'none',
+            zIndex: 2,
+            opacity: 0.9,
+          }}
+        />
+      )}
+
+      {/* ── Gavin: sketchbook at front edge of desk ── */}
+      {key === 'gavin' && !isGhost && (
+        <div
+          style={{
+            position: 'absolute',
+            left: x + 6,
+            top: y + dh - 6,
+            width: 16,
+            height: 6,
+            background: '#3a2810',
+            border: '1px solid #5a3e20',
+            pointerEvents: 'none',
+            zIndex: 2,
+          }}
+        />
+      )}
+
+      {/* ── Tristan: deal folder at front edge of desk ── */}
+      {key === 'tristan' && !isGhost && (
+        <div
+          style={{
+            position: 'absolute',
+            left: x + dw - 22,
+            top: y + dh - 6,
+            width: 16,
+            height: 5,
+            background: '#1a3818',
+            border: '1px solid #2a5828',
+            pointerEvents: 'none',
+            zIndex: 2,
+          }}
+        />
+      )}
+
+      {/* ── Corey: coffee mug at front edge of desk ── */}
+      {key === 'corey' && !isGhost && (
+        <div
+          style={{
+            position: 'absolute',
+            left: x + dw - 16,
+            top: y + dh - 8,
+            width: 7,
+            height: 8,
+            background: '#c48a12',
+            border: '1px solid #8a6008',
+            borderRadius: '0 0 2px 2px',
+            pointerEvents: 'none',
+            zIndex: 2,
           }}
         />
       )}

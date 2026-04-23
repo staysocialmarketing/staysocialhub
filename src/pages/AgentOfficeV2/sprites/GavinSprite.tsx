@@ -1,6 +1,7 @@
 /**
  * Gavin — 16×20 at P=3 = 48×60px
  * Creative director: BALD, warm brown skin, earth-tone shirt, quiet authority.
+ * Features: short brown beard + dark-grey glasses.
  */
 const S  = "#a86830";
 const SH = "#c07840";
@@ -10,6 +11,9 @@ const EY = "#100802";
 const T  = "#5a3820";  // warm earth
 const TH = "#7a4e30";
 const TD = "#3a2214";
+
+const BD = "#7a4a1a";  // beard warm brown
+const GL = "#333333";  // glasses dark grey
 
 export function GavinSprite() {
   const P = 3, W = 16 * P, Ht = 20 * P;
@@ -46,8 +50,18 @@ export function GavinSprite() {
       {r(9, 5, 2, 2, EY)}
       <rect x={5*P} y={5*P} width={1} height={1} fill="#fff" />
       <rect x={10*P} y={5*P} width={1} height={1} fill="#fff" />
+      {/* Glasses frames: two 3×2 rects + 1px bridge */}
+      {r(4, 5, 3, 2, GL)}
+      {r(9, 5, 3, 2, GL)}
+      {r(7, 5, 2, 1, GL)} {/* bridge */}
+      {/* Eye pupils over glasses */}
+      {r(5, 5, 1, 1, EY)}
+      {r(10, 5, 1, 1, EY)}
       {/* Subtle serene mouth */}
       {r(6, 8, 4, 1, SD)}
+      {/* Short brown beard: 4px strip below mouth */}
+      {r(5, 9, 6, 1, BD)}
+      {r(6, 9, 4, 1, "#6a3a10")} {/* slightly darker center */}
 
       {/* ── Neck ── */}
       {r(6, 10, 4, 1, S)}
