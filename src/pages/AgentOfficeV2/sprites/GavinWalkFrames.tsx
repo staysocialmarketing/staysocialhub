@@ -9,7 +9,8 @@ const W  = 16 * P;
 const Ht = 20 * P;
 
 const S  = '#a86830'; const SH = '#c07840'; const SD = '#8a5220'; const EY = '#100802';
-const GL = '#333333'; // glasses dark grey
+const GL = '#999999'; // glasses wire-frame silver
+const GL_LENS = '#d0e8f0'; // barely-visible lens tint
 const BD = '#7a4a1a'; // beard warm brown
 const T  = '#5a3820'; const TH = '#7a4e30'; const TD = '#3a2214';
 const GP = TD; // pants same dark earth
@@ -44,8 +45,11 @@ const headFront: R[] = [
   r(2,3,1,4,SD), r(13,3,1,4,SD),
   r(3,3,10,7,S), r(3,3,1,7,SD), r(12,3,1,7,SD), r(4,3,8,2,SH),
   r(4,6,3,1,SH), r(9,6,3,1,SH),
-  // Glasses frames (drawn before eyes so pupils paint over interior)
-  r(4,5,3,2,GL), r(8,5,1,1,GL), r(9,5,2,2,GL), // left lens, 1px bridge, right lens
+  // Wire-frame glasses: light tint fill + silver frame border
+  r(4,5,3,2,GL_LENS), r(9,5,3,2,GL_LENS), // lens tint
+  r(4,5,3,1,GL), r(9,5,3,1,GL),            // top edge frames
+  r(4,6,1,1,GL), r(6,6,1,1,GL), r(9,6,1,1,GL), r(11,6,1,1,GL), // side edges
+  r(8,5,1,1,GL),                           // bridge
   r(4,5,2,2,EY), r(9,5,2,2,EY),
   // Pupils over glasses
   r(5,5,1,1,EY), r(10,5,1,1,EY),
@@ -80,8 +84,9 @@ const headLeft: R[] = [
   r(11,1,3,5,S), r(13,1,1,5,SD),   // bald "trailing" = skin, not hair
   r(3,2,9,7,S), r(3,2,1,7,SD), r(4,2,7,2,SH),
   r(3,5,1,1,SD),
-  // Glasses frame (side profile — one lens visible)
-  r(4,5,3,2,GL), // left lens frame
+  // Wire-frame glasses (side profile — one lens visible, silver frame)
+  r(4,5,3,2,GL_LENS), // lens tint
+  r(4,5,3,1,GL), r(4,6,1,1,GL), r(6,6,1,1,GL), // top + side edges
   r(5,5,1,2,EY), r(11,6,1,2,SD), r(5,8,2,1,SD),
   r(5,9,5,1,S), r(5,9,1,1,SD), r(9,9,1,1,SD),
   // Beard (side profile: jaw strip — after skin so it shows)
