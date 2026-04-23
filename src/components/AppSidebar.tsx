@@ -30,7 +30,6 @@ import {
   FileText,
   BookOpen,
   Monitor,
-  Layers,
   Briefcase,
   Kanban,
 } from "lucide-react";
@@ -92,8 +91,7 @@ const manageSection = [
 
 const adminSection = [
   { title: "Workspace", url: "/admin/workspace", icon: Briefcase },
-  { title: "Agent Office", url: "/agent-office", icon: Monitor },
-  { title: "Agent Office v2", url: "/agent-office-v2", icon: Layers },
+  { title: "Agent Office", url: "/agent-office-v2", icon: Monitor },
   { title: "Users", url: "/admin/users", icon: Users },
   { title: "Plans", url: "/admin/plans", icon: ClipboardList },
   { title: "Meeting Notes", url: "/admin/meeting-notes", icon: FileText },
