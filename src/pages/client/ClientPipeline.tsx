@@ -114,20 +114,19 @@ function PipelineCard({
         .eq("id", post.id)
         .eq("status_column", "client_approval")
         .select("id")
-        .single();
+        .maybeSingle();
       if (error) throw error;
-      if (!data) throw new Error("POST_ALREADY_MOVED");
+      if (!data) {
+        toast.error("Already approved — refresh to see current status.");
+        return;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["client-pipeline"] });
       toast.success("Approved! Content is now in queue.");
     },
     onError: (err: any) => {
-      if (err.message === "POST_ALREADY_MOVED") {
-        toast.error("Post status has already changed — refresh to see the latest.");
-      } else {
-        toast.error(err.message || "Failed to approve");
-      }
+      toast.error(err.message || "Failed to approve");
     },
   });
 

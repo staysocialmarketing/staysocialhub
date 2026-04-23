@@ -167,20 +167,19 @@ function MarkAsScheduledButton({ postId }: { postId: string }) {
         .eq("id", postId)
         .eq("status_column", "approved")
         .select("id")
-        .single();
+        .maybeSingle();
       if (error) throw error;
-      if (!data) throw new Error("POST_ALREADY_MOVED");
+      if (!data) {
+        toast.error("Post already moved — refresh to see current status.");
+        return;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["approval-posts"] });
       toast.success("Marked as scheduled");
     },
     onError: (err: any) => {
-      if (err.message === "POST_ALREADY_MOVED") {
-        toast.error("Post has already moved on — refresh to see the latest status.");
-      } else {
-        toast.error(err.message || "Failed to update status");
-      }
+      toast.error(err.message || "Failed to update status");
     },
   });
 
