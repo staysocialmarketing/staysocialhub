@@ -17,205 +17,149 @@
   </noscript>
   <![endif]-->
   <style>
-    /* Reset styles */
     body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
     table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
     img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
-    /* Mobile responsive */
     @media only screen and (max-width: 620px) {
       .email-container { width: 100% !important; max-width: 100% !important; }
-      .team-card { width: 100% !important; display: block !important; margin-bottom: 16px !important; }
-      .team-cards-row { display: block !important; width: 100% !important; }
+      .hero-headline { font-size: 28px !important; }
+      .padding-mobile { padding: 28px 24px !important; }
       .cta-button { width: 100% !important; display: block !important; text-align: center !important; }
-      .padding-mobile { padding: 24px 20px !important; }
-      .photo-circle { width: 80px !important; height: 80px !important; }
     }
   </style>
 </head>
-<body style="margin: 0; padding: 0; background-color: #0a0a0f; word-spacing: normal; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;">
+<body style="margin: 0; padding: 0; background-color: #0d0d12; word-spacing: normal; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;">
 
-  <!-- Preheader text (hidden) -->
-  <div style="display: none; font-size: 1px; color: #0a0a0f; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden;">
+  <!-- Preheader -->
+  <div style="display: none; font-size: 1px; color: #0d0d12; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden;">
     Here's the full team behind your account — the three people planning, building, and looking after everything we do for you.
   </div>
 
-  <!-- Email wrapper -->
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #0a0a0f;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #0d0d12;">
     <tr>
-      <td align="center" style="padding: 20px 10px;">
+      <td align="center" style="padding: 24px 10px;">
 
-        <!-- Main container -->
-        <table role="presentation" class="email-container" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; width: 100%; background-color: #0a0a0f;">
+        <table role="presentation" class="email-container" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; width: 100%; background-color: #0d0d12;">
 
-          <!-- ===== HEADER ===== -->
+          <!-- ===== LOGO ===== -->
           <tr>
-            <td align="center" style="padding: 36px 40px 28px 40px; border-bottom: 1px solid #1e1e2a;">
-              <img src="https://staysocial.ca/assets/logo-n3rw-H5A.png" alt="Stay Social" width="160" style="display: block; border: 0; outline: none; text-decoration: none; max-width: 160px; height: auto;" />
+            <td align="center" style="padding: 36px 40px 32px 40px; border-bottom: 1px solid #1e1e28;">
+              <img src="https://staysocial.ca/assets/logo-n3rw-H5A.png" alt="Stay Social" width="150" style="display: block; border: 0; outline: none; text-decoration: none; max-width: 150px; height: auto;" />
             </td>
           </tr>
 
-          <!-- ===== GREETING + INTRO ===== -->
+          <!-- ===== HERO: label + headline + intro ===== -->
           <tr>
-            <td class="padding-mobile" style="padding: 40px 40px 32px 40px;">
-              <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 17px; font-weight: 400; line-height: 1.6; color: #ffffff; margin: 0 0 20px 0;">
+            <td class="padding-mobile" style="padding: 44px 40px 36px 40px;">
+
+              <!-- Orange accent bar -->
+              <div style="width: 44px; height: 4px; background-color: #F97316; border-radius: 2px; margin-bottom: 22px;"></div>
+
+              <!-- Label -->
+              <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 11px; font-weight: 700; color: #F97316; letter-spacing: 0.16em; text-transform: uppercase; margin: 0 0 16px 0;">
+                A note from the team
+              </p>
+
+              <!-- Big headline -->
+              <h1 class="hero-headline" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 36px; font-weight: 800; color: #ffffff; line-height: 1.15; margin: 0 0 32px 0;">
+                The team behind<br>your account.
+              </h1>
+
+              <!-- Greeting -->
+              <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 16px; font-weight: 400; line-height: 1.6; color: #ffffff; margin: 0 0 18px 0;">
                 Hey {{contact.first_name}} —
               </p>
-              <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 16px; font-weight: 400; line-height: 1.7; color: #c8c8d0; margin: 0;">
+
+              <!-- Intro copy -->
+              <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 16px; font-weight: 400; line-height: 1.75; color: #b8b8c4; margin: 0;">
                 Quick re-introduction. As a Premiere client, you've been part of the Stay Social family for some time now, but you've likely only ever spoken to one of us. Here's the full team behind your account — the three people planning, building, and looking after everything we do for you.
               </p>
-            </td>
-          </tr>
-
-          <!-- ===== YOUR TEAM SECTION ===== -->
-          <tr>
-            <td class="padding-mobile" style="padding: 0 40px 40px 40px;">
-
-              <!-- Section heading -->
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 28px;">
-                <tr>
-                  <td>
-                    <span style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 11px; font-weight: 700; color: #F97316; letter-spacing: 0.15em; text-transform: uppercase;">Your Team</span>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding-top: 8px;">
-                    <div style="height: 1px; background-color: #1e1e2a;"></div>
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Team cards row — table-based for Outlook compatibility -->
-              <!--[if mso]>
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                <tr>
-                  <td width="160" valign="top" style="padding-right: 12px;">
-              <![endif]-->
-
-              <!-- Mobile: stacked. Desktop: side-by-side via inline-block wrapper -->
-              <table role="presentation" class="team-cards-row" cellspacing="0" cellpadding="0" border="0" width="100%">
-                <tr>
-                  <!-- CARD 1 — COREY -->
-                  <td class="team-card" valign="top" width="33%" style="width: 33%; padding: 0 8px 0 0; vertical-align: top;">
-                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #13131a; border-radius: 10px; overflow: hidden;">
-                      <tr>
-                        <td align="center" style="padding: 24px 16px 20px 16px;">
-
-                          <!-- COREY PHOTO -->
-                          <img src="https://assets.cdn.filesafe.space/a7WVH7NQJmcJEUojxkZP/media/65b02fa67450223c552c9882.png" alt="Corey" width="80" height="80" style="border-radius: 50%; display: block; object-fit: cover; margin: 0 auto;" />
-
-                          <!-- Name -->
-                          <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 15px; font-weight: 700; color: #ffffff; margin: 14px 0 4px 0; text-align: center;">
-                            Corey
-                          </p>
-
-                          <!-- Title -->
-                          <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 11px; font-weight: 600; color: #F97316; margin: 0 0 12px 0; text-align: center; text-transform: uppercase; letter-spacing: 0.06em;">
-                            Founder &amp; AI Systems Architect
-                          </p>
-
-                          <!-- Bio -->
-                          <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 13px; font-weight: 400; line-height: 1.6; color: #a0a0b0; margin: 0; text-align: center;">
-                            The strategy, the vision, and the AI layer behind everything we build.
-                          </p>
-
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-
-                  <!-- CARD 2 — TRISTAN -->
-                  <td class="team-card" valign="top" width="33%" style="width: 33%; padding: 0 4px; vertical-align: top;">
-                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #13131a; border-radius: 10px; overflow: hidden;">
-                      <tr>
-                        <td align="center" style="padding: 24px 16px 20px 16px;">
-
-                          <!-- TRISTAN PHOTO -->
-                          <img src="https://assets.cdn.filesafe.space/a7WVH7NQJmcJEUojxkZP/media/668ed3dd350bacc4ace07f69.png" alt="Tristan" width="80" height="80" style="border-radius: 50%; display: block; object-fit: cover; margin: 0 auto;" />
-
-                          <!-- Name -->
-                          <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 15px; font-weight: 700; color: #ffffff; margin: 14px 0 4px 0; text-align: center;">
-                            Tristan
-                          </p>
-
-                          <!-- Title -->
-                          <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 11px; font-weight: 600; color: #F97316; margin: 0 0 12px 0; text-align: center; text-transform: uppercase; letter-spacing: 0.06em;">
-                            Director of Sales &amp; Client Success
-                          </p>
-
-                          <!-- Bio -->
-                          <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 13px; font-weight: 400; line-height: 1.6; color: #a0a0b0; margin: 0; text-align: center;">
-                            Your main point of contact — Tristan manages your account, answers your questions, and walks you through the HUB.
-                          </p>
-
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-
-                  <!-- CARD 3 — GAVIN -->
-                  <td class="team-card" valign="top" width="33%" style="width: 33%; padding: 0 0 0 8px; vertical-align: top;">
-                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #13131a; border-radius: 10px; overflow: hidden;">
-                      <tr>
-                        <td align="center" style="padding: 24px 16px 20px 16px;">
-
-                          <!-- GAVIN PHOTO -->
-                          <img src="https://assets.cdn.filesafe.space/a7WVH7NQJmcJEUojxkZP/media/668ed3ed8e395d7280dbd0c9.png" alt="Gavin" width="80" height="80" style="border-radius: 50%; display: block; object-fit: cover; margin: 0 auto;" />
-
-                          <!-- Name -->
-                          <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 15px; font-weight: 700; color: #ffffff; margin: 14px 0 4px 0; text-align: center;">
-                            Gavin
-                          </p>
-
-                          <!-- Title -->
-                          <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 11px; font-weight: 600; color: #F97316; margin: 0 0 12px 0; text-align: center; text-transform: uppercase; letter-spacing: 0.06em;">
-                            Director of Creative &amp; AI Studio
-                          </p>
-
-                          <!-- Bio -->
-                          <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 13px; font-weight: 400; line-height: 1.6; color: #a0a0b0; margin: 0; text-align: center;">
-                            The creative eye. Gavin handles design, visual content, and the AI-generated assets behind your posts.
-                          </p>
-
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-
-                </tr>
-              </table>
-
-              <!--[if mso]>
-                  </td>
-                </tr>
-              </table>
-              <![endif]-->
 
             </td>
           </tr>
 
-          <!-- ===== WHAT'S COMING SECTION (alternate background) ===== -->
+          <!-- ===== YOUR TEAM ===== -->
           <tr>
-            <td style="background-color: #111111; border-top: 1px solid #1e1e2a; border-bottom: 1px solid #1e1e2a;">
+            <td class="padding-mobile" style="padding: 0 40px 44px 40px;">
+
+              <!-- Section label -->
+              <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 11px; font-weight: 700; color: #555568; letter-spacing: 0.14em; text-transform: uppercase; margin: 0 0 20px 0;">
+                Your Team
+              </p>
+
+              <!-- ── ROW: COREY ── -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 0;">
+                <tr>
+                  <!-- Photo -->
+                  <td valign="top" width="72" style="width: 72px; padding-right: 20px;">
+                    <img src="https://assets.cdn.filesafe.space/a7WVH7NQJmcJEUojxkZP/media/65b02fa67450223c552c9882.png" alt="Corey" width="64" height="64" style="border-radius: 50%; display: block; width: 64px; height: 64px;" />
+                  </td>
+                  <!-- Text -->
+                  <td valign="top">
+                    <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 15px; font-weight: 700; color: #ffffff; margin: 0 0 4px 0;">Corey</p>
+                    <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 11px; font-weight: 600; color: #F97316; text-transform: uppercase; letter-spacing: 0.07em; margin: 0 0 8px 0;">Founder &amp; AI Systems Architect</p>
+                    <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 13px; font-weight: 400; line-height: 1.65; color: #888898; margin: 0;">The strategy, the vision, and the AI layer behind everything we build.</p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Divider -->
+              <div style="height: 1px; background-color: #1e1e28; margin: 22px 0;"></div>
+
+              <!-- ── ROW: TRISTAN ── -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 0;">
+                <tr>
+                  <td valign="top" width="72" style="width: 72px; padding-right: 20px;">
+                    <img src="https://assets.cdn.filesafe.space/a7WVH7NQJmcJEUojxkZP/media/668ed3dd350bacc4ace07f69.png" alt="Tristan" width="64" height="64" style="border-radius: 50%; display: block; width: 64px; height: 64px;" />
+                  </td>
+                  <td valign="top">
+                    <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 15px; font-weight: 700; color: #ffffff; margin: 0 0 4px 0;">Tristan</p>
+                    <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 11px; font-weight: 600; color: #F97316; text-transform: uppercase; letter-spacing: 0.07em; margin: 0 0 8px 0;">Director of Sales &amp; Client Success</p>
+                    <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 13px; font-weight: 400; line-height: 1.65; color: #888898; margin: 0;">Your main point of contact — Tristan manages your account, answers your questions, and walks you through the HUB.</p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Divider -->
+              <div style="height: 1px; background-color: #1e1e28; margin: 22px 0;"></div>
+
+              <!-- ── ROW: GAVIN ── -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 0;">
+                <tr>
+                  <td valign="top" width="72" style="width: 72px; padding-right: 20px;">
+                    <img src="https://assets.cdn.filesafe.space/a7WVH7NQJmcJEUojxkZP/media/668ed3ed8e395d7280dbd0c9.png" alt="Gavin" width="64" height="64" style="border-radius: 50%; display: block; width: 64px; height: 64px;" />
+                  </td>
+                  <td valign="top">
+                    <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 15px; font-weight: 700; color: #ffffff; margin: 0 0 4px 0;">Gavin</p>
+                    <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 11px; font-weight: 600; color: #F97316; text-transform: uppercase; letter-spacing: 0.07em; margin: 0 0 8px 0;">Director of Creative &amp; AI Studio</p>
+                    <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 13px; font-weight: 400; line-height: 1.65; color: #888898; margin: 0;">The creative eye. Gavin handles design, visual content, and the AI-generated assets behind your posts.</p>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <!-- ===== WHAT'S COMING ===== -->
+          <tr>
+            <td style="background-color: #111118; border-top: 1px solid #1e1e28; border-bottom: 1px solid #1e1e28;">
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                 <tr>
                   <td class="padding-mobile" style="padding: 36px 40px;">
 
-                    <!-- Section label -->
                     <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 11px; font-weight: 700; color: #F97316; letter-spacing: 0.15em; text-transform: uppercase; margin: 0 0 16px 0;">
                       A quick note on what's coming.
                     </p>
 
-                    <!-- HUB intro -->
-                    <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 16px; font-weight: 400; line-height: 1.7; color: #c8c8d0; margin: 0 0 20px 0;">
+                    <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 16px; font-weight: 400; line-height: 1.75; color: #b8b8c4; margin: 0 0 20px 0;">
                       We've been heads-down building something we think is going to change how you experience our service — the Stay Social HUB. It's your new client portal where you'll be able to see every post we're building for you, review and approve content directly, and track what's live, scheduled, and coming next.
                     </p>
 
-                    <!-- Patience / offer paragraph -->
-                    <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 16px; font-weight: 400; line-height: 1.7; color: #c8c8d0; margin: 0 0 20px 0;">
+                    <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 16px; font-weight: 400; line-height: 1.75; color: #b8b8c4; margin: 0 0 20px 0;">
                       We appreciate your patience while we've been building it. The wait will be worth it — your plan is about to include a lot more added value moving forward, and you'll be among the first to access it.
                     </p>
 
-                    <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 16px; font-weight: 400; line-height: 1.7; color: #c8c8d0; margin: 0;">
+                    <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 16px; font-weight: 400; line-height: 1.75; color: #b8b8c4; margin: 0;">
                       If anything hasn't felt right during the build phase, I want to hear about it directly. Reach out to me at <a href="mailto:corey@staysocial.ca" style="color: #F97316; text-decoration: none;">corey@staysocial.ca</a> and I'll personally make it right — whether that's a credit, a discount, or free access to some of the new AI tools and Stay Social AI Agents we're rolling out. Your patience is going to be rewarded either way.
                     </p>
 
@@ -227,14 +171,14 @@
 
           <!-- ===== CLOSING + CTA ===== -->
           <tr>
-            <td class="padding-mobile" style="padding: 36px 40px 32px 40px;">
+            <td class="padding-mobile" style="padding: 40px 40px 36px 40px;">
 
-              <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 16px; font-weight: 400; line-height: 1.7; color: #c8c8d0; margin: 0 0 28px 0;">
+              <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 16px; font-weight: 400; line-height: 1.75; color: #b8b8c4; margin: 0 0 32px 0;">
                 Thank you for trusting us with your brand. We don't take that lightly, and we're excited about what's next.
               </p>
 
-              <!-- CTA Button -->
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 36px;">
+              <!-- CTA -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 40px;">
                 <tr>
                   <td align="center">
                     <!--[if mso]>
@@ -244,15 +188,15 @@
                     </v:roundrect>
                     <![endif]-->
                     <!--[if !mso]><!-->
-                    <a href="{{booking_link}}" class="cta-button" style="display: inline-block; background-color: #F97316; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 0.08em; text-decoration: none; text-align: center; padding: 16px 32px; border-radius: 6px; mso-hide: all; min-width: 260px; box-sizing: border-box;">
+                    <a href="{{booking_link}}" class="cta-button" style="display: inline-block; background-color: #F97316; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 0.08em; text-decoration: none; text-align: center; padding: 16px 36px; border-radius: 6px; mso-hide: all; min-width: 260px; box-sizing: border-box;">
                       BOOK YOUR STRATEGY CALL &rarr;
                     </a>
                     <!--<![endif]-->
                   </td>
                 </tr>
                 <tr>
-                  <td align="center" style="padding-top: 10px;">
-                    <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 12px; color: #666677; margin: 0; text-align: center;">
+                  <td align="center" style="padding-top: 12px;">
+                    <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 12px; color: #555568; margin: 0;">
                       Takes 20 minutes. Tristan will screen-share the HUB and answer any questions.
                     </p>
                   </td>
@@ -260,22 +204,16 @@
               </table>
 
               <!-- Sign-off -->
-              <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 16px; font-weight: 400; line-height: 1.7; color: #c8c8d0; margin: 0 0 16px 0;">
+              <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 16px; font-weight: 400; line-height: 1.7; color: #b8b8c4; margin: 0 0 16px 0;">
                 Looking forward to what's ahead,
               </p>
 
-              <!-- SIGNATURE — italic text for now; swap for PNG once Canvas generates it -->
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-bottom: 12px;">
-                <tr>
-                  <td>
-                    <div style="font-family: Georgia, 'Times New Roman', serif; font-size: 28px; font-style: italic; color: #ffffff; letter-spacing: 0.02em; line-height: 1;">Corey</div>
-                  </td>
-                </tr>
-              </table>
+              <!-- Signature — italic script style -->
+              <div style="font-family: Georgia, 'Times New Roman', serif; font-size: 30px; font-style: italic; color: #ffffff; letter-spacing: 0.01em; line-height: 1; margin-bottom: 14px;">Corey</div>
 
-              <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 15px; font-weight: 400; line-height: 1.6; color: #ffffff; margin: 0;">
+              <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 1.5; color: #ffffff; margin: 0;">
                 Corey<br>
-                <span style="color: #888899; font-size: 13px;">Founder, Stay Social</span>
+                <span style="color: #555568; font-size: 13px;">Founder, Stay Social</span>
               </p>
 
             </td>
@@ -283,23 +221,20 @@
 
           <!-- ===== FOOTER ===== -->
           <tr>
-            <td style="border-top: 1px solid #1e1e2a; padding: 24px 40px;" align="center">
-              <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 12px; color: #555566; margin: 0 0 8px 0; text-align: center;">
+            <td style="border-top: 1px solid #1e1e28; padding: 24px 40px;" align="center">
+              <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 12px; color: #444455; margin: 0 0 8px 0; text-align: center;">
                 &copy; 2026 Stay Social | Halifax, Nova Scotia
               </p>
               <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 12px; margin: 0; text-align: center;">
-                <a href="{{unsubscribe_link}}" style="color: #555566; text-decoration: underline;">Unsubscribe</a>
+                <a href="{{unsubscribe_link}}" style="color: #444455; text-decoration: underline;">Unsubscribe</a>
               </p>
             </td>
           </tr>
 
         </table>
-        <!-- /Main container -->
-
       </td>
     </tr>
   </table>
-  <!-- /Email wrapper -->
 
 </body>
 </html>
