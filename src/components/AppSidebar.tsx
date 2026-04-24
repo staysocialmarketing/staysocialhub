@@ -90,7 +90,6 @@ const manageSection = [
 
 const adminSection = [
   { title: "Workspace", url: "/admin/workspace", icon: Briefcase },
-  { title: "Agent Docs", url: "/workspace", icon: FileText },
   { title: "Agent Office", url: "/agent-office-v2", icon: Monitor },
   { title: "Users", url: "/admin/users", icon: Users },
   { title: "Plans", url: "/admin/plans", icon: ClipboardList },

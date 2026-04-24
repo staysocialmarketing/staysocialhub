@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import ReactMarkdown from "react-markdown";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -11,16 +12,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import {
   Briefcase,
-  Search,
   FileText,
   AlertCircle,
   Trophy,
   Bot,
+  Brain,
+  ListTodo,
+  Users,
+  Lightbulb,
+  BookOpen,
   Link2,
   ChevronDown,
   ChevronUp,
@@ -39,13 +43,12 @@ import {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface WorkspaceDoc {
-  id: string;
+interface AgentDoc {
+  key: string;
   title: string;
-  category: string;
   content: string;
-  updated_at: string;
-  updated_by: string;
+  updated_at: string | null;
+  updated_by: string | null;
 }
 
 interface OpenItem {
@@ -114,12 +117,54 @@ const WIN_CATEGORY_STYLES: Record<string, string> = {
   general: "bg-orange-500/10 text-orange-500 border-orange-500/20",
 };
 
-const DOC_CATEGORY_STYLES: Record<string, string> = {
-  memory: "bg-purple-500/10 text-purple-500 border-purple-500/20",
-  client: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-  decision: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
-  agent: "bg-green-500/10 text-green-500 border-green-500/20",
-  general: "bg-muted text-muted-foreground border-border",
+// ── Agent Docs tab config ─────────────────────────────────────────────────────
+
+const DOC_TABS = [
+  { key: "memory",     label: "Memory",     icon: Brain },
+  { key: "tasks",      label: "Tasks",      icon: ListTodo },
+  { key: "clients",    label: "Clients",    icon: Users },
+  { key: "decisions",  label: "Decisions",  icon: BookOpen },
+  { key: "think-tank", label: "Think Tank", icon: Lightbulb },
+] as const;
+
+const mdComponents: React.ComponentProps<typeof ReactMarkdown>["components"] = {
+  h1: ({ children }) => (
+    <h1 className="text-xl font-bold text-foreground mt-6 mb-3 first:mt-0">{children}</h1>
+  ),
+  h2: ({ children }) => (
+    <h2 className="text-base font-semibold text-foreground mt-5 mb-2 border-b border-border/40 pb-1">{children}</h2>
+  ),
+  h3: ({ children }) => (
+    <h3 className="text-sm font-semibold text-foreground mt-4 mb-1">{children}</h3>
+  ),
+  p: ({ children }) => (
+    <p className="text-sm text-muted-foreground leading-relaxed mb-3">{children}</p>
+  ),
+  ul: ({ children }) => (
+    <ul className="list-disc list-inside space-y-1 mb-3 text-sm text-muted-foreground">{children}</ul>
+  ),
+  ol: ({ children }) => (
+    <ol className="list-decimal list-inside space-y-1 mb-3 text-sm text-muted-foreground">{children}</ol>
+  ),
+  li: ({ children }) => (
+    <li className="text-sm text-muted-foreground leading-relaxed">{children}</li>
+  ),
+  strong: ({ children }) => (
+    <strong className="font-semibold text-foreground">{children}</strong>
+  ),
+  em: ({ children }) => (
+    <em className="italic text-muted-foreground/80">{children}</em>
+  ),
+  code: ({ children }) => (
+    <code className="bg-muted/60 text-foreground text-xs rounded px-1.5 py-0.5 font-mono">{children}</code>
+  ),
+  pre: ({ children }) => (
+    <pre className="bg-muted/40 rounded-xl p-4 overflow-x-auto text-xs font-mono mb-3 border border-border/30">{children}</pre>
+  ),
+  hr: () => <hr className="border-border/30 my-4" />,
+  blockquote: ({ children }) => (
+    <blockquote className="border-l-2 border-primary/40 pl-4 italic text-muted-foreground/80 my-3">{children}</blockquote>
+  ),
 };
 
 const AGENTS = [
@@ -142,102 +187,81 @@ const QUICK_LINKS = [
   { label: "staysocial.ca", url: "https://staysocial.ca", icon: Globe, description: "Agency website" },
 ];
 
-// ── Section 1: Live Documents ─────────────────────────────────────────────────
+// ── Section 1: Agent Docs ─────────────────────────────────────────────────────
 
-function LiveDocuments() {
-  const [search, setSearch] = useState("");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  const { data: docs = [], isLoading } = useQuery<WorkspaceDoc[]>({
-    queryKey: ["workspace-docs"],
+function DocPanel({ tabKey }: { tabKey: string }) {
+  const { data: doc, isLoading, isError } = useQuery<AgentDoc | null>({
+    queryKey: ["agent-doc", tabKey],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("workspace_docs" as any)
+      const { data, error } = await (supabase as any)
+        .from("agent_docs")
         .select("*")
-        .order("updated_at", { ascending: false });
+        .eq("key", tabKey)
+        .maybeSingle();
       if (error) throw error;
-      return data || [];
+      return data ?? null;
     },
   });
 
-  const filtered = docs.filter(
-    (d) =>
-      d.title.toLowerCase().includes(search.toLowerCase()) ||
-      d.category.toLowerCase().includes(search.toLowerCase()) ||
-      d.content.toLowerCase().includes(search.toLowerCase())
-  );
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 text-muted-foreground text-sm py-16 justify-center">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading…
+      </div>
+    );
+  }
 
-  const grouped = filtered.reduce<Record<string, WorkspaceDoc[]>>((acc, doc) => {
-    const cat = doc.category || "general";
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(doc);
-    return acc;
-  }, {});
+  if (isError || !doc) {
+    return (
+      <div className="text-center py-16 text-muted-foreground">
+        <FileText className="h-10 w-10 mx-auto mb-3 opacity-30" />
+        <p className="text-sm">No content yet. Lev will write here after the next session.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search documents..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9 rounded-xl"
-        />
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Badge variant="outline" className="text-[10px] bg-primary/5 border-primary/20 text-primary capitalize">
+          {doc.updated_by ?? "lev"}
+        </Badge>
+        <span>
+          Last updated{" "}
+          {doc.updated_at
+            ? format(new Date(doc.updated_at), "MMM d, yyyy 'at' h:mm a")
+            : "—"}
+        </span>
       </div>
+      <Card className="rounded-2xl border-border/50">
+        <CardContent className="px-6 py-5">
+          <ReactMarkdown components={mdComponents}>{doc.content}</ReactMarkdown>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
-      {isLoading ? (
-        <div className="flex items-center gap-2 text-muted-foreground text-sm py-8 justify-center">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Loading documents…
-        </div>
-      ) : Object.keys(grouped).length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <FileText className="h-10 w-10 mx-auto mb-3 opacity-30" />
-          <p className="text-sm">{search ? "No documents match your search." : "No documents yet. Lev will write here."}</p>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {Object.entries(grouped).map(([category, categoryDocs]) => (
-            <div key={category}>
-              <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2 flex items-center gap-2">
-                <Badge variant="outline" className={`text-[10px] capitalize ${DOC_CATEGORY_STYLES[category] || DOC_CATEGORY_STYLES.general}`}>
-                  {category}
-                </Badge>
-              </h3>
-              <div className="rounded-2xl bg-card border border-border/50 divide-y divide-border/30">
-                {categoryDocs.map((doc) => (
-                  <div key={doc.id} className="group">
-                    <button
-                      className="w-full px-5 py-4 flex items-center justify-between hover:bg-muted/10 transition-colors text-left"
-                      onClick={() => setExpandedId(expandedId === doc.id ? null : doc.id)}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground">{doc.title}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Updated {format(new Date(doc.updated_at), "MMM d, yyyy 'at' h:mm a")} · by {doc.updated_by}
-                        </p>
-                      </div>
-                      {expandedId === doc.id ? (
-                        <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0 ml-3" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0 ml-3" />
-                      )}
-                    </button>
-                    {expandedId === doc.id && (
-                      <div className="px-5 pb-5">
-                        <pre className="text-xs text-muted-foreground whitespace-pre-wrap bg-muted/30 rounded-xl p-4 leading-relaxed font-mono overflow-auto max-h-96">
-                          {doc.content}
-                        </pre>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
+function AgentDocs() {
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">Live agent memory — updated by Lev after each session.</p>
+      <Tabs defaultValue="memory" className="space-y-4">
+        <TabsList className="rounded-xl flex-wrap h-auto gap-1">
+          {DOC_TABS.map(({ key, label, icon: Icon }) => (
+            <TabsTrigger key={key} value={key} className="gap-1.5 rounded-lg">
+              <Icon className="h-3.5 w-3.5" />
+              {label}
+            </TabsTrigger>
           ))}
-        </div>
-      )}
+        </TabsList>
+        {DOC_TABS.map(({ key }) => (
+          <TabsContent key={key} value={key}>
+            <DocPanel tabKey={key} />
+          </TabsContent>
+        ))}
+      </Tabs>
     </div>
   );
 }
@@ -811,7 +835,7 @@ export default function AdminWorkspace() {
         </TabsList>
 
         <TabsContent value="docs">
-          <LiveDocuments />
+          <AgentDocs />
         </TabsContent>
 
         <TabsContent value="open-items">
