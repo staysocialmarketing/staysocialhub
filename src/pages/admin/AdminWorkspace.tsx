@@ -14,7 +14,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import ReactMarkdown from "react-markdown";
 import {
   Briefcase,
   FileText,
@@ -40,11 +39,6 @@ import {
   Globe,
   Zap,
   Terminal,
-  Brain,
-  ListTodo,
-  Users,
-  BookOpen,
-  Lightbulb,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -98,14 +92,6 @@ interface AgentMorale {
   created_at: string;
 }
 
-interface AgentDoc {
-  key: string;
-  title: string;
-  content: string;
-  updated_at: string | null;
-  updated_by: string | null;
-}
-
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const PRIORITY_STYLES: Record<string, string> = {
@@ -133,7 +119,7 @@ const WIN_CATEGORY_STYLES: Record<string, string> = {
 
 // ── Agent Docs tab config ─────────────────────────────────────────────────────
 
-const DOC_TABS = [
+const AGENT_DOC_TABS = [
   { key: "memory",     label: "Memory",     icon: Brain },
   { key: "tasks",      label: "Tasks",      icon: ListTodo },
   { key: "clients",    label: "Clients",    icon: Users },
@@ -203,7 +189,7 @@ const QUICK_LINKS = [
 
 // ── Section 1: Agent Docs ─────────────────────────────────────────────────────
 
-function DocPanel({ tabKey }: { tabKey: string }) {
+function AgentDocPanel({ tabKey }: { tabKey: string }) {
   const { data: doc, isLoading, isError } = useQuery<AgentDoc | null>({
     queryKey: ["agent-doc", tabKey],
     queryFn: async () => {
@@ -239,7 +225,7 @@ function DocPanel({ tabKey }: { tabKey: string }) {
     <div className="space-y-4">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <Badge variant="outline" className="text-[10px] bg-primary/5 border-primary/20 text-primary capitalize">
-          {doc.updated_by ?? "lev"}
+          {doc.updated_by ?? "Lev"}
         </Badge>
         <span>
           Last updated{" "}
@@ -263,16 +249,16 @@ function AgentDocs() {
       <p className="text-sm text-muted-foreground">Live agent memory — updated by Lev after each session.</p>
       <Tabs defaultValue="memory" className="space-y-4">
         <TabsList className="rounded-xl flex-wrap h-auto gap-1">
-          {DOC_TABS.map(({ key, label, icon: Icon }) => (
+          {AGENT_DOC_TABS.map(({ key, label, icon: Icon }) => (
             <TabsTrigger key={key} value={key} className="gap-1.5 rounded-lg">
               <Icon className="h-3.5 w-3.5" />
               {label}
             </TabsTrigger>
           ))}
         </TabsList>
-        {DOC_TABS.map(({ key }) => (
+        {AGENT_DOC_TABS.map(({ key }) => (
           <TabsContent key={key} value={key}>
-            <DocPanel tabKey={key} />
+            <AgentDocPanel tabKey={key} />
           </TabsContent>
         ))}
       </Tabs>
@@ -290,24 +276,24 @@ function OpenItems() {
 
   const { data: items = [], isLoading } = useQuery<OpenItem[]>({
     queryKey: ["open-items"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("open_items" as any)
+    queryFn: async (): Promise<OpenItem[]> => {
+      const { data, error } = await (supabase as any)
+        .from("open_items")
         .select("*")
         .neq("status", "resolved")
         .order("updated_at", { ascending: false });
       if (error) throw error;
       // Sort: high → medium → low
       const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
-      return (data || []).sort(
-        (a: any, b: any) => (priorityOrder[a.priority] ?? 99) - (priorityOrder[b.priority] ?? 99)
+      return ((data || []) as OpenItem[]).sort(
+        (a, b) => (priorityOrder[a.priority] ?? 99) - (priorityOrder[b.priority] ?? 99)
       );
     },
   });
 
   const addMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("open_items" as any).insert({
+      const { error } = await (supabase as any).from("open_items").insert({
         title: form.title.trim(),
         description: form.description.trim() || null,
         priority: form.priority,
@@ -326,8 +312,8 @@ function OpenItems() {
 
   const resolveMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("open_items" as any)
+      const { error } = await (supabase as any)
+        .from("open_items")
         .update({ status: "resolved", updated_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;
@@ -472,20 +458,20 @@ function WinLog() {
 
   const { data: wins = [], isLoading } = useQuery<TeamWin[]>({
     queryKey: ["workspace-wins"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("team_wins" as any)
+    queryFn: async (): Promise<TeamWin[]> => {
+      const { data, error } = await (supabase as any)
+        .from("team_wins")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(50);
       if (error) throw error;
-      return data || [];
+      return (data || []) as TeamWin[];
     },
   });
 
   const addMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("team_wins" as any).insert({
+      const { error } = await (supabase as any).from("team_wins").insert({
         title: form.title.trim(),
         description: form.description.trim() || null,
         category: form.category,
@@ -626,25 +612,25 @@ function AgentWorkspace() {
 
   const { data: updates = [], isLoading: loadingUpdates } = useQuery<AgentUpdate[]>({
     queryKey: ["agent-updates-workspace"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("agent_updates" as any)
+    queryFn: async (): Promise<AgentUpdate[]> => {
+      const { data, error } = await (supabase as any)
+        .from("agent_updates")
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data || [];
+      return (data || []) as AgentUpdate[];
     },
   });
 
   const { data: morale = [], isLoading: loadingMorale } = useQuery<AgentMorale[]>({
     queryKey: ["agent-morale-workspace"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("agent_morale" as any)
+    queryFn: async (): Promise<AgentMorale[]> => {
+      const { data, error } = await (supabase as any)
+        .from("agent_morale")
         .select("*")
         .order("week_of", { ascending: false });
       if (error) throw error;
-      return data || [];
+      return (data || []) as AgentMorale[];
     },
   });
 
@@ -785,134 +771,7 @@ function AgentWorkspace() {
   );
 }
 
-// ── Section 5: Agent Docs ─────────────────────────────────────────────────────
-
-const AGENT_DOC_TABS = [
-  { key: "memory",    label: "Memory",     icon: Brain },
-  { key: "tasks",     label: "Tasks",      icon: ListTodo },
-  { key: "clients",   label: "Clients",    icon: Users },
-  { key: "decisions", label: "Decisions",  icon: BookOpen },
-  { key: "think-tank",label: "Think Tank", icon: Lightbulb },
-] as const;
-
-const mdComponents: React.ComponentProps<typeof ReactMarkdown>["components"] = {
-  h1: ({ children }) => (
-    <h1 className="text-xl font-bold text-foreground mt-6 mb-3 first:mt-0">{children}</h1>
-  ),
-  h2: ({ children }) => (
-    <h2 className="text-base font-semibold text-foreground mt-5 mb-2 border-b border-border/40 pb-1">{children}</h2>
-  ),
-  h3: ({ children }) => (
-    <h3 className="text-sm font-semibold text-foreground mt-4 mb-1">{children}</h3>
-  ),
-  p: ({ children }) => (
-    <p className="text-sm text-muted-foreground leading-relaxed mb-3">{children}</p>
-  ),
-  ul: ({ children }) => (
-    <ul className="list-disc list-inside space-y-1 mb-3 text-sm text-muted-foreground">{children}</ul>
-  ),
-  ol: ({ children }) => (
-    <ol className="list-decimal list-inside space-y-1 mb-3 text-sm text-muted-foreground">{children}</ol>
-  ),
-  li: ({ children }) => (
-    <li className="text-sm text-muted-foreground leading-relaxed">{children}</li>
-  ),
-  strong: ({ children }) => (
-    <strong className="font-semibold text-foreground">{children}</strong>
-  ),
-  em: ({ children }) => (
-    <em className="italic text-muted-foreground/80">{children}</em>
-  ),
-  code: ({ children }) => (
-    <code className="bg-muted/60 text-foreground text-xs rounded px-1.5 py-0.5 font-mono">{children}</code>
-  ),
-  pre: ({ children }) => (
-    <pre className="bg-muted/40 rounded-xl p-4 overflow-x-auto text-xs font-mono mb-3 border border-border/30">{children}</pre>
-  ),
-  hr: () => <hr className="border-border/30 my-4" />,
-  blockquote: ({ children }) => (
-    <blockquote className="border-l-2 border-primary/40 pl-4 italic text-muted-foreground/80 my-3">{children}</blockquote>
-  ),
-};
-
-function AgentDocPanel({ tabKey }: { tabKey: string }) {
-  const { data: doc, isLoading, isError } = useQuery<AgentDoc | null>({
-    queryKey: ["agent-doc", tabKey],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("agent_docs")
-        .select("*")
-        .eq("key", tabKey)
-        .maybeSingle();
-      if (error) throw error;
-      return data ?? null;
-    },
-  });
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center gap-2 text-muted-foreground text-sm py-16 justify-center">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        Loading…
-      </div>
-    );
-  }
-
-  if (isError || !doc) {
-    return (
-      <div className="text-center py-16 text-muted-foreground">
-        <FileText className="h-10 w-10 mx-auto mb-3 opacity-30" />
-        <p className="text-sm">No content yet. Lev will write here after the next session.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Badge variant="outline" className="text-[10px] bg-primary/5 border-primary/20 text-primary capitalize">
-          {doc.updated_by ?? "Lev"}
-        </Badge>
-        <span>
-          Last updated{" "}
-          {doc.updated_at
-            ? format(new Date(doc.updated_at), "MMM d, yyyy 'at' h:mm a")
-            : "—"}
-        </span>
-      </div>
-      <Card className="rounded-2xl border-border/50">
-        <CardContent className="px-6 py-5">
-          <ReactMarkdown components={mdComponents}>{doc.content}</ReactMarkdown>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function AgentDocs() {
-  return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">Live view of the agent team's key files — updated by Lev after each session.</p>
-      <Tabs defaultValue="memory" className="space-y-4">
-        <TabsList className="rounded-xl flex-wrap h-auto gap-1">
-          {AGENT_DOC_TABS.map(({ key, label, icon: Icon }) => (
-            <TabsTrigger key={key} value={key} className="gap-1.5 rounded-lg">
-              <Icon className="h-3.5 w-3.5" />
-              {label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        {AGENT_DOC_TABS.map(({ key }) => (
-          <TabsContent key={key} value={key}>
-            <AgentDocPanel tabKey={key} />
-          </TabsContent>
-        ))}
-      </Tabs>
-    </div>
-  );
-}
-
-// ── Section 6: Quick Links ────────────────────────────────────────────────────
+// ── Section 5: Quick Links ────────────────────────────────────────────────────
 
 function QuickLinks() {
   return (
@@ -961,9 +820,6 @@ export default function AdminWorkspace() {
           <TabsTrigger value="agent-docs" className="gap-1.5 rounded-lg">
             <Brain className="h-3.5 w-3.5" /> Agent Docs
           </TabsTrigger>
-          <TabsTrigger value="docs" className="gap-1.5 rounded-lg">
-            <FileText className="h-3.5 w-3.5" /> Docs
-          </TabsTrigger>
           <TabsTrigger value="open-items" className="gap-1.5 rounded-lg">
             <AlertCircle className="h-3.5 w-3.5" /> Open Items
           </TabsTrigger>
@@ -979,10 +835,6 @@ export default function AdminWorkspace() {
         </TabsList>
 
         <TabsContent value="agent-docs">
-          <AgentDocs />
-        </TabsContent>
-
-        <TabsContent value="docs">
           <AgentDocs />
         </TabsContent>
 
@@ -1005,4 +857,3 @@ export default function AdminWorkspace() {
     </div>
   );
 }
-

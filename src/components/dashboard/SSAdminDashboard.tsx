@@ -399,9 +399,10 @@ export function SSAdminDashboard() {
     queryKey: ["admin-stat-requests"],
     queryFn: async () => {
       const { count } = await supabase
-        .from("requests")
+        .from("posts")
         .select("id", { count: "exact", head: true })
-        .eq("status", "open");
+        .eq("source", "client_request")
+        .eq("status_column", "idea");
       return count || 0;
     },
     refetchInterval: 60_000,

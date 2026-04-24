@@ -43,10 +43,10 @@ export function ClientHealthIndicator({ clientId, override, precomputed, classNa
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
       const [requests14, tasks14, approvals14, requests30, tasks30, approvals30] = await Promise.all([
-        supabase.from("requests").select("id", { count: "exact", head: true }).eq("client_id", clientId).gte("created_at", fourteenDaysAgo),
+        supabase.from("posts").select("id", { count: "exact", head: true }).eq("client_id", clientId).eq("source", "client_request").gte("created_at", fourteenDaysAgo),
         supabase.from("tasks").select("id", { count: "exact", head: true }).eq("client_id", clientId).gte("updated_at", fourteenDaysAgo),
         supabase.from("posts").select("id", { count: "exact", head: true }).eq("client_id", clientId).gte("created_at", fourteenDaysAgo),
-        supabase.from("requests").select("id", { count: "exact", head: true }).eq("client_id", clientId).gte("created_at", thirtyDaysAgo),
+        supabase.from("posts").select("id", { count: "exact", head: true }).eq("client_id", clientId).eq("source", "client_request").gte("created_at", thirtyDaysAgo),
         supabase.from("tasks").select("id", { count: "exact", head: true }).eq("client_id", clientId).gte("updated_at", thirtyDaysAgo),
         supabase.from("posts").select("id", { count: "exact", head: true }).eq("client_id", clientId).gte("created_at", thirtyDaysAgo),
       ]);

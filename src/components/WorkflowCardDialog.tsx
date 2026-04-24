@@ -66,16 +66,16 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
     queryFn: async () => {
       if (!post.request_id) return null;
       const { data, error } = await supabase
-        .from("requests")
-        .select("id, topic, notes, type, status, priority")
+        .from("posts")
+        .select("id, title, request_notes, content_type, status_column, priority")
         .eq("id", post.request_id)
         .single();
       if (error) return null;
       // Init request edit fields
       if (data) {
-        setReqType(data.type || "");
-        setReqPriority(data.priority || "normal");
-        setReqStatus(data.status || "open");
+        setReqType((data as any).content_type || "");
+        setReqPriority((data as any).priority || "normal");
+        setReqStatus((data as any).status_column || "open");
       }
       return data;
     },
@@ -116,9 +116,9 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
     setAudience(post.audience || "");
     setCampaignLink(post.campaign_link || "");
     if (linkedRequest) {
-      setReqType(linkedRequest.type || "");
-      setReqPriority(linkedRequest.priority || "normal");
-      setReqStatus(linkedRequest.status || "open");
+      setReqType((linkedRequest as any).content_type || "");
+      setReqPriority((linkedRequest as any).priority || "normal");
+      setReqStatus((linkedRequest as any).status_column || "open");
     }
   };
 
@@ -150,14 +150,14 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
         .eq("id", post.id);
       if (error) throw error;
 
-      // Update linked request if exists
+      // Update linked request if exists (requests are now stored as posts)
       if (post.request_id && linkedRequest) {
         const { error: reqError } = await supabase
-          .from("requests")
+          .from("posts")
           .update({
-            type: reqType as any,
+            content_type: reqType || null,
             priority: reqPriority || null,
-            status: reqStatus as any,
+            status_column: reqStatus as any,
           } as any)
           .eq("id", post.request_id);
         if (reqError) console.error("Failed to update linked request:", reqError);
@@ -370,7 +370,7 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
               {linkedRequest && (
                 <div className="rounded-md border border-border p-3 space-y-3 bg-muted/30">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Original Request</p>
-                  <p className="text-sm font-medium">{linkedRequest.topic}</p>
+                  <p className="text-sm font-medium">{(linkedRequest as any).title}</p>
                   <div className="grid grid-cols-3 gap-2">
                     <div>
                       <Label className="text-xs">Type</Label>
@@ -528,12 +528,12 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
               {linkedRequest && (
                 <div className="rounded-md border border-border p-3 space-y-1 bg-muted/30">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Original Request</p>
-                  <p className="text-sm font-medium">{linkedRequest.topic}</p>
-                  {linkedRequest.notes && <p className="text-xs text-muted-foreground">{linkedRequest.notes}</p>}
+                  <p className="text-sm font-medium">{(linkedRequest as any).title}</p>
+                  {(linkedRequest as any).request_notes && <p className="text-xs text-muted-foreground">{(linkedRequest as any).request_notes}</p>}
                   <div className="flex gap-2">
-                    <Badge variant="outline" className="text-[10px]">{linkedRequest.type?.replace("_", " ")}</Badge>
-                    <Badge variant="outline" className="text-[10px]">{linkedRequest.status}</Badge>
-                    {linkedRequest.priority && <Badge variant="outline" className="text-[10px]">{linkedRequest.priority}</Badge>}
+                    <Badge variant="outline" className="text-[10px]">{(linkedRequest as any).content_type?.replace("_", " ")}</Badge>
+                    <Badge variant="outline" className="text-[10px]">{(linkedRequest as any).status_column}</Badge>
+                    {(linkedRequest as any).priority && <Badge variant="outline" className="text-[10px]">{(linkedRequest as any).priority}</Badge>}
                   </div>
                 </div>
               )}
