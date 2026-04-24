@@ -22,7 +22,6 @@ import ClientPipeline from "./pages/client/ClientPipeline";
 import AIInterview from "./pages/client/AIInterview";
 import ContentGenerator from "./pages/client/ContentGenerator";
 import BrandTwinPage from "./pages/client/BrandTwin";
-import ClientPipeline from "./pages/client/ClientPipeline";
 import AdminClients from "./pages/admin/AdminClients";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminProfileUpdates from "./pages/admin/AdminProfileUpdates";
@@ -47,7 +46,6 @@ import UniversalInbox from "./pages/team/UniversalInbox";
 import CorporateStrategy from "./pages/admin/CorporateStrategy";
 import AgentOfficeV2, { AgentOfficeCanvas } from "./pages/AgentOfficeV2/AgentOffice";
 import AdminWorkspace from "./pages/admin/AdminWorkspace";
-import Workspace from "./pages/Workspace";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -143,7 +141,6 @@ const App = () => (
               <Route path="/corporate/strategy" element={<AdminRoute><CorporateStrategy /></AdminRoute>} />
               <Route path="/agent-office-v2" element={<AdminRoute><AgentOfficeV2 /></AdminRoute>} />
               <Route path="/admin/workspace" element={<SSAdminRoute><AdminWorkspace /></SSAdminRoute>} />
-              <Route path="/workspace" element={<SSAdminRoute><Workspace /></SSAdminRoute>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
