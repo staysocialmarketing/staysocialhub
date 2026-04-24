@@ -93,20 +93,23 @@ export default function MakeRequestDialog({
         }
       }
 
-      const { error: reqErr } = await supabase.from("requests").insert({
+      const { error: reqErr } = await supabase.from("posts").insert({
+        source: "client_request",
+        status_column: "idea",
+        title: topic.trim(),
+        content_type: type,
         client_id: clientId,
-        type,
-        topic: topic.trim(),
-        notes: notes.trim() || null,
         created_by_user_id: profile.id,
         submitted_on_behalf_by: isImpersonating ? realProfile!.id : null,
-        attachments_url,
+        request_notes: notes.trim() || null,
+        creative_url: attachments_url,
       } as any);
       if (reqErr) throw reqErr;
 
       toast.success("Request created and added to workflow!");
       queryClient.invalidateQueries({ queryKey: ["workflow-posts"] });
       queryClient.invalidateQueries({ queryKey: ["requests"] });
+      queryClient.invalidateQueries({ queryKey: ["client-pipeline-posts"] });
       onOpenChange(false);
       setClientId("");
       setTopic("");
