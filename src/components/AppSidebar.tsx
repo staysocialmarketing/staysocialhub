@@ -90,7 +90,6 @@ const manageSection = [
 
 const adminSection = [
   { title: "Workspace", url: "/admin/workspace", icon: Briefcase },
-  { title: "Agent Docs", url: "/workspace", icon: FileText },
   { title: "Agent Office", url: "/agent-office-v2", icon: Monitor },
   { title: "Users", url: "/admin/users", icon: Users },
   { title: "Plans", url: "/admin/plans", icon: ClipboardList },
@@ -363,7 +362,7 @@ export function AppSidebar() {
                     <CollapsibleContent>
                       <SidebarGroupContent>{renderMenuItems(
                         adminSection.filter(i => {
-                          if (i.title === "Workspace" || i.title === "Agent Docs") return isSSAdmin;
+                          if (i.title === "Workspace") return isSSAdmin;
                           if (i.title === "Users") return isSSAdmin || isSSManager;
                           if (i.title === "Plans" || i.title === "Versions") return isSSAdmin;
                           if (i.title === "Agent Office v2") return actualIsSSAdmin;
