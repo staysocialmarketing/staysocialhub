@@ -381,10 +381,14 @@ function WorkQueueDashboard() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="open" className="text-xs">Open</SelectItem>
-                      <SelectItem value="in_progress" className="text-xs">In Progress</SelectItem>
-                      <SelectItem value="completed" className="text-xs">Completed</SelectItem>
-                      <SelectItem value="cancelled" className="text-xs">Cancelled</SelectItem>
+                      <SelectItem value="idea" className="text-xs">Idea</SelectItem>
+                      <SelectItem value="ai_draft" className="text-xs">AI Draft</SelectItem>
+                      <SelectItem value="corey_review" className="text-xs">Corey Review</SelectItem>
+                      <SelectItem value="client_approval" className="text-xs">Client Approval</SelectItem>
+                      <SelectItem value="approved" className="text-xs">Approved</SelectItem>
+                      <SelectItem value="ready_to_schedule" className="text-xs">Ready to Schedule</SelectItem>
+                      <SelectItem value="scheduled" className="text-xs">Scheduled</SelectItem>
+                      <SelectItem value="published" className="text-xs">Published</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -360,6 +360,7 @@ Deno.serve(async (req: Request) => {
       };
 
       if (!title) return err("title is required");
+      if (!created_by_user_id) return err("created_by_user_id is required");
 
       const { data, error } = await db
         .from("tasks")
@@ -370,9 +371,9 @@ Deno.serve(async (req: Request) => {
           client_id:           client_id           ?? null,
           priority:            priority            ?? "normal",
           due_at:              due_at              ?? null,
-          assigned_to_team:    assigned_to_team    ?? null,
+          assigned_to_team:    assigned_to_team    ?? false,
           status:              "todo",
-          created_by_user_id:  created_by_user_id  ?? COREY_USER_ID,
+          created_by_user_id,
         })
         .select("id")
         .single();
@@ -424,6 +425,7 @@ Deno.serve(async (req: Request) => {
       };
 
       if (!name) return err("name is required");
+      if (!created_by_user_id) return err("created_by_user_id is required");
 
       const { data, error } = await db
         .from("projects")
@@ -433,7 +435,7 @@ Deno.serve(async (req: Request) => {
           client_id:          client_id          ?? null,
           parent_project_id:  parent_project_id  ?? null,
           status:             status             ?? "active",
-          created_by_user_id: created_by_user_id ?? COREY_USER_ID,
+          created_by_user_id,
         })
         .select("id")
         .single();
@@ -444,15 +446,17 @@ Deno.serve(async (req: Request) => {
 
     // ────────────────────────────────────────────────────────────────────────
     case "read-projects": {
-      const { client_id, status } = body as {
+      const { client_id, status, limit } = body as {
         client_id?: string;
         status?: string;
+        limit?: number;
       };
 
       let query = db
         .from("projects")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(typeof limit === "number" && limit > 0 ? Math.min(limit, 200) : 50);
 
       if (client_id) query = query.eq("client_id", client_id);
       if (status)    query = query.eq("status", status);
@@ -485,6 +489,7 @@ Deno.serve(async (req: Request) => {
       };
 
       if (!title) return err("title is required");
+      if (!created_by_user_id) return err("created_by_user_id is required");
 
       const { data, error } = await db
         .from("think_tank_items")
@@ -497,7 +502,7 @@ Deno.serve(async (req: Request) => {
           ai_summary:         ai_summary          ?? null,
           strategy_brief:     strategy_brief      ?? null,
           status:             "open",
-          created_by_user_id: created_by_user_id  ?? COREY_USER_ID,
+          created_by_user_id,
         })
         .select("id")
         .single();
@@ -561,12 +566,15 @@ Deno.serve(async (req: Request) => {
         return err("No fields provided to update");
       }
 
-      const { error } = await db
+      const { data, error } = await db
         .from("think_tank_items")
         .update(updates)
-        .eq("id", item_id);
+        .eq("id", item_id)
+        .select("id")
+        .single();
 
       if (error) return err(error.message, 500);
+      if (!data) return err("Think tank item not found", 404);
       return json({ success: true });
     }
 

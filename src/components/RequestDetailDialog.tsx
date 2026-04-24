@@ -140,14 +140,14 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
   const updateRequest = useMutation({
     mutationFn: async () => {
       const updateData: any = {
-        topic: form.topic,
-        notes: form.notes || null,
+        title: form.topic,
+        request_notes: form.notes || null,
         priority: form.priority,
         preferred_publish_window: form.preferred_publish_window || null,
       };
       if (isSSRole) {
-        updateData.status = form.status;
-        updateData.type = form.type;
+        updateData.status_column = form.status;
+        updateData.content_type = form.type;
       }
       if (isSSAdmin) {
         updateData.assigned_to_user_id = form.assigned_to_user_id || null;
