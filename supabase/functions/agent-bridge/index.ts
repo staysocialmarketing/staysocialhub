@@ -10,6 +10,7 @@
  *   POST /tag-user             — assign or set reviewer on a post
  *   POST /read-posts           — fetch posts for a client (with optional status filter)
  *   GET  /list-clients         — return all clients (id, name)
+ *   POST /update-doc           — upsert a doc row in agent_docs by key
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -112,7 +113,7 @@ Deno.serve(async (req: Request) => {
 
   // Reject unknown GET routes
   if (req.method === "GET") {
-    return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /tag-user, POST /read-posts`, 404);
+    return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /tag-user, POST /read-posts, POST /update-doc`, 404);
   }
 
   // ── POST routes ───────────────────────────────────────────────────────────
@@ -299,8 +300,35 @@ Deno.serve(async (req: Request) => {
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    case "update-doc": {
+      const { key, content, updated_by } = body as {
+        key?: string;
+        content?: string;
+        updated_by?: string;
+      };
+
+      if (!key)     return err("key is required");
+      if (content === undefined || content === null) return err("content is required");
+
+      const { error } = await db
+        .from("agent_docs")
+        .upsert(
+          {
+            key,
+            content,
+            updated_by: updated_by ?? "lev",
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "key" }
+        );
+
+      if (error) return err(error.message, 500);
+      return json({ success: true });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
     default:
-      return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /tag-user, POST /read-posts`, 404);
+      return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /tag-user, POST /read-posts, POST /update-doc`, 404);
   }
 });
 
