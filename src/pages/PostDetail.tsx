@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner";
 import {
   ArrowLeft, ChevronLeft, ChevronRight, Calendar, Hash, MessageSquare, Image as ImageIcon,
-  Check, FileEdit, AlertTriangle, Save, Upload, Sparkles, X, Trash2, Pencil,
+  Check, FileEdit, AlertTriangle, Save, Upload, Sparkles, X, Trash2, Pencil, Copy,
 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { compressImage } from "@/lib/imageUtils";
@@ -35,6 +35,7 @@ const PLATFORM_LABELS: Record<string, string> = {
   google: "Google",
   email: "Email",
   tiktok: "TikTok",
+  design_notes: "Design",
 };
 
 
@@ -52,6 +53,9 @@ export default function PostDetail() {
   const [lightboxVersion, setLightboxVersion] = useState<any>(null);
   const [deleteDialog, setDeleteDialog] = useState(false);
   const [designCompleteDialog, setDesignCompleteDialog] = useState(false);
+
+  // Design tab copy state
+  const [copiedJsonPrompt, setCopiedJsonPrompt] = useState(false);
 
   // Editable caption state
   const [editingCaption, setEditingCaption] = useState(false);
@@ -655,10 +659,12 @@ export default function PostDetail() {
             </CardContent>
           </Card>
 
-          {/* Caption & Hashtags */}
+          {/* Caption & Hashtags / Design */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">Caption</CardTitle>
+              <CardTitle className="text-base">
+                {effectiveTab === "design_notes" ? "Design Brief" : "Caption"}
+              </CardTitle>
               {isSSRole && (
                 <Button
                   variant="outline"
@@ -694,6 +700,85 @@ export default function PostDetail() {
                   {/* Tab content — extract active tab data once */}
                   {(() => {
                     const tabData = platformContent?.[effectiveTab] ?? {};
+
+                    // Design brief tab (Canvas output)
+                    if (effectiveTab === "design_notes") {
+                      const dn = tabData as {
+                        analysis?: string;
+                        json_prompt?: Record<string, unknown>;
+                        tweaks?: string[];
+                        canva_brief?: string;
+                      };
+                      const hasContent = dn.analysis || dn.json_prompt || (dn.tweaks && dn.tweaks.length > 0);
+                      if (!hasContent) {
+                        return (
+                          <p className="text-sm text-muted-foreground italic py-2">
+                            No design brief yet. Canvas will generate one when this post is ready for design.
+                          </p>
+                        );
+                      }
+                      const jsonString = dn.json_prompt
+                        ? JSON.stringify(dn.json_prompt, null, 2)
+                        : null;
+                      return (
+                        <div className="space-y-5">
+                          {dn.analysis && (
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">Analysis</p>
+                              <p className="text-sm text-foreground leading-relaxed">{dn.analysis}</p>
+                            </div>
+                          )}
+                          {jsonString && (
+                            <div>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">JSON Prompt</p>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 px-2 text-xs gap-1"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(jsonString);
+                                    setCopiedJsonPrompt(true);
+                                    setTimeout(() => setCopiedJsonPrompt(false), 2000);
+                                  }}
+                                >
+                                  {copiedJsonPrompt ? (
+                                    <><Check className="h-3 w-3" /> Copied</>
+                                  ) : (
+                                    <><Copy className="h-3 w-3" /> Copy</>
+                                  )}
+                                </Button>
+                              </div>
+                              <pre className="rounded-md bg-muted/60 border border-border p-3 text-xs font-mono text-foreground overflow-x-auto whitespace-pre-wrap break-words leading-relaxed max-h-[400px] overflow-y-auto">
+                                {jsonString}
+                              </pre>
+                            </div>
+                          )}
+                          {dn.tweaks && dn.tweaks.length > 0 && (
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">Tweaks</p>
+                              <ul className="space-y-1">
+                                {dn.tweaks.map((tweak, i) => (
+                                  <li key={i} className="text-sm text-foreground flex items-start gap-2">
+                                    <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-muted-foreground/60 shrink-0" />
+                                    {tweak}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {dn.canva_brief && (
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">Canva Brief</p>
+                              <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap bg-muted/40 rounded-md p-3 border border-border">
+                                {dn.canva_brief}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+
                     if (effectiveTab === "email") {
                       return (
                         <div className="space-y-3">
