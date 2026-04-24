@@ -301,8 +301,9 @@ Deno.serve(async (req: Request) => {
 
     // ────────────────────────────────────────────────────────────────────────
     case "update-doc": {
-      const { key, content, updated_by } = body as {
+      const { key, title, content, updated_by } = body as {
         key?: string;
+        title?: string;
         content?: string;
         updated_by?: string;
       };
@@ -310,17 +311,17 @@ Deno.serve(async (req: Request) => {
       if (!key)     return err("key is required");
       if (content === undefined || content === null) return err("content is required");
 
+      const upsertPayload: Record<string, unknown> = {
+        key,
+        content,
+        updated_by: updated_by ?? "lev",
+        updated_at: new Date().toISOString(),
+      };
+      if (title !== undefined) upsertPayload.title = title;
+
       const { error } = await db
         .from("agent_docs")
-        .upsert(
-          {
-            key,
-            content,
-            updated_by: updated_by ?? "lev",
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "key" }
-        );
+        .upsert(upsertPayload, { onConflict: "key" });
 
       if (error) return err(error.message, 500);
       return json({ success: true });
