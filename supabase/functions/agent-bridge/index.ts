@@ -6,7 +6,8 @@
  *
  * Routes (path suffix after /agent-bridge):
  *   POST /create-post              — create a new post for a client
- *   POST /update-post-status       — move a post to a new status
+ *   POST /update-post-status       — move a post to a new status (also accepts notes/design_notes/design_prompts)
+ *   POST /update-post              — update post fields (notes, design_notes, design_prompts, caption, etc.)
  *   POST /tag-user                 — assign or set reviewer on a post
  *   POST /read-posts               — fetch posts for a client (with optional status filter)
  *   GET  /list-clients             — return all clients (id, name)
@@ -123,7 +124,7 @@ Deno.serve(async (req: Request) => {
 
   // Reject unknown GET routes
   if (req.method === "GET") {
-    return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /create-project, POST /read-projects, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item`, 404);
+    return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /create-project, POST /read-projects, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item`, 404);
   }
 
   // ── POST routes ───────────────────────────────────────────────────────────
@@ -144,7 +145,7 @@ Deno.serve(async (req: Request) => {
 
     // ────────────────────────────────────────────────────────────────────────
     case "create-post": {
-      const { client_id, title, platform, caption, hashtags, status, platform_content, content_type } = body as {
+      const { client_id, title, platform, caption, hashtags, status, platform_content, content_type, notes, design_notes, design_prompts } = body as {
         client_id?: string;
         title?: string;
         platform?: string;
@@ -153,6 +154,9 @@ Deno.serve(async (req: Request) => {
         status?: PostStatus;
         platform_content?: Record<string, Record<string, string>>;
         content_type?: string;
+        notes?: string;
+        design_notes?: string;
+        design_prompts?: Record<string, unknown>;
       };
 
       if (!client_id) return err("client_id is required");
@@ -211,8 +215,11 @@ Deno.serve(async (req: Request) => {
           status_column:    postStatus,
           platform_content: resolvedPlatformContent,
           content_type:     content_type              ?? null,
+          notes:            notes                     ?? null,
+          design_notes:     design_notes              ?? null,
+          design_prompts:   design_prompts            ?? null,
         })
-        .select("id, title, platform, platform_content, content_type, status_column, created_at")
+        .select("id, title, platform, platform_content, content_type, status_column, notes, design_notes, design_prompts, created_at")
         .single();
 
       if (error) return err(error.message, 500);
@@ -221,7 +228,13 @@ Deno.serve(async (req: Request) => {
 
     // ────────────────────────────────────────────────────────────────────────
     case "update-post-status": {
-      const { post_id, status } = body as { post_id?: string; status?: string };
+      const { post_id, status, notes, design_notes, design_prompts } = body as {
+        post_id?: string;
+        status?: string;
+        notes?: string;
+        design_notes?: string;
+        design_prompts?: Record<string, unknown>;
+      };
 
       if (!post_id) return err("post_id is required");
       if (!status)  return err("status is required");
@@ -229,11 +242,56 @@ Deno.serve(async (req: Request) => {
         return err(`Invalid status "${status}". Valid values: ${[...VALID_STATUSES].join(", ")}`);
       }
 
+      const updates: Record<string, unknown> = { status_column: status as PostStatus };
+      if (notes          !== undefined) updates.notes          = notes;
+      if (design_notes   !== undefined) updates.design_notes   = design_notes;
+      if (design_prompts !== undefined) updates.design_prompts = design_prompts;
+
       const { data, error } = await db
         .from("posts")
-        .update({ status_column: status as PostStatus })
+        .update(updates)
         .eq("id", post_id)
-        .select("id, title, status_column")
+        .select("id, title, status_column, notes, design_notes, design_prompts")
+        .single();
+
+      if (error) return err(error.message, 500);
+      if (!data)  return err("Post not found", 404);
+      return json({ success: true, post: data });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    case "update-post": {
+      const { post_id, notes, design_notes, design_prompts, title, caption, hashtags, platform_content } = body as {
+        post_id?: string;
+        notes?: string;
+        design_notes?: string;
+        design_prompts?: Record<string, unknown>;
+        title?: string;
+        caption?: string;
+        hashtags?: string;
+        platform_content?: Record<string, Record<string, string>>;
+      };
+
+      if (!post_id) return err("post_id is required");
+
+      const updates: Record<string, unknown> = {};
+      if (notes            !== undefined) updates.notes            = notes;
+      if (design_notes     !== undefined) updates.design_notes     = design_notes;
+      if (design_prompts   !== undefined) updates.design_prompts   = design_prompts;
+      if (title            !== undefined) updates.title            = title;
+      if (caption          !== undefined) updates.caption          = caption;
+      if (hashtags         !== undefined) updates.hashtags         = hashtags;
+      if (platform_content !== undefined) updates.platform_content = platform_content;
+
+      if (Object.keys(updates).length === 0) {
+        return err("No fields provided to update");
+      }
+
+      const { data, error } = await db
+        .from("posts")
+        .update(updates)
+        .eq("id", post_id)
+        .select("id, title, status_column, notes, design_notes, design_prompts")
         .single();
 
       if (error) return err(error.message, 500);
@@ -282,6 +340,7 @@ Deno.serve(async (req: Request) => {
         .select(`
           id, title, platform, caption, content_type, platform_content,
           status_column, assigned_to_user_id, reviewer_user_id, scheduled_at, created_at,
+          notes, design_notes, design_prompts,
           post_images(id, url, storage_path, platform, position, alt_text)
         `)
         .eq("client_id", client_id)
@@ -580,6 +639,6 @@ Deno.serve(async (req: Request) => {
 
     // ────────────────────────────────────────────────────────────────────────
     default:
-      return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /create-project, POST /read-projects, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item`, 404);
+      return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /create-project, POST /read-projects, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item`, 404);
   }
 });
