@@ -30,7 +30,7 @@ const TASK_STATUS_LABELS: Record<string, string> = {
   waiting: "Waiting", review: "Review", complete: "Complete",
 };
 
-const COMPLETED_STATUSES = ["in_progress", "corey_review", "client_approval", "ready_to_schedule", "ready_to_send", "scheduled", "published", "sent"];
+const COMPLETED_STATUSES = ["in_progress", "corey_review", "client_approval", "ready_to_schedule", "ready_to_send", "scheduled", "published", "sent"] as const;
 
 function useGreeting(userId?: string): string {
   return useMemo(() => {
@@ -225,7 +225,7 @@ export default function DesignerDashboard() {
           label="Completed This Week"
           value={completedCount}
           icon={<CheckCircle2 className="h-4 w-4" />}
-          accent="success"
+          accent="default"
         />
         <StatCard
           label="Overdue"

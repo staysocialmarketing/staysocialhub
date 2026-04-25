@@ -5,12 +5,19 @@
  * All requests must include:  x-api-key: <AGENT_BRIDGE_API_KEY>
  *
  * Routes (path suffix after /agent-bridge):
- *   POST /create-post          — create a new post for a client
- *   POST /update-post-status   — move a post to a new status
- *   POST /tag-user             — assign or set reviewer on a post
- *   POST /read-posts           — fetch posts for a client (with optional status filter)
- *   GET  /list-clients         — return all clients (id, name)
- *   POST /update-doc           — upsert a doc row in agent_docs by key
+ *   POST /create-post              — create a new post for a client
+ *   POST /update-post-status       — move a post to a new status
+ *   POST /tag-user                 — assign or set reviewer on a post
+ *   POST /read-posts               — fetch posts for a client (with optional status filter)
+ *   GET  /list-clients             — return all clients (id, name)
+ *   POST /update-doc               — upsert a doc row in agent_docs by key
+ *   POST /create-task              — create a task
+ *   POST /read-tasks               — fetch tasks with optional filters
+ *   POST /create-project           — create a project
+ *   POST /read-projects            — fetch projects with optional filters
+ *   POST /create-think-tank-item   — create a think tank item
+ *   POST /read-think-tank          — fetch think tank items with optional filters
+ *   POST /update-think-tank-item   — update a think tank item by id
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -40,6 +47,9 @@ const VALID_CONTENT_TYPES = new Set([
   "website_update", "general_task",
   "social_post", "email", "story", "google_post",
 ]);
+
+// Corey's user UUID — default created_by for Lev-generated records
+const COREY_USER_ID = "6cd3d0da-0cbc-4bd5-b428-9f997218f5c2";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -113,7 +123,7 @@ Deno.serve(async (req: Request) => {
 
   // Reject unknown GET routes
   if (req.method === "GET") {
-    return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /tag-user, POST /read-posts, POST /update-doc`, 404);
+    return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /create-project, POST /read-projects, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item`, 404);
   }
 
   // ── POST routes ───────────────────────────────────────────────────────────
@@ -328,8 +338,248 @@ Deno.serve(async (req: Request) => {
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    case "create-task": {
+      const {
+        title,
+        description,
+        project_id,
+        client_id,
+        priority,
+        due_at,
+        assigned_to_team,
+        created_by_user_id,
+      } = body as {
+        title?: string;
+        description?: string;
+        project_id?: string;
+        client_id?: string;
+        priority?: string;
+        due_at?: string;
+        assigned_to_team?: string;
+        created_by_user_id?: string;
+      };
+
+      if (!title) return err("title is required");
+      if (!created_by_user_id) return err("created_by_user_id is required");
+
+      const { data, error } = await db
+        .from("tasks")
+        .insert({
+          title,
+          description:         description         ?? null,
+          project_id:          project_id          ?? null,
+          client_id:           client_id           ?? null,
+          priority:            priority            ?? "normal",
+          due_at:              due_at              ?? null,
+          assigned_to_team:    assigned_to_team    ?? false,
+          status:              "todo",
+          created_by_user_id,
+        })
+        .select("id")
+        .single();
+
+      if (error) return err(error.message, 500);
+      return json({ success: true, task_id: data.id });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    case "read-tasks": {
+      const { client_id, project_id, status, limit } = body as {
+        client_id?: string;
+        project_id?: string;
+        status?: string;
+        limit?: number;
+      };
+
+      let query = db
+        .from("tasks")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(typeof limit === "number" && limit > 0 ? Math.min(limit, 200) : 50);
+
+      if (client_id)  query = query.eq("client_id", client_id);
+      if (project_id) query = query.eq("project_id", project_id);
+      if (status)     query = query.eq("status", status);
+
+      const { data, error } = await query;
+      if (error) return err(error.message, 500);
+      return json({ success: true, tasks: data ?? [], count: (data ?? []).length });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    case "create-project": {
+      const {
+        name,
+        description,
+        client_id,
+        parent_project_id,
+        status,
+        created_by_user_id,
+      } = body as {
+        name?: string;
+        description?: string;
+        client_id?: string;
+        parent_project_id?: string;
+        status?: string;
+        created_by_user_id?: string;
+      };
+
+      if (!name) return err("name is required");
+      if (!created_by_user_id) return err("created_by_user_id is required");
+
+      const { data, error } = await db
+        .from("projects")
+        .insert({
+          name,
+          description:        description        ?? null,
+          client_id:          client_id          ?? null,
+          parent_project_id:  parent_project_id  ?? null,
+          status:             status             ?? "active",
+          created_by_user_id,
+        })
+        .select("id")
+        .single();
+
+      if (error) return err(error.message, 500);
+      return json({ success: true, project_id: data.id });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    case "read-projects": {
+      const { client_id, status, limit } = body as {
+        client_id?: string;
+        status?: string;
+        limit?: number;
+      };
+
+      let query = db
+        .from("projects")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(typeof limit === "number" && limit > 0 ? Math.min(limit, 200) : 50);
+
+      if (client_id) query = query.eq("client_id", client_id);
+      if (status)    query = query.eq("status", status);
+
+      const { data, error } = await query;
+      if (error) return err(error.message, 500);
+      return json({ success: true, projects: data ?? [], count: (data ?? []).length });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    case "create-think-tank-item": {
+      const {
+        title,
+        body: itemBody,
+        type,
+        client_id,
+        project_id,
+        ai_summary,
+        strategy_brief,
+        created_by_user_id,
+      } = body as {
+        title?: string;
+        body?: string;
+        type?: string;
+        client_id?: string;
+        project_id?: string;
+        ai_summary?: string;
+        strategy_brief?: Record<string, unknown>;
+        created_by_user_id?: string;
+      };
+
+      if (!title) return err("title is required");
+      if (!created_by_user_id) return err("created_by_user_id is required");
+
+      const { data, error } = await db
+        .from("think_tank_items")
+        .insert({
+          title,
+          body:               itemBody            ?? null,
+          type:               type                ?? "idea",
+          client_id:          client_id           ?? null,
+          project_id:         project_id          ?? null,
+          ai_summary:         ai_summary          ?? null,
+          strategy_brief:     strategy_brief      ?? null,
+          status:             "open",
+          created_by_user_id,
+        })
+        .select("id")
+        .single();
+
+      if (error) return err(error.message, 500);
+      return json({ success: true, item_id: data.id });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    case "read-think-tank": {
+      const { type, status, client_id, limit } = body as {
+        type?: string;
+        status?: string;
+        client_id?: string;
+        limit?: number;
+      };
+
+      let query = db
+        .from("think_tank_items")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(typeof limit === "number" && limit > 0 ? Math.min(limit, 200) : 50);
+
+      if (type)      query = query.eq("type", type);
+      if (status)    query = query.eq("status", status);
+      if (client_id) query = query.eq("client_id", client_id);
+
+      const { data, error } = await query;
+      if (error) return err(error.message, 500);
+      return json({ success: true, items: data ?? [], count: (data ?? []).length });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    case "update-think-tank-item": {
+      const {
+        item_id,
+        status,
+        title,
+        body: itemBody,
+        ai_summary,
+        strategy_brief,
+      } = body as {
+        item_id?: string;
+        status?: string;
+        title?: string;
+        body?: string;
+        ai_summary?: string;
+        strategy_brief?: Record<string, unknown>;
+      };
+
+      if (!item_id) return err("item_id is required");
+
+      const updates: Record<string, unknown> = {};
+      if (status         !== undefined) updates.status         = status;
+      if (title          !== undefined) updates.title          = title;
+      if (itemBody       !== undefined) updates.body           = itemBody;
+      if (ai_summary     !== undefined) updates.ai_summary     = ai_summary;
+      if (strategy_brief !== undefined) updates.strategy_brief = strategy_brief;
+
+      if (Object.keys(updates).length === 0) {
+        return err("No fields provided to update");
+      }
+
+      const { data, error } = await db
+        .from("think_tank_items")
+        .update(updates)
+        .eq("id", item_id)
+        .select("id")
+        .single();
+
+      if (error) return err(error.message, 500);
+      if (!data) return err("Think tank item not found", 404);
+      return json({ success: true });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
     default:
-      return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /tag-user, POST /read-posts, POST /update-doc`, 404);
+      return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /create-project, POST /read-projects, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item`, 404);
   }
 });
-

@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface SearchResults {
   clients: { id: string; name: string }[];
-  requests: { id: string; topic: string }[];
+  requests: { id: string; title: string }[];
   tasks: { id: string; title: string }[];
   media: { id: string; title: string }[];
   strategy: { client_id: string; client_name: string }[];
@@ -37,7 +37,7 @@ export function GlobalSearch() {
     const pattern = `%${q}%`;
     const [clients, requests, tasks, media, strategy, thinkTank] = await Promise.all([
       supabase.from("clients").select("id, name").ilike("name", pattern).limit(5),
-      supabase.from("requests").select("id, topic").ilike("topic", pattern).limit(5),
+      supabase.from("posts").select("id, title").eq("source", "client_request").ilike("title", pattern).limit(5),
       supabase.from("tasks").select("id, title").ilike("title", pattern).limit(5),
       supabase.from("posts").select("id, title").ilike("title", pattern).limit(5),
       supabase.from("client_strategy").select("client_id, clients!inner(name)").ilike("clients.name", pattern).limit(5),
@@ -93,7 +93,7 @@ export function GlobalSearch() {
             <CommandGroup heading="Requests">
               {results.requests.map((r) => (
                 <CommandItem key={r.id} onSelect={() => select("/requests")}>
-                  <FileText className="mr-2 h-4 w-4 text-muted-foreground" /> {r.topic}
+                  <FileText className="mr-2 h-4 w-4 text-muted-foreground" /> {r.title}
                 </CommandItem>
               ))}
             </CommandGroup>

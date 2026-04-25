@@ -188,8 +188,8 @@ export default function TaskDetailDialog({ task, onClose, onUpdated, projects, s
     await supabase.from("task_attachments").delete().eq("task_id", task.id);
     await supabase.from("task_activity_log").delete().eq("task_id", task.id);
     await supabase.from("comments").delete().eq("task_id", task.id);
-    // Unlink from requests
-    await supabase.from("requests").update({ task_id: null }).eq("task_id", task.id);
+    // Unlink from posts (formerly requests)
+    await (supabase as any).from("posts").update({ task_id: null }).eq("task_id", task.id);
     // Delete the task
     const { error } = await supabase.from("tasks").delete().eq("id", task.id);
     if (error) { toast.error(error.message); return; }

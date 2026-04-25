@@ -109,10 +109,10 @@ export default function AdminClients() {
       const thirtyDaysAgo  = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
       const [req14, tasks14, posts14, req30, tasks30, posts30] = await Promise.all([
-        supabase.from("requests").select("client_id").in("client_id", clientIds).gte("created_at", fourteenDaysAgo).limit(500),
+        supabase.from("posts").select("client_id").eq("source", "client_request").in("client_id", clientIds).gte("created_at", fourteenDaysAgo).limit(500),
         supabase.from("tasks").select("client_id").in("client_id", clientIds).gte("updated_at", fourteenDaysAgo).limit(500),
         supabase.from("posts").select("client_id").in("client_id", clientIds).gte("created_at", fourteenDaysAgo).limit(500),
-        supabase.from("requests").select("client_id").in("client_id", clientIds).gte("created_at", thirtyDaysAgo).limit(500),
+        supabase.from("posts").select("client_id").eq("source", "client_request").in("client_id", clientIds).gte("created_at", thirtyDaysAgo).limit(500),
         supabase.from("tasks").select("client_id").in("client_id", clientIds).gte("updated_at", thirtyDaysAgo).limit(500),
         supabase.from("posts").select("client_id").in("client_id", clientIds).gte("created_at", thirtyDaysAgo).limit(500),
       ]);
@@ -170,7 +170,7 @@ export default function AdminClients() {
         supabase.from("projects").select("id, name, status, description").eq("client_id", cid).order("created_at", { ascending: false }).limit(20),
         supabase.from("tasks").select("id, title, status, priority, assigned_to_user_id, project_id").eq("client_id", cid).order("created_at", { ascending: false }).limit(20),
         supabase.from("think_tank_items").select("id, title, status, type").eq("client_id", cid).order("created_at", { ascending: false }).limit(20),
-        supabase.from("requests").select("id, topic, status").eq("client_id", cid).order("created_at", { ascending: false }).limit(20),
+        supabase.from("posts").select("id, title, status_column").eq("source", "client_request").eq("client_id", cid).order("created_at", { ascending: false }).limit(20),
       ]);
       return {
         projects: projects.data || [],
@@ -632,8 +632,8 @@ export default function AdminClients() {
                   </div>
                   {activityData.requests.map((r: any) => (
                     <div key={r.id} className="flex items-center justify-between text-sm pl-5 py-1.5 rounded-md hover:bg-muted/50 cursor-pointer" onClick={() => { setActivityClientId(null); navigate("/requests"); }}>
-                      <span className="truncate">{r.topic}</span>
-                      <Badge variant="outline" className="text-[10px] shrink-0 ml-2">{r.status}</Badge>
+                      <span className="truncate">{r.title}</span>
+                      <Badge variant="outline" className="text-[10px] shrink-0 ml-2">{r.status_column}</Badge>
                     </div>
                   ))}
                 </div>

@@ -140,19 +140,19 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
   const updateRequest = useMutation({
     mutationFn: async () => {
       const updateData: any = {
-        topic: form.topic,
-        notes: form.notes || null,
+        title: form.topic,
+        request_notes: form.notes || null,
         priority: form.priority,
         preferred_publish_window: form.preferred_publish_window || null,
       };
       if (isSSRole) {
-        updateData.status = form.status;
-        updateData.type = form.type;
+        updateData.status_column = form.status;
+        updateData.content_type = form.type;
       }
       if (isSSAdmin) {
         updateData.assigned_to_user_id = form.assigned_to_user_id || null;
       }
-      const { error } = await supabase.from("requests").update(updateData).eq("id", request.id);
+      const { error } = await supabase.from("posts").update(updateData as any).eq("id", request.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -201,7 +201,7 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
       const path = `${request.client_id}/${crypto.randomUUID()}.${ext}`;
       const { error: uploadError } = await supabase.storage.from("request-attachments").upload(path, compressed);
       if (uploadError) throw uploadError;
-      const { error: updateError } = await supabase.from("requests").update({ attachments_url: path }).eq("id", request.id);
+      const { error: updateError } = await supabase.from("posts").update({ attachments_url: path } as any).eq("id", request.id);
       if (updateError) throw updateError;
       request.attachments_url = path;
       queryClient.invalidateQueries({ queryKey: ["requests"] });
@@ -216,7 +216,7 @@ export default function RequestDetailDialog({ request, open, onOpenChange }: Req
 
   const deleteRequest = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("requests").delete().eq("id", request!.id);
+      const { error } = await supabase.from("posts").delete().eq("id", request!.id);
       if (error) throw error;
     },
     onSuccess: () => {

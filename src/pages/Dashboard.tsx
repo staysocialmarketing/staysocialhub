@@ -132,9 +132,10 @@ function WorkQueueDashboard() {
   const { data: myRequests = [] } = useQuery({
     queryKey: ["wq-requests", profile?.id, filter, globalClientId],
     queryFn: async () => {
-      let q = supabase.from("requests")
-        .select("id, topic, type, priority, status, created_at, assigned_to_user_id, client_id, created_by_user_id, clients(name), users!requests_created_by_user_id_fkey(name)")
-        .not("status", "eq", "completed")
+      let q = supabase.from("posts")
+        .select("id, title, content_type, priority, status_column, created_at, assigned_to_user_id, client_id, created_by_user_id, clients(name), users!posts_created_by_user_id_fkey(name)")
+        .eq("source", "client_request")
+        .not("status_column", "eq", "published")
         .order("created_at", { ascending: false })
         .limit(10);
       if (filter === "my") {
@@ -142,7 +143,7 @@ function WorkQueueDashboard() {
       }
       if (globalClientId) q = q.eq("client_id", globalClientId);
       const { data } = await q;
-      return data || [];
+      return (data || []).map((r: any) => ({ ...r, topic: r.title, type: r.content_type, status: r.status_column }));
     },
     enabled: !!profile,
   });
@@ -226,7 +227,7 @@ function WorkQueueDashboard() {
   };
 
   const updateRequestStatus = async (requestId: string, status: string) => {
-    await supabase.from("requests").update({ status: status as any }).eq("id", requestId);
+    await supabase.from("posts").update({ status_column: status as any } as any).eq("id", requestId);
     queryClient.invalidateQueries({ queryKey: ["wq-requests"] });
   };
 
@@ -380,10 +381,14 @@ function WorkQueueDashboard() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="open" className="text-xs">Open</SelectItem>
-                      <SelectItem value="in_progress" className="text-xs">In Progress</SelectItem>
-                      <SelectItem value="completed" className="text-xs">Completed</SelectItem>
-                      <SelectItem value="cancelled" className="text-xs">Cancelled</SelectItem>
+                      <SelectItem value="idea" className="text-xs">Idea</SelectItem>
+                      <SelectItem value="ai_draft" className="text-xs">AI Draft</SelectItem>
+                      <SelectItem value="corey_review" className="text-xs">Corey Review</SelectItem>
+                      <SelectItem value="client_approval" className="text-xs">Client Approval</SelectItem>
+                      <SelectItem value="approved" className="text-xs">Approved</SelectItem>
+                      <SelectItem value="ready_to_schedule" className="text-xs">Ready to Schedule</SelectItem>
+                      <SelectItem value="scheduled" className="text-xs">Scheduled</SelectItem>
+                      <SelectItem value="published" className="text-xs">Published</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -417,7 +422,7 @@ function ClientDashboard() {
     queryKey: ["client-open-requests", profile?.client_id],
     queryFn: async () => {
       if (!profile?.client_id) return 0;
-      const { count } = await supabase.from("requests").select("id", { count: "exact", head: true }).eq("status", "open").eq("client_id", profile.client_id);
+      const { count } = await supabase.from("posts").select("id", { count: "exact", head: true }).eq("source", "client_request").eq("status_column", "idea").eq("client_id", profile.client_id);
       return count || 0;
     },
     enabled: !!profile?.client_id,

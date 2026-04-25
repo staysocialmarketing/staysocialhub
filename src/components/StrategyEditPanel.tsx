@@ -84,8 +84,8 @@ export default function StrategyEditPanel({ requestId, brief }: StrategyEditPane
     setSaving(true);
     try {
       const { error } = await supabase
-        .from("requests")
-        .update({ strategy_brief: form as any })
+        .from("posts")
+        .update({ strategy_brief: form as any } as any)
         .eq("id", requestId);
       if (error) throw error;
       setDirty(false);
