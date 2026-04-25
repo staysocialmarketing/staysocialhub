@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -42,8 +42,21 @@ const PLATFORM_LABELS: Record<string, string> = {
 export default function PostDetail() {
   const { postId } = useParams<{ postId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { profile, isSSRole, isSSAdmin, isClientAdmin, isClientAssistant } = useAuth();
   const queryClient = useQueryClient();
+
+  // Derive the back destination from the current URL path so the back button
+  // always returns to whichever list the user navigated from (/workflow,
+  // /approvals, /pipeline, etc.).
+  const backPath = (() => {
+    const path = location.pathname;
+    if (path.startsWith("/workflow/")) return "/workflow";
+    if (path.startsWith("/approvals/")) return "/approvals";
+    if (path.startsWith("/pipeline/")) return "/pipeline";
+    // Fallback: use role-based default
+    return isSSRole ? "/approvals" : "/pipeline";
+  })();
 
   const [commentText, setCommentText] = useState("");
   const [internalNotes, setInternalNotes] = useState<string | null>(null);
@@ -285,7 +298,7 @@ export default function PostDetail() {
     },
     onSuccess: () => {
       toast.success("Post deleted");
-      navigate(isSSRole ? "/approvals" : "/pipeline");
+      navigate(backPath);
     },
     onError: (e: Error) => toast.error(e.message || "Failed to delete post"),
   });
@@ -468,7 +481,7 @@ export default function PostDetail() {
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate(isSSRole ? "/approvals" : "/pipeline")}>
+        <Button variant="ghost" size="icon" onClick={() => navigate(backPath)}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1 min-w-0">

@@ -544,7 +544,7 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
                     <Pencil className="h-4 w-4 mr-2" />Edit
                   </Button>
                 )}
-                <Button variant="outline" onClick={() => { onOpenChange(false); navigate(`/approvals/${post.id}`); }}>
+                <Button variant="outline" onClick={() => { onOpenChange(false); navigate(`/workflow/${post.id}`); }}>
                   <ExternalLink className="h-4 w-4 mr-2" />Full View
                 </Button>
               </div>
