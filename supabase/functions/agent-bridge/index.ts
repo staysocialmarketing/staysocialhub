@@ -252,7 +252,7 @@ Deno.serve(async (req: Request) => {
         .update(updates)
         .eq("id", post_id)
         .select("id, title, status_column, notes, design_notes, design_prompts")
-        .single();
+        .maybeSingle();
 
       if (error) return err(error.message, 500);
       if (!data)  return err("Post not found", 404);
@@ -261,15 +261,18 @@ Deno.serve(async (req: Request) => {
 
     // ────────────────────────────────────────────────────────────────────────
     case "update-post": {
-      const { post_id, notes, design_notes, design_prompts, title, caption, hashtags, platform_content } = body as {
+      // Note: caption and hashtags are intentionally not accepted here.
+      // The UI renders from platform_content; updating bare caption/hashtags
+      // creates invisible updates for posts that have platform_content.
+      // To update copy, pass platform_content with the full per-platform object.
+      const { post_id, notes, design_notes, design_prompts, title, platform_content, status } = body as {
         post_id?: string;
         notes?: string;
         design_notes?: string;
         design_prompts?: Record<string, unknown>;
         title?: string;
-        caption?: string;
-        hashtags?: string;
         platform_content?: Record<string, Record<string, string>>;
+        status?: PostStatus;
       };
 
       if (!post_id) return err("post_id is required");
@@ -279,9 +282,13 @@ Deno.serve(async (req: Request) => {
       if (design_notes     !== undefined) updates.design_notes     = design_notes;
       if (design_prompts   !== undefined) updates.design_prompts   = design_prompts;
       if (title            !== undefined) updates.title            = title;
-      if (caption          !== undefined) updates.caption          = caption;
-      if (hashtags         !== undefined) updates.hashtags         = hashtags;
       if (platform_content !== undefined) updates.platform_content = platform_content;
+      if (status           !== undefined) {
+        if (!VALID_STATUSES.has(status)) {
+          return err(`Invalid status "${status}". Valid values: ${[...VALID_STATUSES].join(", ")}`);
+        }
+        updates.status_column = status;
+      }
 
       if (Object.keys(updates).length === 0) {
         return err("No fields provided to update");
@@ -292,7 +299,7 @@ Deno.serve(async (req: Request) => {
         .update(updates)
         .eq("id", post_id)
         .select("id, title, status_column, notes, design_notes, design_prompts")
-        .single();
+        .maybeSingle();
 
       if (error) return err(error.message, 500);
       if (!data)  return err("Post not found", 404);
@@ -318,7 +325,7 @@ Deno.serve(async (req: Request) => {
         .update({ [column]: user_id })
         .eq("id", post_id)
         .select("id, title, assigned_to_user_id, reviewer_user_id")
-        .single();
+        .maybeSingle();
 
       if (error) return err(error.message, 500);
       if (!data)  return err("Post not found", 404);
@@ -630,7 +637,7 @@ Deno.serve(async (req: Request) => {
         .update(updates)
         .eq("id", item_id)
         .select("id")
-        .single();
+        .maybeSingle();
 
       if (error) return err(error.message, 500);
       if (!data) return err("Think tank item not found", 404);

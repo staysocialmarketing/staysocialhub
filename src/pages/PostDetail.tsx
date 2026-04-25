@@ -442,13 +442,21 @@ export default function PostDetail() {
     : [];
 
   // Notes tab — show only when at least one notes field is non-empty
+  const hasRenderableValue = (value: unknown): boolean => {
+    if (value === null || value === undefined) return false;
+    if (typeof value === "string") return value.trim().length > 0;
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === "object") return Object.keys(value as object).length > 0;
+    return false;
+  };
+
   const postNotes        = (post as any).notes        as string | null | undefined;
   const postDesignNotes  = (post as any).design_notes as string | null | undefined;
   const postDesignPrompts = (post as any).design_prompts as unknown;
   const hasNotes = !!(
-    (postNotes && postNotes.trim()) ||
-    (postDesignNotes && postDesignNotes.trim()) ||
-    (postDesignPrompts !== null && postDesignPrompts !== undefined)
+    hasRenderableValue(postNotes) ||
+    (isSSRole && hasRenderableValue(postDesignNotes)) ||
+    (isSSRole && hasRenderableValue(postDesignPrompts))
   );
   const allTabs = hasNotes ? [...platformTabs, "notes"] : platformTabs;
 
@@ -715,7 +723,7 @@ export default function PostDetail() {
 
                     // Notes tab
                     if (effectiveTab === "notes") {
-                      const designPromptsStr = postDesignPrompts
+                      const designPromptsStr = hasRenderableValue(postDesignPrompts)
                         ? (typeof postDesignPrompts === "string"
                             ? postDesignPrompts
                             : JSON.stringify(postDesignPrompts, null, 2))
@@ -728,24 +736,28 @@ export default function PostDetail() {
                               {postNotes?.trim() || <span className="text-muted-foreground italic">No notes added.</span>}
                             </p>
                           </div>
-                          <Separator />
-                          <div>
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">Design Notes</p>
-                            <p className="text-foreground whitespace-pre-wrap leading-relaxed">
-                              {postDesignNotes?.trim() || <span className="text-muted-foreground italic">No design notes.</span>}
-                            </p>
-                          </div>
-                          <Separator />
-                          <div>
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">Design Prompts</p>
-                            {designPromptsStr ? (
-                              <pre className="rounded-md bg-muted/60 border border-border p-3 text-xs font-mono text-foreground overflow-x-auto whitespace-pre-wrap break-words leading-relaxed max-h-[400px] overflow-y-auto">
-                                {designPromptsStr}
-                              </pre>
-                            ) : (
-                              <p className="text-muted-foreground italic">No design prompts.</p>
-                            )}
-                          </div>
+                          {isSSRole && (
+                            <>
+                              <Separator />
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">Design Notes</p>
+                                <p className="text-foreground whitespace-pre-wrap leading-relaxed">
+                                  {postDesignNotes?.trim() || <span className="text-muted-foreground italic">No design notes.</span>}
+                                </p>
+                              </div>
+                              <Separator />
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">Design Prompts</p>
+                                {designPromptsStr ? (
+                                  <pre className="rounded-md bg-muted/60 border border-border p-3 text-xs font-mono text-foreground overflow-x-auto whitespace-pre-wrap break-words leading-relaxed max-h-[400px] overflow-y-auto">
+                                    {designPromptsStr}
+                                  </pre>
+                                ) : (
+                                  <p className="text-muted-foreground italic">No design prompts.</p>
+                                )}
+                              </div>
+                            </>
+                          )}
                         </div>
                       );
                     }
