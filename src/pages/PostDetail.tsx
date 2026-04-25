@@ -440,9 +440,29 @@ export default function PostDetail() {
   const platformTabs = platformContent && Object.keys(platformContent).length > 0
     ? Object.keys(platformContent)
     : [];
-  const effectiveTab = activePlatformTabState && platformTabs.includes(activePlatformTabState)
+
+  // Notes tab — show only when at least one notes field is non-empty
+  const hasRenderableValue = (value: unknown): boolean => {
+    if (value === null || value === undefined) return false;
+    if (typeof value === "string") return value.trim().length > 0;
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === "object") return Object.keys(value as object).length > 0;
+    return false;
+  };
+
+  const postNotes        = (post as any).notes        as string | null | undefined;
+  const postDesignNotes  = (post as any).design_notes as string | null | undefined;
+  const postDesignPrompts = (post as any).design_prompts as unknown;
+  const hasNotes = !!(
+    hasRenderableValue(postNotes) ||
+    (isSSRole && hasRenderableValue(postDesignNotes)) ||
+    (isSSRole && hasRenderableValue(postDesignPrompts))
+  );
+  const allTabs = hasNotes ? [...platformTabs, "notes"] : platformTabs;
+
+  const effectiveTab = activePlatformTabState && allTabs.includes(activePlatformTabState)
     ? activePlatformTabState
-    : platformTabs[0] ?? "";
+    : allTabs[0] ?? "";
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
@@ -663,7 +683,7 @@ export default function PostDetail() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">
-                {effectiveTab === "design_notes" ? "Design Brief" : "Caption"}
+                {effectiveTab === "design_notes" ? "Design Brief" : effectiveTab === "notes" ? "Notes" : "Caption"}
               </CardTitle>
               {isSSRole && (
                 <Button
@@ -677,11 +697,11 @@ export default function PostDetail() {
               )}
             </CardHeader>
             <CardContent>
-              {platformTabs.length > 0 ? (
+              {allTabs.length > 0 ? (
                 <div className="space-y-3">
                   {/* Platform tab pills */}
                   <div className="flex flex-wrap gap-1.5">
-                    {platformTabs.map(tabKey => (
+                    {allTabs.map(tabKey => (
                       <button
                         key={tabKey}
                         type="button"
@@ -693,13 +713,54 @@ export default function PostDetail() {
                             : "bg-muted text-muted-foreground hover:bg-muted/70"
                         )}
                       >
-                        {PLATFORM_LABELS[tabKey] ?? tabKey}
+                        {tabKey === "notes" ? "Notes" : (PLATFORM_LABELS[tabKey] ?? tabKey)}
                       </button>
                     ))}
                   </div>
                   {/* Tab content — extract active tab data once */}
                   {(() => {
                     const tabData = platformContent?.[effectiveTab] ?? {};
+
+                    // Notes tab
+                    if (effectiveTab === "notes") {
+                      const designPromptsStr = hasRenderableValue(postDesignPrompts)
+                        ? (typeof postDesignPrompts === "string"
+                            ? postDesignPrompts
+                            : JSON.stringify(postDesignPrompts, null, 2))
+                        : null;
+                      return (
+                        <div className="space-y-5 text-sm">
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">Notes</p>
+                            <p className="text-foreground whitespace-pre-wrap leading-relaxed">
+                              {postNotes?.trim() || <span className="text-muted-foreground italic">No notes added.</span>}
+                            </p>
+                          </div>
+                          {isSSRole && (
+                            <>
+                              <Separator />
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">Design Notes</p>
+                                <p className="text-foreground whitespace-pre-wrap leading-relaxed">
+                                  {postDesignNotes?.trim() || <span className="text-muted-foreground italic">No design notes.</span>}
+                                </p>
+                              </div>
+                              <Separator />
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">Design Prompts</p>
+                                {designPromptsStr ? (
+                                  <pre className="rounded-md bg-muted/60 border border-border p-3 text-xs font-mono text-foreground overflow-x-auto whitespace-pre-wrap break-words leading-relaxed max-h-[400px] overflow-y-auto">
+                                    {designPromptsStr}
+                                  </pre>
+                                ) : (
+                                  <p className="text-muted-foreground italic">No design prompts.</p>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    }
 
                     // Design brief tab (Canvas output)
                     if (effectiveTab === "design_notes") {
