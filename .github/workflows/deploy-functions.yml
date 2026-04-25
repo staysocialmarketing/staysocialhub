@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'supabase/functions/**'
   workflow_dispatch:
     inputs:
       reason:
@@ -46,7 +48,7 @@ jobs:
           echo "Starting deployment..."
 
       - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@v2
         with:
           version: latest
 
