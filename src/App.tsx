@@ -107,6 +107,8 @@ const App = () => (
               <Route path="/pipeline" element={<ClientPipeline />} />
               <Route path="/calendar" element={<MarketingCalendar />} />
               <Route path="/approvals/:postId" element={<PostDetail />} />
+              <Route path="/workflow/:postId" element={<AdminRoute><PostDetail /></AdminRoute>} />
+              <Route path="/pipeline/:postId" element={<PostDetail />} />
               <Route path="/requests" element={<Requests />} />
               <Route path="/content-library" element={<ContentLibrary />} />
               <Route path="/client/success" element={<SuccessCenter />} />
