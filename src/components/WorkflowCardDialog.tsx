@@ -4,6 +4,7 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,7 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarWidget } from "@/components/ui/calendar";
-import { Clock, ExternalLink, FileText, Pencil, Send, Calendar, Image as ImageIcon } from "lucide-react";
+import { Clock, ExternalLink, FileText, Pencil, Send, Calendar, Image as ImageIcon, Trash2 } from "lucide-react";
 import ImageLightbox from "@/components/ImageLightbox";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -58,6 +59,7 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
   const [reqPriority, setReqPriority] = useState("");
   const [reqStatus, setReqStatus] = useState("");
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const isEmail = contentType === "email_campaign";
 
@@ -170,6 +172,23 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
       setEditing(false);
     },
     onError: (err: any) => toast.error(err.message || "Failed to update"),
+  });
+
+  const deletePost = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("posts")
+        .delete()
+        .eq("id", post.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workflow-posts"] });
+      toast.success("Post deleted");
+      setDeleteConfirmOpen(false);
+      onOpenChange(false);
+    },
+    onError: (err: any) => toast.error(err.message || "Failed to delete post"),
   });
 
   const sendNow = useMutation({
@@ -538,21 +557,51 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
                 </div>
               )}
 
-<div className="flex gap-2 pt-2">
-                {isSSRole && (
-                  <Button variant="outline" onClick={() => setEditing(true)}>
-                    <Pencil className="h-4 w-4 mr-2" />Edit
+<div className="flex items-center justify-between gap-2 pt-2">
+                <div>
+                  {isSSAdmin && (
+                    <Button variant="destructive" size="sm" onClick={() => setDeleteConfirmOpen(true)}>
+                      <Trash2 className="h-4 w-4 mr-2" />Delete Post
+                    </Button>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  {isSSRole && (
+                    <Button variant="outline" onClick={() => setEditing(true)}>
+                      <Pencil className="h-4 w-4 mr-2" />Edit
+                    </Button>
+                  )}
+                  <Button variant="outline" onClick={() => { onOpenChange(false); navigate(`/workflow/${post.id}`); }}>
+                    <ExternalLink className="h-4 w-4 mr-2" />Full View
                   </Button>
-                )}
-                <Button variant="outline" onClick={() => { onOpenChange(false); navigate(`/workflow/${post.id}`); }}>
-                  <ExternalLink className="h-4 w-4 mr-2" />Full View
-                </Button>
+                </div>
               </div>
             </>
           )}
         </div>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Post</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete this post? This cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => deletePost.mutate()}
+            disabled={deletePost.isPending}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {deletePost.isPending ? "Deleting..." : "Delete"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <ImageLightbox
       open={!!lightboxUrl}
