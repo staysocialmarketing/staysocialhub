@@ -20,6 +20,9 @@ type TaskStatus = "todo" | "in_progress" | "done";
 
 const VALID_TASK_STATUSES = new Set<TaskStatus>(["todo", "in_progress", "done"]);
 
+// Corey's user UUID — default created_by for agent-generated tasks
+const COREY_USER_ID = "6cd3d0da-0cbc-4bd5-b428-9f997218f5c2";
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -101,26 +104,25 @@ Deno.serve(async (req: Request) => {
       };
 
       if (!title) return err("title is required");
-      if (!created_by_user_id) return err("created_by_user_id is required");
 
       const { data, error } = await db
         .from("tasks")
         .insert({
           title,
-          description:         description      ?? null,
-          project_id:          project_id       ?? null,
-          client_id:           client_id        ?? null,
-          priority:            priority         ?? "normal",
-          due_at:              due_at           ?? null,
-          assigned_to_team:    assigned_to_team ?? false,
+          description:         description                    ?? null,
+          project_id:          project_id                    ?? null,
+          client_id:           client_id                     ?? null,
+          priority:            priority                      ?? "normal",
+          due_at:              due_at                        ?? null,
+          assigned_to_team:    assigned_to_team              ?? false,
           status:              "todo",
-          created_by_user_id,
+          created_by_user_id:  created_by_user_id            ?? COREY_USER_ID,
         })
         .select("id, title, status, priority, created_at")
         .single();
 
       if (error) return err(error.message, 500);
-      return json({ success: true, task_id: data.id, task: data });
+      return json({ success: true, task: data });
     }
 
     // ────────────────────────────────────────────────────────────────────────
