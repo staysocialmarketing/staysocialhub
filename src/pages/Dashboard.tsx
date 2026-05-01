@@ -930,10 +930,11 @@ function RecentActivitySection({ clientId }: { clientId: string | null | undefin
 // ─── Main Dashboard ──────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { isSSRole, isSSAdmin, roles, loading } = useAuth();
+  const { isSSRole, isSSAdmin, isSSManager, roles, loading } = useAuth();
   if (loading) return <div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (isSSAdmin) return <SSAdminDashboard />;
-  if (roles.includes("ss_ops")) return <DesignerDashboard />;
+  if (isSSManager) return <WorkQueueDashboard />;
+  if (roles.includes("ss_team") || roles.includes("ss_ops")) return <DesignerDashboard />;
   if (isSSRole)  return <WorkQueueDashboard />;
   return <ClientDashboard />;
 }

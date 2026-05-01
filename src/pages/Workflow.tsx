@@ -280,6 +280,25 @@ export default function Workflow() {
     onError: () => toast.error("Failed to update status"),
   });
 
+  const markPosted = useMutation({
+    mutationFn: async ({ postId, contentType }: { postId: string; contentType: string }) => {
+      const isEmail = getContentCategory(contentType) === "email";
+      const newStatus = isEmail ? "sent" : "published";
+      const { error } = await supabase
+        .from("posts")
+        .update({ status_column: newStatus as PostStatus })
+        .eq("id", postId);
+      if (error) throw error;
+      return isEmail;
+    },
+    onSuccess: (isEmail) => {
+      queryClient.invalidateQueries({ queryKey: ["pipeline-posts"] });
+      queryClient.invalidateQueries({ queryKey: ["workflow-posts"] });
+      toast.success(isEmail ? "Email marked as sent" : "Post marked as published");
+    },
+    onError: () => toast.error("Failed to update status"),
+  });
+
   const handleDragStart = (e: React.DragEvent, postId: string, currentStatus: PostStatus) => {
     e.dataTransfer.setData("postId", postId);
     e.dataTransfer.setData("fromStatus", currentStatus);
@@ -692,11 +711,11 @@ export default function Workflow() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="text-xs rounded-xl h-7 px-2.5"
-                            onClick={() => markScheduled.mutate(post.id)}
-                            disabled={markScheduled.isPending}
+                            className="text-xs rounded-xl h-7 px-2.5 border-green-500/50 text-green-600 hover:bg-green-50 dark:hover:bg-green-950"
+                            onClick={() => markPosted.mutate({ postId: post.id, contentType: post.content_type || "" })}
+                            disabled={markPosted.isPending}
                           >
-                            Done
+                            Mark as Posted
                           </Button>
                         </div>
                       )}

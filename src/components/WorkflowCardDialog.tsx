@@ -14,7 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarWidget } from "@/components/ui/calendar";
-import { Clock, ExternalLink, FileText, Pencil, Send, Calendar, Image as ImageIcon, Trash2 } from "lucide-react";
+import { CheckCircle2, Clock, ExternalLink, FileText, Pencil, Send, Calendar, Image as ImageIcon, Trash2 } from "lucide-react";
 import ImageLightbox from "@/components/ImageLightbox";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -35,7 +35,7 @@ interface WorkflowCardDialogProps {
 export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }: WorkflowCardDialogProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { isSSAdmin, isSSRole, isClientAdmin, isClientAssistant } = useAuth();
+  const { isSSAdmin, isSSManager, isSSRole, isClientAdmin, isClientAssistant } = useAuth();
 
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(post.title);
@@ -222,9 +222,30 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
     onError: () => toast.error("Failed to schedule"),
   });
 
+  const markPosted = useMutation({
+    mutationFn: async () => {
+      const isEmail = getContentCategory(post.content_type) === "email";
+      const newStatus = isEmail ? "sent" : "published";
+      const { error } = await supabase
+        .from("posts")
+        .update({ status_column: newStatus as any })
+        .eq("id", post.id);
+      if (error) throw error;
+      return isEmail;
+    },
+    onSuccess: (isEmail) => {
+      queryClient.invalidateQueries({ queryKey: ["workflow-posts"] });
+      toast.success(isEmail ? "Email marked as sent" : "Post marked as published");
+      onOpenChange(false);
+    },
+    onError: () => toast.error("Failed to update status"),
+  });
+
   const showAdminApproval = isSSAdmin && post.status_column === "corey_review";
   const showClientApproval = (isClientAdmin || isClientAssistant) && post.status_column === "client_approval";
   const showSendActions = isSSAdmin && post.status_column === "ready_to_send";
+  const showMarkPosted = (isSSAdmin || isSSManager) &&
+    (post.status_column === "scheduled" || post.status_column === "ready_to_schedule");
 
   const getUserName = (userId: string) => {
     const u = ssUsers.find((u: any) => u.id === userId);
@@ -249,6 +270,22 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
         </DialogHeader>
 
         <div className="space-y-4 mt-2">
+          {showMarkPosted && (
+            <div className="rounded-md border border-green-500/30 bg-green-50 dark:bg-green-950/30 p-3">
+              <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+                {getContentCategory(post.content_type) === "email" ? "Mark as Sent" : "Mark as Posted"}
+              </p>
+              <Button
+                className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white"
+                onClick={() => markPosted.mutate()}
+                disabled={markPosted.isPending}
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                {getContentCategory(post.content_type) === "email" ? "Email Sent" : "Post is Live"}
+              </Button>
+            </div>
+          )}
+
           {imagesToShow.length > 0 && (
             <div className={imagesToShow.length === 1 ? "w-full" : "grid grid-cols-2 gap-2"}>
               {imagesToShow.map((url: string, i: number) => (
