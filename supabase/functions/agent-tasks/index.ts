@@ -73,7 +73,11 @@ Deno.serve(async (req: Request) => {
 
   let body: Record<string, unknown>;
   try {
-    body = await req.json();
+    const parsed = await req.json();
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return err("Invalid JSON body — expected a JSON object");
+    }
+    body = parsed as Record<string, unknown>;
   } catch {
     return err("Invalid JSON body");
   }
