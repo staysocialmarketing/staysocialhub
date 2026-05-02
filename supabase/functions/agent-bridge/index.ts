@@ -19,6 +19,9 @@
  *   POST /create-think-tank-item   — create a think tank item
  *   POST /read-think-tank          — fetch think tank items with optional filters
  *   POST /update-think-tank-item   — update a think tank item by id
+ *   POST /read-queue               — atomically claim oldest pending nanoclaw_queue item (sets status → processing)
+ *   POST /update-queue-item        — mark a queue item processed or failed (must be in processing state)
+ *   POST /requeue-item             — reset a stuck processing item back to pending
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -645,7 +648,76 @@ Deno.serve(async (req: Request) => {
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    case "read-queue": {
+      // Atomically claim the oldest pending item: UPDATE ... RETURNING avoids race conditions.
+      const { data, error } = await db
+        .from("nanoclaw_queue")
+        .update({ status: "processing" })
+        .eq("status", "pending")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .select("id, event_type, post_id, client_id, title, content_type, priority, created_at")
+        .maybeSingle();
+
+      if (error) return err(error.message, 500);
+      if (!data)  return json({ success: true, item: null });
+      return json({ success: true, item: data });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    case "update-queue-item": {
+      const { id, status, error_message } = body as {
+        id?: string;
+        status?: string;
+        error_message?: string;
+      };
+
+      if (!id)     return err("id is required");
+      if (!status) return err("status is required");
+      if (status !== "processed" && status !== "failed") {
+        return err(`Invalid status "${status}". Valid values: processed, failed`);
+      }
+
+      const updates: Record<string, unknown> = {
+        status,
+        processed_at: new Date().toISOString(),
+      };
+      if (error_message !== undefined) updates.error_message = error_message;
+
+      const { data, error: updateError } = await db
+        .from("nanoclaw_queue")
+        .update(updates)
+        .eq("id", id)
+        .eq("status", "processing")
+        .select("id, status, processed_at")
+        .maybeSingle();
+
+      if (updateError) return err(updateError.message, 500);
+      if (!data)       return err("Queue item not found or not in processing state", 404);
+      return json({ success: true, item: data });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    case "requeue-item": {
+      const { id } = body as { id?: string };
+
+      if (!id) return err("id is required");
+
+      const { data, error: requeueError } = await db
+        .from("nanoclaw_queue")
+        .update({ status: "pending", error_message: null })
+        .eq("id", id)
+        .eq("status", "processing")
+        .select("id, status")
+        .maybeSingle();
+
+      if (requeueError) return err(requeueError.message, 500);
+      if (!data)        return err("Queue item not found or not in processing state", 404);
+      return json({ success: true, item: data });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
     default:
-      return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /create-project, POST /read-projects, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item`, 404);
+      return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /create-project, POST /read-projects, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item, POST /read-queue, POST /update-queue-item, POST /requeue-item`, 404);
   }
 });
