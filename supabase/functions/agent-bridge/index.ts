@@ -20,7 +20,8 @@
  *   POST /read-think-tank          — fetch think tank items with optional filters
  *   POST /update-think-tank-item   — update a think tank item by id
  *   POST /read-queue               — atomically claim oldest pending nanoclaw_queue item (sets status → processing)
- *   POST /update-queue-item        — mark a queue item processed or failed
+ *   POST /update-queue-item        — mark a queue item processed or failed (must be in processing state)
+ *   POST /requeue-item             — reset a stuck processing item back to pending
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -687,16 +688,36 @@ Deno.serve(async (req: Request) => {
         .from("nanoclaw_queue")
         .update(updates)
         .eq("id", id)
+        .eq("status", "processing")
         .select("id, status, processed_at")
         .maybeSingle();
 
       if (updateError) return err(updateError.message, 500);
-      if (!data)       return err("Queue item not found", 404);
+      if (!data)       return err("Queue item not found or not in processing state", 404);
+      return json({ success: true, item: data });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    case "requeue-item": {
+      const { id } = body as { id?: string };
+
+      if (!id) return err("id is required");
+
+      const { data, error: requeueError } = await db
+        .from("nanoclaw_queue")
+        .update({ status: "pending", error_message: null })
+        .eq("id", id)
+        .eq("status", "processing")
+        .select("id, status")
+        .maybeSingle();
+
+      if (requeueError) return err(requeueError.message, 500);
+      if (!data)        return err("Queue item not found or not in processing state", 404);
       return json({ success: true, item: data });
     }
 
     // ────────────────────────────────────────────────────────────────────────
     default:
-      return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /create-project, POST /read-projects, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item, POST /read-queue, POST /update-queue-item`, 404);
+      return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /create-project, POST /read-projects, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item, POST /read-queue, POST /update-queue-item, POST /requeue-item`, 404);
   }
 });

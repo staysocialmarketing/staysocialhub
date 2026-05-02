@@ -29,7 +29,11 @@ ALTER TABLE public.nanoclaw_queue ENABLE ROW LEVEL SECURITY;
 -- ---------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION public.fn_enqueue_client_request()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
   IF NEW.source = 'client_request' THEN
     INSERT INTO public.nanoclaw_queue (post_id, client_id, title, content_type, priority)
@@ -37,7 +41,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SET search_path = public;
+$$;
 
 CREATE TRIGGER trg_enqueue_client_request
   AFTER INSERT ON public.posts
