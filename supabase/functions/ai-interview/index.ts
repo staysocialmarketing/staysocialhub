@@ -556,7 +556,7 @@ Deno.serve(async (req) => {
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
-      .in("role", ["ss_admin", "ss_producer", "ss_ops", "ss_team"]);
+      .in("role", ["ss_admin", "ss_producer", "ss_ops", "ss_team", "ss_manager"]);
 
     if (!roleData || roleData.length === 0) {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
