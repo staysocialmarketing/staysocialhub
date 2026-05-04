@@ -9,6 +9,7 @@ create table if not exists workspace_docs (
 );
 
 alter table workspace_docs enable row level security;
+drop policy if exists "workspace_docs_read" on workspace_docs;
 create policy "workspace_docs_read" on workspace_docs
   for select using (
     exists (
@@ -17,6 +18,7 @@ create policy "workspace_docs_read" on workspace_docs
       and ur.role in ('ss_admin', 'ss_manager')
     )
   );
+drop policy if exists "workspace_docs_write" on workspace_docs;
 create policy "workspace_docs_write" on workspace_docs
   for all using (
     exists (
@@ -39,6 +41,7 @@ create table if not exists open_items (
 );
 
 alter table open_items enable row level security;
+drop policy if exists "open_items_admin" on open_items;
 create policy "open_items_admin" on open_items
   for all using (
     exists (
@@ -59,6 +62,7 @@ create table if not exists team_wins (
 );
 
 alter table team_wins enable row level security;
+drop policy if exists "team_wins_read" on team_wins;
 create policy "team_wins_read" on team_wins
   for select using (
     exists (
@@ -67,6 +71,7 @@ create policy "team_wins_read" on team_wins
       and ur.role in ('ss_admin', 'ss_manager')
     )
   );
+drop policy if exists "team_wins_write" on team_wins;
 create policy "team_wins_write" on team_wins
   for insert with check (
     exists (
@@ -87,6 +92,7 @@ create table if not exists agent_updates (
 );
 
 alter table agent_updates enable row level security;
+drop policy if exists "agent_updates_admin" on agent_updates;
 create policy "agent_updates_admin" on agent_updates
   for all using (
     exists (select 1 from user_roles ur where ur.user_id = auth.uid() and ur.role in ('ss_admin', 'ss_manager'))
@@ -106,6 +112,7 @@ create table if not exists agent_morale (
 );
 
 alter table agent_morale enable row level security;
+drop policy if exists "agent_morale_admin" on agent_morale;
 create policy "agent_morale_admin" on agent_morale
   for all using (
     exists (select 1 from user_roles ur where ur.user_id = auth.uid() and ur.role in ('ss_admin', 'ss_manager'))

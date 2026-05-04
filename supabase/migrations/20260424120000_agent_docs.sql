@@ -10,9 +10,11 @@ create table if not exists agent_docs (
 
 alter table agent_docs enable row level security;
 
+drop policy if exists "agent_docs_authenticated_read" on agent_docs;
 create policy "agent_docs_authenticated_read" on agent_docs
   for select using (auth.role() = 'authenticated');
 
+drop policy if exists "agent_docs_service_role_write" on agent_docs;
 create policy "agent_docs_service_role_write" on agent_docs
   for all using (auth.role() = 'service_role');
 

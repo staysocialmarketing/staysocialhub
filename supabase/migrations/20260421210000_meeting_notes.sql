@@ -16,6 +16,15 @@ create table if not exists public.meeting_notes (
   created_at      timestamptz not null default now()
 );
 
+-- Backfill any columns that may be missing if the table was created manually
+alter table public.meeting_notes add column if not exists recorded_at timestamptz;
+alter table public.meeting_notes add column if not exists summary text;
+alter table public.meeting_notes add column if not exists decisions jsonb not null default '[]';
+alter table public.meeting_notes add column if not exists action_items jsonb not null default '[]';
+alter table public.meeting_notes add column if not exists raw_transcript text;
+alter table public.meeting_notes add column if not exists routed_to text;
+alter table public.meeting_notes add column if not exists source_filename text;
+
 -- Index for chronological queries
 create index if not exists meeting_notes_recorded_at_idx
   on public.meeting_notes (recorded_at desc);
@@ -28,6 +37,7 @@ create index if not exists meeting_notes_routed_to_idx
 alter table public.meeting_notes enable row level security;
 
 -- SS team can read all notes
+drop policy if exists "ss_team_read_meeting_notes" on public.meeting_notes;
 create policy "ss_team_read_meeting_notes"
   on public.meeting_notes
   for select
@@ -40,6 +50,7 @@ create policy "ss_team_read_meeting_notes"
   );
 
 -- SS admin can insert/update/delete
+drop policy if exists "ss_admin_write_meeting_notes" on public.meeting_notes;
 create policy "ss_admin_write_meeting_notes"
   on public.meeting_notes
   for all

@@ -2,7 +2,7 @@
 -- Populated by DB trigger when a client submits a request (posts INSERT where source='client_request').
 -- Lev polls via agent-bridge /read-queue and marks items processed/failed via /update-queue-item.
 
-CREATE TABLE public.nanoclaw_queue (
+CREATE TABLE IF NOT EXISTS public.nanoclaw_queue (
   id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   event_type      TEXT        NOT NULL DEFAULT 'client_request',
   post_id         UUID        NOT NULL REFERENCES public.posts(id) ON DELETE CASCADE,
@@ -17,7 +17,7 @@ CREATE TABLE public.nanoclaw_queue (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_nanoclaw_queue_status ON public.nanoclaw_queue(status, created_at);
+CREATE INDEX IF NOT EXISTS idx_nanoclaw_queue_status ON public.nanoclaw_queue(status, created_at);
 
 ALTER TABLE public.nanoclaw_queue ENABLE ROW LEVEL SECURITY;
 
@@ -43,6 +43,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_enqueue_client_request ON public.posts;
 CREATE TRIGGER trg_enqueue_client_request
   AFTER INSERT ON public.posts
   FOR EACH ROW EXECUTE FUNCTION public.fn_enqueue_client_request();

@@ -15,6 +15,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_set_posted_at ON public.posts;
 CREATE TRIGGER trg_set_posted_at
   BEFORE UPDATE ON public.posts
   FOR EACH ROW EXECUTE FUNCTION public.fn_set_posted_at();
