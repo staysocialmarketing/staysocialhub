@@ -699,7 +699,7 @@ export default function Workflow() {
                             >
                               <Send className="h-3 w-3" />Send
                             </Button>
-                          ) : (
+                          ) : expanded.key === "ready_to_schedule" ? (
                             <Button
                               size="sm"
                               className="text-xs rounded-xl gap-1 h-7 px-2.5"
@@ -708,7 +708,7 @@ export default function Workflow() {
                             >
                               <CheckCircle2 className="h-3 w-3" />Schedule in GHL
                             </Button>
-                          )}
+                          ) : null}
                           <Button
                             size="sm"
                             variant="outline"
