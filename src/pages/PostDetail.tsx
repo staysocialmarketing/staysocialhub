@@ -16,9 +16,10 @@ import {
 import { toast } from "sonner";
 import {
   ArrowLeft, ChevronLeft, ChevronRight, Calendar, Hash, MessageSquare, Image as ImageIcon,
-  Check, FileEdit, AlertTriangle, Save, Upload, Sparkles, X, Trash2, Pencil, Copy,
+  Check, FileEdit, AlertTriangle, Save, Upload, Sparkles, X, Trash2, Pencil, Copy, CheckCircle2,
 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
+import { getContentCategory } from "@/lib/workflowUtils";
 import { compressImage } from "@/lib/imageUtils";
 import { cn } from "@/lib/utils";
 import { PlatformBadge } from "@/components/PlatformBadge";
@@ -43,7 +44,7 @@ export default function PostDetail() {
   const { postId } = useParams<{ postId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { profile, isSSRole, isSSAdmin, isClientAdmin, isClientAssistant } = useAuth();
+  const { profile, isSSRole, isSSAdmin, isSSManager, isClientAdmin, isClientAssistant } = useAuth();
   const queryClient = useQueryClient();
 
   // Derive the back destination from the current URL path so the back button
@@ -303,6 +304,28 @@ export default function PostDetail() {
     onError: (e: Error) => toast.error(e.message || "Failed to delete post"),
   });
 
+  // Mark as Posted / Sent — for ss_admin and ss_manager
+  const markPosted = useMutation({
+    mutationFn: async () => {
+      const isEmail = getContentCategory(post?.content_type) === "email";
+      const newStatus = isEmail ? "sent" : "published";
+      const { error } = await supabase
+        .from("posts")
+        .update({ status_column: newStatus as any })
+        .eq("id", postId!);
+      if (error) throw error;
+      return isEmail;
+    },
+    onSuccess: (isEmail) => {
+      queryClient.invalidateQueries({ queryKey: ["post-detail", postId] });
+      queryClient.invalidateQueries({ queryKey: ["workflow-posts"] });
+      queryClient.invalidateQueries({ queryKey: ["pipeline-posts"] });
+      queryClient.invalidateQueries({ queryKey: ["client-pipeline-posts"] });
+      toast.success(isEmail ? "Email marked as sent" : "Post marked as published");
+    },
+    onError: () => toast.error("Failed to update status"),
+  });
+
   // Upload new version
   const [uploadingImage, setUploadingImage] = useState(false);
   const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
@@ -497,6 +520,17 @@ export default function PostDetail() {
             )}
           </div>
         </div>
+        {(isSSAdmin || isSSManager) && !["published", "sent", "complete"].includes(post.status_column) && (
+          <Button
+            size="sm"
+            className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
+            onClick={() => markPosted.mutate()}
+            disabled={markPosted.isPending}
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            {getContentCategory(post.content_type) === "email" ? "Mark as Sent" : "Mark as Posted"}
+          </Button>
+        )}
         {isSSAdmin && (
           <Button
             variant="outline"
