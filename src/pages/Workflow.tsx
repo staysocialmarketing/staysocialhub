@@ -286,7 +286,7 @@ export default function Workflow() {
       const newStatus = isEmail ? "sent" : "published";
       const { error } = await supabase
         .from("posts")
-        .update({ status_column: newStatus as PostStatus })
+        .update({ status_column: newStatus as PostStatus, posted_at: new Date().toISOString() } as any)
         .eq("id", postId);
       if (error) throw error;
       return isEmail;
