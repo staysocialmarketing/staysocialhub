@@ -62,16 +62,18 @@ export default function ContentLibrary() {
   const [activeTab, setActiveTab] = useState("all");
 
   const { data: posts = [], isLoading } = useQuery({
-    queryKey: ["content-library"],
+    queryKey: ["content-library", profile?.client_id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("posts")
         .select("id, title, platform, creative_url, created_at, scheduled_at, tags")
         .eq("status_column", "published")
+        .eq("client_id", profile?.client_id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
     },
+    enabled: !!profile?.client_id,
   });
 
   const { data: voiceNotes = [], isLoading: voiceLoading } = useQuery({
