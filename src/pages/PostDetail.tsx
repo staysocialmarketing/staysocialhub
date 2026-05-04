@@ -520,7 +520,7 @@ export default function PostDetail() {
             )}
           </div>
         </div>
-        {(isSSAdmin || isSSManager) && !["published", "sent", "complete"].includes(post.status_column) && (
+        {(isSSAdmin || isSSManager) && ["approved", "ready_to_schedule", "scheduled", "ready_to_send", "ready_for_client_batch"].includes(post.status_column) && (
           <Button
             size="sm"
             className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
