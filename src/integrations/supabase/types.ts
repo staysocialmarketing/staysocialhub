@@ -1478,6 +1478,7 @@ export type Database = {
           request_id: string | null
           request_notes: string | null
           reviewer_user_id: string | null
+          posted_at: string | null
           revision_count: number
           scheduled_at: string | null
           send_date: string | null
@@ -1525,6 +1526,7 @@ export type Database = {
           request_id?: string | null
           request_notes?: string | null
           reviewer_user_id?: string | null
+          posted_at?: string | null
           revision_count?: number
           scheduled_at?: string | null
           send_date?: string | null
@@ -1572,6 +1574,7 @@ export type Database = {
           request_id?: string | null
           request_notes?: string | null
           reviewer_user_id?: string | null
+          posted_at?: string | null
           revision_count?: number
           scheduled_at?: string | null
           send_date?: string | null
