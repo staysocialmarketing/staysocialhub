@@ -228,7 +228,7 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
       const newStatus = isEmail ? "sent" : "published";
       const { error } = await supabase
         .from("posts")
-        .update({ status_column: newStatus as any })
+        .update({ status_column: newStatus as any, posted_at: new Date().toISOString() } as any)
         .eq("id", post.id);
       if (error) throw error;
       return isEmail;
@@ -244,8 +244,8 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
   const showAdminApproval = isSSAdmin && post.status_column === "corey_review";
   const showClientApproval = (isClientAdmin || isClientAssistant) && post.status_column === "client_approval";
   const showSendActions = isSSAdmin && post.status_column === "ready_to_send";
-  const showMarkPosted = (isSSAdmin || isSSManager) &&
-    (post.status_column === "scheduled" || post.status_column === "ready_to_schedule");
+  const alreadyPosted = post.status_column === "published" || post.status_column === "sent" || post.status_column === "complete";
+  const showMarkPosted = (isSSAdmin || isSSManager) && !alreadyPosted;
 
   const getUserName = (userId: string) => {
     const u = ssUsers.find((u: any) => u.id === userId);
