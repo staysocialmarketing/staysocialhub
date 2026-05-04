@@ -28,6 +28,7 @@
 -- Policy 1: Client self-insert (client_admin / client_assistant)
 -- Allows a client user to create a post for their own client_id
 -- as long as source = 'client_request'.
+DROP POLICY IF EXISTS "Clients can insert client_request posts" ON public.posts;
 CREATE POLICY "Clients can insert client_request posts"
   ON public.posts
   FOR INSERT
@@ -56,6 +57,7 @@ COMMENT ON COLUMN public.posts.submitted_on_behalf_by IS
   'When an ss_admin submits in View As mode, this holds their real user ID. NULL for direct client submissions.';
 
 -- Policy 3: SS admin submitting on behalf of a client in View As mode
+DROP POLICY IF EXISTS "SS can insert client_request posts on behalf of client" ON public.posts;
 CREATE POLICY "SS can insert client_request posts on behalf of client"
   ON public.posts
   FOR INSERT
