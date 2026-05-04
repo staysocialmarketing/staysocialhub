@@ -228,13 +228,14 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
       const newStatus = isEmail ? "sent" : "published";
       const { error } = await supabase
         .from("posts")
-        .update({ status_column: newStatus as any, posted_at: new Date().toISOString() } as any)
+        .update({ status_column: newStatus as any } as any)
         .eq("id", post.id);
       if (error) throw error;
       return isEmail;
     },
     onSuccess: (isEmail) => {
       queryClient.invalidateQueries({ queryKey: ["workflow-posts"] });
+      queryClient.invalidateQueries({ queryKey: ["pipeline-posts"] });
       toast.success(isEmail ? "Email marked as sent" : "Post marked as published");
       onOpenChange(false);
     },
