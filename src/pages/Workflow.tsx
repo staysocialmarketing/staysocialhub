@@ -286,7 +286,7 @@ export default function Workflow() {
       const newStatus = isEmail ? "sent" : "published";
       const { error } = await supabase
         .from("posts")
-        .update({ status_column: newStatus as PostStatus, posted_at: new Date().toISOString() } as any)
+        .update({ status_column: newStatus as PostStatus } as any)
         .eq("id", postId);
       if (error) throw error;
       return isEmail;
@@ -610,6 +610,7 @@ export default function Workflow() {
             posts: pipelinePosts.filter((p: any) => p.status_column === "scheduled"),
             accent: "text-blue-600",
             pill: "bg-blue-500/10 text-blue-600 hover:bg-blue-500/20",
+            hasActions: true,
           },
           {
             key: "published",
@@ -698,7 +699,7 @@ export default function Workflow() {
                             >
                               <Send className="h-3 w-3" />Send
                             </Button>
-                          ) : (
+                          ) : expanded.key === "ready_to_schedule" ? (
                             <Button
                               size="sm"
                               className="text-xs rounded-xl gap-1 h-7 px-2.5"
@@ -707,7 +708,7 @@ export default function Workflow() {
                             >
                               <CheckCircle2 className="h-3 w-3" />Schedule in GHL
                             </Button>
-                          )}
+                          ) : null}
                           <Button
                             size="sm"
                             variant="outline"
