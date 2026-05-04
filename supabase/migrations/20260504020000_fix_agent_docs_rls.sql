@@ -4,6 +4,7 @@
 -- Align with the role-based checks used on all other workspace tables.
 
 DROP POLICY IF EXISTS "agent_docs_authenticated_read" ON agent_docs;
+DROP POLICY IF EXISTS "agent_docs_ss_read" ON agent_docs;
 CREATE POLICY "agent_docs_ss_read" ON agent_docs
   FOR SELECT USING (
     EXISTS (
