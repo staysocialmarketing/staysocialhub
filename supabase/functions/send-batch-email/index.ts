@@ -151,7 +151,7 @@ Deno.serve(async (req) => {
 
     const serviceClient = createClient(supabaseUrl, serviceRoleKey);
 
-    const { batch_id, is_reminder = false } = await req.json();
+    const { batch_id, is_reminder = false, test_email } = await req.json();
     if (!batch_id) return json({ error: "batch_id required" }, 400);
 
     // Fetch batch + items + post titles + client name
@@ -189,9 +189,14 @@ Deno.serve(async (req) => {
       .in("role", ["client_admin", "client_assistant"]);
 
     const roleUserIds = new Set((clientRoles || []).map((r: any) => r.user_id));
-    const recipients = (clientUsers || []).filter(
+    const actualRecipients = (clientUsers || []).filter(
       (u: any) => u.email && roleUserIds.has(u.id)
     );
+
+    // test_email overrides recipients — safe to use for previewing without emailing real clients
+    const recipients = test_email
+      ? [{ email: test_email, name: "Test" }]
+      : actualRecipients;
 
     if (recipients.length === 0) {
       return json({ error: "No client users found for this batch" }, 404);
