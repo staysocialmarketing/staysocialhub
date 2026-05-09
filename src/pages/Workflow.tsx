@@ -296,7 +296,10 @@ export default function Workflow() {
       queryClient.invalidateQueries({ queryKey: ["workflow-posts"] });
       toast.success(isEmail ? "Email marked as sent" : "Post marked as published");
     },
-    onError: () => toast.error("Failed to update status"),
+    onError: (err: any) => {
+      console.error("markPosted error:", err);
+      toast.error(err?.message || err?.details || JSON.stringify(err) || "Failed to update status");
+    },
   });
 
   const handleDragStart = (e: React.DragEvent, postId: string, currentStatus: PostStatus) => {
@@ -309,6 +312,13 @@ export default function Workflow() {
     const postId = e.dataTransfer.getData("postId");
     const fromStatus = e.dataTransfer.getData("fromStatus") as PostStatus;
     if (fromStatus === toStatus) return;
+    if (toStatus === "design" as PostStatus) {
+      const dragged = posts.find((p: any) => p.id === postId);
+      if (dragged && (!dragged.design_type || dragged.design_type === "unset")) {
+        toast.error("Assign design type before moving to Design");
+        return;
+      }
+    }
     movePost.mutate({ postId, newStatus: toStatus });
   };
 

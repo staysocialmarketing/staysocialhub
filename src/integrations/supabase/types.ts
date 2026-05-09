@@ -1463,6 +1463,7 @@ export type Database = {
           created_at: string
           created_by_user_id: string | null
           creative_url: string | null
+          design_type: string | null
           due_at: string | null
           email_body: string | null
           hashtags: string | null
@@ -1511,6 +1512,7 @@ export type Database = {
           created_at?: string
           created_by_user_id?: string | null
           creative_url?: string | null
+          design_type?: string | null
           due_at?: string | null
           email_body?: string | null
           hashtags?: string | null
@@ -1559,6 +1561,7 @@ export type Database = {
           created_at?: string
           created_by_user_id?: string | null
           creative_url?: string | null
+          design_type?: string | null
           due_at?: string | null
           email_body?: string | null
           hashtags?: string | null

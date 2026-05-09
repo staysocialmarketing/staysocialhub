@@ -48,6 +48,7 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
   const [internalNotes, setInternalNotes] = useState(post.internal_notes || "");
   const [platforms, setPlatforms] = useState<string[]>(post.platform ? post.platform.split(",").map((p: string) => p.trim()) : []);
   const [statusOverride, setStatusOverride] = useState(post.status_column || "idea");
+  const [designType, setDesignType] = useState<string>(post.design_type || "unset");
   // Email fields
   const [subjectLine, setSubjectLine] = useState(post.subject_line || "");
   const [previewText, setPreviewText] = useState(post.preview_text || "");
@@ -112,6 +113,7 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
     setInternalNotes(post.internal_notes || "");
     setPlatforms(post.platform ? post.platform.split(",").map((p: string) => p.trim()) : []);
     setStatusOverride(post.status_column || "idea");
+    setDesignType(post.design_type || "unset");
     setSubjectLine(post.subject_line || "");
     setPreviewText(post.preview_text || "");
     setEmailBody(post.email_body || "");
@@ -130,6 +132,9 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
 
   const updatePost = useMutation({
     mutationFn: async () => {
+      if (statusOverride === "design" && designType === "unset") {
+        throw new Error("Assign design type before moving to Design");
+      }
       const { error } = await supabase
         .from("posts")
         .update({
@@ -143,6 +148,7 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
           internal_notes: internalNotes || null,
           platform: platforms.length > 0 ? platforms.join(", ") : null,
           status_column: statusOverride as any,
+          ...(isSSAdmin || isSSManager ? { design_type: designType } : {}),
           subject_line: isEmail ? (subjectLine || null) : null,
           preview_text: isEmail ? (previewText || null) : null,
           email_body: isEmail ? (emailBody || null) : null,
@@ -239,7 +245,10 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
       toast.success(isEmail ? "Email marked as sent" : "Post marked as published");
       onOpenChange(false);
     },
-    onError: () => toast.error("Failed to update status"),
+    onError: (err: any) => {
+      console.error("markPosted error:", err);
+      toast.error(err?.message || err?.details || JSON.stringify(err) || "Failed to update status");
+    },
   });
 
   const showAdminApproval = isSSAdmin && post.status_column === "corey_review";
@@ -354,6 +363,20 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
                   </SelectContent>
                 </Select>
               </div>
+
+              {(isSSAdmin || isSSManager) && (
+                <div>
+                  <Label>Design Type</Label>
+                  <Select value={designType} onValueChange={setDesignType}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unset">Unset</SelectItem>
+                      <SelectItem value="auto">Auto (Higgsfield)</SelectItem>
+                      <SelectItem value="gavin">Gavin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {isEmail ? (
                 <>
@@ -493,6 +516,12 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
                   <Label className="text-muted-foreground text-xs">Status</Label>
                   <p className="text-sm font-medium">{post.status_column?.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())}</p>
                 </div>
+                {(isSSAdmin || isSSManager) && (
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Design Type</Label>
+                    <p className="text-sm font-medium capitalize">{post.design_type || "unset"}</p>
+                  </div>
+                )}
                 <div>
                   <Label className="text-muted-foreground text-xs">Due Date</Label>
                   <p className="text-sm font-medium">{post.due_at ? format(new Date(post.due_at), "PPP") : "—"}</p>
