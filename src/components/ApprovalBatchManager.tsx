@@ -253,6 +253,14 @@ function BatchCard({ batch, postStatusMap }: { batch: Batch; postStatusMap: Reco
   const badge = statusBadgeConfig[displayStatus] || statusBadgeConfig.draft;
   const items = batch.approval_batch_items || [];
 
+  const sendBatchEmail = async (isReminder: boolean) => {
+    const { error } = await supabase.functions.invoke("send-batch-email", {
+      body: { batch_id: batch.id, is_reminder: isReminder },
+    });
+    if (error) console.warn("Email send failed (non-blocking):", error);
+    return !error;
+  };
+
   const sendToClient = useMutation({
     mutationFn: async () => {
       // Update all posts to client_approval
@@ -270,12 +278,15 @@ function BatchCard({ batch, postStatusMap }: { batch: Batch; postStatusMap: Reco
         .eq("id", batch.id);
       if (batchErr) throw batchErr;
 
-      // Send notification
+      // In-app push notification
       await supabase.rpc("notify_batch_sent_to_client" as any, {
         _batch_name: batch.name,
         _client_id: batch.client_id,
         _item_count: postIds.length,
       });
+
+      // Branded email (non-blocking)
+      await sendBatchEmail(false);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["approval-batches"] });
@@ -288,11 +299,15 @@ function BatchCard({ batch, postStatusMap }: { batch: Batch; postStatusMap: Reco
 
   const resendReminder = useMutation({
     mutationFn: async () => {
+      // In-app push notification
       await supabase.rpc("notify_batch_sent_to_client" as any, {
         _batch_name: batch.name + " (reminder)",
         _client_id: batch.client_id,
         _item_count: items.length,
       });
+
+      // Branded reminder email (non-blocking)
+      await sendBatchEmail(true);
     },
     onSuccess: () => toast.success("Reminder sent"),
     onError: (err: any) => toast.error(err.message),
