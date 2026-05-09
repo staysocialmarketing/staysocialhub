@@ -44,7 +44,7 @@ export default function PostDetail() {
   const { postId } = useParams<{ postId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { profile, isSSRole, isSSAdmin, isSSManager, isClientAdmin, isClientAssistant } = useAuth();
+  const { profile, isSSRole, isSSAdmin, isSSTeam, isSSManager, isClientAdmin, isClientAssistant } = useAuth();
   const queryClient = useQueryClient();
 
   // Derive the back destination from the current URL path so the back button
@@ -631,7 +631,7 @@ export default function PostDetail() {
                             )}
                           />
                         </button>
-                        {isSSAdmin && (
+                        {(isSSAdmin || isSSTeam) && (
                           <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); setDeleteImageDialog(img); }}

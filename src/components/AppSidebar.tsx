@@ -149,9 +149,11 @@ export function AppSidebar() {
     });
   };
 
+  const canViewAs = actualIsSSAdmin || isSSTeam || isSSManager;
+
   const { data: allUsers = [] } = useQuery<UserWithRole[]>({
     queryKey: ["sidebar-users"],
-    enabled: actualIsSSAdmin,
+    enabled: canViewAs,
     queryFn: async () => {
       const { data: users } = await supabase.from("users").select("id, name, email");
       const { data: roles } = await supabase.from("user_roles").select("user_id, role");
@@ -223,7 +225,7 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
 
-      {actualIsSSAdmin && !collapsed && (
+      {canViewAs && !collapsed && (
         <div className="px-3 pb-2">
           <div className="flex items-center gap-1.5 mb-1.5">
             <Eye className="h-3.5 w-3.5 text-sidebar-foreground/40" />
@@ -242,8 +244,8 @@ export function AppSidebar() {
               <SelectValue placeholder="My View" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__self__">My View (Super Admin)</SelectItem>
-              {ssUsers.length > 0 && (
+              <SelectItem value="__self__">My View</SelectItem>
+              {actualIsSSAdmin && ssUsers.length > 0 && (
                 <SelectGroup>
                   <SelectLabel className="text-xs">Team</SelectLabel>
                   {ssUsers.map((u) => (
