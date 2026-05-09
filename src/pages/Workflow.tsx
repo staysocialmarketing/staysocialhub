@@ -24,7 +24,7 @@ import type { Database } from "@/integrations/supabase/types";
 import WorkflowCardDialog from "@/components/WorkflowCardDialog";
 import { PlatformBadges } from "@/components/PlatformBadge";
 import ApprovalActions from "@/components/ApprovalActions";
-import { CONTENT_TYPE_OPTIONS, AUDIENCE_OPTIONS, getStatusesForAdminColumn } from "@/lib/workflowUtils";
+import { CONTENT_TYPE_OPTIONS, AUDIENCE_OPTIONS, getStatusesForAdminColumn, getContentCategory } from "@/lib/workflowUtils";
 import FilterBar, { useFilterBar, applyDueDateFilter, PRIORITY_FILTER_OPTIONS, DUE_DATE_FILTER_OPTIONS } from "@/components/FilterBar";
 import type { FilterConfig } from "@/components/FilterBar";
 import { useClientFilter } from "@/contexts/ClientFilterContext";

@@ -323,7 +323,10 @@ export default function PostDetail() {
       queryClient.invalidateQueries({ queryKey: ["client-pipeline-posts"] });
       toast.success(isEmail ? "Email marked as sent" : "Post marked as published");
     },
-    onError: () => toast.error("Failed to update status"),
+    onError: (err: any) => {
+      console.error("markPosted error:", err);
+      toast.error(err?.message || err?.details || JSON.stringify(err) || "Failed to update status");
+    },
   });
 
   // Upload new version
