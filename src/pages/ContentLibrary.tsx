@@ -57,6 +57,7 @@ export default function ContentLibrary() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadTitle, setUploadTitle] = useState("");
+  const [uploadDragOver, setUploadDragOver] = useState(false);
   const [visibleCount, setVisibleCount] = useState(50);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
@@ -300,9 +301,25 @@ export default function ContentLibrary() {
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">File</Label>
-                  <div className="border-2 border-dashed border-border/40 rounded-2xl p-6 text-center hover:border-primary/30 transition-colors">
+                  <div
+                    className={cn(
+                      "border-2 border-dashed rounded-2xl p-6 text-center transition-colors",
+                      uploadDragOver ? "border-primary bg-primary/5" : "border-border/40 hover:border-primary/30"
+                    )}
+                    onDragOver={(e) => { e.preventDefault(); setUploadDragOver(true); }}
+                    onDragLeave={() => setUploadDragOver(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setUploadDragOver(false);
+                      const file = e.dataTransfer.files?.[0];
+                      if (file) setUploadFile(file);
+                    }}
+                  >
                     <Input type="file" accept="image/*,video/*" onChange={(e) => setUploadFile(e.target.files?.[0] || null)} className="border-0 p-0" />
-                    {!uploadFile && <p className="text-xs text-muted-foreground/50 mt-2">Drag & drop or click to browse</p>}
+                    {uploadFile
+                      ? <p className="text-xs text-primary mt-2 font-medium">{uploadFile.name}</p>
+                      : <p className="text-xs text-muted-foreground/50 mt-2">Drag & drop or click to browse</p>
+                    }
                   </div>
                 </div>
                 <Button className="w-full" onClick={() => uploadMutation.mutate()} disabled={!uploadFile || uploadMutation.isPending}>

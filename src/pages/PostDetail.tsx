@@ -335,6 +335,7 @@ export default function PostDetail() {
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [swipeStartX, setSwipeStartX] = useState(0);
   const [uploadingVersion, setUploadingVersion] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   // Upload images to post_images table
   const uploadImages = async (files: FileList) => {
@@ -603,7 +604,21 @@ export default function PostDetail() {
                 </label>
               )}
             </CardHeader>
-            <CardContent className="p-4 pt-0">
+            <CardContent
+              className={cn("p-4 pt-0 relative transition-colors", isSSRole && isDragOver && "bg-primary/5 rounded-b-xl")}
+              onDragOver={isSSRole ? (e) => { e.preventDefault(); setIsDragOver(true); } : undefined}
+              onDragLeave={isSSRole ? () => setIsDragOver(false) : undefined}
+              onDrop={isSSRole ? (e) => {
+                e.preventDefault();
+                setIsDragOver(false);
+                if (e.dataTransfer.files?.length) uploadImages(e.dataTransfer.files);
+              } : undefined}
+            >
+              {isSSRole && isDragOver && (
+                <div className="absolute inset-0 z-10 rounded-b-xl border-2 border-dashed border-primary/50 bg-primary/5 flex items-center justify-center pointer-events-none">
+                  <p className="text-sm font-medium text-primary">Drop to upload</p>
+                </div>
+              )}
               {postImages.length > 0 ? (
                 isSSRole ? (
                   /* SS: editable grid with lightbox + delete controls */
@@ -721,6 +736,28 @@ export default function PostDetail() {
               ) : post.creative_url ? (
                 /* Legacy single image — not yet in post_images */
                 <img src={post.creative_url} alt="" className="w-full rounded-lg object-contain max-h-[500px]" />
+              ) : isSSRole ? (
+                <label className="block cursor-pointer">
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*,video/*"
+                    multiple
+                    disabled={uploadingImage}
+                    onChange={(e) => {
+                      if (e.target.files?.length) uploadImages(e.target.files);
+                      e.target.value = "";
+                    }}
+                  />
+                  <div className={cn(
+                    "aspect-video rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-colors",
+                    isDragOver ? "border-primary bg-primary/5" : "border-border/40 hover:border-primary/40 hover:bg-muted/30"
+                  )}>
+                    <Upload className="h-8 w-8 text-muted-foreground/40" />
+                    <p className="text-sm text-muted-foreground/60">Drag & drop or click to upload</p>
+                    <p className="text-xs text-muted-foreground/40">Images or videos, multiple supported</p>
+                  </div>
+                </label>
               ) : (
                 <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
                   <ImageIcon className="h-12 w-12 text-muted-foreground/30" />
