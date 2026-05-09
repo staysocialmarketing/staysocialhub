@@ -285,8 +285,8 @@ function BatchCard({ batch, postStatusMap }: { batch: Batch; postStatusMap: Reco
         _item_count: postIds.length,
       });
 
-      // Branded email (non-blocking)
-      await sendBatchEmail(false);
+      // Branded email (fire-and-forget)
+      sendBatchEmail(false);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["approval-batches"] });
@@ -306,8 +306,8 @@ function BatchCard({ batch, postStatusMap }: { batch: Batch; postStatusMap: Reco
         _item_count: items.length,
       });
 
-      // Branded reminder email (non-blocking)
-      await sendBatchEmail(true);
+      // Branded reminder email (fire-and-forget)
+      sendBatchEmail(true);
     },
     onSuccess: () => toast.success("Reminder sent"),
     onError: (err: any) => toast.error(err.message),

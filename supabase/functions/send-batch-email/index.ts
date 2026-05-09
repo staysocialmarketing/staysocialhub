@@ -7,6 +7,15 @@ const corsHeaders = {
 
 const APP_URL = "https://hub.staysocial.ca";
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;");
+}
+
 function buildEmail(opts: {
   clientName: string;
   batchName: string;
@@ -14,6 +23,8 @@ function buildEmail(opts: {
   isReminder: boolean;
 }): { subject: string; html: string } {
   const { clientName, batchName, postTitles, isReminder } = opts;
+  const safeClientName = escapeHtml(clientName);
+  const safeBatchName = escapeHtml(batchName);
   const approvalUrl = `${APP_URL}/pipeline`;
 
   const subject = isReminder
@@ -22,11 +33,11 @@ function buildEmail(opts: {
 
   const intro = isReminder
     ? `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6;">
-        This is a friendly reminder that your content batch <strong>${batchName}</strong> is still waiting for your approval.
+        This is a friendly reminder that your content batch <strong>${safeBatchName}</strong> is still waiting for your approval.
         Your posts are ready to go — just need your sign-off before we can schedule them!
       </p>`
     : `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6;">
-        Great news! Your content batch <strong>${batchName}</strong> is ready for your review and approval in the Stay Social HUB.
+        Great news! Your content batch <strong>${safeBatchName}</strong> is ready for your review and approval in the Stay Social HUB.
       </p>`;
 
   const urgencyNote = isReminder
@@ -38,7 +49,7 @@ function buildEmail(opts: {
   const postListItems = postTitles
     .map(
       (title) =>
-        `<li style="padding:6px 0;color:#374151;font-size:14px;border-bottom:1px solid #f3f4f6;">${title}</li>`
+        `<li style="padding:6px 0;color:#374151;font-size:14px;border-bottom:1px solid #f3f4f6;">${escapeHtml(title)}</li>`
     )
     .join("");
 
@@ -71,7 +82,7 @@ function buildEmail(opts: {
           <tr>
             <td style="background:#ffffff;padding:32px;border-left:1px solid #e5e7eb;border-right:1px solid #e5e7eb;">
               <p style="margin:0 0 20px;color:#111827;font-size:18px;font-weight:600;">
-                Hello ${clientName},
+                Hello ${safeClientName},
               </p>
 
               ${intro}
