@@ -127,7 +127,7 @@ Deno.serve(async (req: Request) => {
 
   // Reject unknown GET routes
   if (req.method === "GET") {
-    return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /update-task-status, POST /create-project, POST /read-projects, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item`, 404);
+    return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /update-task-status, POST /create-project, POST /read-projects, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item, POST /read-queue, POST /update-queue-item, POST /requeue-item`, 404);
   }
 
   // ── POST routes ───────────────────────────────────────────────────────────
@@ -486,13 +486,16 @@ Deno.serve(async (req: Request) => {
       const VALID = ["backlog", "todo", "in_progress", "waiting", "review", "complete"];
       if (!VALID.includes(status)) return err(`status must be one of: ${VALID.join(", ")}`);
 
-      const { error } = await db
+      const { data, error } = await db
         .from("tasks")
         .update({ status })
-        .eq("id", task_id);
+        .eq("id", task_id)
+        .select("id, status")
+        .maybeSingle();
 
       if (error) return err(error.message, 500);
-      return json({ success: true });
+      if (!data) return err(`Task not found: ${task_id}`, 404);
+      return json({ success: true, task: data });
     }
 
     // ────────────────────────────────────────────────────────────────────────
