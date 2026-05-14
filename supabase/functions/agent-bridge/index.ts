@@ -127,7 +127,7 @@ Deno.serve(async (req: Request) => {
 
   // Reject unknown GET routes
   if (req.method === "GET") {
-    return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /create-project, POST /read-projects, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item`, 404);
+    return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /update-task-status, POST /create-project, POST /read-projects, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item, POST /read-queue, POST /update-queue-item, POST /requeue-item`, 404);
   }
 
   // ── POST routes ───────────────────────────────────────────────────────────
@@ -453,10 +453,11 @@ Deno.serve(async (req: Request) => {
 
     // ────────────────────────────────────────────────────────────────────────
     case "read-tasks": {
-      const { client_id, project_id, status, limit } = body as {
+      const { client_id, project_id, status, assigned_to_user_id, limit } = body as {
         client_id?: string;
         project_id?: string;
         status?: string;
+        assigned_to_user_id?: string;
         limit?: number;
       };
 
@@ -466,13 +467,35 @@ Deno.serve(async (req: Request) => {
         .order("created_at", { ascending: false })
         .limit(typeof limit === "number" && limit > 0 ? Math.min(limit, 200) : 50);
 
-      if (client_id)  query = query.eq("client_id", client_id);
-      if (project_id) query = query.eq("project_id", project_id);
-      if (status)     query = query.eq("status", status);
+      if (client_id)            query = query.eq("client_id", client_id);
+      if (project_id)           query = query.eq("project_id", project_id);
+      if (status)               query = query.eq("status", status);
+      if (assigned_to_user_id)  query = query.eq("assigned_to_user_id", assigned_to_user_id);
 
       const { data, error } = await query;
       if (error) return err(error.message, 500);
       return json({ success: true, tasks: data ?? [], count: (data ?? []).length });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    case "update-task-status": {
+      const { task_id, status } = body as { task_id?: string; status?: string };
+      if (!task_id) return err("task_id is required");
+      if (!status)  return err("status is required");
+
+      const VALID = ["backlog", "todo", "in_progress", "waiting", "review", "complete"];
+      if (!VALID.includes(status)) return err(`status must be one of: ${VALID.join(", ")}`);
+
+      const { data, error } = await db
+        .from("tasks")
+        .update({ status })
+        .eq("id", task_id)
+        .select("id, status")
+        .maybeSingle();
+
+      if (error) return err(error.message, 500);
+      if (!data) return err(`Task not found: ${task_id}`, 404);
+      return json({ success: true, task: data });
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -718,6 +741,6 @@ Deno.serve(async (req: Request) => {
 
     // ────────────────────────────────────────────────────────────────────────
     default:
-      return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /create-project, POST /read-projects, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item, POST /read-queue, POST /update-queue-item, POST /requeue-item`, 404);
+      return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /update-task-status, POST /create-project, POST /read-projects, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item, POST /read-queue, POST /update-queue-item, POST /requeue-item`, 404);
   }
 });
