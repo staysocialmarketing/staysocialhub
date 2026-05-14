@@ -22,6 +22,8 @@
  *   POST /read-queue               — atomically claim oldest pending nanoclaw_queue item (sets status → processing)
  *   POST /update-queue-item        — mark a queue item processed or failed (must be in processing state)
  *   POST /requeue-item             — reset a stuck processing item back to pending
+ *   POST /read-playbook            — fetch all brand_twin data for a client
+ *   POST /update-playbook          — upsert brand_twin JSON fields for a client (partial update)
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -127,7 +129,7 @@ Deno.serve(async (req: Request) => {
 
   // Reject unknown GET routes
   if (req.method === "GET") {
-    return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /update-task-status, POST /create-project, POST /read-projects, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item, POST /read-queue, POST /update-queue-item, POST /requeue-item`, 404);
+    return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /update-task-status, POST /create-project, POST /read-projects, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item, POST /read-queue, POST /update-queue-item, POST /requeue-item, POST /read-playbook, POST /update-playbook`, 404);
   }
 
   // ── POST routes ───────────────────────────────────────────────────────────
@@ -740,7 +742,107 @@ Deno.serve(async (req: Request) => {
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    case "read-playbook": {
+      const { client_id } = body as { client_id?: string };
+      if (!client_id) return err("client_id is required");
+
+      const { data, error } = await db
+        .from("brand_twin")
+        .select("*")
+        .eq("client_id", client_id)
+        .maybeSingle();
+
+      if (error) return err(error.message, 500);
+      return json({ success: true, playbook: data ?? null });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    case "update-playbook": {
+      const {
+        client_id,
+        brand_basics_json,
+        brand_voice_json,
+        audience_json,
+        offers_json,
+        content_rules_json,
+        source_material_json,
+        visual_design_json,
+        colour_direction_json,
+        typography_json,
+        text_on_design_json,
+        composition_json,
+        website_direction_json,
+        social_direction_json,
+        seasonal_local_json,
+        cta_style_json,
+        avoid_list_json,
+        locked_rules_json,
+        prompt_notes_json,
+        formatting_rules_json,
+        subject_themes_json,
+      } = body as {
+        client_id?: string;
+        brand_basics_json?: Record<string, unknown>;
+        brand_voice_json?: Record<string, unknown>;
+        audience_json?: Record<string, unknown>;
+        offers_json?: Record<string, unknown>;
+        content_rules_json?: Record<string, unknown>;
+        source_material_json?: Record<string, unknown>;
+        visual_design_json?: Record<string, unknown>;
+        colour_direction_json?: Record<string, unknown>;
+        typography_json?: Record<string, unknown>;
+        text_on_design_json?: Record<string, unknown>;
+        composition_json?: Record<string, unknown>;
+        website_direction_json?: Record<string, unknown>;
+        social_direction_json?: Record<string, unknown>;
+        seasonal_local_json?: Record<string, unknown>;
+        cta_style_json?: Record<string, unknown>;
+        avoid_list_json?: Record<string, unknown>;
+        locked_rules_json?: Record<string, unknown>;
+        prompt_notes_json?: Record<string, unknown>;
+        formatting_rules_json?: Record<string, unknown>;
+        subject_themes_json?: Record<string, unknown>;
+      };
+
+      if (!client_id) return err("client_id is required");
+
+      const updates: Record<string, unknown> = { client_id, updated_at: new Date().toISOString() };
+      if (brand_basics_json      !== undefined) updates.brand_basics_json      = brand_basics_json;
+      if (brand_voice_json       !== undefined) updates.brand_voice_json       = brand_voice_json;
+      if (audience_json          !== undefined) updates.audience_json          = audience_json;
+      if (offers_json            !== undefined) updates.offers_json            = offers_json;
+      if (content_rules_json     !== undefined) updates.content_rules_json     = content_rules_json;
+      if (source_material_json   !== undefined) updates.source_material_json   = source_material_json;
+      if (visual_design_json     !== undefined) updates.visual_design_json     = visual_design_json;
+      if (colour_direction_json  !== undefined) updates.colour_direction_json  = colour_direction_json;
+      if (typography_json        !== undefined) updates.typography_json        = typography_json;
+      if (text_on_design_json    !== undefined) updates.text_on_design_json    = text_on_design_json;
+      if (composition_json       !== undefined) updates.composition_json       = composition_json;
+      if (website_direction_json !== undefined) updates.website_direction_json = website_direction_json;
+      if (social_direction_json  !== undefined) updates.social_direction_json  = social_direction_json;
+      if (seasonal_local_json    !== undefined) updates.seasonal_local_json    = seasonal_local_json;
+      if (cta_style_json         !== undefined) updates.cta_style_json         = cta_style_json;
+      if (avoid_list_json        !== undefined) updates.avoid_list_json        = avoid_list_json;
+      if (locked_rules_json      !== undefined) updates.locked_rules_json      = locked_rules_json;
+      if (prompt_notes_json      !== undefined) updates.prompt_notes_json      = prompt_notes_json;
+      if (formatting_rules_json  !== undefined) updates.formatting_rules_json  = formatting_rules_json;
+      if (subject_themes_json    !== undefined) updates.subject_themes_json    = subject_themes_json;
+
+      if (Object.keys(updates).length <= 2) {
+        // only client_id + updated_at — no fields to actually change
+        return err("No playbook fields provided to update");
+      }
+
+      const { error } = await db
+        .from("brand_twin")
+        .upsert(updates, { onConflict: "client_id" });
+
+      if (error) return err(error.message, 500);
+      return json({ success: true });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
     default:
-      return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /update-task-status, POST /create-project, POST /read-projects, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item, POST /read-queue, POST /update-queue-item, POST /requeue-item`, 404);
+      return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /update-task-status, POST /create-project, POST /read-projects, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item, POST /read-queue, POST /update-queue-item, POST /requeue-item, POST /read-playbook, POST /update-playbook`, 404);
   }
 });
