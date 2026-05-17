@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useClientFilter } from "@/contexts/ClientFilterContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   MessageSquare, Calendar, Image as ImageIcon, Hash, Clock, CheckCircle, Mail, Eye, Send, CalendarClock,
 } from "lucide-react";
@@ -211,6 +213,16 @@ function SectionBlock({ title, icon, count, children }: { title: string; icon?: 
 function AdminApprovals() {
   const navigate = useNavigate();
   const { isSSAdmin } = useAuth();
+  const { selectedClientId, setSelectedClientId } = useClientFilter();
+
+  const { data: clients = [] } = useQuery({
+    queryKey: ["approvals-clients"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("clients").select("id, name").order("name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   const { data: posts = [], isLoading } = useQuery({
     queryKey: ["approval-posts"],
@@ -225,21 +237,25 @@ function AdminApprovals() {
     },
   });
 
-  const internalReview = posts.filter((p: any) => p.status_column === "internal_review");
-  const coreyReview = posts.filter((p: any) => p.status_column === "corey_review");
-  const readyForClientBatch = posts.filter((p: any) =>
+  const visiblePosts = selectedClientId
+    ? posts.filter((p: any) => p.client_id === selectedClientId)
+    : posts;
+
+  const internalReview = visiblePosts.filter((p: any) => p.status_column === "internal_review");
+  const coreyReview = visiblePosts.filter((p: any) => p.status_column === "corey_review");
+  const readyForClientBatch = visiblePosts.filter((p: any) =>
     getStatusesForAdminColumn("batch_pending").includes(p.status_column),
   );
-  const clientApproval = posts.filter((p: any) =>
+  const clientApproval = visiblePosts.filter((p: any) =>
     getStatusesForAdminColumn("client_approval").includes(p.status_column),
   );
-  const approvedPosts = posts.filter((p: any) => p.status_column === "approved");
-  const readyToSchedule = posts.filter((p: any) => p.status_column === "ready_to_schedule");
-  const readyToSend = posts.filter((p: any) => p.status_column === "ready_to_send");
-  const scheduled = posts.filter((p: any) => p.status_column === "scheduled");
-  const published = posts.filter((p: any) => p.status_column === "published" && p.request_id);
-  const sent = posts.filter((p: any) => p.status_column === "sent");
-  const complete = posts.filter((p: any) => p.status_column === "complete");
+  const approvedPosts = visiblePosts.filter((p: any) => p.status_column === "approved");
+  const readyToSchedule = visiblePosts.filter((p: any) => p.status_column === "ready_to_schedule");
+  const readyToSend = visiblePosts.filter((p: any) => p.status_column === "ready_to_send");
+  const scheduled = visiblePosts.filter((p: any) => p.status_column === "scheduled");
+  const published = visiblePosts.filter((p: any) => p.status_column === "published" && p.request_id);
+  const sent = visiblePosts.filter((p: any) => p.status_column === "sent");
+  const complete = visiblePosts.filter((p: any) => p.status_column === "complete");
 
   if (isLoading) return (
     <div className="flex items-center justify-center h-full py-20">
@@ -269,9 +285,22 @@ function AdminApprovals() {
 
   return (
     <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground tracking-tight">Approvals</h1>
-        <p className="text-muted-foreground mt-1">Review team work and track client approvals</p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">Approvals</h1>
+          <p className="text-muted-foreground mt-1">Review team work and track client approvals</p>
+        </div>
+        <Select value={selectedClientId ?? "all"} onValueChange={(v) => setSelectedClientId(v === "all" ? null : v)}>
+          <SelectTrigger className="w-48 h-9 bg-muted/30 border-0">
+            <SelectValue placeholder="All Clients" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Clients</SelectItem>
+            {clients.map((c: any) => (
+              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {internalReview.length > 0 && (
@@ -287,7 +316,7 @@ function AdminApprovals() {
       <SectionBlock title="Approval Batches" icon={<Send className="h-5 w-5 text-primary" />} count={readyForClientBatch.length}>
         <ApprovalBatchManager
           unbatchedPosts={readyForClientBatch}
-          allPosts={posts.map((p: any) => ({ id: p.id, status_column: p.status_column }))}
+          allPosts={visiblePosts.map((p: any) => ({ id: p.id, status_column: p.status_column }))}
         />
       </SectionBlock>
 

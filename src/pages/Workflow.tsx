@@ -284,11 +284,14 @@ export default function Workflow() {
     mutationFn: async ({ postId, contentType }: { postId: string; contentType: string }) => {
       const isEmail = getContentCategory(contentType) === "email";
       const newStatus = isEmail ? "sent" : "published";
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("posts")
         .update({ status_column: newStatus as PostStatus } as any)
-        .eq("id", postId);
+        .eq("id", postId)
+        .select("id")
+        .maybeSingle();
       if (error) throw error;
+      if (!data) throw new Error("Update was blocked — check permissions or triggers");
       return isEmail;
     },
     onSuccess: (isEmail) => {
@@ -598,18 +601,23 @@ export default function Workflow() {
         const readyStatuses = getStatusesForAdminColumn("ready_to_schedule");
         const sevenDaysAgo = subDays(new Date(), 7);
 
+        const effectiveClientId = globalClientId || (filterValues.client !== "all" ? filterValues.client : null);
+        const visiblePipelinePosts = effectiveClientId
+          ? pipelinePosts.filter((p: any) => p.client_id === effectiveClientId)
+          : pipelinePosts;
+
         const groups = [
           {
             key: "awaiting_client",
             label: "Awaiting client",
-            posts: pipelinePosts.filter((p: any) => awaitingStatuses.includes(p.status_column)),
+            posts: visiblePipelinePosts.filter((p: any) => awaitingStatuses.includes(p.status_column)),
             accent: "text-amber-600",
             pill: "bg-amber-500/10 text-amber-600 hover:bg-amber-500/20",
           },
           {
             key: "ready_to_schedule",
             label: "Ready to schedule",
-            posts: pipelinePosts.filter((p: any) => readyStatuses.includes(p.status_column)),
+            posts: visiblePipelinePosts.filter((p: any) => readyStatuses.includes(p.status_column)),
             accent: "text-emerald-600",
             pill: "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20",
             hasActions: true,
@@ -617,7 +625,7 @@ export default function Workflow() {
           {
             key: "scheduled",
             label: "Scheduled",
-            posts: pipelinePosts.filter((p: any) => p.status_column === "scheduled"),
+            posts: visiblePipelinePosts.filter((p: any) => p.status_column === "scheduled"),
             accent: "text-blue-600",
             pill: "bg-blue-500/10 text-blue-600 hover:bg-blue-500/20",
             hasActions: true,
@@ -625,7 +633,7 @@ export default function Workflow() {
           {
             key: "published",
             label: "Published this week",
-            posts: pipelinePosts.filter((p: any) =>
+            posts: visiblePipelinePosts.filter((p: any) =>
               p.status_column === "published" &&
               new Date(p.scheduled_at ?? p.created_at) >= sevenDaysAgo,
             ),
