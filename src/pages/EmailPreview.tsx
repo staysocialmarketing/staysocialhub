@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import { emailPreviewClients, TemplateType } from "@/lib/emailPreviewConfig";
 import { ExternalLink, Megaphone, Newspaper, MousePointerClick } from "lucide-react";
@@ -14,7 +15,7 @@ const TYPE_COLORS: Record<TemplateType, string> = {
   cta: "bg-amber-50 text-amber-700",
 };
 
-const TYPE_ICONS: Record<TemplateType, React.ReactNode> = {
+const TYPE_ICONS: Record<TemplateType, ReactNode> = {
   announcement: <Megaphone className="w-5 h-5" />,
   newsletter: <Newspaper className="w-5 h-5" />,
   cta: <MousePointerClick className="w-5 h-5" />,
