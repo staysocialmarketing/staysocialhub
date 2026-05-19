@@ -47,6 +47,7 @@ import CorporateStrategy from "./pages/admin/CorporateStrategy";
 import AgentOfficeV2, { AgentOfficeCanvas } from "./pages/AgentOfficeV2/AgentOffice";
 import AdminWorkspace from "./pages/admin/AdminWorkspace";
 import NotFound from "./pages/NotFound";
+import EmailPreview from "./pages/EmailPreview";
 
 const queryClient = new QueryClient();
 
@@ -144,6 +145,7 @@ const App = () => (
               <Route path="/agent-office-v2" element={<AdminRoute><AgentOfficeV2 /></AdminRoute>} />
               <Route path="/admin/workspace" element={<SSAdminRoute><AdminWorkspace /></SSAdminRoute>} />
             </Route>
+            <Route path="/preview/:clientToken" element={<EmailPreview />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </ClientFilterProvider>
