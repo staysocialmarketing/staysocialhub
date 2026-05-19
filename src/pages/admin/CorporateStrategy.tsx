@@ -8,8 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, BookOpen, Palette, FileText, Shield, Upload, ExternalLink, File } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { Plus, Pencil, Trash2, BookOpen, Palette, FileText, Shield, Upload, ExternalLink, File, Download, X } from "lucide-react";
 import { toast } from "sonner";
 
 const CATEGORIES = [
@@ -65,6 +65,7 @@ export default function CorporateStrategy() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [pendingFile, setPendingFile] = useState<FilePayload | null>(null);
+  const [previewFile, setPreviewFile] = useState<FilePayload | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: strategies = [], isLoading } = useQuery({
@@ -385,23 +386,19 @@ export default function CorporateStrategy() {
                   </div>
                 </CardHeader>
 
-                {/* File entry: show file info inline */}
+                {/* File entry: show file info inline with preview button */}
                 {filePayload && (
                   <CardContent className="px-4 pb-4 pt-1">
-                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
+                    <div
+                      className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl cursor-pointer hover:bg-muted transition-colors"
+                      onClick={() => setPreviewFile(filePayload)}
+                    >
                       <File className="h-6 w-6 text-muted-foreground shrink-0" />
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium truncate">{filePayload.file_name}</p>
                         <p className="text-xs text-muted-foreground">{formatBytes(filePayload.file_size)}</p>
                       </div>
-                      <a
-                        href={filePayload.file_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs font-medium text-primary hover:underline shrink-0 flex items-center gap-1"
-                      >
-                        Open <ExternalLink className="h-3 w-3" />
-                      </a>
+                      <span className="text-xs font-medium text-primary shrink-0">Preview</span>
                     </div>
                   </CardContent>
                 )}
@@ -419,6 +416,67 @@ export default function CorporateStrategy() {
           })}
         </div>
       )}
+
+      {/* File preview modal */}
+      <Dialog open={!!previewFile} onOpenChange={(open) => { if (!open) setPreviewFile(null); }}>
+        <DialogContent className="max-w-4xl w-full h-[90vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="flex-row items-center justify-between px-4 py-3 border-b shrink-0 space-y-0">
+            <div className="min-w-0 flex-1">
+              <DialogTitle className="text-sm font-medium truncate pr-4">
+                {previewFile?.file_name}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                {previewFile ? formatBytes(previewFile.file_size) : ""}
+              </DialogDescription>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <a
+                href={previewFile?.file_url}
+                download={previewFile?.file_name}
+                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                <Download className="h-3.5 w-3.5" /> Download
+              </a>
+              <Button
+                variant="ghost" size="icon" className="h-8 w-8"
+                onClick={() => setPreviewFile(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-hidden">
+            {previewFile?.file_type === "application/pdf" || previewFile?.file_name.endsWith(".pdf") ? (
+              <iframe
+                src={previewFile.file_url}
+                className="w-full h-full border-0"
+                title={previewFile.file_name}
+              />
+            ) : previewFile?.file_type?.startsWith("image/") ? (
+              <div className="w-full h-full flex items-center justify-center bg-muted/30 p-6">
+                <img
+                  src={previewFile.file_url}
+                  alt={previewFile.file_name}
+                  className="max-w-full max-h-full object-contain rounded-lg"
+                />
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
+                <File className="h-12 w-12" />
+                <p className="text-sm">Preview not available for this file type.</p>
+                <a
+                  href={previewFile?.file_url}
+                  download={previewFile?.file_name}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                  <Download className="h-3.5 w-3.5" /> Download to view
+                </a>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
