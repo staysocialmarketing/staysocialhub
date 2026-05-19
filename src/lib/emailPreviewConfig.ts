@@ -14,6 +14,32 @@ export interface EmailPreviewClient {
 }
 
 export const emailPreviewClients: Record<string, EmailPreviewClient> = {
+  // Wheeler Mortgage
+  "70d3ac6e-a87a-4cb2-be06-1646470b05a1": {
+    name: "Wheeler Mortgage",
+    subtitle: "Matthew Wheeler · Associate Mortgage Broker",
+    templates: [
+      {
+        label: "Announcement",
+        description: "Rate updates, market news, policy changes.",
+        file: "announcement.html",
+        type: "announcement",
+      },
+      {
+        label: "Newsletter",
+        description: "The Wheeler Brief — monthly mortgage roundup.",
+        file: "newsletter.html",
+        type: "newsletter",
+      },
+      {
+        label: "CTA Campaign",
+        description: "Renewal season and lead generation campaigns.",
+        file: "cta-campaign.html",
+        type: "cta",
+      },
+    ],
+  },
+
   // AG Mortgage Team
   "11cc8a9c-abb1-4e27-b24d-dc573bdfa449": {
     name: "AG Mortgage Team",
