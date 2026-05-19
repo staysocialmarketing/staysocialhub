@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, Megaphone, Newspaper, MousePointerClick, Package, ChevronDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { emailPreviewClients, type TemplateType, type EmailPreviewClient } from "@/lib/emailPreviewConfig";
+import { supabase } from "@/integrations/supabase/client";
 
 const TYPE_LABELS: Record<TemplateType, string> = {
   announcement: "Announcement",
@@ -63,7 +65,6 @@ function AdminView() {
 
   return (
     <div className="space-y-6">
-      {/* Client selector */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <label className="text-sm font-medium text-gray-700 shrink-0">Client</label>
         <div className="relative max-w-xs w-full">
@@ -99,10 +100,36 @@ function AdminView() {
 
 function ClientView() {
   const { profile } = useAuth();
-  const clientId = profile?.client_id;
 
-  const match = clientId
-    ? Object.entries(emailPreviewClients).find(([, c]) => c.clientId === clientId)
+  // Look up the client record by profile.client_id to get their name,
+  // then match by name to emailPreviewClients — no hardcoded UUIDs needed.
+  const { data: clientName, isLoading } = useQuery({
+    queryKey: ["client-name", profile?.client_id],
+    enabled: !!profile?.client_id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("clients")
+        .select("name")
+        .eq("id", profile!.client_id!)
+        .single();
+      return data?.name ?? null;
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="w-5 h-5 border-2 border-gray-200 border-t-gray-600 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // Match client by name (case-insensitive, partial — e.g. "Danielle Gibson" matches "Danielle Gibson")
+  const match = clientName
+    ? Object.entries(emailPreviewClients).find(([, c]) =>
+        c.name.toLowerCase().includes(clientName.toLowerCase()) ||
+        clientName.toLowerCase().includes(c.name.toLowerCase())
+      )
     : null;
 
   if (!match) {
@@ -140,7 +167,6 @@ export default function ClientDeliverables() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      {/* Page header */}
       <div className="mb-8">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Creative Review</p>
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Deliverables</h1>
@@ -151,7 +177,6 @@ export default function ClientDeliverables() {
         </p>
       </div>
 
-      {/* Section: Email Templates */}
       <div className="mb-10">
         <div className="flex items-center gap-2 mb-5">
           <Newspaper className="w-4 h-4 text-gray-400" />
