@@ -600,12 +600,15 @@ Deno.serve(async (req) => {
         headers: {
           "x-api-key": anthropicApiKey,
           "anthropic-version": "2023-06-01",
+          "anthropic-beta": "prompt-caching-2024-07-31",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-6",
           max_tokens: 4096,
-          system: extractionPrompt,
+          system: [
+            { type: "text", text: extractionPrompt, cache_control: { type: "ephemeral" } },
+          ],
           messages: [{ role: "user", content: conversationText }],
           tools: toAnthropicTools(extractionTools),
           tool_choice: { type: "tool", name: toolName },
@@ -718,26 +721,28 @@ Deno.serve(async (req) => {
       }
     }
 
-    const aiMessages = [
-      { role: "system", content: systemPrompt + onboardingPreCheck + brandContext },
-      ...(messages || []).map((m: any) => ({ role: m.role, content: m.content })),
-    ];
+    const userMessages = (messages || []).map((m: any) => ({ role: m.role, content: m.content }));
 
-    // Extract system from aiMessages (Anthropic requires it as a top-level field)
-    const systemMsg = aiMessages.find((m: any) => m.role === "system");
-    const userMessages = aiMessages.filter((m: any) => m.role !== "system");
+    // Build system as cached array: static template first, dynamic context second
+    const systemBlocks: any[] = [
+      { type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } },
+    ];
+    if (onboardingPreCheck || brandContext) {
+      systemBlocks.push({ type: "text", text: onboardingPreCheck + brandContext });
+    }
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "x-api-key": anthropicApiKey,
         "anthropic-version": "2023-06-01",
+        "anthropic-beta": "prompt-caching-2024-07-31",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
         max_tokens: 1024,
-        system: systemMsg?.content,
+        system: systemBlocks,
         messages: userMessages,
         stream: true,
       }),

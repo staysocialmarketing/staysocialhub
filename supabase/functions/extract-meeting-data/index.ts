@@ -75,20 +75,7 @@ serve(async (req) => {
     const { data: projects } = await supabase.from("projects").select("id, name, client_id");
     const projectList = (projects || []).map((p: any) => `${p.name} (${p.id}, client: ${p.client_id || "none"})`).join(", ");
 
-    const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 4096,
-        system: `You are an AI assistant that extracts structured data from meeting notes for a social media agency called Stay Social.
-
-Available clients: ${clientList}
-Existing projects: ${projectList}
+    const staticExtractionSystem = `You are an AI assistant that extracts structured data from meeting notes for a social media agency called Stay Social.
 
 Extract the following from the meeting notes:
 
@@ -115,7 +102,23 @@ Extract the following from the meeting notes:
 
 6. **summary**: 2-3 sentence summary of the meeting, including key decisions made
 
-Return ONLY valid JSON with these exact keys. If a section has no data, return empty array/object.`,
+Return ONLY valid JSON with these exact keys. If a section has no data, return empty array/object.`;
+
+    const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "anthropic-beta": "prompt-caching-2024-07-31",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 4096,
+        system: [
+          { type: "text", text: staticExtractionSystem, cache_control: { type: "ephemeral" } },
+          { type: "text", text: `Available clients: ${clientList}\nExisting projects: ${projectList}` },
+        ],
         messages: [
           {
             role: "user",

@@ -658,12 +658,15 @@ If no actionable items are found, do not call any tools.${routeHint}`;
         headers: {
           "x-api-key": anthropicApiKey,
           "anthropic-version": "2023-06-01",
+          "anthropic-beta": "prompt-caching-2024-07-31",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-6",
           max_tokens: 2048,
-          system: extractionPrompt,
+          system: [
+            { type: "text", text: extractionPrompt, cache_control: { type: "ephemeral" } },
+          ],
           messages: [
             { role: "user", content: `Here is the voice conversation transcript:\n\n${transcript}` },
           ],
@@ -824,12 +827,15 @@ If no actionable items are found, do not call any tools.${routeHint}`;
         headers: {
           "x-api-key": anthropicApiKey,
           "anthropic-version": "2023-06-01",
+          "anthropic-beta": "prompt-caching-2024-07-31",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-6",
           max_tokens: 1024,
-          system: systemPrompt,
+          system: [
+            { type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } },
+          ],
           messages: aiMessages,
           tools: anthropicChatTools,
         }),
