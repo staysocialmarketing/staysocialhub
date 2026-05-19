@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -66,7 +66,29 @@ export default function CorporateStrategy() {
   const [uploading, setUploading] = useState(false);
   const [pendingFile, setPendingFile] = useState<FilePayload | null>(null);
   const [previewFile, setPreviewFile] = useState<FilePayload | null>(null);
+  const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Fetch file as blob to bypass Supabase Content-Disposition: attachment header
+  useEffect(() => {
+    if (!previewFile) {
+      if (previewBlobUrl) { URL.revokeObjectURL(previewBlobUrl); setPreviewBlobUrl(null); }
+      return;
+    }
+    setPreviewLoading(true);
+    fetch(previewFile.file_url)
+      .then(r => r.blob())
+      .then(blob => {
+        const url = URL.createObjectURL(blob);
+        setPreviewBlobUrl(url);
+      })
+      .catch(() => setPreviewBlobUrl(null))
+      .finally(() => setPreviewLoading(false));
+    return () => {
+      setPreviewBlobUrl(prev => { if (prev) URL.revokeObjectURL(prev); return null; });
+    };
+  }, [previewFile]);
 
   const { data: strategies = [], isLoading } = useQuery({
     queryKey: ["corporate-strategies"],
@@ -446,33 +468,53 @@ export default function CorporateStrategy() {
             </div>
           </DialogHeader>
 
-          <div className="flex-1 overflow-hidden">
-            {previewFile?.file_type === "application/pdf" || previewFile?.file_name.endsWith(".pdf") ? (
-              <iframe
-                src={previewFile.file_url}
-                className="w-full h-full border-0"
-                title={previewFile.file_name}
-              />
-            ) : previewFile?.file_type?.startsWith("image/") ? (
-              <div className="w-full h-full flex items-center justify-center bg-muted/30 p-6">
-                <img
-                  src={previewFile.file_url}
-                  alt={previewFile.file_name}
-                  className="max-w-full max-h-full object-contain rounded-lg"
-                />
+          <div className="flex-1 overflow-hidden relative">
+            {previewLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
+                <div className="w-6 h-6 border-2 border-muted border-t-primary rounded-full animate-spin" />
               </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
-                <File className="h-12 w-12" />
-                <p className="text-sm">Preview not available for this file type.</p>
-                <a
-                  href={previewFile?.file_url}
-                  download={previewFile?.file_name}
-                  className="inline-flex items-center gap-1.5 text-xs font-medium px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                >
-                  <Download className="h-3.5 w-3.5" /> Download to view
-                </a>
-              </div>
+            )}
+            {!previewLoading && previewFile && (
+              <>
+                {(previewFile.file_type === "application/pdf" || previewFile.file_name.toLowerCase().endsWith(".pdf")) ? (
+                  previewBlobUrl ? (
+                    <iframe
+                      src={previewBlobUrl}
+                      className="w-full h-full border-0"
+                      title={previewFile.file_name}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
+                      <File className="h-10 w-10" />
+                      <p className="text-sm">Could not load preview.</p>
+                      <a href={previewFile.file_url} target="_blank" rel="noopener noreferrer"
+                        className="text-xs font-medium text-primary hover:underline">
+                        Open in new tab
+                      </a>
+                    </div>
+                  )
+                ) : previewFile.file_type?.startsWith("image/") ? (
+                  <div className="w-full h-full flex items-center justify-center bg-muted/30 p-6">
+                    <img
+                      src={previewBlobUrl ?? previewFile.file_url}
+                      alt={previewFile.file_name}
+                      className="max-w-full max-h-full object-contain rounded-lg"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
+                    <File className="h-12 w-12" />
+                    <p className="text-sm">Preview not available for this file type.</p>
+                    <a
+                      href={previewFile.file_url}
+                      download={previewFile.file_name}
+                      className="inline-flex items-center gap-1.5 text-xs font-medium px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                    >
+                      <Download className="h-3.5 w-3.5" /> Download to view
+                    </a>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </DialogContent>
