@@ -70,23 +70,48 @@ export default function CorporateStrategy() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Fetch file as blob to bypass Supabase Content-Disposition: attachment header
+  // Download via Supabase client (bypasses Content-Disposition and CORS)
+  // Extract storage path from public URL: .../object/public/creative-assets/{path}
   useEffect(() => {
+    let revoked = false;
     if (!previewFile) {
-      if (previewBlobUrl) { URL.revokeObjectURL(previewBlobUrl); setPreviewBlobUrl(null); }
+      setPreviewBlobUrl(prev => { if (prev) URL.revokeObjectURL(prev); return null; });
       return;
     }
     setPreviewLoading(true);
-    fetch(previewFile.file_url)
-      .then(r => r.blob())
-      .then(blob => {
-        const url = URL.createObjectURL(blob);
-        setPreviewBlobUrl(url);
-      })
-      .catch(() => setPreviewBlobUrl(null))
-      .finally(() => setPreviewLoading(false));
+    setPreviewBlobUrl(null);
+
+    const match = previewFile.file_url.match(/\/object\/public\/creative-assets\/(.+)$/);
+    const storagePath = match?.[1];
+
+    const load = async () => {
+      try {
+        let blob: Blob | null = null;
+        if (storagePath) {
+          const { data, error } = await supabase.storage.from("creative-assets").download(storagePath);
+          if (!error && data) blob = data;
+        }
+        // Fallback to raw fetch if storage download fails or path not found
+        if (!blob) {
+          const res = await fetch(previewFile.file_url);
+          if (res.ok) blob = await res.blob();
+        }
+        if (blob && !revoked) {
+          const url = URL.createObjectURL(blob);
+          setPreviewBlobUrl(url);
+        }
+      } catch {
+        // leave blobUrl null — fallback UI shows
+      } finally {
+        if (!revoked) setPreviewLoading(false);
+      }
+    };
+
+    load();
     return () => {
+      revoked = true;
       setPreviewBlobUrl(prev => { if (prev) URL.revokeObjectURL(prev); return null; });
+      setPreviewLoading(false);
     };
   }, [previewFile]);
 
@@ -478,11 +503,18 @@ export default function CorporateStrategy() {
               <>
                 {(previewFile.file_type === "application/pdf" || previewFile.file_name.toLowerCase().endsWith(".pdf")) ? (
                   previewBlobUrl ? (
-                    <iframe
-                      src={previewBlobUrl}
-                      className="w-full h-full border-0"
-                      title={previewFile.file_name}
-                    />
+                    <object
+                      data={previewBlobUrl}
+                      type="application/pdf"
+                      className="w-full h-full"
+                    >
+                      {/* Fallback for browsers that don't support object/PDF */}
+                      <iframe
+                        src={previewBlobUrl}
+                        className="w-full h-full border-0"
+                        title={previewFile.file_name}
+                      />
+                    </object>
                   ) : (
                     <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
                       <File className="h-10 w-10" />
