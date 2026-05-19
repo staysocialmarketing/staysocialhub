@@ -47,6 +47,7 @@ import CorporateStrategy from "./pages/admin/CorporateStrategy";
 import AgentOfficeV2, { AgentOfficeCanvas } from "./pages/AgentOfficeV2/AgentOffice";
 import AdminWorkspace from "./pages/admin/AdminWorkspace";
 import NotFound from "./pages/NotFound";
+import ClientDeliverables from "./pages/client/ClientDeliverables";
 import EmailPreview from "./pages/EmailPreview";
 
 const queryClient = new QueryClient();
@@ -117,6 +118,7 @@ const App = () => (
               <Route path="/client/generate" element={<ContentGenerator />} />
               <Route path="/client/brand-twin" element={<BrandTwinPage />} />
               <Route path="/client/pipeline" element={<ClientPipeline />} />
+              <Route path="/deliverables" element={<ClientDeliverables />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/plan" element={<Plan />} />
               <Route path="/whats-new" element={<WhatsNew />} />

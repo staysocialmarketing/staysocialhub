@@ -11,6 +11,8 @@ export interface EmailPreviewClient {
   name: string;
   subtitle?: string;
   templates: EmailTemplate[];
+  /** Supabase clients.id — set to match profile.client_id for logged-in client access */
+  clientId?: string;
 }
 
 export const emailPreviewClients: Record<string, EmailPreviewClient> = {

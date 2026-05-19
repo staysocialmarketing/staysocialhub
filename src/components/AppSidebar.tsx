@@ -31,6 +31,7 @@ import {
   BookOpen,
   Monitor,
   Briefcase,
+  Package,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -84,6 +85,7 @@ const corporateSection = [
 
 const manageSection = [
   { title: "Clients", url: "/admin/clients", icon: Building2 },
+  { title: "Deliverables", url: "/deliverables", icon: Package },
   { title: "Team Success", url: "/admin/team", icon: Users },
   { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
 ];
@@ -105,6 +107,7 @@ const clientContentSection = [
   { title: "Calendar", url: "/calendar", icon: CalendarDays },
   { title: "Requests", url: "/requests", icon: MessageSquarePlus },
   { title: "My Media", url: "/content-library", icon: FolderOpen },
+  { title: "Deliverables", url: "/deliverables", icon: Package },
 ];
 
 const clientAISection = [
