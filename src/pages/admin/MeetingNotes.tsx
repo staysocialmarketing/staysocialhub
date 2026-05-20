@@ -455,7 +455,7 @@ export default function MeetingNotes() {
                     </Badge>
                   </div>
                 </div>
-                {note.extraction_status === "pending" && (
+                {(note.extraction_status === "pending" || note.extraction_status === "failed") && (
                   <Button
                     size="sm"
                     variant="outline"
@@ -471,7 +471,7 @@ export default function MeetingNotes() {
                     ) : (
                       <Brain className="h-3.5 w-3.5" />
                     )}
-                    {extractMutation.isPending ? "Extracting…" : "Extract"}
+                    {extractMutation.isPending ? "Extracting…" : note.extraction_status === "failed" ? "Retry" : "Extract"}
                   </Button>
                 )}
                 <Button
@@ -540,7 +540,7 @@ export default function MeetingNotes() {
                 <Badge variant="outline">{selectedNote?.extraction_status}</Badge>
               </div>
 
-              {selectedNote?.extraction_status === "pending" && (
+              {(selectedNote?.extraction_status === "pending" || selectedNote?.extraction_status === "failed") && (
                 <Button
                   size="sm"
                   className="gap-1.5"
@@ -551,7 +551,7 @@ export default function MeetingNotes() {
                   disabled={extractMutation.isPending}
                 >
                   <Brain className="h-4 w-4" />
-                  {extractMutation.isPending ? "Extracting…" : "Extract Data"}
+                  {extractMutation.isPending ? "Extracting…" : selectedNote?.extraction_status === "failed" ? "Retry Extraction" : "Extract Data"}
                 </Button>
               )}
 
