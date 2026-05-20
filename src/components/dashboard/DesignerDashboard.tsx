@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   Wrench,
   ClipboardList,
+  Zap,
 } from "lucide-react";
 import { StatCard } from "@/components/ui/stat-card";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -191,6 +192,28 @@ export default function DesignerDashboard() {
     enabled: !!profile,
   });
 
+  // ── List: automated pipeline (posts moving without design input) ─────────────
+  const { data: automatedPosts = [] } = useQuery({
+    queryKey: ["designer-automated", profile?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("posts")
+        .select("id, title, platform, status_column, updated_at, clients(name)")
+        .in("status_column", ["ai_draft", "writing", "corey_review", "internal_review", "client_approval", "ready_to_schedule", "scheduled"])
+        .not("assigned_to_user_id", "eq", profile!.id)
+        .order("updated_at", { ascending: false })
+        .limit(8);
+      return data || [];
+    },
+    enabled: !!profile,
+  });
+
+  const STATUS_LABEL: Record<string, string> = {
+    ai_draft: "AI Draft", writing: "Writing", corey_review: "Corey Review",
+    internal_review: "Internal Review", client_approval: "Client Approval",
+    ready_to_schedule: "Ready", scheduled: "Scheduled",
+  };
+
   const updateTaskStatus = async (taskId: string, status: string) => {
     await supabase.from("tasks").update({ status }).eq("id", taskId);
     queryClient.invalidateQueries({ queryKey: ["designer-tasks"] });
@@ -220,12 +243,14 @@ export default function DesignerDashboard() {
           label="Design Fixes (30d)"
           value={designFixCount}
           icon={<Wrench className="h-4 w-4" />}
+          onClick={() => navigate("/approvals")}
         />
         <StatCard
           label="Completed This Week"
           value={completedCount}
           icon={<CheckCircle2 className="h-4 w-4" />}
           accent="default"
+          onClick={() => navigate("/workflow")}
         />
         <StatCard
           label="Overdue"
@@ -326,6 +351,39 @@ export default function DesignerDashboard() {
           </div>
         </section>
       )}
+
+      {/* Automated Pipeline */}
+      <section>
+        <SectionHeader
+          title="Automated Pipeline"
+          icon={<Zap className="h-5 w-5" />}
+          action="View workflow"
+          onAction={() => navigate("/workflow")}
+        />
+        <p className="text-xs text-muted-foreground -mt-3 mb-3">Content moving through the pipeline automatically — no design input needed.</p>
+        {automatedPosts.length === 0 ? (
+          <EmptyState title="Nothing in the automated pipeline right now" compact />
+        ) : (
+          <div className="card-elevated divide-y divide-border/40">
+            {automatedPosts.map((post: any) => (
+              <div
+                key={post.id}
+                className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer"
+                onClick={() => navigate(`/approvals/${post.id}`)}
+              >
+                <Zap className="h-3.5 w-3.5 text-primary/50 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{post.title}</p>
+                  <p className="text-[11px] text-muted-foreground">{post.clients?.name}</p>
+                </div>
+                <Badge variant="secondary" className="text-[10px] shrink-0">
+                  {STATUS_LABEL[post.status_column] || post.status_column}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* My Tasks */}
       <section>
