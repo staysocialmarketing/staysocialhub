@@ -99,11 +99,7 @@ ${rules && Object.keys(rules).length > 0 ? `Content Rules & Preferences: ${JSON.
 `.trim();
     }
 
-    const systemPrompt = `You are a professional social media and content copywriter for Stay Social, a marketing agency. Your job is to write ${contentDesc} that is perfectly on-brand for the client.
-
-${brandContext || "No brand profile is available yet. Write in a professional, engaging tone."}
-
-${tone_override ? `TONE OVERRIDE: The user wants the tone to be: ${tone_override}. Adjust your writing style accordingly while staying on-brand.` : ""}
+    const staticSystemBlock = `You are a professional social media and content copywriter for Stay Social, a marketing agency.
 
 RULES:
 - Write ONLY the requested content — no preamble, no "Here's your caption:", no meta-commentary
@@ -112,6 +108,11 @@ RULES:
 - For captions: include a call-to-action when appropriate
 - For emails: include subject line suggestion at the top
 - Keep it authentic and human — avoid generic AI-sounding phrases`;
+
+    const dynamicSystemBlock = `Your job is to write ${contentDesc} that is perfectly on-brand for the client.
+
+${brandContext || "No brand profile is available yet. Write in a professional, engaging tone."}
+${tone_override ? `\nTONE OVERRIDE: The user wants the tone to be: ${tone_override}. Adjust your writing style accordingly while staying on-brand.` : ""}`;
 
     const userPrompt = topic && topic.trim()
       ? `Write ${contentDesc} about: ${topic}`
@@ -122,12 +123,16 @@ RULES:
       headers: {
         "x-api-key": anthropicApiKey,
         "anthropic-version": "2023-06-01",
+        "anthropic-beta": "prompt-caching-2024-07-31",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
         max_tokens: 2048,
-        system: systemPrompt,
+        system: [
+          { type: "text", text: staticSystemBlock, cache_control: { type: "ephemeral" } },
+          { type: "text", text: dynamicSystemBlock },
+        ],
         messages: [{ role: "user", content: userPrompt }],
         stream: true,
       }),

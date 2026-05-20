@@ -111,13 +111,7 @@ interface ExtractedNotes {
   routed_to: string;
 }
 
-async function extractWithClaude(
-  transcript: string,
-  filename: string,
-  recordedAt: string,
-  anthropicKey: string
-): Promise<ExtractedNotes> {
-  const prompt = `You are an AI assistant that extracts structured information from meeting transcripts for Stay Social, a marketing agency.
+const MEETING_EXTRACTION_SYSTEM = `You are an AI assistant that extracts structured information from meeting transcripts for Stay Social, a marketing agency.
 
 Extract the following from the transcript and return ONLY valid JSON (no markdown, no code fences):
 
@@ -143,9 +137,15 @@ Rules:
 - decisions: only firm decisions, not discussion points
 - action_items: concrete next steps with a clear owner or implied owner
 - If a field has no data, use empty array [] or null
-- Return valid JSON only
+- Return valid JSON only`;
 
-Filename: ${filename}
+async function extractWithClaude(
+  transcript: string,
+  filename: string,
+  recordedAt: string,
+  anthropicKey: string
+): Promise<ExtractedNotes> {
+  const userContent = `Filename: ${filename}
 Recorded at: ${recordedAt}
 
 --- TRANSCRIPT ---
@@ -156,12 +156,16 @@ ${transcript.slice(0, 12000)}`;
     headers: {
       "x-api-key": anthropicKey,
       "anthropic-version": "2023-06-01",
+      "anthropic-beta": "prompt-caching-2024-07-31",
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
       max_tokens: 2048,
-      messages: [{ role: "user", content: prompt }],
+      system: [
+        { type: "text", text: MEETING_EXTRACTION_SYSTEM, cache_control: { type: "ephemeral" } },
+      ],
+      messages: [{ role: "user", content: userContent }],
     }),
   });
 

@@ -91,12 +91,15 @@ Return a strategy brief with these exact fields. Be specific and actionable.`;
       headers: {
         "x-api-key": ANTHROPIC_API_KEY,
         "anthropic-version": "2023-06-01",
+        "anthropic-beta": "prompt-caching-2024-07-31",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
         max_tokens: 2048,
-        system: "You are a content strategist. Return structured strategy briefs.",
+        system: [
+          { type: "text", text: "You are a content strategist. Return structured strategy briefs.", cache_control: { type: "ephemeral" } },
+        ],
         messages: [{ role: "user", content: prompt }],
         tools: [
           {

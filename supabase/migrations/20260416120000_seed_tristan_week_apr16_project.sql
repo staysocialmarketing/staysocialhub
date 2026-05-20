@@ -20,12 +20,10 @@ BEGIN
     WHERE name ILIKE '%tristan%'
     LIMIT 1;
 
-  IF v_corey_id IS NULL THEN
-    RAISE EXCEPTION 'Could not resolve Corey user ID — check email in public.users';
-  END IF;
-
-  IF v_tristan_id IS NULL THEN
-    RAISE EXCEPTION 'Could not resolve Tristan user ID — check name in public.users';
+  -- Skip silently on branch previews / CI where users don't exist yet
+  IF v_corey_id IS NULL OR v_tristan_id IS NULL THEN
+    RAISE NOTICE 'Seed skipped — Corey or Tristan user not found (branch/CI environment)';
+    RETURN;
   END IF;
 
   -- Create project
