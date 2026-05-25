@@ -1,24 +1,33 @@
 import type { ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import { emailPreviewClients, TemplateType } from "@/lib/emailPreviewConfig";
-import { ExternalLink, Megaphone, Newspaper, MousePointerClick } from "lucide-react";
+import { ExternalLink, Megaphone, Newspaper, MousePointerClick, Calendar, TrendingUp, Database } from "lucide-react";
 
 const TYPE_LABELS: Record<TemplateType, string> = {
   announcement: "Announcement",
   newsletter: "Newsletter",
   cta: "CTA Campaign",
+  seasonal: "Seasonal Strategy",
+  boc: "BoC Decision",
+  database: "Database Mining",
 };
 
 const TYPE_COLORS: Record<TemplateType, string> = {
   announcement: "bg-blue-50 text-blue-700",
   newsletter: "bg-violet-50 text-violet-700",
   cta: "bg-amber-50 text-amber-700",
+  seasonal: "bg-emerald-50 text-emerald-700",
+  boc: "bg-orange-50 text-orange-700",
+  database: "bg-slate-50 text-slate-700",
 };
 
 const TYPE_ICONS: Record<TemplateType, ReactNode> = {
   announcement: <Megaphone className="w-5 h-5" />,
   newsletter: <Newspaper className="w-5 h-5" />,
   cta: <MousePointerClick className="w-5 h-5" />,
+  seasonal: <Calendar className="w-5 h-5" />,
+  boc: <TrendingUp className="w-5 h-5" />,
+  database: <Database className="w-5 h-5" />,
 };
 
 export default function EmailPreview() {
