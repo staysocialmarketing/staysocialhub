@@ -1,4 +1,4 @@
-export type TemplateType = "announcement" | "newsletter" | "cta";
+export type TemplateType = "announcement" | "newsletter" | "cta" | "seasonal" | "boc" | "database";
 
 export interface EmailTemplate {
   label: string;
@@ -64,6 +64,24 @@ export const emailPreviewClients: Record<string, EmailPreviewClient> = {
         description: "Renewal season and lead generation campaigns.",
         file: "cta-campaign.html",
         type: "cta",
+      },
+      {
+        label: "Seasonal Strategy Email",
+        description: "Jan/Mar/Sep strategy emails — renewal season, spring market, fall Q4.",
+        file: "seasonal-strategy.html",
+        type: "seasonal",
+      },
+      {
+        label: "BoC Rate Decision Email",
+        description: "Same-day send on BoC announcements — sophisticated take for high-value clients.",
+        file: "boc-rate-decision.html",
+        type: "boc",
+      },
+      {
+        label: "Database Mining Email",
+        description: "Trigger-based campaigns — renewal windows, equity extraction, rate strategy.",
+        file: "database-mining.html",
+        type: "database",
       },
     ],
   },
