@@ -203,7 +203,9 @@ function ClientView() {
   }
 
   const emailMatch = clientName
-    ? Object.entries(emailPreviewClients).find(([, c]) => nameMatcher(c.name, clientName))
+    ? Object.entries(emailPreviewClients).find(([, c]) =>
+        nameMatcher(c.clientDbName ?? c.name, clientName)
+      )
     : null;
 
   const strategyEntry = clientName
