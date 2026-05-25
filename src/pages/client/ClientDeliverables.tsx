@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, Megaphone, Newspaper, MousePointerClick, Package, ChevronDown, FileText, Calendar, TrendingUp, Database } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { emailPreviewClients, type TemplateType, type EmailPreviewClient } from "@/lib/emailPreviewConfig";
-import { strategyDocsClients } from "@/lib/strategyDocsConfig";
+import { strategyDocs, type StrategyDoc } from "@/lib/strategyDocsConfig";
 import { supabase } from "@/integrations/supabase/client";
 
 const TYPE_LABELS: Record<TemplateType, string> = {
@@ -33,6 +33,12 @@ const TYPE_ICONS: Record<TemplateType, ReactNode> = {
   boc: <TrendingUp className="w-4 h-4" />,
   database: <Database className="w-4 h-4" />,
 };
+
+function nameMatcher(a: string, b: string) {
+  const al = a.toLowerCase();
+  const bl = b.toLowerCase();
+  return al.includes(bl) || bl.includes(al);
+}
 
 function TemplateGrid({ token, client }: { token: string; client: EmailPreviewClient }) {
   return (
@@ -67,8 +73,7 @@ function TemplateGrid({ token, client }: { token: string; client: EmailPreviewCl
   );
 }
 
-function StrategyDocsSection({ token }: { token: string }) {
-  const docs = strategyDocsClients[token]?.docs;
+function StrategyDocsSection({ docs, pathToken }: { docs: StrategyDoc[]; pathToken: string }) {
   if (!docs || docs.length === 0) return null;
 
   return (
@@ -94,7 +99,7 @@ function StrategyDocsSection({ token }: { token: string }) {
               <p className="text-xs text-gray-400 leading-relaxed">{doc.description}</p>
             </div>
             <a
-              href={`/strategy/${token}/${doc.filename}`}
+              href={`/strategy/${pathToken}/${doc.filename}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 w-full bg-gray-900 hover:bg-gray-700 text-white text-xs font-semibold py-2.5 px-4 rounded-lg transition-colors duration-150"
@@ -110,10 +115,28 @@ function StrategyDocsSection({ token }: { token: string }) {
 }
 
 function AdminView() {
-  const entries = Object.entries(emailPreviewClients);
-  const [selected, setSelected] = useState<string>(entries[0]?.[0] ?? "");
+  // Build unified client list: all email clients + strategy-only clients
+  const emailEntries = Object.entries(emailPreviewClients);
+  const emailNames = new Set(emailEntries.map(([, c]) => c.name.toLowerCase()));
+  const strategyOnlyClients = strategyDocs.filter(
+    (e) => !emailNames.has(e.clientName.toLowerCase())
+  );
 
-  const selectedClient = selected ? emailPreviewClients[selected] : null;
+  type AdminEntry =
+    | { type: "email"; token: string; label: string }
+    | { type: "strategy"; pathToken: string; label: string };
+
+  const allEntries: AdminEntry[] = [
+    ...emailEntries.map(([token, c]) => ({ type: "email" as const, token, label: c.name })),
+    ...strategyOnlyClients.map((e) => ({ type: "strategy" as const, pathToken: e.pathToken, label: e.clientName })),
+  ];
+
+  const [selected, setSelected] = useState<string>(allEntries[0]?.label ?? "");
+
+  const emailEntry = emailEntries.find(([, c]) => c.name === selected);
+  const strategyEntry = strategyDocs.find((e) => e.clientName === selected);
+  const emailClient = emailEntry ? emailEntry[1] : null;
+  const emailToken = emailEntry ? emailEntry[0] : null;
 
   return (
     <div className="space-y-6">
@@ -125,9 +148,9 @@ function AdminView() {
             onChange={(e) => setSelected(e.target.value)}
             className="w-full appearance-none bg-white border border-gray-200 rounded-lg px-3 py-2 pr-8 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent cursor-pointer"
           >
-            {entries.map(([token, client]) => (
-              <option key={token} value={token}>
-                {client.name}
+            {allEntries.map((e) => (
+              <option key={e.label} value={e.label}>
+                {e.label}
               </option>
             ))}
           </select>
@@ -135,16 +158,20 @@ function AdminView() {
         </div>
       </div>
 
-      {selectedClient && (
+      {selected && (
         <div className="space-y-10">
           <div>
-            <h2 className="text-base font-semibold text-gray-900">{selectedClient.name}</h2>
-            {selectedClient.subtitle && (
-              <p className="text-sm text-gray-500 mt-0.5">{selectedClient.subtitle}</p>
+            <h2 className="text-base font-semibold text-gray-900">{selected}</h2>
+            {emailClient?.subtitle && (
+              <p className="text-sm text-gray-500 mt-0.5">{emailClient.subtitle}</p>
             )}
           </div>
-          <StrategyDocsSection token={selected} />
-          <TemplateGrid token={selected} client={selectedClient} />
+          {strategyEntry && (
+            <StrategyDocsSection docs={strategyEntry.docs} pathToken={strategyEntry.pathToken} />
+          )}
+          {emailClient && emailToken && (
+            <TemplateGrid token={emailToken} client={emailClient} />
+          )}
         </div>
       )}
     </div>
@@ -175,14 +202,15 @@ function ClientView() {
     );
   }
 
-  const match = clientName
-    ? Object.entries(emailPreviewClients).find(([, c]) =>
-        c.name.toLowerCase().includes(clientName.toLowerCase()) ||
-        clientName.toLowerCase().includes(c.name.toLowerCase())
-      )
+  const emailMatch = clientName
+    ? Object.entries(emailPreviewClients).find(([, c]) => nameMatcher(c.name, clientName))
     : null;
 
-  if (!match) {
+  const strategyEntry = clientName
+    ? strategyDocs.find((e) => nameMatcher(e.clientName, clientName))
+    : null;
+
+  if (!emailMatch && !strategyEntry) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-4">
@@ -196,18 +224,22 @@ function ClientView() {
     );
   }
 
-  const [token, client] = match;
+  const [emailToken, emailClient] = emailMatch ?? [null, null];
 
   return (
     <div className="space-y-10">
       <div>
-        <h2 className="text-base font-semibold text-gray-900">{client.name}</h2>
-        {client.subtitle && (
-          <p className="text-sm text-gray-500 mt-0.5">{client.subtitle}</p>
+        <h2 className="text-base font-semibold text-gray-900">{clientName}</h2>
+        {emailClient?.subtitle && (
+          <p className="text-sm text-gray-500 mt-0.5">{emailClient.subtitle}</p>
         )}
       </div>
-      <StrategyDocsSection token={token} />
-      <TemplateGrid token={token} client={client} />
+      {strategyEntry && (
+        <StrategyDocsSection docs={strategyEntry.docs} pathToken={strategyEntry.pathToken} />
+      )}
+      {emailClient && emailToken && (
+        <TemplateGrid token={emailToken} client={emailClient} />
+      )}
     </div>
   );
 }
@@ -228,13 +260,7 @@ export default function ClientDeliverables() {
         </p>
       </div>
 
-      <div className="mb-10">
-        <div className="flex items-center gap-2 mb-5">
-          <Newspaper className="w-4 h-4 text-gray-400" />
-          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Email Templates</h3>
-        </div>
-        {isInternalUser ? <AdminView /> : <ClientView />}
-      </div>
+      {isInternalUser ? <AdminView /> : <ClientView />}
     </div>
   );
 }
