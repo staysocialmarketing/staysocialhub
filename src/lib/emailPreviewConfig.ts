@@ -42,10 +42,10 @@ export const emailPreviewClients: Record<string, EmailPreviewClient> = {
     ],
   },
 
-  // AG Mortgage Team
+  // AG Mortgage Team — clientName "Andrew Gad" matches clients.name in DB
   "11cc8a9c-abb1-4e27-b24d-dc573bdfa449": {
-    name: "AG Mortgage Team",
-    subtitle: "Andrew Gad · Mortgage Agent Level 2 · Premiere Mortgage Centre",
+    name: "Andrew Gad",
+    subtitle: "AG Mortgage Team · Mortgage Agent Level 2 · Premiere Mortgage Centre",
     templates: [
       {
         label: "Announcement",

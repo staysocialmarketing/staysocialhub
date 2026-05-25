@@ -4,19 +4,18 @@ export interface StrategyDoc {
   filename: string;
 }
 
-export interface StrategyDocsClient {
+export interface StrategyDocsEntry {
+  /** Must match clients.name in the DB — used for name-based lookup in ClientDeliverables */
+  clientName: string;
+  /** Folder name for file serving: /strategy/[pathToken]/[filename] */
+  pathToken: string;
   docs: StrategyDoc[];
 }
 
-/**
- * Strategy documents per client.
- * Key: same token as emailPreviewClients (Supabase clients.id).
- * Files served from /public/strategy/[token]/[filename]
- * Upload PDFs there to make them available.
- */
-export const strategyDocsClients: Record<string, StrategyDocsClient> = {
-  // AG Mortgage Team
-  "11cc8a9c-abb1-4e27-b24d-dc573bdfa449": {
+export const strategyDocs: StrategyDocsEntry[] = [
+  {
+    clientName: "Andrew Gad",
+    pathToken: "11cc8a9c-abb1-4e27-b24d-dc573bdfa449",
     docs: [
       {
         label: "2026 Content Strategy",
@@ -35,4 +34,6 @@ export const strategyDocsClients: Record<string, StrategyDocsClient> = {
       },
     ],
   },
-};
+  // Add more clients here — clientName must match clients.name in the DB
+  // pathToken can be any unique slug (UUID, client-slug, etc.) — determines the /strategy/[pathToken]/ folder
+];
