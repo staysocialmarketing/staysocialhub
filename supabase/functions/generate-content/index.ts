@@ -99,7 +99,10 @@ ${rules && Object.keys(rules).length > 0 ? `Content Rules & Preferences: ${JSON.
 `.trim();
     }
 
-    const staticSystemBlock = `You are a professional social media and content copywriter for Stay Social, a marketing agency.
+    // Cached block: static rules + brand context together.
+    // Brand context is per-client but consistent across calls — Anthropic caches by exact content,
+    // so each client gets their own cache entry. Combined this exceeds the 1024-token minimum.
+    const cachedSystemBlock = `You are a professional social media and content copywriter for Stay Social, a marketing agency.
 
 RULES:
 - Write ONLY the requested content — no preamble, no "Here's your caption:", no meta-commentary
@@ -107,16 +110,17 @@ RULES:
 - Make it ready to copy-paste and use immediately
 - For captions: include a call-to-action when appropriate
 - For emails: include subject line suggestion at the top
-- Keep it authentic and human — avoid generic AI-sounding phrases`;
+- Keep it authentic and human — avoid generic AI-sounding phrases
 
-    const dynamicSystemBlock = `Your job is to write ${contentDesc} that is perfectly on-brand for the client.
+${brandContext || "No brand profile is available yet. Write in a professional, engaging tone."}`;
 
-${brandContext || "No brand profile is available yet. Write in a professional, engaging tone."}
-${tone_override ? `\nTONE OVERRIDE: The user wants the tone to be: ${tone_override}. Adjust your writing style accordingly while staying on-brand.` : ""}`;
-
-    const userPrompt = topic && topic.trim()
-      ? `Write ${contentDesc} about: ${topic}`
-      : `Write ${contentDesc} that would resonate with the target audience. Choose a relevant topic based on the brand profile.`;
+    // Only truly request-specific data goes in the user prompt (changes every call)
+    const userPrompt = [
+      topic && topic.trim()
+        ? `Write ${contentDesc} about: ${topic}`
+        : `Write ${contentDesc} that would resonate with the target audience. Choose a relevant topic based on the brand profile.`,
+      tone_override ? `Tone override: ${tone_override}` : "",
+    ].filter(Boolean).join("\n\n");
 
     const anthropicResp = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -130,8 +134,7 @@ ${tone_override ? `\nTONE OVERRIDE: The user wants the tone to be: ${tone_overri
         model: "claude-sonnet-4-6",
         max_tokens: 2048,
         system: [
-          { type: "text", text: staticSystemBlock, cache_control: { type: "ephemeral" } },
-          { type: "text", text: dynamicSystemBlock },
+          { type: "text", text: cachedSystemBlock, cache_control: { type: "ephemeral" } },
         ],
         messages: [{ role: "user", content: userPrompt }],
         stream: true,

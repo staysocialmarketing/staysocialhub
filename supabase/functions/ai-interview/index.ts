@@ -731,13 +731,17 @@ Deno.serve(async (req) => {
 
     const userMessages = (messages || []).map((m: any) => ({ role: m.role, content: m.content }));
 
-    // Build system as cached array: static template first, dynamic context second
+    // Cached block: interview template + brand context together.
+    // The template is per-interview-type (~200 tokens); brand context adds 500-1500 tokens,
+    // pushing the combined block well over Anthropic's 1024-token caching minimum.
+    // Brand context is consistent throughout a session — every turn of the interview hits the cache.
+    const cachedSystemText = onboardingPreCheck || brandContext
+      ? `${systemPrompt}\n\n${onboardingPreCheck}${brandContext}`.trim()
+      : systemPrompt;
+
     const systemBlocks: any[] = [
-      { type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } },
+      { type: "text", text: cachedSystemText, cache_control: { type: "ephemeral" } },
     ];
-    if (onboardingPreCheck || brandContext) {
-      systemBlocks.push({ type: "text", text: onboardingPreCheck + brandContext });
-    }
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",

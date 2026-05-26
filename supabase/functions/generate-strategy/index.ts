@@ -65,19 +65,21 @@ serve(async (req) => {
     const strategy = strategyRes.data;
     const profile = profileRes.data;
 
-    const prompt = `You are a content strategist. Given the following request and client context, generate a structured strategy brief.
-
-REQUEST:
-- Title: ${request.topic}
-- Type: ${request.type}
-- Notes: ${request.notes || "None"}
+    // Cached block: system instruction + client strategy context (consistent per client, large enough to cache)
+    const cachedSystem = `You are a content strategist for Stay Social. Return structured strategy briefs.
 
 CLIENT CONTEXT:
 - Goals: ${JSON.stringify(strategy?.goals_json || {})}
 - Content Pillars: ${JSON.stringify(strategy?.pillars_json || [])}
 - Campaigns: ${JSON.stringify(strategy?.campaigns_json || [])}
 - Focus: ${JSON.stringify(strategy?.focus_json || {})}
-- Brand Voice: ${JSON.stringify(profile?.brand_voice_json || {})}
+- Brand Voice: ${JSON.stringify(profile?.brand_voice_json || {})}`;
+
+    // Only the specific request details go in the user message (changes every call)
+    const prompt = `Generate a strategy brief for this request:
+- Title: ${request.topic}
+- Type: ${request.type}
+- Notes: ${request.notes || "None"}
 
 Return a strategy brief with these exact fields. Be specific and actionable.`;
 
@@ -98,7 +100,7 @@ Return a strategy brief with these exact fields. Be specific and actionable.`;
         model: "claude-sonnet-4-6",
         max_tokens: 2048,
         system: [
-          { type: "text", text: "You are a content strategist. Return structured strategy briefs.", cache_control: { type: "ephemeral" } },
+          { type: "text", text: cachedSystem, cache_control: { type: "ephemeral" } },
         ],
         messages: [{ role: "user", content: prompt }],
         tools: [
