@@ -842,7 +842,28 @@ Deno.serve(async (req: Request) => {
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    case "delete-post": {
+      const { post_id, require_status } = body as {
+        post_id?: string;
+        require_status?: string;
+      };
+
+      if (!post_id) return err("post_id is required");
+
+      let query = db.from("posts").delete().eq("id", post_id);
+      if (require_status) {
+        query = query.eq("status_column", require_status);
+      }
+
+      const { data, error } = await query.select("id, title, status_column").maybeSingle();
+
+      if (error) return err(error.message, 500);
+      if (!data)  return err("Post not found or status mismatch", 404);
+      return json({ success: true, deleted: data });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
     default:
-      return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /update-task-status, POST /create-project, POST /read-projects, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item, POST /read-queue, POST /update-queue-item, POST /requeue-item, POST /read-playbook, POST /update-playbook`, 404);
+      return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /update-task-status, POST /create-project, POST /read-projects, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item, POST /read-queue, POST /update-queue-item, POST /requeue-item, POST /read-playbook, POST /update-playbook, POST /delete-post`, 404);
   }
 });
