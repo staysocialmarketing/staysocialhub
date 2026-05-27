@@ -117,9 +117,13 @@ function StrategyDocsSection({ docs, pathToken }: { docs: StrategyDoc[]; pathTok
 function AdminView() {
   // Build unified client list: all email clients + strategy-only clients
   const emailEntries = Object.entries(emailPreviewClients);
-  const emailNames = new Set(emailEntries.map(([, c]) => c.name.toLowerCase()));
+  // Include both display name and DB name so entries like "Andrew Gad" (DB) don't
+  // duplicate "AG Mortgage Team" (display name) in the strategy-only list.
+  const emailDbNames = new Set(
+    emailEntries.flatMap(([, c]) => [c.name.toLowerCase(), (c.clientDbName ?? c.name).toLowerCase()])
+  );
   const strategyOnlyClients = strategyDocs.filter(
-    (e) => !emailNames.has(e.clientName.toLowerCase())
+    (e) => !emailDbNames.has(e.clientName.toLowerCase())
   );
 
   type AdminEntry =
@@ -134,7 +138,15 @@ function AdminView() {
   const [selected, setSelected] = useState<string>(allEntries[0]?.label ?? "");
 
   const emailEntry = emailEntries.find(([, c]) => c.name === selected);
-  const strategyEntry = strategyDocs.find((e) => e.clientName === selected);
+  // When an email client has a different DB name (e.g. "Andrew Gad" for "AG Mortgage Team"),
+  // match strategy docs by DB name so both sections appear under the same dropdown entry.
+  const strategyEntry = strategyDocs.find((e) => {
+    if (emailEntry) {
+      const dbName = (emailEntry[1].clientDbName ?? emailEntry[1].name).toLowerCase();
+      return e.clientName.toLowerCase() === dbName || e.clientName === selected;
+    }
+    return e.clientName === selected;
+  });
   const emailClient = emailEntry ? emailEntry[1] : null;
   const emailToken = emailEntry ? emailEntry[0] : null;
 
