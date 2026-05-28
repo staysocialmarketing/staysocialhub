@@ -102,6 +102,24 @@ export const emailPreviewClients: Record<string, EmailPreviewClient> = {
         file: "database-mining.html",
         type: "database",
       },
+      {
+        label: "Campaign Template",
+        description: "Base template for branded campaign emails.",
+        file: "email-campaign.html",
+        type: "campaign",
+      },
+      {
+        label: "June Email 1 — Spring window — what Toronto move-up buyers should know now",
+        description: "Move-up buyer spring window: full purchasing position, bridge financing, pre-underwritten file.",
+        file: "june-email-1.html",
+        type: "campaign",
+      },
+      {
+        label: "June Email 2 — Bank of Canada [held/cut] — here's what it means for your mortgage",
+        description: "BoC reactive template (June 10): variable rate, renewal, purchase segments. [FILL] markers for Tristan.",
+        file: "june-email-2.html",
+        type: "campaign",
+      },
     ],
   },
 
