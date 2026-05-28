@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import { emailPreviewClients, TemplateType } from "@/lib/emailPreviewConfig";
-import { ExternalLink, Megaphone, Newspaper, MousePointerClick, Calendar, TrendingUp, Database } from "lucide-react";
+import { ExternalLink, Megaphone, Newspaper, MousePointerClick, Calendar, TrendingUp, Database, Mail } from "lucide-react";
 
 const TYPE_LABELS: Record<TemplateType, string> = {
   announcement: "Announcement",
@@ -10,6 +10,7 @@ const TYPE_LABELS: Record<TemplateType, string> = {
   seasonal: "Seasonal Strategy",
   boc: "BoC Decision",
   database: "Database Mining",
+  campaign: "Campaign Email",
 };
 
 const TYPE_COLORS: Record<TemplateType, string> = {
@@ -19,6 +20,7 @@ const TYPE_COLORS: Record<TemplateType, string> = {
   seasonal: "bg-emerald-50 text-emerald-700",
   boc: "bg-orange-50 text-orange-700",
   database: "bg-slate-50 text-slate-700",
+  campaign: "bg-rose-50 text-rose-700",
 };
 
 const TYPE_ICONS: Record<TemplateType, ReactNode> = {
@@ -28,6 +30,7 @@ const TYPE_ICONS: Record<TemplateType, ReactNode> = {
   seasonal: <Calendar className="w-5 h-5" />,
   boc: <TrendingUp className="w-5 h-5" />,
   database: <Database className="w-5 h-5" />,
+  campaign: <Mail className="w-5 h-5" />,
 };
 
 export default function EmailPreview() {

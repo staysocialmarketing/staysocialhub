@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ExternalLink, Megaphone, Newspaper, MousePointerClick, Package, ChevronDown, FileText, Calendar, TrendingUp, Database } from "lucide-react";
+import { ExternalLink, Megaphone, Newspaper, MousePointerClick, Package, ChevronDown, FileText, Calendar, TrendingUp, Database, Mail } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { emailPreviewClients, type TemplateType, type EmailPreviewClient } from "@/lib/emailPreviewConfig";
 import { strategyDocs, type StrategyDoc } from "@/lib/strategyDocsConfig";
@@ -14,6 +14,7 @@ const TYPE_LABELS: Record<TemplateType, string> = {
   seasonal: "Seasonal Strategy",
   boc: "BoC Decision",
   database: "Database Mining",
+  campaign: "Campaign Email",
 };
 
 const TYPE_COLORS: Record<TemplateType, string> = {
@@ -23,6 +24,7 @@ const TYPE_COLORS: Record<TemplateType, string> = {
   seasonal: "bg-emerald-50 text-emerald-700",
   boc: "bg-orange-50 text-orange-700",
   database: "bg-slate-50 text-slate-700",
+  campaign: "bg-rose-50 text-rose-700",
 };
 
 const TYPE_ICONS: Record<TemplateType, ReactNode> = {
@@ -32,6 +34,7 @@ const TYPE_ICONS: Record<TemplateType, ReactNode> = {
   seasonal: <Calendar className="w-4 h-4" />,
   boc: <TrendingUp className="w-4 h-4" />,
   database: <Database className="w-4 h-4" />,
+  campaign: <Mail className="w-4 h-4" />,
 };
 
 function nameMatcher(a: string, b: string) {
