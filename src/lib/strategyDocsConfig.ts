@@ -37,72 +37,306 @@ export const strategyDocs: StrategyDocsEntry[] = [
   {
     clientName: "Wheeler Mortgage",
     pathToken: "70d3ac6e-a87a-4cb2-be06-1646470b05a1",
-    docs: [],
+    docs: [
+      {
+        label: "2026 Content Strategy",
+        description: "Brand positioning, content pillars, monthly rhythm, and platform approach for 2026.",
+        filename: "Wheeler_Mortgage_2026_Strategy.pdf",
+      },
+      {
+        label: "2026 Content Strategy (Extended)",
+        description: "Extended content strategy with pillar breakdown and platform playbook.",
+        filename: "Wheeler_Mortgage_2026_Content_Strategy.pdf",
+      },
+      {
+        label: "2026 Annual Content Plan",
+        description: "Month-by-month content calendar with topics, buyer segments, and BoC schedule.",
+        filename: "Wheeler_Mortgage_2026_Annual_Content_Plan.pdf",
+      },
+      {
+        label: "2026 Email Campaign Strategy",
+        description: "Campaign briefs, seasonal emails, and BoC rate decision templates.",
+        filename: "Wheeler_Mortgage_2026_Email_Campaign.pdf",
+      },
+    ],
   },
   {
     clientName: "Francine Casault",
     pathToken: "bc8fdc6d-c55e-43a3-9102-324ab7fa3308",
-    docs: [],
+    docs: [
+      {
+        label: "2026 Content Strategy",
+        description: "Brand positioning, content pillars, monthly rhythm, and platform approach for 2026.",
+        filename: "Francine_Casault_2026_Strategy.pdf",
+      },
+      {
+        label: "2026 Annual Content Plan",
+        description: "Month-by-month content calendar with topics, buyer segments, and BoC schedule.",
+        filename: "Francine_Casault_2026_Annual_Content_Plan.pdf",
+      },
+      {
+        label: "2026 Email Campaign Strategy",
+        description: "Campaign briefs, seasonal emails, and BoC rate decision templates.",
+        filename: "Francine_Casault_2026_Email_Campaign_Strategy.pdf",
+      },
+    ],
   },
   {
     clientName: "Danielle Gibson",
     pathToken: "3e62fdb5-49a9-4d4a-b77b-f1ec134a2418",
-    docs: [],
+    docs: [
+      {
+        label: "2026 Content Strategy",
+        description: "Brand positioning, content pillars, monthly rhythm, and platform approach for 2026.",
+        filename: "Danielle_Gibson_2026_Strategy.pdf",
+      },
+      {
+        label: "2026 Annual Content Plan",
+        description: "Month-by-month content calendar with topics, buyer segments, and BoC schedule.",
+        filename: "Danielle_Gibson_2026_Annual_Content_Plan.pdf",
+      },
+      {
+        label: "2026 Email Campaign Strategy",
+        description: "Campaign briefs, seasonal emails, and BoC rate decision templates.",
+        filename: "Danielle_Gibson_2026_Email_Campaign_Strategy.pdf",
+      },
+    ],
   },
   {
     clientName: "Lesley Tenaglia",
     pathToken: "388b23ba-9e74-4c0a-b8a9-5840845c81fe",
-    docs: [],
+    docs: [
+      {
+        label: "2026 Content Strategy",
+        description: "Brand positioning, content pillars, monthly rhythm, and platform approach for 2026.",
+        filename: "Lesley_Tenaglia_2026_Strategy.pdf",
+      },
+      {
+        label: "2026 Annual Content Plan",
+        description: "Month-by-month content calendar with topics, buyer segments, and BoC schedule.",
+        filename: "Lesley_Tenaglia_2026_Annual_Content_Plan.pdf",
+      },
+      {
+        label: "2026 Email Campaign Strategy",
+        description: "Campaign briefs, seasonal emails, and BoC rate decision templates.",
+        filename: "Lesley_Tenaglia_2026_Email_Campaign.pdf",
+      },
+    ],
   },
   {
     clientName: "Scott Pattinson",
     pathToken: "9e4e9e6a-fadf-4cb4-91fb-46ac47ee24cb",
-    docs: [],
+    docs: [
+      {
+        label: "2026 Content Strategy",
+        description: "Brand positioning, content pillars, monthly rhythm, and platform approach for 2026.",
+        filename: "Scott_Pattinson_2026_Strategy.pdf",
+      },
+      {
+        label: "2026 Content Strategy (Extended)",
+        description: "Extended content strategy with pillar breakdown and platform playbook.",
+        filename: "Scott_Pattinson_2026_Content_Strategy.pdf",
+      },
+      {
+        label: "2026 Annual Content Plan",
+        description: "Month-by-month content calendar with topics, buyer segments, and BoC schedule.",
+        filename: "Scott_Pattinson_2026_Annual_Content_Plan.pdf",
+      },
+      {
+        label: "2026 Email Campaign Strategy",
+        description: "Campaign briefs, seasonal emails, and BoC rate decision templates.",
+        filename: "Scott_Pattinson_2026_Email_Campaign.pdf",
+      },
+      {
+        label: "Database Mining Campaigns",
+        description: "Trigger-based campaign briefs for renewal windows, equity extraction, and rate strategy.",
+        filename: "database-mining-campaigns.pdf",
+      },
+    ],
   },
   {
     clientName: "Alex Spicer",
     pathToken: "08993104-9645-4fa7-b480-4a5e77bdf2b2",
-    docs: [],
+    docs: [
+      {
+        label: "2026 Content Strategy",
+        description: "Brand positioning, content pillars, monthly rhythm, and platform approach for 2026.",
+        filename: "Alex_Spicer_2026_Strategy.pdf",
+      },
+      {
+        label: "2026 Annual Content Plan",
+        description: "Month-by-month content calendar with topics, buyer segments, and BoC schedule.",
+        filename: "Alex_Spicer_2026_Annual_Content_Plan.pdf",
+      },
+      {
+        label: "2026 Email Campaign Strategy",
+        description: "Campaign briefs, seasonal emails, and BoC rate decision templates.",
+        filename: "Alex_Spicer_2026_Email_Campaign.pdf",
+      },
+    ],
   },
   {
     clientName: "Craig Spicer",
     pathToken: "8c86b2a1-a2ef-4965-b4f5-cce64b001c13",
-    docs: [],
+    docs: [
+      {
+        label: "2026 Content Strategy",
+        description: "Brand positioning, content pillars, monthly rhythm, and platform approach for 2026.",
+        filename: "Craig_Spicer_2026_Strategy.pdf",
+      },
+      {
+        label: "2026 Annual Content Plan",
+        description: "Month-by-month content calendar with topics, buyer segments, and BoC schedule.",
+        filename: "Craig_Spicer_2026_Annual_Content_Plan.pdf",
+      },
+      {
+        label: "2026 Email Campaign Strategy",
+        description: "Campaign briefs, seasonal emails, and BoC rate decision templates.",
+        filename: "Craig_Spicer_2026_Email_Campaign.pdf",
+      },
+    ],
   },
   {
     clientName: "Danny Bell",
     pathToken: "2edef211-0ca8-4900-9c6f-1ca63b9556ca",
-    docs: [],
+    docs: [
+      {
+        label: "2026 Content Strategy",
+        description: "Brand positioning, content pillars, monthly rhythm, and platform approach for 2026.",
+        filename: "Danny_Bell_2026_Strategy.pdf",
+      },
+      {
+        label: "2026 Annual Content Plan",
+        description: "Month-by-month content calendar with topics, buyer segments, and BoC schedule.",
+        filename: "Danny_Bell_2026_Annual_Content_Plan.pdf",
+      },
+      {
+        label: "2026 Email Campaign Strategy",
+        description: "Campaign briefs, seasonal emails, and BoC rate decision templates.",
+        filename: "Danny_Bell_2026_Email_Campaign.pdf",
+      },
+    ],
   },
   {
     clientName: "Jennifer MacLennan",
     pathToken: "eea58e17-742c-4126-823d-292354764442",
-    docs: [],
+    docs: [
+      {
+        label: "2026 Content Strategy",
+        description: "Brand positioning, content pillars, monthly rhythm, and platform approach for 2026.",
+        filename: "Jennifer_MacLennan_2026_Strategy.pdf",
+      },
+      {
+        label: "2026 Annual Content Plan",
+        description: "Month-by-month content calendar with topics, buyer segments, and BoC schedule.",
+        filename: "Jennifer_MacLennan_2026_Annual_Content_Plan.pdf",
+      },
+      {
+        label: "2026 Email Campaign Strategy",
+        description: "Campaign briefs, seasonal emails, and BoC rate decision templates.",
+        filename: "Jennifer_MacLennan_2026_Email_Campaign.pdf",
+      },
+    ],
   },
   {
     clientName: "Karen B",
     pathToken: "33519f90-6778-4614-9514-62052a6fcfbc",
-    docs: [],
+    docs: [
+      {
+        label: "2026 Content Strategy",
+        description: "Brand positioning, content pillars, monthly rhythm, and platform approach for 2026.",
+        filename: "Karen_Beckingham_2026_Strategy.pdf",
+      },
+      {
+        label: "2026 Annual Content Plan",
+        description: "Month-by-month content calendar with topics, buyer segments, and BoC schedule.",
+        filename: "Karen_Beckingham_2026_Annual_Content_Plan.pdf",
+      },
+    ],
   },
   {
     clientName: "Kevin Byworth",
     pathToken: "7ceb0f41-6560-4aee-b2da-aa96ee6676ef",
-    docs: [],
+    docs: [
+      {
+        label: "2026 Content Strategy",
+        description: "Brand positioning, content pillars, monthly rhythm, and platform approach for 2026.",
+        filename: "Kevin_Byworth_2026_Strategy.pdf",
+      },
+      {
+        label: "2026 Annual Content Plan",
+        description: "Month-by-month content calendar with topics, buyer segments, and BoC schedule.",
+        filename: "Kevin_Byworth_2026_Annual_Content_Plan.pdf",
+      },
+      {
+        label: "2026 Email Campaign Strategy",
+        description: "Campaign briefs, seasonal emails, and BoC rate decision templates.",
+        filename: "Kevin_Byworth_2026_Email_Campaign.pdf",
+      },
+    ],
   },
   {
     clientName: "Kirk Eaton",
     pathToken: "4fa57f9a-1d40-4864-86fa-faf979ae1f0e",
-    docs: [],
+    docs: [
+      {
+        label: "2026 Content Strategy",
+        description: "Brand positioning, content pillars, monthly rhythm, and platform approach for 2026.",
+        filename: "Eaton_Mortgage_Group_2026_Strategy.pdf",
+      },
+      {
+        label: "2026 Annual Content Plan",
+        description: "Month-by-month content calendar with topics, buyer segments, and BoC schedule.",
+        filename: "Eaton_Mortgage_Group_2026_Annual_Content_Plan.pdf",
+      },
+      {
+        label: "2026 Email Campaign Strategy",
+        description: "Campaign briefs, seasonal emails, and BoC rate decision templates.",
+        filename: "Eaton_Mortgage_Group_2026_Email_Campaign.pdf",
+      },
+    ],
   },
   {
     clientName: "Lendrific",
     pathToken: "e48e5435-072d-419b-af16-eb7c0c088522",
-    docs: [],
+    docs: [
+      {
+        label: "2026 Content Strategy",
+        description: "Brand positioning, content pillars, monthly rhythm, and platform approach for 2026.",
+        filename: "Lendrific_2026_Strategy.pdf",
+      },
+      {
+        label: "2026 Annual Content Plan",
+        description: "Month-by-month content calendar with topics, buyer segments, and BoC schedule.",
+        filename: "Lendrific_2026_Annual_Content_Plan.pdf",
+      },
+      {
+        label: "2026 Email Campaign Strategy",
+        description: "Campaign briefs, seasonal emails, and BoC rate decision templates.",
+        filename: "Lendrific_2026_Email_Campaign.pdf",
+      },
+    ],
   },
   {
     clientName: "Nikki Carew",
     pathToken: "c8118a10-7131-4df7-b77e-5c972c9d309b",
-    docs: [],
+    docs: [
+      {
+        label: "2026 Content Strategy",
+        description: "Brand positioning, content pillars, monthly rhythm, and platform approach for 2026.",
+        filename: "Nikki_Carew_2026_Strategy.pdf",
+      },
+      {
+        label: "2026 Annual Content Plan",
+        description: "Month-by-month content calendar with topics, buyer segments, and BoC schedule.",
+        filename: "Nikki_Carew_2026_Annual_Content_Plan.pdf",
+      },
+      {
+        label: "2026 Email Campaign Strategy",
+        description: "Campaign briefs, seasonal emails, and BoC rate decision templates.",
+        filename: "Nikki_Carew_2026_Email_Campaign.pdf",
+      },
+    ],
   },
   {
     clientName: "Premiere Mortgage",
@@ -112,11 +346,43 @@ export const strategyDocs: StrategyDocsEntry[] = [
   {
     clientName: "Rico Johnston",
     pathToken: "93e78adf-a3a6-4ddf-bb50-cb34057b362b",
-    docs: [],
+    docs: [
+      {
+        label: "2026 Content Strategy",
+        description: "Brand positioning, content pillars, monthly rhythm, and platform approach for 2026.",
+        filename: "Rico_Johnston_2026_Strategy.pdf",
+      },
+      {
+        label: "2026 Annual Content Plan",
+        description: "Month-by-month content calendar with topics, buyer segments, and BoC schedule.",
+        filename: "Rico_Johnston_2026_Annual_Content_Plan.pdf",
+      },
+    ],
   },
   {
     clientName: "Tracy MacIntyre",
     pathToken: "0ab27a09-553a-4b57-86fd-dd26dc237793",
-    docs: [],
+    docs: [
+      {
+        label: "2026 Content Strategy",
+        description: "Brand positioning, content pillars, monthly rhythm, and platform approach for 2026.",
+        filename: "Tracy_MacIntyre_2026_Strategy.pdf",
+      },
+      {
+        label: "2026 Content Strategy (Extended)",
+        description: "Extended content strategy with pillar breakdown and platform playbook.",
+        filename: "Tracy_MacIntyre_2026_Content_Strategy.pdf",
+      },
+      {
+        label: "2026 Annual Content Plan",
+        description: "Month-by-month content calendar with topics, buyer segments, and BoC schedule.",
+        filename: "Tracy_MacIntyre_2026_Annual_Content_Plan.pdf",
+      },
+      {
+        label: "2026 Email Campaign Strategy",
+        description: "Campaign briefs, seasonal emails, and BoC rate decision templates.",
+        filename: "Tracy_MacIntyre_2026_Email_Campaign.pdf",
+      },
+    ],
   },
 ];
