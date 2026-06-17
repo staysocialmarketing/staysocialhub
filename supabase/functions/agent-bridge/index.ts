@@ -266,28 +266,28 @@ Deno.serve(async (req: Request) => {
 
     // ────────────────────────────────────────────────────────────────────────
     case "update-post": {
-      // Note: caption and hashtags are intentionally not accepted here.
-      // The UI renders from platform_content; updating bare caption/hashtags
-      // creates invisible updates for posts that have platform_content.
-      // To update copy, pass platform_content with the full per-platform object.
-      const { post_id, notes, design_notes, design_prompts, title, platform_content, status } = body as {
+      const { post_id, caption, title, platform_content, hashtags, design_notes, notes, design_prompts, status } = body as {
         post_id?: string;
-        notes?: string;
-        design_notes?: string;
-        design_prompts?: Record<string, unknown>;
+        caption?: string;
         title?: string;
         platform_content?: Record<string, Record<string, string>>;
+        hashtags?: string;
+        design_notes?: string;
+        notes?: string;
+        design_prompts?: Record<string, unknown>;
         status?: PostStatus;
       };
 
       if (!post_id) return err("post_id is required");
 
       const updates: Record<string, unknown> = {};
-      if (notes            !== undefined) updates.notes            = notes;
-      if (design_notes     !== undefined) updates.design_notes     = design_notes;
-      if (design_prompts   !== undefined) updates.design_prompts   = design_prompts;
+      if (caption          !== undefined) updates.caption          = caption;
       if (title            !== undefined) updates.title            = title;
       if (platform_content !== undefined) updates.platform_content = platform_content;
+      if (hashtags         !== undefined) updates.hashtags         = hashtags;
+      if (design_notes     !== undefined) updates.design_notes     = design_notes;
+      if (notes            !== undefined) updates.notes            = notes;
+      if (design_prompts   !== undefined) updates.design_prompts   = design_prompts;
       if (status           !== undefined) {
         if (!VALID_STATUSES.has(status)) {
           return err(`Invalid status "${status}". Valid values: ${[...VALID_STATUSES].join(", ")}`);
@@ -303,7 +303,7 @@ Deno.serve(async (req: Request) => {
         .from("posts")
         .update(updates)
         .eq("id", post_id)
-        .select("id, title, status_column, notes, design_notes, design_prompts")
+        .select("id, title, caption, hashtags, status_column, platform_content, notes, design_notes, design_prompts")
         .maybeSingle();
 
       if (error) return err(error.message, 500);
