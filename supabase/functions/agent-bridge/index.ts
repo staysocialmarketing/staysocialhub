@@ -24,6 +24,8 @@
  *   POST /requeue-item             — reset a stuck processing item back to pending
  *   POST /read-playbook            — fetch all brand_twin data for a client
  *   POST /update-playbook          — upsert brand_twin JSON fields for a client (partial update)
+ *   POST /upload-image             — upload a base64-encoded image to a post (stores in creative-assets, creates post_images record)
+ *   POST /delete-post              — delete a post (with optional status guard)
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -842,6 +844,82 @@ Deno.serve(async (req: Request) => {
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    case "upload-image": {
+      const { post_id, image_base64, filename, platform: imgPlatform, position, alt_text } = body as {
+        post_id?: string;
+        image_base64?: string;
+        filename?: string;
+        platform?: string;
+        position?: number;
+        alt_text?: string;
+      };
+
+      if (!post_id)       return err("post_id is required");
+      if (!image_base64)  return err("image_base64 is required (base64-encoded image data)");
+      if (!filename)      return err("filename is required (e.g. 'craig-fathers-day-logo.png')");
+
+      // Decode base64 to Uint8Array
+      let imageBytes: Uint8Array;
+      try {
+        // Strip optional data URI prefix (e.g. "data:image/png;base64,")
+        const raw = image_base64.replace(/^data:image\/\w+;base64,/, "");
+        const binaryStr = atob(raw);
+        imageBytes = new Uint8Array(binaryStr.length);
+        for (let i = 0; i < binaryStr.length; i++) {
+          imageBytes[i] = binaryStr.charCodeAt(i);
+        }
+      } catch (decodeErr) {
+        return err(`Failed to decode base64: ${(decodeErr as Error).message}`);
+      }
+
+      // Determine content type from filename extension
+      const ext = filename.split(".").pop()?.toLowerCase() ?? "png";
+      const contentTypeMap: Record<string, string> = {
+        png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg",
+        webp: "image/webp", gif: "image/gif", svg: "image/svg+xml",
+      };
+      const contentType = contentTypeMap[ext] ?? "image/png";
+
+      // Upload to Supabase storage: creative-assets/posts/{post_id}/{filename}
+      const storagePath = `posts/${post_id}/${filename}`;
+
+      const { error: uploadError } = await db.storage
+        .from("creative-assets")
+        .upload(storagePath, imageBytes, {
+          contentType,
+          upsert: true,
+        });
+
+      if (uploadError) return err(`Storage upload failed: ${uploadError.message}`, 500);
+
+      // Get the public URL
+      const { data: urlData } = db.storage
+        .from("creative-assets")
+        .getPublicUrl(storagePath);
+
+      const publicUrl = urlData.publicUrl;
+
+      // Insert into post_images table
+      const { data: imgRecord, error: insertError } = await db
+        .from("post_images")
+        .insert({
+          post_id,
+          storage_path: storagePath,
+          url: publicUrl,
+          platform: imgPlatform ?? null,
+          position: position ?? 0,
+          alt_text: alt_text ?? null,
+          created_by_user_id: COREY_USER_ID,
+        })
+        .select("id, post_id, url, storage_path, platform, position, alt_text, created_at")
+        .single();
+
+      if (insertError) return err(`post_images insert failed: ${insertError.message}`, 500);
+
+      return json({ success: true, image: imgRecord, url: publicUrl });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
     case "delete-post": {
       const { post_id, require_status } = body as {
         post_id?: string;
@@ -864,6 +942,6 @@ Deno.serve(async (req: Request) => {
 
     // ────────────────────────────────────────────────────────────────────────
     default:
-      return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /update-task-status, POST /create-project, POST /read-projects, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item, POST /read-queue, POST /update-queue-item, POST /requeue-item, POST /read-playbook, POST /update-playbook, POST /delete-post`, 404);
+      return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /update-task-status, POST /create-project, POST /read-projects, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item, POST /read-queue, POST /update-queue-item, POST /requeue-item, POST /read-playbook, POST /update-playbook, POST /upload-image, POST /delete-post`, 404);
   }
 });
