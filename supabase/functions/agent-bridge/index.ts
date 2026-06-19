@@ -920,6 +920,35 @@ Deno.serve(async (req: Request) => {
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    case "clear-post-images": {
+      const { post_id } = body as { post_id?: string };
+      if (!post_id) return err("post_id is required");
+
+      // Get existing images so we can delete from storage too
+      const { data: existing } = await db
+        .from("post_images")
+        .select("id, storage_path")
+        .eq("post_id", post_id);
+
+      if (existing && existing.length > 0) {
+        // Delete from storage
+        const storagePaths = existing.map((img: any) => img.storage_path).filter(Boolean);
+        if (storagePaths.length > 0) {
+          await db.storage.from("creative-assets").remove(storagePaths);
+        }
+        // Delete records
+        const { error: delError } = await db
+          .from("post_images")
+          .delete()
+          .eq("post_id", post_id);
+
+        if (delError) return err(`Failed to delete post_images: ${delError.message}`, 500);
+      }
+
+      return json({ success: true, deleted: existing?.length ?? 0 });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
     case "delete-post": {
       const { post_id, require_status } = body as {
         post_id?: string;
