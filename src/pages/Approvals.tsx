@@ -35,12 +35,20 @@ function getDueDateColor(dueAt: string | null) {
   return "text-muted-foreground";
 }
 
+function getPostThumbnail(post: any): string | null {
+  if (post.post_images?.length) {
+    return [...post.post_images].sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0))[0].url;
+  }
+  return post.creative_url || null;
+}
+
 function PostCard({ post, onClick, showClient = false, children }: {
   post: any; onClick?: () => void; showClient?: boolean; children?: React.ReactNode;
 }) {
   const dueDateColor = getDueDateColor(post.due_at);
   const isEmail = post.content_type === "email_campaign";
   const isCoreyReview = post.status_column === "corey_review";
+  const thumbnailUrl = getPostThumbnail(post);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   return (
     <div className="space-y-1.5">
@@ -52,12 +60,12 @@ function PostCard({ post, onClick, showClient = false, children }: {
                 <Eye className="h-3 w-3 mr-1" />Corey Review
               </Badge>
             )}
-            {post.creative_url ? (
+            {thumbnailUrl ? (
               <button
                 className="aspect-video bg-muted rounded-xl overflow-hidden w-full hover:opacity-90 transition-opacity"
-                onClick={(e) => { e.stopPropagation(); setLightboxUrl(post.creative_url); }}
+                onClick={(e) => { e.stopPropagation(); setLightboxUrl(thumbnailUrl); }}
               >
-                <img src={post.creative_url} alt="" className="w-full h-full object-cover" />
+                <img src={thumbnailUrl} alt="" className="w-full h-full object-cover" />
               </button>
             ) : (
               <div className="aspect-video bg-muted/50 rounded-xl flex items-center justify-center">
@@ -229,7 +237,7 @@ function AdminApprovals() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("posts")
-        .select("*, comments(id), assigned_user:assigned_to_user_id(name), clients(name)")
+        .select("*, comments(id), assigned_user:assigned_to_user_id(name), clients(name), post_images(id, url, position)")
         .in("status_column", ["internal_review", "corey_review", "ready_for_client_batch", "client_approval", "approved", "ready_to_schedule", "ready_to_send", "scheduled", "published", "sent", "complete"])
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -390,7 +398,7 @@ function ClientApprovals() {
       if (!profile?.client_id) return [];
       const { data, error } = await supabase
         .from("posts")
-        .select("*, comments(id), clients(name)")
+        .select("*, comments(id), clients(name), post_images(id, url, position)")
         .eq("client_id", profile.client_id)
         .in("status_column", ["client_approval", "scheduled", "published", "sent", "complete"])
         .order("created_at", { ascending: false });
