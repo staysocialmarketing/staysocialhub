@@ -14,6 +14,7 @@ import {
   Users,
   Building2,
   ShoppingCart,
+  BarChart3,
   LogOut,
   ClipboardList,
   Eye,
@@ -81,6 +82,10 @@ const teamSection = [
 const corporateSection = [
   { title: "Strategy Playbook", url: "/corporate/strategy", icon: BookOpen },
   { title: "Content Generator", url: "/client/generate", icon: Wand2 },
+];
+
+const premiereSection = [
+  { title: "Expenses", url: "/premiere/expenses", icon: BarChart3 },
 ];
 
 const manageSection = [
@@ -328,6 +333,24 @@ export function AppSidebar() {
                 )}
                 <CollapsibleContent>
                   <SidebarGroupContent>{renderMenuItems(corporateSection)}</SidebarGroupContent>
+                </CollapsibleContent>
+              </SidebarGroup>
+            </Collapsible>
+
+            <SidebarSeparator className="opacity-30" />
+
+            <Collapsible open={isSectionOpen("premiere")} onOpenChange={() => toggleSection("premiere")}>
+              <SidebarGroup>
+                {!collapsed && (
+                  <CollapsibleTrigger asChild>
+                    <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40 cursor-pointer flex items-center justify-between w-full">
+                      Premiere
+                      <ChevronDown className={cn("h-3 w-3 transition-transform", isSectionOpen("premiere") && "rotate-180")} />
+                    </SidebarGroupLabel>
+                  </CollapsibleTrigger>
+                )}
+                <CollapsibleContent>
+                  <SidebarGroupContent>{renderMenuItems(premiereSection)}</SidebarGroupContent>
                 </CollapsibleContent>
               </SidebarGroup>
             </Collapsible>
