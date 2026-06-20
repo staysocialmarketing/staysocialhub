@@ -12,7 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ImageIcon, Film, Video, FolderOpen, Upload, Download, Link2, Mic, Search, X } from "lucide-react";
 import { toast } from "sonner";
-import { compressImage } from "@/lib/imageUtils";
+import { compressImage, getPostThumbnail } from "@/lib/imageUtils";
 import { cn } from "@/lib/utils";
 
 interface PostTag {
@@ -67,7 +67,7 @@ export default function ContentLibrary() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("posts")
-        .select("id, title, platform, creative_url, created_at, scheduled_at, tags")
+        .select("id, title, platform, creative_url, created_at, scheduled_at, tags, post_images(id, url, position)")
         .eq("source", "client_upload")
         .eq("client_id", profile?.client_id)
         .order("created_at", { ascending: false });
@@ -193,11 +193,11 @@ export default function ContentLibrary() {
           return (
             <div key={post.id} className="card-elevated overflow-hidden cursor-pointer hover:shadow-lifted transition-all group" onClick={() => navigate(`/approvals/${post.id}`)}>
               <AspectRatio ratio={1}>
-                {post.creative_url ? (
+                {(getPostThumbnail(post) || post.creative_url) ? (
                   isVideo(post.creative_url) ? (
                     <div className="w-full h-full bg-muted/30 flex items-center justify-center"><Film className="h-10 w-10 text-muted-foreground/30" /></div>
                   ) : (
-                    <img src={post.creative_url} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    <img src={getPostThumbnail(post)!} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   )
                 ) : (
                   <div className="w-full h-full bg-muted/30 flex items-center justify-center"><ImageIcon className="h-10 w-10 text-muted-foreground/30" /></div>

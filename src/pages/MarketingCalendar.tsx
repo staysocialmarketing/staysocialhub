@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/table";
 import FilterBar, { useFilterBar, type FilterConfig } from "@/components/FilterBar";
 import { CalendarDays, List, LayoutGrid, ChevronLeft, ChevronRight, Image as ImageIcon } from "lucide-react";
+import { getPostThumbnail } from "@/lib/imageUtils";
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, format, isSameMonth, isSameDay, addMonths, subMonths,
@@ -88,9 +89,9 @@ function PlatformBadges({ platform }: { platform: string | null }) {
 function ContentCard({ post, onClick }: { post: any; onClick: () => void }) {
   return (
     <div className="card-elevated overflow-hidden cursor-pointer hover:shadow-lifted transition-all group" onClick={onClick}>
-      {post.creative_url ? (
+      {getPostThumbnail(post) ? (
         <div className="aspect-video bg-muted overflow-hidden">
-          <img src={post.creative_url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+          <img src={getPostThumbnail(post)!} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
         </div>
       ) : (
         <div className="aspect-video bg-muted/30 flex items-center justify-center">
@@ -138,7 +139,7 @@ export default function MarketingCalendar() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("posts")
-        .select("*, clients(name), assigned_user:assigned_to_user_id(name)")
+        .select("*, clients(name), assigned_user:assigned_to_user_id(name), post_images(id, url, position)")
         .or(`scheduled_at.not.is.null,status_column.in.(${PIPELINE_STATUSES.join(",")})`)
         .order("scheduled_at", { ascending: true, nullsFirst: false });
       if (error) throw error;
@@ -399,9 +400,9 @@ function ListTab({ posts, onPostClick, isSSRole }: { posts: any[]; onPostClick: 
           ) : posts.map((post: any) => (
             <TableRow key={post.id} className="cursor-pointer border-border/15 hover:bg-muted/20 transition-colors" onClick={() => onPostClick(post.id)}>
               <TableCell className="py-2">
-                {post.creative_url ? (
+                {getPostThumbnail(post) ? (
                   <div className="h-9 w-9 rounded-xl overflow-hidden bg-muted">
-                    <img src={post.creative_url} alt="" className="h-full w-full object-cover" />
+                    <img src={getPostThumbnail(post)!} alt="" className="h-full w-full object-cover" />
                   </div>
                 ) : (
                   <div className="h-9 w-9 rounded-xl bg-muted/30 flex items-center justify-center">

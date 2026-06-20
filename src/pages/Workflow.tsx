@@ -19,7 +19,7 @@ import {
 import { toast } from "sonner";
 import { format, isToday, startOfDay, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
-import { compressImage } from "@/lib/imageUtils";
+import { compressImage, getPostThumbnail } from "@/lib/imageUtils";
 import type { Database } from "@/integrations/supabase/types";
 import WorkflowCardDialog from "@/components/WorkflowCardDialog";
 import { PlatformBadges } from "@/components/PlatformBadge";
@@ -118,7 +118,7 @@ export default function Workflow() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("posts")
-        .select("*, comments(id), assigned_user:assigned_to_user_id(name), reviewer:reviewer_user_id(name), clients(name)")
+        .select("*, comments(id), assigned_user:assigned_to_user_id(name), reviewer:reviewer_user_id(name), clients(name), post_images(id, url, position)")
         .in("status_column", ALL_STATUSES)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -356,12 +356,12 @@ export default function Workflow() {
           onDragStart={(e) => handleDragStart(e, post.id, post.status_column)}
           onClick={() => setSelectedPost(post)}
         >
-          {post.creative_url && (
+          {getPostThumbnail(post) && (
             <div className="aspect-video bg-muted rounded-xl overflow-hidden">
-              <img src={post.creative_url} alt="" className="w-full h-full object-cover" />
+              <img src={getPostThumbnail(post)!} alt="" className="w-full h-full object-cover" />
             </div>
           )}
-          {!post.creative_url && ct && (
+          {!getPostThumbnail(post) && ct && (
             <div className="flex items-center gap-1.5">
               <Badge variant="secondary" className={`text-[10px] border-0 gap-1 ${ct.className}`}>
                 {ct.icon} {ct.label}

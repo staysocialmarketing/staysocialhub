@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Image as ImageIcon } from "lucide-react";
+import { getPostThumbnail } from "@/lib/imageUtils";
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, format, isSameMonth, isSameDay, addMonths, subMonths,
@@ -130,9 +131,9 @@ export default function CalendarView({ posts }: CalendarViewProps) {
                   onClick={() => navigate(`/approvals/${post.id}`)}
                 >
                   <CardContent className="p-3 space-y-2">
-                    {post.creative_url ? (
+                    {getPostThumbnail(post) ? (
                       <div className="aspect-video bg-muted rounded overflow-hidden">
-                        <img src={post.creative_url} alt="" className="w-full h-full object-cover" />
+                        <img src={getPostThumbnail(post)!} alt="" className="w-full h-full object-cover" />
                       </div>
                     ) : (
                       <div className="aspect-video bg-muted rounded flex items-center justify-center">

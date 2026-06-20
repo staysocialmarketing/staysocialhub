@@ -12,6 +12,7 @@ import ApprovalActions from "@/components/ApprovalActions";
 import { Clock, RotateCcw, AlertCircle } from "lucide-react";
 import { format, startOfDay, isToday } from "date-fns";
 import { cn } from "@/lib/utils";
+import { getPostThumbnail } from "@/lib/imageUtils";
 import {
   CLIENT_PIPELINE_COLUMNS,
   getStatusesForClientColumn,
@@ -55,9 +56,9 @@ function PipelineCard({
         className="card-elevated p-3 space-y-2 cursor-pointer hover:shadow-lifted transition-all"
         onClick={() => navigate(`/approvals/${post.id}`)}
       >
-        {post.creative_url && (
+        {getPostThumbnail(post) && (
           <div className="aspect-video bg-muted rounded-xl overflow-hidden">
-            <img src={post.creative_url} alt="" className="w-full h-full object-cover" />
+            <img src={getPostThumbnail(post)!} alt="" className="w-full h-full object-cover" />
           </div>
         )}
 
@@ -112,7 +113,7 @@ export default function ClientPipeline() {
       if (!clientId) return [];
       const { data, error } = await supabase
         .from("posts")
-        .select("*, comments(id)")
+        .select("*, comments(id), post_images(id, url, position)")
         .eq("client_id", clientId)
         .in("status_column", ALL_CLIENT_STATUSES)
         .order("created_at", { ascending: false });

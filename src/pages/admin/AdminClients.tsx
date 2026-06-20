@@ -18,6 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { AddActivityDialog } from "@/components/activity/AddActivityDialog";
+import { getPostThumbnail } from "@/lib/imageUtils";
 import { ClientHealthIndicator } from "@/components/ClientHealthIndicator";
 import { OnboardingTracker } from "@/components/OnboardingTracker";
 
@@ -151,7 +152,7 @@ export default function AdminClients() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("posts")
-        .select("id, title, platform, creative_url, created_at, scheduled_at, status_column")
+        .select("id, title, platform, creative_url, created_at, scheduled_at, status_column, post_images(id, url, position)")
         .eq("client_id", mediaClientId!)
         .in("status_column", ["published", "approved", "scheduled"])
         .order("created_at", { ascending: false });
@@ -557,7 +558,7 @@ export default function AdminClients() {
               {mediaItems.map((post: any) => (
                 <Card key={post.id} className="overflow-hidden">
                   <AspectRatio ratio={1}>
-                    {post.creative_url ? (
+                    {(getPostThumbnail(post) || post.creative_url) ? (
                       isVoiceNote(post.creative_url) ? (
                         <div className="w-full h-full bg-muted flex flex-col items-center justify-center gap-2 p-4">
                           <Mic className="h-8 w-8 text-primary/50" />
@@ -566,7 +567,7 @@ export default function AdminClients() {
                       ) : isVideo(post.creative_url) ? (
                         <div className="w-full h-full bg-muted flex items-center justify-center"><Film className="h-8 w-8 text-muted-foreground/50" /></div>
                       ) : (
-                        <img src={post.creative_url} alt={post.title} className="w-full h-full object-cover" />
+                        <img src={getPostThumbnail(post)!} alt={post.title} className="w-full h-full object-cover" />
                       )
                     ) : (
                       <div className="w-full h-full bg-muted flex items-center justify-center"><ImageIcon className="h-8 w-8 text-muted-foreground/50" /></div>

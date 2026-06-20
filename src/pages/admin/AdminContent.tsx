@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { Image as ImageIcon, Plus, Calendar, Upload, Eye } from "lucide-react";
 import { format } from "date-fns";
 import type { Database } from "@/integrations/supabase/types";
-import { compressImage } from "@/lib/imageUtils";
+import { compressImage, getPostThumbnail } from "@/lib/imageUtils";
 
 type PostStatus = Database["public"]["Enums"]["post_status"];
 
@@ -62,7 +62,7 @@ export default function AdminContent() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("posts")
-        .select("*, clients(name), post_versions(id), approvals(id, type, created_at, users:user_id(name))")
+        .select("*, clients(name), post_versions(id), approvals(id, type, created_at, users:user_id(name)), post_images(id, url, position)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -217,8 +217,8 @@ export default function AdminContent() {
           {posts.map((p: any) => (
             <div key={p.id} className="px-5 py-4 flex items-center gap-4 hover:bg-muted/10 transition-colors">
               <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center shrink-0 overflow-hidden">
-                {p.creative_url ? (
-                  <img src={p.creative_url} alt="" className="h-12 w-12 rounded-xl object-cover" />
+                {getPostThumbnail(p) ? (
+                  <img src={getPostThumbnail(p)!} alt="" className="h-12 w-12 rounded-xl object-cover" />
                 ) : (
                   <ImageIcon className="h-5 w-5 text-muted-foreground/40" />
                 )}

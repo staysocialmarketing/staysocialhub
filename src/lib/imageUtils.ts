@@ -92,6 +92,19 @@ export async function compressImage(file: File): Promise<File> {
 }
 
 /**
+ * Get the best thumbnail URL for a post.
+ * Checks post_images first (sorted by position), falls back to creative_url.
+ */
+export function getPostThumbnail(post: any): string | null {
+  if (post?.post_images?.length) {
+    return [...post.post_images].sort(
+      (a: any, b: any) => (a.position ?? 0) - (b.position ?? 0)
+    )[0].url;
+  }
+  return post?.creative_url || null;
+}
+
+/**
  * Extract the storage path from a public URL.
  * e.g. "https://xxx.supabase.co/storage/v1/object/public/creative-assets/abc/def.jpg"
  * → "abc/def.jpg"

@@ -15,7 +15,7 @@ import ClientSelectWithCreate from "@/components/ClientSelectWithCreate";
 import { format } from "date-fns";
 import { ImageIcon, Film, FolderOpen, Archive, Trash2, Download, Link2, Mic, Search, X, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { extractStoragePath } from "@/lib/imageUtils";
+import { extractStoragePath, getPostThumbnail } from "@/lib/imageUtils";
 import { cn } from "@/lib/utils";
 
 interface PostTag {
@@ -92,7 +92,7 @@ export default function AdminMedia() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("posts")
-        .select("id, title, platform, creative_url, created_at, scheduled_at, client_id, status_column, tags, clients(name)")
+        .select("id, title, platform, creative_url, created_at, scheduled_at, client_id, status_column, tags, clients(name), post_images(id, url, position)")
         .in("status_column", ["published", "approved", "scheduled"])
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -317,7 +317,7 @@ export default function AdminMedia() {
                 return (
                   <div key={post.id} className="card-elevated overflow-hidden cursor-pointer hover:shadow-lifted transition-all group" onClick={() => openEdit(post)}>
                     <AspectRatio ratio={1}>
-                      {post.creative_url ? (
+                      {(getPostThumbnail(post) || post.creative_url) ? (
                         isVoiceNote(post.creative_url) ? (
                           <div className="w-full h-full bg-muted/20 flex flex-col items-center justify-center gap-2 p-4">
                             <Mic className="h-10 w-10 text-primary/40" />
@@ -326,7 +326,7 @@ export default function AdminMedia() {
                         ) : isVideo(post.creative_url) ? (
                           <div className="w-full h-full bg-muted/20 flex items-center justify-center"><Film className="h-10 w-10 text-muted-foreground/30" /></div>
                         ) : (
-                          <img src={post.creative_url} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                          <img src={getPostThumbnail(post)!} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                         )
                       ) : (
                         <div className="w-full h-full bg-muted/20 flex items-center justify-center"><ImageIcon className="h-10 w-10 text-muted-foreground/30" /></div>
