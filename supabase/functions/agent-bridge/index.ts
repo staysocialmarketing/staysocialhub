@@ -7,7 +7,7 @@
  * Routes (path suffix after /agent-bridge):
  *   POST /create-post              — create a new post for a client
  *   POST /update-post-status       — move a post to a new status (also accepts notes/design_notes/design_prompts)
- *   POST /update-post              — update post fields (notes, design_notes, design_prompts, caption, etc.)
+ *   POST /update-post              — update post fields (title, caption, platform, content_type, scheduled_at, hashtags, notes, design_notes, design_prompts, platform_content)
  *   POST /tag-user                 — assign or set reviewer on a post
  *   POST /read-posts               — fetch posts for a client (with optional status filter)
  *   GET  /list-clients             — return all clients (id, name)
@@ -268,11 +268,7 @@ Deno.serve(async (req: Request) => {
 
     // ────────────────────────────────────────────────────────────────────────
     case "update-post": {
-      // Note: caption and hashtags are intentionally not accepted here.
-      // The UI renders from platform_content; updating bare caption/hashtags
-      // creates invisible updates for posts that have platform_content.
-      // To update copy, pass platform_content with the full per-platform object.
-      const { post_id, notes, design_notes, design_prompts, title, platform_content, status } = body as {
+      const { post_id, notes, design_notes, design_prompts, title, platform_content, status, caption, platform, content_type, scheduled_at, hashtags } = body as {
         post_id?: string;
         notes?: string;
         design_notes?: string;
@@ -280,6 +276,11 @@ Deno.serve(async (req: Request) => {
         title?: string;
         platform_content?: Record<string, Record<string, string>>;
         status?: PostStatus;
+        caption?: string;
+        platform?: string;
+        content_type?: string;
+        scheduled_at?: string;
+        hashtags?: string[];
       };
 
       if (!post_id) return err("post_id is required");
@@ -290,6 +291,11 @@ Deno.serve(async (req: Request) => {
       if (design_prompts   !== undefined) updates.design_prompts   = design_prompts;
       if (title            !== undefined) updates.title            = title;
       if (platform_content !== undefined) updates.platform_content = platform_content;
+      if (caption          !== undefined) updates.caption          = caption;
+      if (platform         !== undefined) updates.platform         = platform;
+      if (content_type     !== undefined) updates.content_type     = content_type;
+      if (scheduled_at     !== undefined) updates.scheduled_at     = scheduled_at;
+      if (hashtags         !== undefined) updates.hashtags         = hashtags;
       if (status           !== undefined) {
         if (!VALID_STATUSES.has(status)) {
           return err(`Invalid status "${status}". Valid values: ${[...VALID_STATUSES].join(", ")}`);
@@ -305,7 +311,7 @@ Deno.serve(async (req: Request) => {
         .from("posts")
         .update(updates)
         .eq("id", post_id)
-        .select("id, title, status_column, notes, design_notes, design_prompts")
+        .select("id, title, platform, caption, hashtags, content_type, scheduled_at, status_column, notes, design_notes, design_prompts")
         .maybeSingle();
 
       if (error) return err(error.message, 500);
