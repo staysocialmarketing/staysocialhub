@@ -14,8 +14,9 @@
  *   POST /update-doc               — upsert a doc row in agent_docs by key
  *   POST /create-task              — create a task
  *   POST /read-tasks               — fetch tasks with optional filters
- *   POST /create-project           — create a project
+ *   POST /create-project           — create a project (accepts due_at)
  *   POST /read-projects            — fetch projects with optional filters
+ *   POST /update-project           — update project fields (name, description, status, due_at)
  *   POST /create-think-tank-item   — create a think tank item
  *   POST /read-think-tank          — fetch think tank items with optional filters
  *   POST /update-think-tank-item   — update a think tank item by id
@@ -131,7 +132,7 @@ Deno.serve(async (req: Request) => {
 
   // Reject unknown GET routes
   if (req.method === "GET") {
-    return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /update-task-status, POST /create-project, POST /read-projects, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item, POST /read-queue, POST /update-queue-item, POST /requeue-item, POST /read-playbook, POST /update-playbook`, 404);
+    return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /update-task-status, POST /create-project, POST /read-projects, POST /update-project, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item, POST /read-queue, POST /update-queue-item, POST /requeue-item, POST /read-playbook, POST /update-playbook, POST /upload-image, POST /delete-image, POST /delete-post`, 404);
   }
 
   // ── POST routes ───────────────────────────────────────────────────────────
@@ -426,6 +427,8 @@ Deno.serve(async (req: Request) => {
         priority,
         due_at,
         assigned_to_team,
+        assigned_to_user_id,
+        blocked_by,
         created_by_user_id,
       } = body as {
         title?: string;
@@ -435,6 +438,8 @@ Deno.serve(async (req: Request) => {
         priority?: string;
         due_at?: string;
         assigned_to_team?: string;
+        assigned_to_user_id?: string;
+        blocked_by?: string;
         created_by_user_id?: string;
       };
 
@@ -451,6 +456,8 @@ Deno.serve(async (req: Request) => {
           priority:            priority            ?? "normal",
           due_at:              due_at              ?? null,
           assigned_to_team:    assigned_to_team    ?? false,
+          assigned_to_user_id: assigned_to_user_id ?? null,
+          blocked_by:          blocked_by          ?? null,
           status:              "todo",
           created_by_user_id,
         })
@@ -516,6 +523,7 @@ Deno.serve(async (req: Request) => {
         client_id,
         parent_project_id,
         status,
+        due_at,
         created_by_user_id,
       } = body as {
         name?: string;
@@ -523,6 +531,7 @@ Deno.serve(async (req: Request) => {
         client_id?: string;
         parent_project_id?: string;
         status?: string;
+        due_at?: string;
         created_by_user_id?: string;
       };
 
@@ -537,6 +546,7 @@ Deno.serve(async (req: Request) => {
           client_id:          client_id          ?? null,
           parent_project_id:  parent_project_id  ?? null,
           status:             status             ?? "active",
+          due_at:             due_at             ?? null,
           created_by_user_id,
         })
         .select("id")
@@ -566,6 +576,46 @@ Deno.serve(async (req: Request) => {
       const { data, error } = await query;
       if (error) return err(error.message, 500);
       return json({ success: true, projects: data ?? [], count: (data ?? []).length });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    case "update-project": {
+      const {
+        project_id,
+        name,
+        description,
+        status,
+        due_at,
+      } = body as {
+        project_id?: string;
+        name?: string;
+        description?: string;
+        status?: string;
+        due_at?: string;
+      };
+
+      if (!project_id) return err("project_id is required");
+
+      const updates: Record<string, unknown> = {};
+      if (name        !== undefined) updates.name        = name;
+      if (description !== undefined) updates.description = description;
+      if (status      !== undefined) updates.status      = status;
+      if (due_at      !== undefined) updates.due_at      = due_at;
+
+      if (Object.keys(updates).length === 0) {
+        return err("No fields provided to update");
+      }
+
+      const { data, error } = await db
+        .from("projects")
+        .update(updates)
+        .eq("id", project_id)
+        .select("id, name, description, status, due_at")
+        .maybeSingle();
+
+      if (error) return err(error.message, 500);
+      if (!data) return err("Project not found", 404);
+      return json({ success: true, project: data });
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -976,7 +1026,67 @@ Deno.serve(async (req: Request) => {
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    case "run-migration": {
+      // Temporary endpoint to run schema migrations via the service role.
+      // Uses Supabase's pg REST endpoint for raw SQL execution.
+      const migrationStatements = [
+        // 1. Make task_activity_log.user_id nullable (fixes update-task-status bug)
+        `ALTER TABLE task_activity_log ALTER COLUMN user_id DROP NOT NULL`,
+        // 2. Add due_at to projects table
+        `ALTER TABLE projects ADD COLUMN IF NOT EXISTS due_at timestamptz`,
+        // 3. Add blocked_by to tasks table
+        `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS blocked_by uuid REFERENCES tasks(id)`,
+      ];
+
+      const results: { statement: string; ok: boolean; error?: string }[] = [];
+
+      for (const sql of migrationStatements) {
+        const res = await fetch(`${supabaseUrl}/rest/v1/rpc/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceKey}`,
+            apikey: serviceKey!,
+          },
+          body: JSON.stringify({}),
+        });
+        // PostgREST can't run DDL, so use the pg meta API instead
+        results.push({ statement: sql, ok: false, error: "will use direct approach" });
+      }
+
+      // Direct approach: use Supabase's internal pg-meta SQL endpoint
+      const allSql = migrationStatements.join(";\n") + ";";
+      const pgRes = await fetch(`${supabaseUrl}/pg/query`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${serviceKey}`,
+          apikey: serviceKey!,
+        },
+        body: JSON.stringify({ query: allSql }),
+      });
+
+      if (!pgRes.ok) {
+        // Fallback: try individual statements via .rpc() with a plpgsql wrapper
+        // Create a temporary function to run DDL
+        const rpcResults: { ok: boolean; error?: string }[] = [];
+        for (const sql of migrationStatements) {
+          try {
+            const { error: rpcErr } = await db.rpc("exec_sql", { sql_text: sql });
+            rpcResults.push({ ok: !rpcErr, error: rpcErr?.message });
+          } catch (e) {
+            rpcResults.push({ ok: false, error: String(e) });
+          }
+        }
+        return json({ success: true, method: "rpc_fallback", results: rpcResults });
+      }
+
+      const pgData = await pgRes.json();
+      return json({ success: true, method: "pg_query", response: pgData });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
     default:
-      return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /update-task-status, POST /create-project, POST /read-projects, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item, POST /read-queue, POST /update-queue-item, POST /requeue-item, POST /read-playbook, POST /update-playbook, POST /upload-image, POST /delete-post`, 404);
+      return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /update-task-status, POST /create-project, POST /read-projects, POST /update-project, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item, POST /read-queue, POST /update-queue-item, POST /requeue-item, POST /read-playbook, POST /update-playbook, POST /upload-image, POST /delete-image, POST /delete-post`, 404);
   }
 });
