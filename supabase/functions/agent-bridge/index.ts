@@ -1026,32 +1026,6 @@ Deno.serve(async (req: Request) => {
     }
 
     // ────────────────────────────────────────────────────────────────────────
-    case "run-migration": {
-      // Temporary endpoint to run schema migrations via direct Postgres connection.
-      // Uses Deno's postgres driver with the database URL from Supabase env vars.
-      const { default: postgres } = await import("https://deno.land/x/postgresjs@v3.4.5/mod.js");
-
-      const dbUrl = Deno.env.get("SUPABASE_DB_URL");
-      if (!dbUrl) {
-        // Construct connection from standard Supabase env vars
-        // Edge functions have access to these built-in vars
-        const host = Deno.env.get("PGHOST") ?? `db.${Deno.env.get("SUPABASE_URL")?.replace("https://","").replace(".supabase.co","")}. supabase.co`;
-        return err(`DB connection not available. PGHOST=${host}. Set SUPABASE_DB_URL or use Supabase dashboard SQL editor to run: ALTER TABLE task_activity_log ALTER COLUMN user_id DROP NOT NULL; ALTER TABLE projects ADD COLUMN IF NOT EXISTS due_at timestamptz; ALTER TABLE tasks ADD COLUMN IF NOT EXISTS blocked_by uuid REFERENCES tasks(id);`, 500);
-      }
-
-      try {
-        const sql = postgres(dbUrl);
-        await sql`ALTER TABLE task_activity_log ALTER COLUMN user_id DROP NOT NULL`;
-        await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS due_at timestamptz`;
-        // blocked_by needs plain string since parameterized DDL with REFERENCES isn't supported
-        await sql.unsafe(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS blocked_by uuid REFERENCES tasks(id)`);
-        await sql.end();
-        return json({ success: true, method: "direct_pg", message: "All 3 migrations applied successfully" });
-      } catch (e) {
-        return json({ success: false, error: String(e) }, 500);
-      }
-    }
-
     // ────────────────────────────────────────────────────────────────────────
     default:
       return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /update-task-status, POST /create-project, POST /read-projects, POST /update-project, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item, POST /read-queue, POST /update-queue-item, POST /requeue-item, POST /read-playbook, POST /update-playbook, POST /upload-image, POST /delete-image, POST /delete-post`, 404);
