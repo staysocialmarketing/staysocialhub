@@ -1027,62 +1027,29 @@ Deno.serve(async (req: Request) => {
 
     // ────────────────────────────────────────────────────────────────────────
     case "run-migration": {
-      // Temporary endpoint to run schema migrations via the service role.
-      // Uses Supabase's pg REST endpoint for raw SQL execution.
-      const migrationStatements = [
-        // 1. Make task_activity_log.user_id nullable (fixes update-task-status bug)
-        `ALTER TABLE task_activity_log ALTER COLUMN user_id DROP NOT NULL`,
-        // 2. Add due_at to projects table
-        `ALTER TABLE projects ADD COLUMN IF NOT EXISTS due_at timestamptz`,
-        // 3. Add blocked_by to tasks table
-        `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS blocked_by uuid REFERENCES tasks(id)`,
-      ];
+      // Temporary endpoint to run schema migrations via direct Postgres connection.
+      // Uses Deno's postgres driver with the database URL from Supabase env vars.
+      const { default: postgres } = await import("https://deno.land/x/postgresjs@v3.4.5/mod.js");
 
-      const results: { statement: string; ok: boolean; error?: string }[] = [];
-
-      for (const sql of migrationStatements) {
-        const res = await fetch(`${supabaseUrl}/rest/v1/rpc/`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${serviceKey}`,
-            apikey: serviceKey!,
-          },
-          body: JSON.stringify({}),
-        });
-        // PostgREST can't run DDL, so use the pg meta API instead
-        results.push({ statement: sql, ok: false, error: "will use direct approach" });
+      const dbUrl = Deno.env.get("SUPABASE_DB_URL");
+      if (!dbUrl) {
+        // Construct connection from standard Supabase env vars
+        // Edge functions have access to these built-in vars
+        const host = Deno.env.get("PGHOST") ?? `db.${Deno.env.get("SUPABASE_URL")?.replace("https://","").replace(".supabase.co","")}. supabase.co`;
+        return err(`DB connection not available. PGHOST=${host}. Set SUPABASE_DB_URL or use Supabase dashboard SQL editor to run: ALTER TABLE task_activity_log ALTER COLUMN user_id DROP NOT NULL; ALTER TABLE projects ADD COLUMN IF NOT EXISTS due_at timestamptz; ALTER TABLE tasks ADD COLUMN IF NOT EXISTS blocked_by uuid REFERENCES tasks(id);`, 500);
       }
 
-      // Direct approach: use Supabase's internal pg-meta SQL endpoint
-      const allSql = migrationStatements.join(";\n") + ";";
-      const pgRes = await fetch(`${supabaseUrl}/pg/query`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${serviceKey}`,
-          apikey: serviceKey!,
-        },
-        body: JSON.stringify({ query: allSql }),
-      });
-
-      if (!pgRes.ok) {
-        // Fallback: try individual statements via .rpc() with a plpgsql wrapper
-        // Create a temporary function to run DDL
-        const rpcResults: { ok: boolean; error?: string }[] = [];
-        for (const sql of migrationStatements) {
-          try {
-            const { error: rpcErr } = await db.rpc("exec_sql", { sql_text: sql });
-            rpcResults.push({ ok: !rpcErr, error: rpcErr?.message });
-          } catch (e) {
-            rpcResults.push({ ok: false, error: String(e) });
-          }
-        }
-        return json({ success: true, method: "rpc_fallback", results: rpcResults });
+      try {
+        const sql = postgres(dbUrl);
+        await sql`ALTER TABLE task_activity_log ALTER COLUMN user_id DROP NOT NULL`;
+        await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS due_at timestamptz`;
+        // blocked_by needs plain string since parameterized DDL with REFERENCES isn't supported
+        await sql.unsafe(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS blocked_by uuid REFERENCES tasks(id)`);
+        await sql.end();
+        return json({ success: true, method: "direct_pg", message: "All 3 migrations applied successfully" });
+      } catch (e) {
+        return json({ success: false, error: String(e) }, 500);
       }
-
-      const pgData = await pgRes.json();
-      return json({ success: true, method: "pg_query", response: pgData });
     }
 
     // ────────────────────────────────────────────────────────────────────────
