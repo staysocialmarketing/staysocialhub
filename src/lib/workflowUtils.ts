@@ -150,7 +150,7 @@ export function getApproveTarget(contentType: string | null, currentStatus: Post
   }
 
   if (currentStatus === "corey_review" as PostStatus) {
-    return "ready_for_client_batch" as PostStatus;
+    return "client_approval" as PostStatus;
   }
 
   if (currentStatus === "client_approval") {
