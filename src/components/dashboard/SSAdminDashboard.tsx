@@ -249,7 +249,7 @@ function PublishingAnalytics() {
         .from("posts")
         .select("id", { count: "exact", head: true })
         .in("status_column", ["published", "sent"])
-        .gte("created_at", weekStart);
+        .gte("updated_at", weekStart);
       return count || 0;
     },
   });
@@ -261,8 +261,8 @@ function PublishingAnalytics() {
         .from("posts")
         .select("id", { count: "exact", head: true })
         .in("status_column", ["published", "sent"])
-        .gte("created_at", lastWeekStart)
-        .lt("created_at", weekStart);
+        .gte("updated_at", lastWeekStart)
+        .lt("updated_at", weekStart);
       return count || 0;
     },
   });
@@ -274,7 +274,7 @@ function PublishingAnalytics() {
         .from("posts")
         .select("id", { count: "exact", head: true })
         .in("status_column", ["published", "sent"])
-        .gte("created_at", monthStart);
+        .gte("updated_at", monthStart);
       return count || 0;
     },
   });

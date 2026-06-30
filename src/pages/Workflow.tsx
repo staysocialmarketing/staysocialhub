@@ -111,7 +111,12 @@ export default function Workflow() {
   });
   const [creativeFile, setCreativeFile] = useState<File | null>(null);
 
-  const ALL_STATUSES: PostStatus[] = PRIMARY_COLUMNS.map(c => c.key);
+  const ALL_STATUSES: PostStatus[] = [
+    ...PRIMARY_COLUMNS.map(c => c.key),
+    "request_changes" as PostStatus,
+    "internal_review" as PostStatus,
+    "writing" as PostStatus,
+  ];
 
   const { data: posts = [], isLoading } = useQuery({
     queryKey: ["workflow-posts"],
@@ -559,8 +564,13 @@ export default function Workflow() {
       <ScrollArea className="flex-1 min-h-0">
         <div className="flex gap-3 pb-4" style={{ minWidth: PRIMARY_COLUMNS.length * 280 }}>
           {PRIMARY_COLUMNS.map(col => {
+            const colStatuses = col.key === ("corey_review" as PostStatus)
+              ? ["corey_review", "request_changes", "internal_review"]
+              : col.key === ("ai_draft" as PostStatus)
+                ? ["ai_draft", "writing"]
+                : [col.key];
             const columnPosts = posts.filter((p: any) => {
-              if (p.status_column !== col.key) return false;
+              if (!colStatuses.includes(p.status_column)) return false;
               if (filterValues.contentType !== "all" && p.content_type !== filterValues.contentType) return false;
               if (filterValues.client !== "all" && p.client_id !== filterValues.client) return false;
               if (globalClientId && p.client_id !== globalClientId) return false;
@@ -635,7 +645,7 @@ export default function Workflow() {
             label: "Published this week",
             posts: visiblePipelinePosts.filter((p: any) =>
               p.status_column === "published" &&
-              new Date(p.scheduled_at ?? p.created_at) >= sevenDaysAgo,
+              new Date(p.scheduled_at ?? p.updated_at) >= sevenDaysAgo,
             ),
             accent: "text-violet-600",
             pill: "bg-violet-500/10 text-violet-600 hover:bg-violet-500/20",
