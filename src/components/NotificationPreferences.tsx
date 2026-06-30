@@ -49,7 +49,7 @@ export default function NotificationPreferences() {
 
   const toggles = [
     { key: "in_app_enabled", label: "In-App Notifications", description: "Receive notifications in the HUB notification bell", icon: Bell },
-    { key: "email_enabled", label: "Email Notifications", description: "Receive email alerts for important updates (coming soon)", icon: Mail },
+    { key: "email_enabled", label: "Email Notifications", description: "Receive email alerts when someone comments on your posts", icon: Mail },
     { key: "daily_digest", label: "Daily Digest", description: "Get a daily summary of activity instead of individual alerts (coming soon)", icon: FileText },
   ];
 
