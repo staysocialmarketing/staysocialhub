@@ -17,7 +17,7 @@ export type AdminColumnKey =
   | "ai_draft"
   | "design"
   | "corey_review"
-  | "batch_pending"   // ready_for_client_batch — hidden from kanban, shown in Approval Batches
+  | "batch_pending"   // ready_for_client_batch — visible pipeline column (between Corey Review and Client Approval)
   | "client_approval" // client_approval — hidden from kanban, shown in Approval Batches
   | "ready_to_schedule"
   | "scheduled"
@@ -44,7 +44,7 @@ const ADMIN_MAP: Partial<Record<PostStatus, ColumnInfo>> = {
   design:                 { key: "design",           label: "Design" },
   internal_review:        { key: "corey_review",     label: "Corey Review" },
   corey_review:           { key: "corey_review",     label: "Corey Review" },
-  ready_for_client_batch: { key: "batch_pending",    label: "Batch Pending", hidden: true },
+  ready_for_client_batch: { key: "batch_pending",    label: "Ready to Batch" },
   client_approval:        { key: "client_approval",  label: "Client Approval", hidden: true },
   request_changes:        { key: "corey_review",     label: "Corey Review" },
   approved:               { key: "ready_to_schedule", label: "Ready to Schedule" },
@@ -96,6 +96,7 @@ export const ADMIN_WORKFLOW_COLUMNS: { key: AdminColumnKey; label: string }[] = 
   { key: "ai_draft",          label: "AI Draft" },
   { key: "design",            label: "Design" },
   { key: "corey_review",      label: "Corey Review" },
+  { key: "batch_pending",     label: "Ready to Batch" },
   { key: "ready_to_schedule", label: "Ready to Schedule" },
   { key: "scheduled",         label: "Scheduled" },
   { key: "posted",            label: "Posted" },
@@ -150,7 +151,7 @@ export function getApproveTarget(contentType: string | null, currentStatus: Post
   }
 
   if (currentStatus === "corey_review" as PostStatus) {
-    return "client_approval" as PostStatus;
+    return "ready_for_client_batch" as PostStatus;
   }
 
   if (currentStatus === "client_approval") {
