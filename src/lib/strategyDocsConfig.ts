@@ -108,18 +108,18 @@ export const strategyDocs: StrategyDocsEntry[] = [
     docs: [
       {
         label: "2026 Content Strategy",
-        description: "Brand positioning, content pillars, monthly rhythm, and platform approach for 2026.",
-        filename: "Lesley_Tenaglia_2026_Strategy.pdf",
+        description: "Full-service GTA mortgage broker positioning, brand voice, content pillars, platform strategy, and messaging framework.",
+        filename: "Lesley_Content_Strategy_2026.pdf",
       },
       {
         label: "2026 Annual Content Plan",
-        description: "Month-by-month content calendar with topics, buyer segments, and BoC schedule.",
-        filename: "Lesley_Tenaglia_2026_Annual_Content_Plan.pdf",
+        description: "Month-by-month content calendar with topics, BoC schedule, recurring series, and flexible email cadence.",
+        filename: "Lesley_Annual_Content_Plan_2026.pdf",
       },
       {
         label: "2026 Email Campaign Strategy",
-        description: "Campaign briefs, seasonal emails, and BoC rate decision templates.",
-        filename: "Lesley_Tenaglia_2026_Email_Campaign.pdf",
+        description: "The Fuse Brief newsletter, topical campaigns, BoC reactions, segmentation, and design system.",
+        filename: "Lesley_Email_Campaign_Strategy_2026.pdf",
       },
     ],
   },
