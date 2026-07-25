@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { PlatformBadge } from "@/components/PlatformBadge";
 import ApprovalActions from "@/components/ApprovalActions";
 import ImageLightbox from "@/components/ImageLightbox";
+import WorkflowCardDialog from "@/components/WorkflowCardDialog";
 
 type ApprovalType = Database["public"]["Enums"]["approval_type"];
 type PostImage = Database["public"]["Tables"]["post_images"]["Row"];
@@ -80,6 +81,27 @@ export default function PostDetail() {
   // Image lightbox / delete state
   const [lightboxImage, setLightboxImage] = useState<PostImage | null>(null);
   const [deleteImageDialog, setDeleteImageDialog] = useState<PostImage | null>(null);
+
+  // Edit dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+
+  // Fetch SS users for edit dialog
+  const { data: ssUsers = [] } = useQuery({
+    queryKey: ["ss-users"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("user_id, users:user_id(id, name, email)")
+        .in("role", ["ss_admin", "ss_producer", "ss_ops", "ss_team"]);
+      if (error) return [];
+      const seen = new Set<string>();
+      return (data || []).filter((r: any) => {
+        if (seen.has(r.user_id)) return false;
+        seen.add(r.user_id);
+        return true;
+      }).map((r: any) => r.users);
+    },
+  });
 
   // Fetch post
   const { data: post, isLoading } = useQuery({
@@ -524,6 +546,17 @@ export default function PostDetail() {
             )}
           </div>
         </div>
+        {isSSRole && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setEditDialogOpen(true)}
+          >
+            <Pencil className="h-4 w-4" />
+            Edit
+          </Button>
+        )}
         {(isSSAdmin || isSSManager) && ["approved", "ready_to_schedule", "scheduled", "ready_to_send", "ready_for_client_batch"].includes(post.status_column) && (
           <Button
             size="sm"
@@ -1432,8 +1465,22 @@ export default function PostDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit dialog — reuses WorkflowCardDialog for full edit capabilities */}
+      {editDialogOpen && (
+        <WorkflowCardDialog
+          post={post}
+          open={editDialogOpen}
+          onOpenChange={(open) => {
+            setEditDialogOpen(open);
+            if (!open) {
+              // Refresh post data after dialog closes in case edits were saved
+              queryClient.invalidateQueries({ queryKey: ["post-detail", postId] });
+            }
+          }}
+          ssUsers={ssUsers}
+        />
+      )}
     </div>
   );
 }
-
-
