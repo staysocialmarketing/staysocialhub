@@ -642,10 +642,9 @@ export default function Workflow() {
           },
           {
             key: "published",
-            label: "Published this week",
+            label: "Published",
             posts: visiblePipelinePosts.filter((p: any) =>
-              p.status_column === "published" &&
-              new Date(p.scheduled_at ?? p.updated_at) >= sevenDaysAgo,
+              p.status_column === "published" || p.status_column === "sent" || p.status_column === "complete",
             ),
             accent: "text-violet-600",
             pill: "bg-violet-500/10 text-violet-600 hover:bg-violet-500/20",

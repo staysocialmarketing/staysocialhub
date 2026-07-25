@@ -43,7 +43,7 @@ export default function RequestChangesModal({ postId, postTitle, open, onOpenCha
       const newStatus = fixType === "design" ? "design" : "corey_review";
       const { data: current, error: fetchErr } = await supabase
         .from("posts")
-        .select("revision_count")
+        .select("revision_count, title, client_id")
         .eq("id", postId)
         .single();
       if (fetchErr) throw fetchErr;
@@ -52,6 +52,31 @@ export default function RequestChangesModal({ postId, postTitle, open, onOpenCha
         .update({ status_column: newStatus as any, revision_count: (current.revision_count ?? 0) + 1 })
         .eq("id", postId);
       if (error) throw error;
+
+      // Notify all SS team members (admin + manager) about the change request
+      const requesterName = profile.name || profile.email || "A user";
+      const notifTitle = `Changes requested on "${(current as any).title || postTitle}"`;
+      const notifBody = `${requesterName}: ${prefix}${note.trim() ? " — " + note.trim().slice(0, 150) : ""}`;
+      const notifLink = `/pipeline/${postId}`;
+
+      const { data: ssTeam } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .in("role", ["ss_admin", "ss_manager"]);
+
+      if (ssTeam && ssTeam.length > 0) {
+        const notifRows = ssTeam
+          .filter((r: any) => r.user_id !== profile.id)
+          .map((r: any) => ({
+            user_id: r.user_id,
+            title: notifTitle,
+            body: notifBody,
+            link: notifLink,
+          }));
+        if (notifRows.length > 0) {
+          await supabase.from("notifications").insert(notifRows as any);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workflow-posts"] });
