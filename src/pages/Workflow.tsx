@@ -138,6 +138,8 @@ export default function Workflow() {
     ...getStatusesForAdminColumn("ready_to_schedule"),
     ...getStatusesForAdminColumn("scheduled"),
     "published" as PostStatus,
+    "sent" as PostStatus,
+    "complete" as PostStatus,
   ] as const;
 
   const { data: pipelinePosts = [] } = useQuery({
