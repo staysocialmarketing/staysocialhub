@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -311,6 +311,29 @@ export default function Workflow() {
       toast.error(err?.message || err?.details || JSON.stringify(err) || "Failed to update status");
     },
   });
+
+  // --- Notify Client ---
+  const [notifySentAt, setNotifySentAt] = useState<Record<string, number>>({});
+  const [notifyCooldown, setNotifyCooldown] = useState<Record<string, boolean>>({});
+
+  const sendClientNotification = useCallback(async (clientId: string, clientName: string) => {
+    const isReminder = !!(notifySentAt[clientId] && Date.now() - notifySentAt[clientId] < 24 * 60 * 60 * 1000);
+    try {
+      setNotifyCooldown(prev => ({ ...prev, [clientId]: true }));
+      const { data, error } = await supabase.functions.invoke("send-client-notification", {
+        body: { client_id: clientId, is_reminder: isReminder },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setNotifySentAt(prev => ({ ...prev, [clientId]: Date.now() }));
+      toast.success(`Notification sent to ${clientName}`);
+      // 60-second cooldown to prevent spam
+      setTimeout(() => setNotifyCooldown(prev => ({ ...prev, [clientId]: false })), 60_000);
+    } catch (err: any) {
+      setNotifyCooldown(prev => ({ ...prev, [clientId]: false }));
+      toast.error(err.message || "Failed to send notification");
+    }
+  }, [notifySentAt]);
 
   const handleDragStart = (e: React.DragEvent, postId: string, currentStatus: PostStatus) => {
     e.dataTransfer.setData("postId", postId);
@@ -686,6 +709,27 @@ export default function Workflow() {
                   )} />
                 </button>
               ))}
+              {/* Notify Client button — visible when a client is selected and has awaiting posts */}
+              {(() => {
+                const awaitingGroup = groups.find(g => g.key === "awaiting_client");
+                if (!effectiveClientId || !awaitingGroup || awaitingGroup.posts.length === 0) return null;
+                const clientObj = allClients.find((c: any) => c.id === effectiveClientId);
+                const clientLabel = clientObj?.name || "client";
+                const isCooling = notifyCooldown[effectiveClientId];
+                const wasNotified = !!(notifySentAt[effectiveClientId] && Date.now() - notifySentAt[effectiveClientId] < 24 * 60 * 60 * 1000);
+                return (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 rounded-xl text-xs h-9 px-3 ml-1"
+                    disabled={isCooling}
+                    onClick={() => sendClientNotification(effectiveClientId, clientLabel)}
+                  >
+                    <Mail className="h-3.5 w-3.5" />
+                    {isCooling ? "Sent" : wasNotified ? "Send Reminder" : "Notify Client"}
+                  </Button>
+                );
+              })()}
             </div>
 
             {/* Expanded post list */}
