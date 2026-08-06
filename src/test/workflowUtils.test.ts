@@ -285,19 +285,6 @@ describe("Phase 6 — revision tracking (wired in RequestChangesModal)", () => {
 // ── Reverse lookup: getStatusesForClientColumn ────────────────────────────────
 
 describe("getStatusesForClientColumn", () => {
-  it("new → [idea]", () => {
-    expect(getStatusesForClientColumn("new")).toEqual(["idea"]);
-  });
-
-  it("in_progress includes all work-in-flight statuses", () => {
-    const result = getStatusesForClientColumn("in_progress").sort();
-    const expected: PostStatus[] = [
-      "ai_draft", "corey_review", "design", "in_progress",
-      "internal_review", "ready_for_client_batch", "request_changes", "writing",
-    ];
-    expect(result).toEqual(expected.sort());
-  });
-
   it("for_approval → [client_approval]", () => {
     expect(getStatusesForClientColumn("for_approval")).toEqual(["client_approval"]);
   });
@@ -318,12 +305,16 @@ describe("getStatusesForClientColumn", () => {
     }
   });
 
-  it("union of all client column statuses covers every status in ALL_STATUSES", () => {
+  it("internal statuses are hidden from client view", () => {
     const covered = new Set(
       CLIENT_PIPELINE_COLUMNS.flatMap((col) => getStatusesForClientColumn(col.key)),
     );
-    for (const status of ALL_STATUSES) {
-      expect(covered.has(status), `${status} not covered by any client column`).toBe(true);
+    const internalOnly: PostStatus[] = [
+      "idea", "ai_draft", "writing", "design", "in_progress",
+      "internal_review", "corey_review", "ready_for_client_batch", "request_changes",
+    ];
+    for (const status of internalOnly) {
+      expect(covered.has(status), `${status} should NOT be visible to clients`).toBe(false);
     }
   });
 });
