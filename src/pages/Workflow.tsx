@@ -320,11 +320,20 @@ export default function Workflow() {
     const isReminder = !!(notifySentAt[clientId] && Date.now() - notifySentAt[clientId] < 24 * 60 * 60 * 1000);
     try {
       setNotifyCooldown(prev => ({ ...prev, [clientId]: true }));
-      const { data, error } = await supabase.functions.invoke("send-client-notification", {
-        body: { client_id: clientId, is_reminder: isReminder },
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      if (!token) throw new Error("Not authenticated");
+
+      const resp = await fetch("/api/send-client-notification", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ client_id: clientId, is_reminder: isReminder }),
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      const data = await resp.json();
+      if (!resp.ok || data?.error) throw new Error(data?.error || "Failed to send notification");
       setNotifySentAt(prev => ({ ...prev, [clientId]: Date.now() }));
       toast.success(`Notification sent to ${clientName}`);
       // 60-second cooldown to prevent spam
