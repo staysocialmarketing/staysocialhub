@@ -803,7 +803,7 @@ export default function PostDetail() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">
-                {effectiveTab === "design_notes" ? "Design Brief" : effectiveTab === "notes" ? "Notes" : "Caption"}
+                {effectiveTab === "design_notes" ? "Design Brief" : effectiveTab === "notes" ? "Prompts" : "Caption"}
               </CardTitle>
               {isSSRole && (
                 <Button
@@ -833,7 +833,7 @@ export default function PostDetail() {
                             : "bg-muted text-muted-foreground hover:bg-muted/70"
                         )}
                       >
-                        {tabKey === "notes" ? "Notes" : (PLATFORM_LABELS[tabKey] ?? tabKey)}
+                        {tabKey === "notes" ? "Prompts" : (PLATFORM_LABELS[tabKey] ?? tabKey)}
                       </button>
                     ))}
                   </div>
