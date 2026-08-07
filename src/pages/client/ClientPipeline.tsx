@@ -145,12 +145,19 @@ export default function ClientPipeline() {
     (p: any) => p.status_column === "client_approval",
   ).length;
 
-  const columnData = CLIENT_PIPELINE_COLUMNS.map((col) => ({
-    ...col,
-    posts: posts.filter((p: any) =>
+  const columnData = CLIENT_PIPELINE_COLUMNS.map((col) => {
+    const filtered = posts.filter((p: any) =>
       getStatusesForClientColumn(col.key).includes(p.status_column as PostStatus),
-    ),
-  }));
+    );
+    // "Posted" column: sort by updated_at (most recently posted first)
+    // Other columns: keep default created_at ordering from query
+    if (col.key === "posted") {
+      filtered.sort((a: any, b: any) =>
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+      );
+    }
+    return { ...col, posts: filtered };
+  });
 
   if (isLoading) {
     return (
