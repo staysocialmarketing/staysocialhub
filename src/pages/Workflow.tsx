@@ -616,6 +616,10 @@ export default function Workflow() {
               if (!applyDueDateFilter(p.due_at, filterValues.dueDate || "all")) return false;
               return true;
             });
+            // Sort every column by most recently updated first
+            columnPosts.sort((a: any, b: any) =>
+              new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+            );
             return (
               <div key={col.key} className="w-[260px] sm:w-[280px] shrink-0 flex flex-col bg-muted/30 rounded-2xl" onDrop={e => handleDrop(e, col.key)} onDragOver={handleDragOver}>
                 <div className="px-4 py-3 flex items-center justify-between">

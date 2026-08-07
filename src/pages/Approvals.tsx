@@ -249,21 +249,27 @@ function AdminApprovals() {
     ? posts.filter((p: any) => p.client_id === selectedClientId)
     : posts;
 
-  const internalReview = visiblePosts.filter((p: any) => p.status_column === "internal_review");
-  const coreyReview = visiblePosts.filter((p: any) => p.status_column === "corey_review");
-  const readyForClientBatch = visiblePosts.filter((p: any) =>
+  // Helper: filter then sort by most recently updated first
+  const filterAndSort = (predicate: (p: any) => boolean) =>
+    visiblePosts.filter(predicate).sort((a: any, b: any) =>
+      new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+    );
+
+  const internalReview = filterAndSort((p: any) => p.status_column === "internal_review");
+  const coreyReview = filterAndSort((p: any) => p.status_column === "corey_review");
+  const readyForClientBatch = filterAndSort((p: any) =>
     getStatusesForAdminColumn("batch_pending").includes(p.status_column),
   );
-  const clientApproval = visiblePosts.filter((p: any) =>
+  const clientApproval = filterAndSort((p: any) =>
     getStatusesForAdminColumn("client_approval").includes(p.status_column),
   );
-  const approvedPosts = visiblePosts.filter((p: any) => p.status_column === "approved");
-  const readyToSchedule = visiblePosts.filter((p: any) => p.status_column === "ready_to_schedule");
-  const readyToSend = visiblePosts.filter((p: any) => p.status_column === "ready_to_send");
-  const scheduled = visiblePosts.filter((p: any) => p.status_column === "scheduled");
-  const published = visiblePosts.filter((p: any) => p.status_column === "published" && p.request_id);
-  const sent = visiblePosts.filter((p: any) => p.status_column === "sent");
-  const complete = visiblePosts.filter((p: any) => p.status_column === "complete");
+  const approvedPosts = filterAndSort((p: any) => p.status_column === "approved");
+  const readyToSchedule = filterAndSort((p: any) => p.status_column === "ready_to_schedule");
+  const readyToSend = filterAndSort((p: any) => p.status_column === "ready_to_send");
+  const scheduled = filterAndSort((p: any) => p.status_column === "scheduled");
+  const published = filterAndSort((p: any) => p.status_column === "published" && p.request_id);
+  const sent = filterAndSort((p: any) => p.status_column === "sent");
+  const complete = filterAndSort((p: any) => p.status_column === "complete");
 
   if (isLoading) return (
     <div className="flex items-center justify-center h-full py-20">
@@ -420,11 +426,14 @@ function ClientApprovals() {
 
   const canApprove = isClientAdmin || (isClientAssistant && clientSettings?.assistants_can_approve);
 
-  const forApproval = posts.filter((p: any) => p.status_column === "client_approval");
-  const scheduled = posts.filter((p: any) => p.status_column === "scheduled");
-  const published = posts.filter((p: any) => p.status_column === "published");
-  const sentCampaigns = posts.filter((p: any) => p.status_column === "sent" && p.content_type === "email_campaign");
-  const completed = posts.filter((p: any) => p.status_column === "complete");
+  const sortByUpdated = (arr: any[]) =>
+    arr.sort((a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+
+  const forApproval = sortByUpdated(posts.filter((p: any) => p.status_column === "client_approval"));
+  const scheduled = sortByUpdated(posts.filter((p: any) => p.status_column === "scheduled"));
+  const published = sortByUpdated(posts.filter((p: any) => p.status_column === "published"));
+  const sentCampaigns = sortByUpdated(posts.filter((p: any) => p.status_column === "sent" && p.content_type === "email_campaign"));
+  const completed = sortByUpdated(posts.filter((p: any) => p.status_column === "complete"));
 
   if (isLoading) return (
     <div className="flex items-center justify-center h-full py-20">

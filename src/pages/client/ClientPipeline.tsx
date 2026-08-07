@@ -149,13 +149,10 @@ export default function ClientPipeline() {
     const filtered = posts.filter((p: any) =>
       getStatusesForClientColumn(col.key).includes(p.status_column as PostStatus),
     );
-    // "Posted" column: sort by updated_at (most recently posted first)
-    // Other columns: keep default created_at ordering from query
-    if (col.key === "posted") {
-      filtered.sort((a: any, b: any) =>
-        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
-      );
-    }
+    // Sort every column by most recently updated first
+    filtered.sort((a: any, b: any) =>
+      new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+    );
     return { ...col, posts: filtered };
   });
 
