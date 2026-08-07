@@ -49,9 +49,9 @@ describe("getColumnForView — admin view", () => {
     expect(getColumnForView("request_changes", "admin")).toMatchObject({ key: "corey_review" });
   });
 
-  it("maps ready_for_client_batch → batch_pending with hidden:true", () => {
+  it("maps ready_for_client_batch → batch_pending", () => {
     const col = getColumnForView("ready_for_client_batch", "admin");
-    expect(col).toMatchObject({ key: "batch_pending", hidden: true });
+    expect(col).toMatchObject({ key: "batch_pending" });
   });
 
   it("maps client_approval → client_approval with hidden:true", () => {
@@ -105,8 +105,8 @@ describe("getColumnForView — admin view", () => {
 // ── getColumnForView — client view ────────────────────────────────────────────
 
 describe("getColumnForView — client view", () => {
-  it("maps idea → new", () => {
-    expect(getColumnForView("idea", "client")).toMatchObject({ key: "new" });
+  it("maps idea → in_progress", () => {
+    expect(getColumnForView("idea", "client")).toMatchObject({ key: "in_progress" });
   });
 
   it("maps ai_draft → in_progress", () => {
@@ -190,7 +190,7 @@ describe("getColumnForView — client view", () => {
 // ── Hidden admin statuses ─────────────────────────────────────────────────────
 
 describe("hidden admin statuses", () => {
-  const hiddenStatuses: PostStatus[] = ["ready_for_client_batch", "client_approval"];
+  const hiddenStatuses: PostStatus[] = ["client_approval"];
 
   it.each(hiddenStatuses)("%s has hidden:true in admin view", (status) => {
     expect(getColumnForView(status, "admin")?.hidden).toBe(true);
@@ -305,16 +305,13 @@ describe("getStatusesForClientColumn", () => {
     }
   });
 
-  it("internal statuses are hidden from client view", () => {
-    const covered = new Set(
-      CLIENT_PIPELINE_COLUMNS.flatMap((col) => getStatusesForClientColumn(col.key)),
-    );
-    const internalOnly: PostStatus[] = [
+  it("internal statuses are visible to clients as 'In Progress'", () => {
+    const internalStatuses: PostStatus[] = [
       "idea", "ai_draft", "writing", "design", "in_progress",
       "internal_review", "corey_review", "ready_for_client_batch", "request_changes",
     ];
-    for (const status of internalOnly) {
-      expect(covered.has(status), `${status} should NOT be visible to clients`).toBe(false);
+    for (const status of internalStatuses) {
+      expect(getColumnForView(status, "client")).toMatchObject({ key: "in_progress", label: "In Progress" });
     }
   });
 });
