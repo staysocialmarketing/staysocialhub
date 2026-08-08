@@ -48,7 +48,7 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
   const [internalNotes, setInternalNotes] = useState(post.internal_notes || "");
   const [platforms, setPlatforms] = useState<string[]>(post.platform ? post.platform.split(",").map((p: string) => p.trim()) : []);
   const [statusOverride, setStatusOverride] = useState(post.status_column || "idea");
-  const [designType, setDesignType] = useState<string>(post.design_type || "unset");
+  const [designType, setDesignType] = useState<string>(post.design_type === "gavin" ? "manual" : (post.design_type || "unset"));
   // Email fields
   const [subjectLine, setSubjectLine] = useState(post.subject_line || "");
   const [previewText, setPreviewText] = useState(post.preview_text || "");
@@ -113,7 +113,7 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
     setInternalNotes(post.internal_notes || "");
     setPlatforms(post.platform ? post.platform.split(",").map((p: string) => p.trim()) : []);
     setStatusOverride(post.status_column || "idea");
-    setDesignType(post.design_type || "unset");
+    setDesignType(post.design_type === "gavin" ? "manual" : (post.design_type || "unset"));
     setSubjectLine(post.subject_line || "");
     setPreviewText(post.preview_text || "");
     setEmailBody(post.email_body || "");
@@ -371,8 +371,8 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="unset">Unset</SelectItem>
-                      <SelectItem value="auto">Auto (Higgsfield)</SelectItem>
-                      <SelectItem value="gavin">Gavin</SelectItem>
+                      <SelectItem value="auto">Auto</SelectItem>
+                      <SelectItem value="manual">Manual</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -519,7 +519,7 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
                 {(isSSAdmin || isSSManager) && (
                   <div>
                     <Label className="text-muted-foreground text-xs">Design Type</Label>
-                    <p className="text-sm font-medium capitalize">{post.design_type || "unset"}</p>
+                    <p className="text-sm font-medium capitalize">{{ auto: "Auto", manual: "Manual", gavin: "Manual" }[post.design_type as string] || post.design_type || "unset"}</p>
                   </div>
                 )}
                 <div>
