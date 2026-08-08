@@ -149,10 +149,19 @@ export default function ClientPipeline() {
     const filtered = posts.filter((p: any) =>
       getStatusesForClientColumn(col.key).includes(p.status_column as PostStatus),
     );
-    // Sort every column by most recently updated first
-    filtered.sort((a: any, b: any) =>
-      new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
-    );
+    if (col.key === "in_queue") {
+      // In Queue: next upcoming date first (ascending by scheduled/due date)
+      filtered.sort((a: any, b: any) => {
+        const dateA = a.scheduled_at || a.due_at || a.updated_at;
+        const dateB = b.scheduled_at || b.due_at || b.updated_at;
+        return new Date(dateA).getTime() - new Date(dateB).getTime();
+      });
+    } else {
+      // All other columns: most recently updated first
+      filtered.sort((a: any, b: any) =>
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+      );
+    }
     return { ...col, posts: filtered };
   });
 
