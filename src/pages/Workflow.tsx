@@ -609,7 +609,7 @@ export default function Workflow() {
           ...getStatusesForAdminColumn("client_approval"),
         ];
         const readyStatuses = getStatusesForAdminColumn("ready_to_schedule");
-        const sevenDaysAgo = subDays(new Date(), 7);
+        const thirtyDaysAgo = subDays(new Date(), 30);
 
         const effectiveClientId = globalClientId || (filterValues.client !== "all" ? filterValues.client : null);
         const visiblePipelinePosts = effectiveClientId
@@ -642,10 +642,10 @@ export default function Workflow() {
           },
           {
             key: "published",
-            label: "Published this week",
+            label: "Published this month",
             posts: visiblePipelinePosts.filter((p: any) =>
               p.status_column === "published" &&
-              new Date(p.scheduled_at ?? p.updated_at) >= sevenDaysAgo,
+              new Date(p.scheduled_at ?? p.updated_at) >= thirtyDaysAgo,
             ),
             accent: "text-violet-600",
             pill: "bg-violet-500/10 text-violet-600 hover:bg-violet-500/20",

@@ -173,11 +173,13 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workflow-posts"] });
+      queryClient.invalidateQueries({ queryKey: ["pipeline-posts"] });
+      queryClient.invalidateQueries({ queryKey: ["post-detail", post.id] });
       queryClient.invalidateQueries({ queryKey: ["linked-request", post.request_id] });
       toast.success("Post updated");
       setEditing(false);
     },
-    onError: (err: any) => toast.error(err.message || "Failed to update"),
+    onError: (err: any) => toast.error(err?.message || err?.details || JSON.stringify(err) || "Failed to update"),
   });
 
   const deletePost = useMutation({

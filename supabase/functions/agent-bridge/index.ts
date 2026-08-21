@@ -281,7 +281,7 @@ Deno.serve(async (req: Request) => {
         platform?: string;
         content_type?: string;
         scheduled_at?: string;
-        hashtags?: string[];
+        hashtags?: string | string[];
       };
 
       if (!post_id) return err("post_id is required");
@@ -296,7 +296,7 @@ Deno.serve(async (req: Request) => {
       if (platform         !== undefined) updates.platform         = platform;
       if (content_type     !== undefined) updates.content_type     = content_type;
       if (scheduled_at     !== undefined) updates.scheduled_at     = scheduled_at;
-      if (hashtags         !== undefined) updates.hashtags         = hashtags;
+      if (hashtags         !== undefined) updates.hashtags         = Array.isArray(hashtags) ? hashtags.join(" ") : hashtags;
       if (status           !== undefined) {
         if (!VALID_STATUSES.has(status)) {
           return err(`Invalid status "${status}". Valid values: ${[...VALID_STATUSES].join(", ")}`);
