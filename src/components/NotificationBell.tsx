@@ -3,17 +3,19 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Bell } from "lucide-react";
+import { Bell, BellOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatDistanceToNow } from "date-fns";
+import { usePushNotifications } from "@/hooks/use-push-notifications";
 
 export function NotificationBell() {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const { isSupported, permission, isSubscribed, isLoading: pushLoading, subscribe, unsubscribe } = usePushNotifications();
 
   const { data: notifications = [] } = useQuery({
     queryKey: ["notifications", profile?.id],
@@ -82,11 +84,25 @@ export function NotificationBell() {
       <PopoverContent className="w-80 p-0" align="end">
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <h4 className="text-sm font-semibold">Notifications</h4>
-          {unreadCount > 0 && (
-            <Button variant="ghost" size="sm" className="text-xs h-auto py-1" onClick={() => markAllRead.mutate()}>
-              Mark all read
-            </Button>
-          )}
+          <div className="flex items-center gap-1">
+            {isSupported && permission !== "denied" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs h-auto py-1 px-2"
+                onClick={isSubscribed ? unsubscribe : subscribe}
+                disabled={pushLoading}
+                title={isSubscribed ? "Disable push notifications" : "Enable push notifications"}
+              >
+                {isSubscribed ? <BellOff className="h-3.5 w-3.5" /> : <Bell className="h-3.5 w-3.5 text-orange-500" />}
+              </Button>
+            )}
+            {unreadCount > 0 && (
+              <Button variant="ghost" size="sm" className="text-xs h-auto py-1" onClick={() => markAllRead.mutate()}>
+                Mark all read
+              </Button>
+            )}
+          </div>
         </div>
         <ScrollArea className="max-h-[300px]">
           {notifications.length === 0 ? (
