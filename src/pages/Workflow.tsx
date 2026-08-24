@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -138,6 +138,8 @@ export default function Workflow() {
     ...getStatusesForAdminColumn("ready_to_schedule"),
     ...getStatusesForAdminColumn("scheduled"),
     "published" as PostStatus,
+    "sent" as PostStatus,
+    "complete" as PostStatus,
   ] as const;
 
   const { data: pipelinePosts = [] } = useQuery({
@@ -309,6 +311,38 @@ export default function Workflow() {
       toast.error(err?.message || err?.details || JSON.stringify(err) || "Failed to update status");
     },
   });
+
+  // --- Notify Client ---
+  const [notifySentAt, setNotifySentAt] = useState<Record<string, number>>({});
+  const [notifyCooldown, setNotifyCooldown] = useState<Record<string, boolean>>({});
+
+  const sendClientNotification = useCallback(async (clientId: string, clientName: string) => {
+    const isReminder = !!(notifySentAt[clientId] && Date.now() - notifySentAt[clientId] < 24 * 60 * 60 * 1000);
+    try {
+      setNotifyCooldown(prev => ({ ...prev, [clientId]: true }));
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      if (!token) throw new Error("Not authenticated");
+
+      const resp = await fetch("/api/send-client-notification", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ client_id: clientId, is_reminder: isReminder }),
+      });
+      const data = await resp.json();
+      if (!resp.ok || data?.error) throw new Error(data?.error || "Failed to send notification");
+      setNotifySentAt(prev => ({ ...prev, [clientId]: Date.now() }));
+      toast.success(`Notification sent to ${clientName}`);
+      // 60-second cooldown to prevent spam
+      setTimeout(() => setNotifyCooldown(prev => ({ ...prev, [clientId]: false })), 60_000);
+    } catch (err: any) {
+      setNotifyCooldown(prev => ({ ...prev, [clientId]: false }));
+      toast.error(err.message || "Failed to send notification");
+    }
+  }, [notifySentAt]);
 
   const handleDragStart = (e: React.DragEvent, postId: string, currentStatus: PostStatus) => {
     e.dataTransfer.setData("postId", postId);
@@ -582,6 +616,10 @@ export default function Workflow() {
               if (!applyDueDateFilter(p.due_at, filterValues.dueDate || "all")) return false;
               return true;
             });
+            // Sort every column by most recently updated first
+            columnPosts.sort((a: any, b: any) =>
+              new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+            );
             return (
               <div key={col.key} className="w-[260px] sm:w-[280px] shrink-0 flex flex-col bg-muted/30 rounded-2xl" onDrop={e => handleDrop(e, col.key)} onDragOver={handleDragOver}>
                 <div className="px-4 py-3 flex items-center justify-between">
@@ -644,8 +682,8 @@ export default function Workflow() {
             key: "published",
             label: "Published this week",
             posts: visiblePipelinePosts.filter((p: any) =>
-              p.status_column === "published" &&
-              new Date(p.scheduled_at ?? p.updated_at) >= sevenDaysAgo,
+              (p.status_column === "published" || p.status_column === "sent" || p.status_column === "complete") &&
+              new Date(p.posted_at ?? p.scheduled_at ?? p.created_at) >= sevenDaysAgo,
             ),
             accent: "text-violet-600",
             pill: "bg-violet-500/10 text-violet-600 hover:bg-violet-500/20",
@@ -684,6 +722,27 @@ export default function Workflow() {
                   )} />
                 </button>
               ))}
+              {/* Notify Client button — visible when a client is selected and has awaiting posts */}
+              {(() => {
+                const awaitingGroup = groups.find(g => g.key === "awaiting_client");
+                if (!effectiveClientId || !awaitingGroup || awaitingGroup.posts.length === 0) return null;
+                const clientObj = allClients.find((c: any) => c.id === effectiveClientId);
+                const clientLabel = clientObj?.name || "client";
+                const isCooling = notifyCooldown[effectiveClientId];
+                const wasNotified = !!(notifySentAt[effectiveClientId] && Date.now() - notifySentAt[effectiveClientId] < 24 * 60 * 60 * 1000);
+                return (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 rounded-xl text-xs h-9 px-3 ml-1"
+                    disabled={isCooling}
+                    onClick={() => sendClientNotification(effectiveClientId, clientLabel)}
+                  >
+                    <Mail className="h-3.5 w-3.5" />
+                    {isCooling ? "Sent" : wasNotified ? "Send Reminder" : "Notify Client"}
+                  </Button>
+                );
+              })()}
             </div>
 
             {/* Expanded post list */}

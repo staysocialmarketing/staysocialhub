@@ -24,7 +24,6 @@ export type AdminColumnKey =
   | "posted";
 
 export type ClientColumnKey =
-  | "new"
   | "in_progress"
   | "for_approval"
   | "in_queue"
@@ -58,15 +57,17 @@ const ADMIN_MAP: Partial<Record<PostStatus, ColumnInfo>> = {
 };
 
 const CLIENT_MAP: Partial<Record<PostStatus, ColumnInfo>> = {
-  idea:                   { key: "new",         label: "New" },
-  ai_draft:               { key: "in_progress", label: "In Progress" },
-  writing:                { key: "in_progress", label: "In Progress" },
-  design:                 { key: "in_progress", label: "In Progress" },
-  in_progress:            { key: "in_progress", label: "In Progress" },
-  internal_review:        { key: "in_progress", label: "In Progress" },
-  corey_review:           { key: "in_progress", label: "In Progress" },
-  ready_for_client_batch: { key: "in_progress", label: "In Progress" },
-  request_changes:        { key: "in_progress", label: "In Progress" },
+  // Working statuses — visible to clients as "In Progress" so they know
+  // content is being created, without exposing internal workflow details.
+  idea:                   { key: "in_progress",  label: "In Progress" },
+  in_progress:            { key: "in_progress",  label: "In Progress" },
+  ai_draft:               { key: "in_progress",  label: "In Progress" },
+  writing:                { key: "in_progress",  label: "In Progress" },
+  design:                 { key: "in_progress",  label: "In Progress" },
+  internal_review:        { key: "in_progress",  label: "In Progress" },
+  corey_review:           { key: "in_progress",  label: "In Progress" },
+  request_changes:        { key: "in_progress",  label: "In Progress" },
+  ready_for_client_batch: { key: "in_progress",  label: "In Progress" },
   client_approval:        { key: "for_approval", label: "For Approval" },
   approved:               { key: "in_queue",    label: "In Queue" },
   ready_to_schedule:      { key: "in_queue",    label: "In Queue" },
@@ -104,7 +105,6 @@ export const ADMIN_WORKFLOW_COLUMNS: { key: AdminColumnKey; label: string }[] = 
 
 /** Ordered column definitions for the client Content Pipeline kanban. */
 export const CLIENT_PIPELINE_COLUMNS: { key: ClientColumnKey; label: string }[] = [
-  { key: "new",         label: "New" },
   { key: "in_progress", label: "In Progress" },
   { key: "for_approval", label: "For Approval" },
   { key: "in_queue",    label: "In Queue" },
