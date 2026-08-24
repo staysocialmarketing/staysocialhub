@@ -88,7 +88,7 @@ CREATE OR REPLACE FUNCTION public.pgp_sym_encrypt_text(plaintext TEXT, key TEXT)
 RETURNS TEXT
 LANGUAGE sql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
   SELECT encode(pgp_sym_encrypt(plaintext, key)::bytea, 'base64');
 $$;
@@ -97,7 +97,7 @@ CREATE OR REPLACE FUNCTION public.pgp_sym_decrypt_text(ciphertext TEXT, key TEXT
 RETURNS TEXT
 LANGUAGE sql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
   SELECT pgp_sym_decrypt(decode(ciphertext, 'base64')::bytea, key)::text;
 $$;
