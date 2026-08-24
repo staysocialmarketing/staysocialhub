@@ -50,6 +50,8 @@ import NotFound from "./pages/NotFound";
 import ClientDeliverables from "./pages/client/ClientDeliverables";
 import EmailPreview from "./pages/EmailPreview";
 import PremiereExpenses from "./pages/premiere/PremiereExpenses";
+import SocialLogins from "./pages/client/SocialLogins";
+import AdminSocialLogins from "./pages/admin/AdminSocialLogins";
 
 const queryClient = new QueryClient();
 
@@ -148,6 +150,8 @@ const App = () => (
               <Route path="/agent-office-v2" element={<AdminRoute><AgentOfficeV2 /></AdminRoute>} />
               <Route path="/admin/workspace" element={<SSAdminRoute><AdminWorkspace /></SSAdminRoute>} />
               <Route path="/premiere/expenses" element={<AdminRoute><PremiereExpenses /></AdminRoute>} />
+              <Route path="/client/social-logins" element={<SocialLogins />} />
+              <Route path="/admin/social-logins" element={<AdminRoute><AdminSocialLogins /></AdminRoute>} />
             </Route>
             <Route path="/preview/:clientToken" element={<EmailPreview />} />
             <Route path="*" element={<NotFound />} />

@@ -33,6 +33,8 @@ import {
   Monitor,
   Briefcase,
   Package,
+  KeyRound,
+  ShieldCheck,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -91,6 +93,7 @@ const premiereSection = [
 const manageSection = [
   { title: "Clients", url: "/admin/clients", icon: Building2 },
   { title: "Deliverables", url: "/deliverables", icon: Package },
+  { title: "Social Logins", url: "/admin/social-logins", icon: ShieldCheck },
   { title: "Team Success", url: "/admin/team", icon: Users },
   { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
 ];
@@ -123,6 +126,7 @@ const clientAISection = [
 
 const clientAccountSection = [
   { title: "My Profile", url: "/profile", icon: UserCircle },
+  { title: "Social Logins", url: "/client/social-logins", icon: KeyRound },
   { title: "My Plan", url: "/plan", icon: ClipboardList },
   { title: "Marketplace", url: "/whats-new", icon: Eye },
 ];
