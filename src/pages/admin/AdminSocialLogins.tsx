@@ -200,7 +200,7 @@ export default function AdminSocialLogins() {
   const [sortField, setSortField] = useState<"client_name" | "updated_at">("updated_at");
   const [sortDir,   setSortDir]   = useState<"asc" | "desc">("desc");
 
-  const { data: logins = [], isLoading } = useQuery<AdminLogin[]>({
+  const { data: logins = [], isLoading, error } = useQuery<AdminLogin[]>({
     queryKey: ["admin-social-logins"],
     queryFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -334,6 +334,13 @@ export default function AdminSocialLogins() {
               <tr>
                 <td colSpan={6} className="px-4 py-12 text-center text-sm text-gray-400">
                   Loading credentials...
+                </td>
+              </tr>
+            ) : error ? (
+              <tr>
+                <td colSpan={6} className="px-4 py-12 text-center">
+                  <p className="text-sm text-red-500 font-medium">Failed to load credentials</p>
+                  <p className="text-xs text-gray-400 mt-1">{(error as Error)?.message ?? "Unknown error"}</p>
                 </td>
               </tr>
             ) : filtered.length === 0 ? (

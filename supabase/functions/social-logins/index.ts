@@ -190,28 +190,28 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  // ── Admin routes (API key auth) ──────────────────────────────────────────
+  // ── Admin routes (API key or SS-role JWT) ───────────────────────────────
   if (route === "admin-list" || route === "copy-password") {
     const providedKey = req.headers.get("x-api-key");
-    if (!providedKey || providedKey !== agentApiKey) {
-      // Also accept SS role via JWT for in-app admin view
+    const isValidApiKey = providedKey && agentApiKey && providedKey === agentApiKey;
+
+    if (!isValidApiKey) {
+      // Fall back to JWT auth for in-app admin view
       if (!authHeader) return err("Unauthorized", 401);
 
-      const userDb = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
-        global: { headers: { Authorization: authHeader } },
-      });
-      const { data: userData } = await userDb.auth.getUser();
-      if (!userData?.user) return err("Unauthorized", 401);
+      const jwt = authHeader.replace(/^Bearer\s+/i, "");
+      const { data: { user }, error: authError } = await adminDb.auth.getUser(jwt);
+      if (authError || !user) return err("Unauthorized", 401);
 
       // Check SS role
       const { data: roles } = await adminDb
         .from("user_roles")
         .select("role")
-        .eq("user_id", userData.user.id);
+        .eq("user_id", user.id);
 
       const ssRoles = ["ss_admin", "ss_producer", "ss_ops", "ss_team", "ss_manager"];
       const isSSRole = (roles ?? []).some((r: {role: string}) => ssRoles.includes(r.role));
-      if (!isSSRole) return err("Forbidden", 403);
+      if (!isSSRole) return err("Forbidden — SS role required", 403);
     }
 
     // ── ADMIN-LIST: all clients, usernames, last updated ──────────────────
