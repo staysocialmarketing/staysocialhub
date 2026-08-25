@@ -19,7 +19,7 @@ import {
   Package, Plus, Send, ChevronDown, Clock, CheckCircle, AlertTriangle, Layers,
 } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 
 /* ─── Types ─────────────────────────────────────────────────────── */
 interface UnbatchedPost {
@@ -143,7 +143,13 @@ export default function ApprovalBatchManager({
   };
 
   const activeBatches = batches.filter((b) => !["completed"].includes(deriveBatchDisplayStatus(b, postStatusMap)));
-  const completedBatches = batches.filter((b) => deriveBatchDisplayStatus(b, postStatusMap) === "completed");
+  const thirtyDaysAgo = subDays(new Date(), 30);
+  const completedBatches = batches.filter((b) => {
+    if (deriveBatchDisplayStatus(b, postStatusMap) !== "completed") return false;
+    // Hide completed batches older than 30 days — keeps the page clean
+    const sentDate = b.sent_at ? new Date(b.sent_at) : new Date(b.created_at);
+    return sentDate >= thirtyDaysAgo;
+  });
 
   return (
     <div className="space-y-6">
