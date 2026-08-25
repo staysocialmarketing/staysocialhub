@@ -293,7 +293,7 @@ export default function Workflow() {
       const newStatus = isEmail ? "sent" : "published";
       const { data, error } = await supabase
         .from("posts")
-        .update({ status_column: newStatus as PostStatus } as any)
+        .update({ status_column: newStatus as PostStatus, posted_at: new Date().toISOString() } as any)
         .eq("id", postId)
         .select("id")
         .maybeSingle();
