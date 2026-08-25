@@ -257,7 +257,8 @@ export default function WorkflowCardDialog({ post, open, onOpenChange, ssUsers }
   const showClientApproval = (isClientAdmin || isClientAssistant) && post.status_column === "client_approval";
   const showSendActions = isSSAdmin && post.status_column === "ready_to_send";
   const alreadyPosted = post.status_column === "published" || post.status_column === "sent" || post.status_column === "complete";
-  const showMarkPosted = (isSSAdmin || isSSManager) && !alreadyPosted;
+  const readyToPost = ["scheduled", "ready_to_schedule", "approved", "ready_to_send"].includes(post.status_column);
+  const showMarkPosted = (isSSAdmin || isSSManager) && !alreadyPosted && readyToPost;
 
   const getUserName = (userId: string) => {
     const u = ssUsers.find((u: any) => u.id === userId);

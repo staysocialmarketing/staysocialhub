@@ -21,6 +21,17 @@ interface ApprovalActionsProps {
   className?: string;
 }
 
+// Label shown on the Approve button — specific per stage so the action is unambiguous
+function getApproveLabel(status: PostStatus): string {
+  switch (status) {
+    case "corey_review":      return "Send to Client Batch";
+    case "client_approval":   return "Approve";
+    case "design":            return "Send to Review";
+    case "ai_draft":          return "Send to Design";
+    default:                  return "Approve";
+  }
+}
+
 export default function ApprovalActions({ postId, postTitle, currentStatus, contentType, approveTarget: legacyTarget, className }: ApprovalActionsProps) {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
@@ -28,6 +39,7 @@ export default function ApprovalActions({ postId, postTitle, currentStatus, cont
 
   const computedTarget = getApproveTarget(contentType ?? null, currentStatus);
   const target = computedTarget;
+  const approveLabel = getApproveLabel(currentStatus);
 
   const approve = useMutation({
     mutationFn: async () => {
@@ -64,7 +76,7 @@ export default function ApprovalActions({ postId, postTitle, currentStatus, cont
           disabled={approve.isPending}
         >
           <CheckCircle className="h-3.5 w-3.5" />
-          Approve
+          {approveLabel}
         </Button>
         <Button
           size="sm"
