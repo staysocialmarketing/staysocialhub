@@ -142,11 +142,16 @@ export default function ApprovalBatchManager({
     }
   };
 
-  const activeBatches = batches.filter((b) => !["completed"].includes(deriveBatchDisplayStatus(b, postStatusMap)));
   const thirtyDaysAgo = subDays(new Date(), 30);
+  const activeBatches = batches.filter((b) => {
+    if (deriveBatchDisplayStatus(b, postStatusMap) === "completed") return false;
+    // Also hide active batches older than 30 days — stale batches from months ago shouldn't clutter the view
+    const sentDate = b.sent_at ? new Date(b.sent_at) : new Date(b.created_at);
+    return sentDate >= thirtyDaysAgo;
+  });
   const completedBatches = batches.filter((b) => {
     if (deriveBatchDisplayStatus(b, postStatusMap) !== "completed") return false;
-    // Hide completed batches older than 30 days — keeps the page clean
+    // Hide completed batches older than 30 days
     const sentDate = b.sent_at ? new Date(b.sent_at) : new Date(b.created_at);
     return sentDate >= thirtyDaysAgo;
   });
