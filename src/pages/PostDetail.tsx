@@ -89,21 +89,21 @@ export default function PostDetail() {
   // Edit dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
-  // Fetch SS users for edit dialog
+  // Fetch SS users + agents for tag selector and edit dialog
   const { data: ssUsers = [] } = useQuery({
     queryKey: ["ss-users"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("user_roles")
-        .select("user_id, users:user_id(id, name, email)")
-        .in("role", ["ss_admin", "ss_producer", "ss_ops", "ss_team"]);
+        .select("user_id, role, users:user_id(id, name, email)")
+        .in("role", ["ss_admin", "ss_producer", "ss_ops", "ss_team", "ss_agent"]);
       if (error) return [];
       const seen = new Set<string>();
       return (data || []).filter((r: any) => {
         if (seen.has(r.user_id)) return false;
         seen.add(r.user_id);
         return true;
-      }).map((r: any) => r.users);
+      }).map((r: any) => ({ ...r.users, isAgent: r.role === "ss_agent" }));
     },
   });
 
@@ -1230,7 +1230,11 @@ export default function PostDetail() {
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-52 p-1" align="start">
-                        {ssUsers.filter((u: any) => u?.id && u.id !== profile?.id).map((u: any) => (
+                        {/* Agents first, then humans */}
+                        {[
+                          ...ssUsers.filter((u: any) => u?.isAgent),
+                          ...ssUsers.filter((u: any) => !u?.isAgent),
+                        ].filter((u: any) => u?.id && u.id !== profile?.id).map((u: any) => (
                           <button
                             key={u.id}
                             type="button"
@@ -1240,12 +1244,19 @@ export default function PostDetail() {
                               )
                             }
                             className={cn(
-                              "w-full text-left px-2 py-1.5 rounded text-sm hover:bg-muted flex items-center justify-between",
+                              "w-full text-left px-2 py-1.5 rounded text-sm hover:bg-muted flex items-center gap-2",
                               commentMentions.includes(u.id) && "font-medium text-primary"
                             )}
                           >
-                            {u.name || u.email}
-                            {commentMentions.includes(u.id) && <Check className="h-3.5 w-3.5" />}
+                            <span className={cn(
+                              "h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0",
+                              u.isAgent ? "bg-violet-100 text-violet-700" : "bg-primary/10 text-primary"
+                            )}>
+                              {u.isAgent ? "⚡" : (u.name || u.email || "?")[0].toUpperCase()}
+                            </span>
+                            <span className="flex-1">{u.name || u.email}</span>
+                            {u.isAgent && <span className="text-[10px] text-violet-500 font-medium">AI</span>}
+                            {commentMentions.includes(u.id) && <Check className="h-3.5 w-3.5 ml-auto" />}
                           </button>
                         ))}
                       </PopoverContent>
