@@ -17,7 +17,9 @@ import { toast } from "sonner";
 import {
   ArrowLeft, ChevronLeft, ChevronRight, Calendar, Hash, MessageSquare, Image as ImageIcon,
   Check, FileEdit, AlertTriangle, Save, Upload, Sparkles, X, Trash2, Pencil, Copy, CheckCircle2,
+  Lock, Tag,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { Database } from "@/integrations/supabase/types";
 import { getContentCategory } from "@/lib/workflowUtils";
 import { compressImage } from "@/lib/imageUtils";
@@ -61,6 +63,8 @@ export default function PostDetail() {
   })();
 
   const [commentText, setCommentText] = useState("");
+  const [commentIsInternal, setCommentIsInternal] = useState(false);
+  const [commentMentions, setCommentMentions] = useState<string[]>([]);
   const [internalNotes, setInternalNotes] = useState<string | null>(null);
   const [approvalDialog, setApprovalDialog] = useState<ApprovalType | null>(null);
   const [activePlatformTabState, setActivePlatformTab] = useState("");
@@ -186,13 +190,17 @@ export default function PostDetail() {
         post_id: postId!,
         user_id: profile.id,
         body: commentText,
-      });
+        is_internal: commentIsInternal,
+        mentions: commentMentions,
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["post-comments", postId] });
       setCommentText("");
-      toast.success("Comment added");
+      setCommentMentions([]);
+      setCommentIsInternal(false);
+      toast.success(commentIsInternal ? "Internal note added" : "Comment added");
     },
     onError: () => toast.error("Failed to add comment"),
   });
@@ -1138,43 +1146,131 @@ export default function PostDetail() {
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <MessageSquare className="h-4 w-4" />
-                Comments ({comments.length})
+                Comments ({comments.filter((c: any) => isSSRole || !c.is_internal).length})
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {comments.length === 0 && (
+              {comments.filter((c: any) => isSSRole || !c.is_internal).length === 0 && (
                 <p className="text-sm text-muted-foreground">No comments yet</p>
               )}
-              {comments.map((c: any) => (
-                <div key={c.id} className="flex gap-3">
-                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary shrink-0">
-                    {(c.users?.name || c.users?.email || "?")[0].toUpperCase()}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-sm font-medium">{c.users?.name || c.users?.email}</span>
-                      <span className="text-xs text-muted-foreground">{new Date(c.created_at).toLocaleString()}</span>
+              {comments
+                .filter((c: any) => isSSRole || !c.is_internal)
+                .map((c: any) => (
+                  <div
+                    key={c.id}
+                    className={cn(
+                      "flex gap-3 rounded-lg p-2 -mx-2",
+                      c.is_internal && "bg-amber-50 border border-amber-200"
+                    )}
+                  >
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary shrink-0">
+                      {(c.users?.name || c.users?.email || "?")[0].toUpperCase()}
                     </div>
-                    <p className="text-sm text-foreground mt-1">{c.body}</p>
+                    <div className="flex-1">
+                      <div className="flex items-baseline gap-2 flex-wrap">
+                        <span className="text-sm font-medium">{c.users?.name || c.users?.email}</span>
+                        {c.is_internal && (
+                          <span className="inline-flex items-center gap-1 text-xs text-amber-700 font-medium">
+                            <Lock className="h-3 w-3" /> Internal
+                          </span>
+                        )}
+                        {c.mentions?.length > 0 && (
+                          <span className="text-xs text-primary font-medium">
+                            → {c.mentions.map((id: string) => {
+                              const u = ssUsers.find((u: any) => u.id === id);
+                              return u?.name || u?.email || id;
+                            }).join(", ")}
+                          </span>
+                        )}
+                        <span className="text-xs text-muted-foreground">{new Date(c.created_at).toLocaleString()}</span>
+                      </div>
+                      <p className="text-sm text-foreground mt-1">{c.body}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
               <Separator />
-              <div className="flex gap-2">
-                <Textarea
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  placeholder="Write a comment..."
-                  className="min-h-[60px]"
-                />
-                <Button
-                  onClick={() => addComment.mutate()}
-                  disabled={!commentText.trim() || addComment.isPending}
-                  size="sm"
-                  className="self-end"
-                >
-                  Send
-                </Button>
+              {/* Comment composer */}
+              <div className="space-y-2">
+                {isSSRole && (
+                  <div className="flex items-center gap-3">
+                    {/* Internal / Comment toggle */}
+                    <div className="flex rounded-md border overflow-hidden text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setCommentIsInternal(false)}
+                        className={cn(
+                          "px-3 py-1.5 font-medium transition-colors",
+                          !commentIsInternal ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"
+                        )}
+                      >
+                        Comment
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCommentIsInternal(true)}
+                        className={cn(
+                          "px-3 py-1.5 font-medium transition-colors flex items-center gap-1",
+                          commentIsInternal ? "bg-amber-500 text-white" : "bg-background text-muted-foreground hover:bg-muted"
+                        )}
+                      >
+                        <Lock className="h-3 w-3" /> Internal
+                      </button>
+                    </div>
+                    {/* Tag someone */}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
+                          <Tag className="h-3 w-3" />
+                          {commentMentions.length > 0
+                            ? commentMentions.map((id) => {
+                                const u = ssUsers.find((u: any) => u.id === id);
+                                return u?.name || u?.email || "?";
+                              }).join(", ")
+                            : "Tag someone"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-52 p-1" align="start">
+                        {ssUsers.filter((u: any) => u?.id && u.id !== profile?.id).map((u: any) => (
+                          <button
+                            key={u.id}
+                            type="button"
+                            onClick={() =>
+                              setCommentMentions((prev) =>
+                                prev.includes(u.id) ? prev.filter((id) => id !== u.id) : [...prev, u.id]
+                              )
+                            }
+                            className={cn(
+                              "w-full text-left px-2 py-1.5 rounded text-sm hover:bg-muted flex items-center justify-between",
+                              commentMentions.includes(u.id) && "font-medium text-primary"
+                            )}
+                          >
+                            {u.name || u.email}
+                            {commentMentions.includes(u.id) && <Check className="h-3.5 w-3.5" />}
+                          </button>
+                        ))}
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <Textarea
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    placeholder={commentIsInternal ? "Internal note (team only)..." : "Write a comment..."}
+                    className={cn("min-h-[60px]", commentIsInternal && "border-amber-300 bg-amber-50/50")}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) addComment.mutate();
+                    }}
+                  />
+                  <Button
+                    onClick={() => addComment.mutate()}
+                    disabled={!commentText.trim() || addComment.isPending}
+                    size="sm"
+                    className="self-end"
+                  >
+                    Send
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
