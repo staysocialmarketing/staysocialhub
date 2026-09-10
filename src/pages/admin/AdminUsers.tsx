@@ -225,9 +225,9 @@ export default function AdminUsers() {
     const { data, error } = await supabase.functions.invoke("admin-users", { body });
     if (error) {
       // supabase-js hides the function's JSON body on non-2xx; try to surface it.
-      const ctx = (error as any)?.context;
+      const ctx = (error as { context?: Response }).context;
       let message = error.message;
-      try { const j = await ctx?.json?.(); if (j?.error) message = j.error; } catch { /* keep message */ }
+      try { const j = await ctx?.json(); if (j?.error) message = j.error; } catch { /* keep message */ }
       throw new Error(message);
     }
     if (data && data.success === false) throw new Error(data.error || "Request failed");
@@ -242,7 +242,7 @@ export default function AdminUsers() {
       toast.success("User updated");
       setDraft(null);
     },
-    onError: (err: any) => toast.error(err.message || "Failed to update user"),
+    onError: (err: Error) => toast.error(err.message || "Failed to update user"),
   });
 
   const deleteUser = useMutation({
@@ -253,7 +253,7 @@ export default function AdminUsers() {
       toast.success("User deleted");
       setDeleteTarget(null);
     },
-    onError: (err: any) => toast.error(err.message || "Failed to delete user"),
+    onError: (err: Error) => toast.error(err.message || "Failed to delete user"),
   });
 
   const headerProps = {
