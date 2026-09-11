@@ -6,7 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Plus, X, Building2, Globe, Trash2, Clock, AlertCircle } from "lucide-react";
+import { Users, Plus, X, Building2, Globe, Trash2, Clock, AlertCircle, Pencil, Check } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -36,12 +40,99 @@ const roleLabels: Record<AppRole, string> = {
   client_assistant: "Client Assistant",
 };
 
+type HubUser = { id: string; name: string | null; email: string; created_at?: string | null };
+type EditDraft = { id: string; name: string; email: string };
+
+/** Avatar + name + email, or the inline edit form, plus the edit/delete controls. */
+function UserHeader({ u, pending, canManage, draft, setDraft, onSave, saving, onDelete }: {
+  u: HubUser;
+  pending: boolean;
+  canManage: boolean;
+  draft: EditDraft | null;
+  setDraft: (d: EditDraft | null) => void;
+  onSave: (d: EditDraft) => void;
+  saving: boolean;
+  onDelete: (u: HubUser) => void;
+}) {
+  const editing = draft?.id === u.id;
+  const avatar = pending
+    ? "h-9 w-9 rounded-xl bg-orange-500/20 flex items-center justify-center text-sm font-semibold text-orange-400"
+    : "h-9 w-9 rounded-xl bg-muted flex items-center justify-center text-sm font-semibold text-foreground";
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className={avatar}>{(u.name || u.email || "?")[0].toUpperCase()}</div>
+        {editing && draft ? (
+          <form
+            className="flex flex-wrap items-center gap-2"
+            onSubmit={(e) => { e.preventDefault(); onSave(draft); }}
+          >
+            <Input
+              value={draft.name}
+              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+              placeholder="Name"
+              className="h-8 w-44 text-sm rounded-lg"
+              autoFocus
+            />
+            <Input
+              type="email"
+              value={draft.email}
+              onChange={(e) => setDraft({ ...draft, email: e.target.value })}
+              placeholder="Email"
+              className="h-8 w-56 text-sm rounded-lg"
+            />
+            <Button type="submit" size="sm" className="h-8 px-3 text-xs rounded-lg" disabled={saving || !draft.email.trim()}>
+              <Check className="h-3 w-3 mr-1" />{saving ? "Saving…" : "Save"}
+            </Button>
+            <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs rounded-lg" onClick={() => setDraft(null)} disabled={saving}>
+              Cancel
+            </Button>
+          </form>
+        ) : (
+          <div className="min-w-0">
+            <h4 className="font-semibold text-foreground text-sm truncate">{u.name || u.email}</h4>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="truncate">{u.email}</span>
+              {pending && u.created_at && (
+                <>
+                  <span>·</span>
+                  <Clock className="h-3 w-3" />
+                  <span>joined {timeAgo(u.created_at)}</span>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+      {canManage && !editing && (
+        <div className="flex items-center gap-1 shrink-0">
+          <Button
+            variant="ghost" size="sm" className="h-7 w-7 p-0 rounded-lg" aria-label={`Edit ${u.email}`}
+            onClick={() => setDraft({ id: u.id, name: u.name || "", email: u.email })}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost" size="sm" className="h-7 w-7 p-0 rounded-lg hover:text-destructive" aria-label={`Delete ${u.email}`}
+            onClick={() => onDelete(u)}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminUsers() {
   const queryClient = useQueryClient();
   const { isSSAdmin, isSSManager } = useAuth();
   const canManageUsers = isSSAdmin || isSSManager;
   const [addingRoleFor, setAddingRoleFor] = useState<string | null>(null);
   const [newDomain, setNewDomain] = useState("");
+  const [draft, setDraft] = useState<EditDraft | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<HubUser | null>(null);
+  const { user: me } = useAuth();
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["admin-users"],
@@ -130,6 +221,49 @@ export default function AdminUsers() {
     onError: (err: any) => toast.error(err.message || "Failed to remove role"),
   });
 
+  const invokeAdmin = async (body: Record<string, unknown>) => {
+    const { data, error } = await supabase.functions.invoke("admin-users", { body });
+    if (error) {
+      // supabase-js hides the function's JSON body on non-2xx; try to surface it.
+      const ctx = (error as { context?: Response }).context;
+      let message = error.message;
+      try { const j = await ctx?.json(); if (j?.error) message = j.error; } catch { /* keep message */ }
+      throw new Error(message);
+    }
+    if (data && data.success === false) throw new Error(data.error || "Request failed");
+    return data;
+  };
+
+  const updateUser = useMutation({
+    mutationFn: (d: EditDraft) => invokeAdmin({ action: "update", user_id: d.id, name: d.name, email: d.email }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      queryClient.invalidateQueries({ queryKey: ["sidebar-users"] });
+      toast.success("User updated");
+      setDraft(null);
+    },
+    onError: (err: Error) => toast.error(err.message || "Failed to update user"),
+  });
+
+  const deleteUser = useMutation({
+    mutationFn: (userId: string) => invokeAdmin({ action: "delete", user_id: userId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      queryClient.invalidateQueries({ queryKey: ["sidebar-users"] });
+      toast.success("User deleted");
+      setDeleteTarget(null);
+    },
+    onError: (err: Error) => toast.error(err.message || "Failed to delete user"),
+  });
+
+  const headerProps = {
+    canManage: canManageUsers,
+    draft, setDraft,
+    onSave: (d: EditDraft) => updateUser.mutate(d),
+    saving: updateUser.isPending,
+    onDelete: (u: HubUser) => setDeleteTarget(u),
+  };
+
   const updateClient = useMutation({
     mutationFn: async ({ userId, clientId }: { userId: string; clientId: string | null }) => {
       const { error } = await supabase.from("users").update({ client_id: clientId }).eq("id", userId);
@@ -209,26 +343,7 @@ export default function AdminUsers() {
             const availableRoles = ALL_ROLES;
             return (
               <div key={u.id} className="px-5 py-4 space-y-3 border-b border-orange-500/10 last:border-0 hover:bg-orange-500/5 transition-colors">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-xl bg-orange-500/20 flex items-center justify-center text-sm font-semibold text-orange-400">
-                      {(u.name || u.email || "?")[0].toUpperCase()}
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-foreground text-sm">{u.name || u.email}</h4>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{u.email}</span>
-                        {u.created_at && (
-                          <>
-                            <span>·</span>
-                            <Clock className="h-3 w-3" />
-                            <span>joined {timeAgo(u.created_at)}</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <UserHeader u={u} pending {...headerProps} />
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs text-orange-400/70">No role —</span>
                   {canManageUsers && addingRoleFor === u.id ? (
@@ -289,17 +404,7 @@ export default function AdminUsers() {
 
             return (
               <div key={u.id} className="px-5 py-4 space-y-3 hover:bg-muted/10 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-xl bg-muted flex items-center justify-center text-sm font-semibold text-foreground">
-                      {(u.name || u.email || "?")[0].toUpperCase()}
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-foreground text-sm">{u.name || u.email}</h4>
-                      <p className="text-xs text-muted-foreground">{u.email}</p>
-                    </div>
-                  </div>
-                </div>
+                <UserHeader u={u} pending={false} {...headerProps} />
 
                 <div className="flex flex-wrap items-center gap-1.5">
                   {(u.user_roles || []).map((r: any) => (
@@ -365,6 +470,26 @@ export default function AdminUsers() {
           })}
         </div>
       )}
+          <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {deleteTarget?.name || deleteTarget?.email}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes their sign-in, their roles, and anything they created in the HUB (posts, tasks, comments). They can sign up again later if their email domain is allowed. This can't be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteUser.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteUser.isPending || deleteTarget?.id === me?.id}
+              onClick={(e) => { e.preventDefault(); if (deleteTarget) deleteUser.mutate(deleteTarget.id); }}
+            >
+              {deleteUser.isPending ? "Deleting…" : "Delete user"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
