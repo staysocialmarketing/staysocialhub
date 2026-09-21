@@ -621,7 +621,7 @@ export default function Workflow() {
               new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
             );
             return (
-              <div key={col.key} className="w-[260px] sm:w-[280px] shrink-0 flex flex-col bg-muted/30 rounded-2xl" onDrop={e => handleDrop(e, col.key)} onDragOver={handleDragOver}>
+              <div key={col.key} className="w-[260px] sm:w-[280px] shrink-0 flex flex-col bg-muted/15 rounded-2xl" onDrop={e => handleDrop(e, col.key)} onDragOver={handleDragOver}>
                 <div className="px-4 py-3 flex items-center justify-between">
                   <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">{col.label}</h3>
                   <Badge variant="secondary" className="text-[10px] h-5 min-w-[20px] justify-center">{columnPosts.length}</Badge>
