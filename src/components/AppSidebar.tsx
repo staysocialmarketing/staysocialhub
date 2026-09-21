@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import markLogo from "@/assets/mark-dark.svg";
+import lockupLogo from "@/assets/lockup-dark.svg";
 import {
   CalendarDays,
   LayoutDashboard,
@@ -219,19 +220,14 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
-        <div className="flex items-center gap-2.5">
-          <img
-            src={markLogo}
-            alt="Stay Social"
-            className="h-7 w-7 shrink-0 object-contain"
-          />
-          {!collapsed && (
-            <div className="flex flex-col min-w-0">
-              <span className="text-sm font-bold text-sidebar-foreground tracking-tight truncate">Stay Social</span>
-              <span className="text-[10px] text-sidebar-foreground/50 font-medium uppercase tracking-widest truncate">Client HUB</span>
-            </div>
-          )}
-        </div>
+        {collapsed ? (
+          <img src={markLogo} alt="Stay Social" className="h-7 w-7 shrink-0 object-contain" />
+        ) : (
+          <div className="flex flex-col gap-1.5 min-w-0">
+            <img src={lockupLogo} alt="Stay Social" className="h-7 w-auto self-start object-contain" />
+            <span className="text-[10px] text-sidebar-foreground/50 font-medium uppercase tracking-widest truncate pl-0.5">Client HUB</span>
+          </div>
+        )}
       </SidebarHeader>
 
       {canViewAs && !collapsed && (
