@@ -59,8 +59,8 @@ function buildEmail(opts: {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${subject}</title>
 </head>
-<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:32px 16px;">
+<body style="margin:0;padding:0;background:#f2ebdd;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f2ebdd;padding:32px 16px;">
     <tr>
       <td align="center">
         <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
@@ -68,7 +68,7 @@ function buildEmail(opts: {
           <!-- Header -->
           <tr>
             <td style="background:#0f0f0f;border-radius:16px 16px 0 0;padding:24px 32px;text-align:center;">
-              <p style="margin:0;color:#ff6b35;font-size:22px;font-weight:700;letter-spacing:-0.5px;">
+              <p style="margin:0;color:#1f8a8a;font-size:22px;font-weight:700;letter-spacing:-0.5px;">
                 Stay Social
               </p>
               <p style="margin:4px 0 0;color:#6b7280;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:2px;">
@@ -80,7 +80,7 @@ function buildEmail(opts: {
           <!-- Body -->
           <tr>
             <td style="background:#ffffff;padding:32px;border-left:1px solid #e5e7eb;border-right:1px solid #e5e7eb;">
-              <p style="margin:0 0 20px;color:#111827;font-size:18px;font-weight:600;">
+              <p style="margin:0 0 20px;color:#1a2733;font-size:18px;font-weight:600;">
                 Hello ${safeClientName},
               </p>
 
@@ -98,13 +98,13 @@ function buildEmail(opts: {
               <!-- CTA -->
               <div style="text-align:center;">
                 <a href="${approvalUrl}"
-                   style="display:inline-block;background:#ff6b35;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:10px;">
+                   style="display:inline-block;background:#1f8a8a;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:10px;">
                   Review &amp; Approve Content &rarr;
                 </a>
               </div>
 
               <p style="margin:28px 0 0;color:#9ca3af;font-size:13px;line-height:1.5;text-align:center;">
-                Or visit <a href="${approvalUrl}" style="color:#ff6b35;text-decoration:none;">${APP_URL}</a> and sign in to your account.
+                Or visit <a href="${approvalUrl}" style="color:#1f8a8a;text-decoration:none;">${APP_URL}</a> and sign in to your account.
               </p>
             </td>
           </tr>

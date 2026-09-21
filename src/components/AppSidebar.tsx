@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import orangeLogo from "@/assets/orange_with_black.png";
+import lockupLogo from "@/assets/lockup-dark.svg";
+import markLogo from "@/assets/mark-dark.svg";
 import {
   CalendarDays,
   LayoutDashboard,
@@ -202,7 +203,7 @@ export function AppSidebar() {
                   <span className="flex-1 flex items-center justify-between gap-1 min-w-0">
                     <span>{item.title}</span>
                     {badge ? (
-                      <span className="text-[9px] font-bold leading-none px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-400">
+                      <span className="text-[9px] font-bold leading-none px-1.5 py-0.5 rounded-full bg-sidebar-primary/20 text-sidebar-primary">
                         {badge}
                       </span>
                     ) : null}
@@ -221,12 +222,9 @@ export function AppSidebar() {
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2.5">
           <img
-            src={orangeLogo}
+            src={collapsed ? markLogo : lockupLogo}
             alt="Stay Social"
-            className={cn(
-              "rounded-xl shrink-0",
-              collapsed ? "h-8 w-8 object-cover" : "h-8 w-auto object-contain"
-            )}
+            className={cn("shrink-0", collapsed ? "h-8 w-8 object-contain" : "h-7 w-auto object-contain")}
           />
           {!collapsed && (
             <div className="flex flex-col min-w-0">

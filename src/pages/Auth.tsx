@@ -1,4 +1,4 @@
-import whiteLogo from "@/assets/white_with_orange.png";
+import whiteLogo from "@/assets/lockup-dark.svg";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,7 +55,7 @@ export default function Auth() {
       className="min-h-screen flex items-center justify-center relative overflow-hidden"
       style={{
         background:
-          "radial-gradient(ellipse 60% 25% at 50% 0%, hsl(19 80% 10% / 0.7) 0%, transparent 70%), linear-gradient(180deg, hsl(220 30% 5%) 0%, hsl(220 35% 3%) 100%)",
+          "radial-gradient(ellipse 60% 30% at 50% 0%, hsl(177 48% 30% / 0.45) 0%, transparent 70%), linear-gradient(180deg, hsl(209 32% 15%) 0%, hsl(204 29% 7%) 100%)",
       }}
     >
       {/* Starfield dots */}
@@ -81,7 +81,7 @@ export default function Auth() {
           <img
             src={whiteLogo}
             alt="Stay Social"
-            className="h-28 w-auto object-contain mx-auto mb-6"
+            className="h-14 w-auto object-contain mx-auto mb-8"
           />
           <h1 className="text-4xl font-bold text-white tracking-tight font-sans">
             Stay Social <span className="text-primary">HUB</span>

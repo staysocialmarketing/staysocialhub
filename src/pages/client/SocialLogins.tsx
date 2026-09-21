@@ -173,7 +173,7 @@ export default function SocialLogins() {
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
       {/* Header */}
       <div className="flex items-start gap-4">
-        <div className="p-3 rounded-xl bg-orange-50 text-orange-500 shrink-0">
+        <div className="p-3 rounded-xl bg-accent text-accent-foreground shrink-0">
           <Lock className="h-6 w-6" />
         </div>
         <div>
