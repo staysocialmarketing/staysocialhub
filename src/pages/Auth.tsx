@@ -1,4 +1,4 @@
-import whiteLogo from "@/assets/lockup-dark.svg";
+import whiteLogo from "@/assets/mark-dark.svg";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -81,7 +81,7 @@ export default function Auth() {
           <img
             src={whiteLogo}
             alt="Stay Social"
-            className="h-14 w-auto object-contain mx-auto mb-8"
+            className="h-12 w-12 object-contain mx-auto mb-6"
           />
           <h1 className="text-4xl font-bold text-white tracking-tight font-sans">
             Stay Social <span className="text-primary">HUB</span>

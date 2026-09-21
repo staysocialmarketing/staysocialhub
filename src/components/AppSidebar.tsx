@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import lockupLogo from "@/assets/lockup-dark.svg";
 import markLogo from "@/assets/mark-dark.svg";
 import {
   CalendarDays,
@@ -222,9 +221,9 @@ export function AppSidebar() {
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2.5">
           <img
-            src={collapsed ? markLogo : lockupLogo}
+            src={markLogo}
             alt="Stay Social"
-            className={cn("shrink-0", collapsed ? "h-8 w-8 object-contain" : "h-7 w-auto object-contain")}
+            className="h-7 w-7 shrink-0 object-contain"
           />
           {!collapsed && (
             <div className="flex flex-col min-w-0">
