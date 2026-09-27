@@ -1,21 +1,10 @@
--- Fix: migration 20260826150000 used invalid hex chars in agent UUIDs.
--- UUIDs are hex-only (0-9, a-f). 'q' and 's' are invalid.
--- This migration uses the correct UUIDs and re-inserts cleanly.
+-- Agent accounts for Lev, Forge, Quill and Scout with stable hex UUIDs, so notification
+-- routing is deterministic. The ss_agent enum value comes from 20260826150000; the original
+-- draft of that file used non-hex UUIDs ('q', 's'), which is why the rows are created here.
 
--- Remove any partial inserts from the broken migration (safe — ON CONFLICT handles doubles)
-DELETE FROM public.user_roles WHERE user_id IN (
-  '00000000-0000-0000-0000-000000000f02',
-  '00000000-0000-0000-0000-000000000q17',
-  '00000000-0000-0000-0000-000000000s03',
-  '00000000-0000-0000-0000-000000000001'
-) AND role = 'ss_agent';
-
-DELETE FROM public.users WHERE id IN (
-  '00000000-0000-0000-0000-000000000f02',
-  '00000000-0000-0000-0000-000000000q17',
-  '00000000-0000-0000-0000-000000000s03',
-  '00000000-0000-0000-0000-000000000001'
-);
+-- Remove the one row the original draft could have created under its old id.
+DELETE FROM public.user_roles WHERE user_id = '00000000-0000-0000-0000-000000000f02' AND role = 'ss_agent';
+DELETE FROM public.users WHERE id = '00000000-0000-0000-0000-000000000f02';
 
 -- Insert with valid hex UUIDs
 INSERT INTO public.users (id, name, email)
