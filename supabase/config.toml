@@ -26,3 +26,5 @@ verify_jwt = false
 
 [functions.extract-meeting-data]
 verify_jwt = false
+[functions.inbound-comment-reply]
+verify_jwt = false
