@@ -122,6 +122,22 @@ export default function PostDetail() {
     enabled: !!postId,
   });
 
+  // The client's own users, so the team can tag them and they get the comment email.
+  const { data: clientUsers = [] } = useQuery({
+    queryKey: ["client-users", post?.client_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, name, email")
+        .eq("client_id", post!.client_id);
+      if (error) return [];
+      return (data || []).map((u: any) => ({ ...u, isClient: true }));
+    },
+    enabled: isSSRole && !!post?.client_id,
+  });
+  const taggable = [...ssUsers, ...clientUsers];
+
+
   // Fetch versions
   const { data: versions = [] } = useQuery({
     queryKey: ["post-versions", postId],
@@ -186,14 +202,26 @@ export default function PostDetail() {
   const addComment = useMutation({
     mutationFn: async () => {
       if (!profile) throw new Error("Not logged in");
-      const { error } = await supabase.from("comments").insert({
-        post_id: postId!,
-        user_id: profile.id,
-        body: commentText,
-        is_internal: commentIsInternal,
-        mentions: commentMentions,
-      } as any);
+      const { data: inserted, error } = await supabase
+        .from("comments")
+        .insert({
+          post_id: postId!,
+          user_id: profile.id,
+          body: commentText,
+          is_internal: commentIsInternal,
+          mentions: commentMentions,
+        } as any)
+        .select("id")
+        .single();
       if (error) throw error;
+      // Email the client (or the team, when a client wrote it). Never blocks the comment.
+      if (inserted?.id && (!commentIsInternal || commentMentions.length > 0)) {
+        supabase.functions
+          .invoke("send-comment-email", { body: { comment_id: inserted.id } })
+          .then(({ error: fnError }) => {
+            if (fnError) console.warn("Comment email failed (non-blocking):", fnError);
+          });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["post-comments", postId] });
@@ -1177,7 +1205,7 @@ export default function PostDetail() {
                         {c.mentions?.length > 0 && (
                           <span className="text-xs text-primary font-medium">
                             → {c.mentions.map((id: string) => {
-                              const u = ssUsers.find((u: any) => u.id === id);
+                              const u = taggable.find((u: any) => u.id === id);
                               return u?.name || u?.email || id;
                             }).join(", ")}
                           </span>
@@ -1223,7 +1251,7 @@ export default function PostDetail() {
                           <Tag className="h-3 w-3" />
                           {commentMentions.length > 0
                             ? commentMentions.map((id) => {
-                                const u = ssUsers.find((u: any) => u.id === id);
+                                const u = taggable.find((u: any) => u.id === id);
                                 return u?.name || u?.email || "?";
                               }).join(", ")
                             : "Tag someone"}
@@ -1234,6 +1262,7 @@ export default function PostDetail() {
                         {[
                           ...ssUsers.filter((u: any) => u?.isAgent),
                           ...ssUsers.filter((u: any) => !u?.isAgent),
+                          ...clientUsers,
                         ].filter((u: any) => u?.id && u.id !== profile?.id).map((u: any) => (
                           <button
                             key={u.id}
@@ -1250,12 +1279,13 @@ export default function PostDetail() {
                           >
                             <span className={cn(
                               "h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0",
-                              u.isAgent ? "bg-violet-100 text-violet-700" : "bg-primary/10 text-primary"
+                              u.isAgent ? "bg-violet-100 text-violet-700" : u.isClient ? "bg-coral/15 text-coral" : "bg-primary/10 text-primary"
                             )}>
                               {u.isAgent ? "⚡" : (u.name || u.email || "?")[0].toUpperCase()}
                             </span>
                             <span className="flex-1">{u.name || u.email}</span>
                             {u.isAgent && <span className="text-[10px] text-violet-500 font-medium">AI</span>}
+                            {u.isClient && <span className="text-[10px] text-coral font-medium">Client</span>}
                             {commentMentions.includes(u.id) && <Check className="h-3.5 w-3.5 ml-auto" />}
                           </button>
                         ))}

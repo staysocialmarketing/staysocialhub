@@ -1,27 +1,7 @@
--- Add ss_agent role and create agent user accounts for Forge, Quill, Scout, Lev.
--- Agents appear in HUB's tag/mention selectors with a distinct role.
--- They do NOT have auth.users entries — system accounts only.
-
--- 1. Add ss_agent to the app_role enum
+-- Add the ss_agent role. Agents appear in HUB's tag/mention selectors with a distinct role
+-- and have no auth.users entries; they are system accounts only.
+--
+-- Only the enum value lives here. Postgres will not let a migration add an enum value and
+-- use it in the same transaction, and the original agent rows in this file used non-hex
+-- UUIDs, so the accounts are created in 20260826170000_fix_agent_uuids.sql instead.
 ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'ss_agent';
-
--- 2. Insert agent profiles into public.users
---    Stable UUIDs so notification routing is deterministic.
-INSERT INTO public.users (id, name, email)
-VALUES
-  ('00000000-0000-0000-0000-000000000f02', 'Forge',  'forge@staysocial.ca'),
-  ('00000000-0000-0000-0000-000000000q17', 'Quill',  'quill@staysocial.ca'),
-  ('00000000-0000-0000-0000-000000000s03', 'Scout',  'scout@staysocial.ca'),
-  ('00000000-0000-0000-0000-000000000001', 'Lev',    'lev@staysocial.ca')
-ON CONFLICT (id) DO UPDATE SET
-  name  = EXCLUDED.name,
-  email = EXCLUDED.email;
-
--- 3. Grant each agent the ss_agent role
-INSERT INTO public.user_roles (user_id, role)
-VALUES
-  ('00000000-0000-0000-0000-000000000f02', 'ss_agent'),
-  ('00000000-0000-0000-0000-000000000q17', 'ss_agent'),
-  ('00000000-0000-0000-0000-000000000s03', 'ss_agent'),
-  ('00000000-0000-0000-0000-000000000001', 'ss_agent')
-ON CONFLICT (user_id, role) DO NOTHING;

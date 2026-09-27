@@ -1,12 +1,27 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+/**
+ * send-comment-email
+ *
+ * Emails the people who need to see a new comment on a post, in the Harbour brand.
+ * Called from the app right after a comment is inserted: { comment_id }.
+ * Also accepts the legacy trigger payload (same comment_id field).
+ *
+ * Who gets it:
+ *  - anyone tagged on the comment (except AI agents, who go through Telegram)
+ *  - the client's users, when the comment is not an internal note
+ *  - the Stay Social admins plus the post's assignee and reviewer, when a client wrote it
+ * Never the author. A notification_preferences row with email_enabled = false opts out;
+ * no row means on. comments.email_sent_at is claimed first so nothing sends twice.
+ */
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 const APP_URL = "https://hub.staysocial.ca";
+const SS_ROLES = ["ss_admin", "ss_team", "ss_producer", "ss_ops", "ss_manager"];
 
 function escapeHtml(str: string): string {
   return str
@@ -17,19 +32,70 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#x27;");
 }
 
-function buildCommentEmail(opts: {
-  commenterName: string;
-  commentBody: string;
-  postTitle: string;
-  postId: string;
-}): { subject: string; html: string } {
-  const { commenterName, commentBody, postTitle, postId } = opts;
-  const safeCommenter = escapeHtml(commenterName);
-  const safeBody = escapeHtml(commentBody);
-  const safeTitle = escapeHtml(postTitle);
-  const postUrl = `${APP_URL}/pipeline/${postId}`;
+function firstName(name: string | null | undefined, email: string): string {
+  const n = (name || "").trim();
+  if (n && !n.includes("@")) return n.split(/\s+/)[0];
+  return email.split("@")[0];
+}
 
-  const subject = `New comment on "${postTitle}" — Stay Social HUB`;
+function formatDate(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return new Intl.DateTimeFormat("en-CA", {
+    weekday: "long", month: "long", day: "numeric", timeZone: "America/Halifax",
+  }).format(d);
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  client_approval: "Waiting for your approval",
+  request_changes: "Changes requested",
+  approved: "Approved",
+  scheduled: "Scheduled",
+  published: "Published",
+};
+
+export function buildEmail(opts: {
+  recipientFirst: string;
+  reason: "mention" | "client" | "team";
+  authorName: string;
+  authorIsClient: boolean;
+  body: string;
+  postId: string;
+  postTitle: string;
+  clientName: string | null;
+  scheduledAt: string | null;
+  status: string | null;
+  isInternal: boolean;
+}): { subject: string; html: string; text: string } {
+  const title = opts.postTitle || "Untitled post";
+  const when = formatDate(opts.scheduledAt);
+  const status = opts.status ? STATUS_LABEL[opts.status] || null : null;
+  const postUrl = `${APP_URL}/pipeline/${opts.postId}`;
+
+  const subject =
+    opts.reason === "mention"
+      ? `${opts.authorName} tagged you on "${title}"`
+      : `${opts.authorName} commented on "${title}"`;
+
+  const lead =
+    opts.reason === "mention"
+      ? `${opts.authorName} tagged you in a comment on this post.`
+      : opts.reason === "team"
+        ? `${opts.authorName} left a note on ${opts.authorIsClient ? "their" : opts.clientName ? `${opts.clientName}'s` : "a client"} post.`
+        : `${opts.authorName} left a comment on your post.`;
+
+  const button = opts.authorIsClient ? "Open the post" : "Reply or update the post";
+
+  const metaRows: string[] = [];
+  if (opts.clientName && opts.reason !== "client") metaRows.push(`<strong>Client</strong> ${escapeHtml(opts.clientName)}`);
+  if (when) metaRows.push(`<strong>Scheduled</strong> ${escapeHtml(when)}`);
+  if (status) metaRows.push(`<strong>Status</strong> ${escapeHtml(status)}`);
+  if (opts.isInternal) metaRows.push(`<strong>Internal note</strong> not visible to the client`);
+
+  const meta = metaRows.length
+    ? `<p style="margin:0 0 20px;color:#4a5560;font-size:14px;line-height:1.7;">${metaRows.join("<br />")}</p>`
+    : "";
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -38,64 +104,43 @@ function buildCommentEmail(opts: {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${escapeHtml(subject)}</title>
 </head>
-<body style="margin:0;padding:0;background:#f2ebdd;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<body style="margin:0;padding:0;background:#f2ebdd;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f2ebdd;padding:32px 16px;">
     <tr>
       <td align="center">
         <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
-
-          <!-- Header -->
           <tr>
-            <td style="background:#0f0f0f;border-radius:16px 16px 0 0;padding:24px 32px;text-align:center;">
-              <p style="margin:0;color:#1f8a8a;font-size:22px;font-weight:700;letter-spacing:-0.5px;">
-                Stay Social
-              </p>
-              <p style="margin:4px 0 0;color:#6b7280;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:2px;">
-                CLIENT HUB
-              </p>
+            <td style="background:#1a2733;border-radius:16px 16px 0 0;padding:22px 32px;">
+              <p style="margin:0;color:#f2ebdd;font-size:20px;font-weight:700;letter-spacing:-0.3px;">Stay Social</p>
+              <p style="margin:2px 0 0;color:#c9d1d6;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:2px;">Client HUB</p>
             </td>
           </tr>
-
-          <!-- Body -->
           <tr>
-            <td style="background:#ffffff;padding:32px;border-left:1px solid #e5e7eb;border-right:1px solid #e5e7eb;">
-              <p style="margin:0 0 20px;color:#1a2733;font-size:18px;font-weight:600;">
-                New Comment on "${safeTitle}"
-              </p>
-
-              <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6;">
-                <strong>${safeCommenter}</strong> left a comment:
-              </p>
-
-              <!-- Comment body -->
-              <div style="margin:0 0 28px;padding:16px 20px;background:#f3f4f6;border-radius:10px;border-left:4px solid #1f8a8a;">
-                <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;white-space:pre-wrap;">${safeBody}</p>
+            <td style="background:#ffffff;padding:32px;border-left:1px solid #ddd3be;border-right:1px solid #ddd3be;">
+              <p style="margin:0 0 6px;color:#176e6e;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;">New comment</p>
+              <p style="margin:0 0 18px;color:#1a2733;font-size:22px;font-weight:700;line-height:1.25;">${escapeHtml(title)}</p>
+              <p style="margin:0 0 16px;color:#1a2733;font-size:15px;line-height:1.6;">Hi ${escapeHtml(opts.recipientFirst)}, ${escapeHtml(lead)}</p>
+              ${meta}
+              <div style="margin:0 0 28px;padding:16px 20px;background:#f2ebdd;border-radius:10px;border-left:4px solid #1f8a8a;">
+                <p style="margin:0 0 6px;color:#176e6e;font-size:13px;font-weight:600;">${escapeHtml(opts.authorName)}</p>
+                <p style="margin:0;color:#1a2733;font-size:15px;line-height:1.6;white-space:pre-wrap;">${escapeHtml(opts.body)}</p>
               </div>
-
-              <!-- CTA -->
               <div style="text-align:center;">
-                <a href="${postUrl}"
-                   style="display:inline-block;background:#1f8a8a;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:10px;">
-                  View Post &amp; Reply →
-                </a>
+                <a href="${postUrl}" style="display:inline-block;background:#1f8a8a;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:10px;">${button}</a>
               </div>
-
-              <p style="margin:28px 0 0;color:#9ca3af;font-size:13px;line-height:1.5;text-align:center;">
-                Or visit <a href="${APP_URL}" style="color:#1f8a8a;text-decoration:none;">${APP_URL}</a> and sign in to your account.
+              <p style="margin:24px 0 0;color:#4a5560;font-size:13px;line-height:1.6;text-align:center;">
+                ${opts.reason === "team" ? "Reply in the HUB so the client sees it." : "Replies in the HUB reach us right away. Or just reply to this email and Corey will see it."}
               </p>
             </td>
           </tr>
-
-          <!-- Footer -->
           <tr>
-            <td style="background:#f3f4f6;border-radius:0 0 16px 16px;padding:20px 32px;text-align:center;border:1px solid #e5e7eb;border-top:0;">
-              <p style="margin:0;color:#9ca3af;font-size:12px;line-height:1.6;">
-                You're receiving this because you have email notifications enabled in the Stay Social HUB.<br />
-                To stop these emails, update your notification preferences in your profile settings.
+            <td style="background:#e9e0cd;border-radius:0 0 16px 16px;padding:18px 32px;text-align:center;border:1px solid #ddd3be;border-top:0;">
+              <p style="margin:0;color:#4a5560;font-size:12px;line-height:1.6;">
+                Stay Social, proudly Canadian. You get these when someone comments on your content in the HUB.<br />
+                To turn them off, change your notification preferences in your profile.
               </p>
             </td>
           </tr>
-
         </table>
       </td>
     </tr>
@@ -103,12 +148,24 @@ function buildCommentEmail(opts: {
 </body>
 </html>`;
 
-  return { subject, html };
+  const text = [
+    `Hi ${opts.recipientFirst}, ${lead}`,
+    ``,
+    `Post: ${title}`,
+    when ? `Scheduled: ${when}` : null,
+    status ? `Status: ${status}` : null,
+    ``,
+    `${opts.authorName} wrote:`,
+    opts.body,
+    ``,
+    `${button}: ${postUrl}`,
+  ].filter((l) => l !== null).join("\n");
+
+  return { subject, html, text };
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS")
-    return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), {
@@ -118,101 +175,138 @@ Deno.serve(async (req) => {
 
   try {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    const fromEmail =
-      Deno.env.get("RESEND_FROM_EMAIL") || "hello@staysocial.ca";
-
+    const fromEmail = Deno.env.get("RESEND_FROM_EMAIL") || "hello@staysocial.ca";
+    const replyTo = Deno.env.get("COMMENT_REPLY_TO") || "corey@staysocial.ca";
     if (!resendApiKey) return json({ error: "RESEND_API_KEY not configured" }, 500);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // This function is called by the database trigger via pg_net with service role key,
-    // or can be called directly with a valid auth header.
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
+    const authHeader = req.headers.get("Authorization") || "";
+    if (!authHeader.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
+    const token = authHeader.slice(7);
 
-    const serviceClient = createClient(supabaseUrl, serviceRoleKey);
+    const db = createClient(supabaseUrl, serviceRoleKey);
 
-    const {
-      comment_id,
-      post_id,
-      post_title,
-      commenter_name,
-      comment_body,
-      recipient_ids,
-    } = await req.json();
+    const payload = await req.json().catch(() => ({}));
+    const commentId: string | undefined = payload?.comment_id;
+    if (!commentId) return json({ error: "comment_id required" }, 400);
 
-    if (!post_id || !recipient_ids || recipient_ids.length === 0) {
-      return json({ ok: true, skipped: true, reason: "No recipients" });
+    // Who is calling: the service role (trigger or ops) or a signed-in user.
+    let callerId: string | null = null;
+    let callerIsStaff = false;
+    if (token !== serviceRoleKey) {
+      const asUser = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
+      const { data: userData } = await asUser.auth.getUser();
+      callerId = userData?.user?.id ?? null;
+      if (!callerId) return json({ error: "Unauthorized" }, 401);
+      const { data: callerRoles } = await db.from("user_roles").select("role").eq("user_id", callerId);
+      callerIsStaff = (callerRoles || []).some((r: any) => SS_ROLES.includes(r.role));
     }
 
-    // Check notification preferences — only send to users with email_enabled = true
-    const { data: prefs } = await serviceClient
+    const { data: comment, error: cErr } = await db
+      .from("comments")
+      .select("id, post_id, user_id, body, is_internal, mentions, email_sent_at")
+      .eq("id", commentId)
+      .maybeSingle();
+    if (cErr) return json({ error: cErr.message }, 500);
+    if (!comment || !comment.post_id) return json({ ok: true, skipped: true, reason: "Not a post comment" });
+    if (callerId && callerId !== comment.user_id && !callerIsStaff) return json({ error: "Forbidden" }, 403);
+
+    // Claim the send. If another call already claimed it, stop here.
+    const { data: claimed } = await db
+      .from("comments")
+      .update({ email_sent_at: new Date().toISOString() })
+      .eq("id", commentId)
+      .is("email_sent_at", null)
+      .select("id");
+    if (!claimed || claimed.length === 0) return json({ ok: true, skipped: true, reason: "Already sent" });
+
+    const { data: post } = await db
+      .from("posts")
+      .select("id, title, client_id, scheduled_at, status_column, assigned_to_user_id, reviewer_user_id, clients(name)")
+      .eq("id", comment.post_id)
+      .maybeSingle();
+    if (!post) return json({ ok: true, skipped: true, reason: "Post missing" });
+
+    const { data: author } = await db.from("users").select("id, name, email").eq("id", comment.user_id).maybeSingle();
+    const { data: authorRoles } = await db.from("user_roles").select("role").eq("user_id", comment.user_id);
+    const authorIsClient = !(authorRoles || []).some((r: any) => SS_ROLES.includes(r.role) || r.role === "ss_agent");
+    const authorName = author?.name || author?.email || "Someone at Stay Social";
+
+    // Recipients, with the reason they are getting it.
+    const reasons = new Map<string, "mention" | "client" | "team">();
+    const add = (id: string | null | undefined, reason: "mention" | "client" | "team") => {
+      if (!id || id === comment.user_id || reasons.has(id)) return;
+      reasons.set(id, reason);
+    };
+
+    const mentionIds: string[] = Array.isArray(comment.mentions) ? comment.mentions : [];
+    if (mentionIds.length) {
+      const { data: agentRoles } = await db.from("user_roles").select("user_id").eq("role", "ss_agent").in("user_id", mentionIds);
+      const agents = new Set((agentRoles || []).map((r: any) => r.user_id));
+      for (const id of mentionIds) if (!agents.has(id)) add(id, "mention");
+    }
+
+    if (!comment.is_internal && post.client_id) {
+      const { data: clientUsers } = await db.from("users").select("id").eq("client_id", post.client_id);
+      for (const u of clientUsers || []) add(u.id, "client");
+    }
+
+    if (authorIsClient) {
+      const { data: admins } = await db.from("user_roles").select("user_id").eq("role", "ss_admin");
+      for (const r of admins || []) add(r.user_id, "team");
+      add(post.assigned_to_user_id, "team");
+      add(post.reviewer_user_id, "team");
+    }
+
+    if (reasons.size === 0) return json({ ok: true, skipped: true, reason: "No recipients" });
+
+    const ids = Array.from(reasons.keys());
+    const { data: optedOut } = await db
       .from("notification_preferences")
-      .select("user_id, email_enabled")
-      .in("user_id", recipient_ids);
+      .select("user_id")
+      .in("user_id", ids)
+      .eq("email_enabled", false);
+    for (const r of optedOut || []) reasons.delete(r.user_id);
 
-    // Build a set of users who have explicitly enabled email
-    const emailEnabledUsers = new Set<string>();
-    if (prefs) {
-      for (const p of prefs) {
-        if ((p as any).email_enabled) {
-          emailEnabledUsers.add((p as any).user_id);
-        }
-      }
-    }
+    const { data: users } = await db.from("users").select("id, name, email").in("id", Array.from(reasons.keys()));
+    const recipients = (users || []).filter((u: any) => u.email && reasons.has(u.id));
+    if (recipients.length === 0) return json({ ok: true, skipped: true, reason: "No email addresses or all opted out" });
 
-    // If no one has email enabled, skip
-    if (emailEnabledUsers.size === 0) {
-      return json({ ok: true, skipped: true, reason: "No users with email enabled" });
-    }
-
-    // Get email addresses for enabled users
-    const { data: users } = await serviceClient
-      .from("users")
-      .select("id, email, name")
-      .in("id", Array.from(emailEnabledUsers));
-
-    const recipients = (users || []).filter((u: any) => u.email);
-
-    if (recipients.length === 0) {
-      return json({ ok: true, skipped: true, reason: "No valid email addresses" });
-    }
-
-    const { subject, html } = buildCommentEmail({
-      commenterName: commenter_name || "Someone",
-      commentBody: comment_body || "",
-      postTitle: post_title || "Untitled Post",
-      postId: post_id,
+    const clientName = (post as any).clients?.name ?? null;
+    const messages = recipients.map((u: any) => {
+      const { subject, html, text } = buildEmail({
+        recipientFirst: firstName(u.name, u.email),
+        reason: reasons.get(u.id)!,
+        authorName,
+        authorIsClient,
+        body: comment.body || "",
+        postId: post.id,
+        postTitle: post.title,
+        clientName,
+        scheduledAt: post.scheduled_at,
+        status: post.status_column,
+        isInternal: !!comment.is_internal,
+      });
+      return { from: `Stay Social <${fromEmail}>`, to: [u.email], reply_to: replyTo, subject, html, text };
     });
 
-    // Send via Resend
-    const resendRes = await fetch("https://api.resend.com/emails", {
+    const resendRes = await fetch("https://api.resend.com/emails/batch", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${resendApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: `Stay Social <${fromEmail}>`,
-        to: recipients.map((r: any) => r.email),
-        subject,
-        html,
-      }),
+      headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify(messages),
     });
-
     if (!resendRes.ok) {
       const errBody = await resendRes.text();
       console.error("Resend error:", errBody);
+      // Release the claim so a retry can send.
+      await db.from("comments").update({ email_sent_at: null }).eq("id", commentId);
       return json({ error: "Failed to send email", detail: errBody }, 500);
     }
 
-    const resendData = await resendRes.json();
-    return json({
-      ok: true,
-      email_id: resendData.id,
-      recipients: recipients.length,
-    });
+    return json({ ok: true, recipients: recipients.map((u: any) => ({ id: u.id, reason: reasons.get(u.id) })) });
   } catch (err) {
     console.error("send-comment-email error:", err);
     return json({ error: String(err) }, 500);
