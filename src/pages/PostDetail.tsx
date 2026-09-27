@@ -18,6 +18,7 @@ import {
   ArrowLeft, ChevronLeft, ChevronRight, Calendar, Hash, MessageSquare, Image as ImageIcon,
   Check, FileEdit, AlertTriangle, Save, Upload, Sparkles, X, Trash2, Pencil, Copy, CheckCircle2,
   Lock, Tag,
+  Mail,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { Database } from "@/integrations/supabase/types";
@@ -1200,6 +1201,11 @@ export default function PostDetail() {
                         {c.is_internal && (
                           <span className="inline-flex items-center gap-1 text-xs text-amber-700 font-medium">
                             <Lock className="h-3 w-3" /> Internal
+                          </span>
+                        )}
+                        {c.source === "email" && (
+                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                            <Mail className="h-3 w-3" /> via email
                           </span>
                         )}
                         {c.mentions?.length > 0 && (

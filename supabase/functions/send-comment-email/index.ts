@@ -13,6 +13,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
  *  - the Stay Social admins plus the post's assignee and reviewer, when a client wrote it
  * Never the author. A notification_preferences row with email_enabled = false opts out;
  * no row means on. comments.email_sent_at is claimed first so nothing sends twice.
+ *
+ * When COMMENT_REPLY_DOMAIN is set (replies.staysocial.ca), each email gets its own
+ * reply-to, reply+<token>@<domain>, and a reply to it becomes the person's comment on the
+ * post (see inbound-comment-reply). Without it, replies go to COMMENT_REPLY_TO.
  */
 
 const corsHeaders = {
@@ -67,6 +71,7 @@ export function buildEmail(opts: {
   scheduledAt: string | null;
   status: string | null;
   isInternal: boolean;
+  replyByEmail?: boolean;
 }): { subject: string; html: string; text: string } {
   const title = opts.postTitle || "Untitled post";
   const when = formatDate(opts.scheduledAt);
@@ -129,7 +134,9 @@ export function buildEmail(opts: {
                 <a href="${postUrl}" style="display:inline-block;background:#1f8a8a;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:10px;">${button}</a>
               </div>
               <p style="margin:24px 0 0;color:#4a5560;font-size:13px;line-height:1.6;text-align:center;">
-                ${opts.reason === "team" ? "Reply in the HUB so the client sees it." : "Replies in the HUB reach us right away. Or just reply to this email and Corey will see it."}
+                ${opts.replyByEmail
+                  ? "Or just reply to this email: your reply is added to the post for everyone on it."
+                  : opts.reason === "team" ? "Reply in the HUB so the client sees it." : "Replies in the HUB reach us right away. Or just reply to this email and Corey will see it."}
               </p>
             </td>
           </tr>
@@ -177,6 +184,7 @@ Deno.serve(async (req) => {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     const fromEmail = Deno.env.get("RESEND_FROM_EMAIL") || "hello@staysocial.ca";
     const replyTo = Deno.env.get("COMMENT_REPLY_TO") || "corey@staysocial.ca";
+    const replyDomain = (Deno.env.get("COMMENT_REPLY_DOMAIN") || "").trim().toLowerCase();
     if (!resendApiKey) return json({ error: "RESEND_API_KEY not configured" }, 500);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -276,6 +284,22 @@ Deno.serve(async (req) => {
     if (recipients.length === 0) return json({ ok: true, skipped: true, reason: "No email addresses or all opted out" });
 
     const clientName = (post as any).clients?.name ?? null;
+
+    // One reply token per recipient, so a reply lands on this post as that person.
+    const tokens = new Map<string, string>();
+    if (replyDomain) {
+      const rows = recipients.map((u: any) => {
+        const token = crypto.randomUUID().replace(/-/g, "");
+        tokens.set(u.id, token);
+        return { token, post_id: post.id, user_id: u.id, comment_id: comment.id };
+      });
+      const { error: tokErr } = await db.from("comment_reply_tokens").insert(rows);
+      if (tokErr) {
+        console.warn("reply token insert failed, falling back to plain reply-to:", tokErr.message);
+        tokens.clear();
+      }
+    }
+
     const messages = recipients.map((u: any) => {
       const { subject, html, text } = buildEmail({
         recipientFirst: firstName(u.name, u.email),
@@ -289,8 +313,11 @@ Deno.serve(async (req) => {
         scheduledAt: post.scheduled_at,
         status: post.status_column,
         isInternal: !!comment.is_internal,
+        replyByEmail: tokens.has(u.id),
       });
-      return { from: `Stay Social <${fromEmail}>`, to: [u.email], reply_to: replyTo, subject, html, text };
+      const token = tokens.get(u.id);
+      const reply = token ? `reply+${token}@${replyDomain}` : replyTo;
+      return { from: `Stay Social <${fromEmail}>`, to: [u.email], reply_to: reply, subject, html, text };
     });
 
     const resendRes = await fetch("https://api.resend.com/emails/batch", {
