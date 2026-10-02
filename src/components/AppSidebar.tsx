@@ -115,6 +115,7 @@ const clientContentSection = [
   { title: "Content Pipeline", url: "/pipeline", icon: CheckSquare },
   { title: "Calendar", url: "/calendar", icon: CalendarDays },
   { title: "Requests", url: "/requests", icon: MessageSquarePlus },
+  { title: "Design styles", url: "/client/design-styles", icon: Palette },
   { title: "My Media", url: "/content-library", icon: FolderOpen },
   { title: "Deliverables", url: "/deliverables", icon: Package },
 ];
