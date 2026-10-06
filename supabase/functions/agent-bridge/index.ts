@@ -10,6 +10,7 @@
  *   POST /update-post              — update post fields (title, caption, platform, content_type, scheduled_at, hashtags, notes, design_notes, design_prompts, platform_content)
  *   POST /tag-user                 — assign or set reviewer on a post
  *   POST /read-posts               — fetch posts for a client (with optional status filter)
+ *   POST /read-design-styles       — the design styles that are on for a client (defaults + overrides)
  *   GET  /list-clients             — return all clients (id, name)
  *   POST /update-doc               — upsert a doc row in agent_docs by key
  *   POST /create-task              — create a task
@@ -132,7 +133,7 @@ Deno.serve(async (req: Request) => {
 
   // Reject unknown GET routes
   if (req.method === "GET") {
-    return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /update-doc, POST /create-task, POST /read-tasks, POST /update-task-status, POST /create-project, POST /read-projects, POST /update-project, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item, POST /read-queue, POST /update-queue-item, POST /requeue-item, POST /read-playbook, POST /update-playbook, POST /upload-image, POST /delete-image, POST /delete-post`, 404);
+    return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /read-design-styles, POST /update-doc, POST /create-task, POST /read-tasks, POST /update-task-status, POST /create-project, POST /read-projects, POST /update-project, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item, POST /read-queue, POST /update-queue-item, POST /requeue-item, POST /read-playbook, POST /update-playbook, POST /upload-image, POST /delete-image, POST /delete-post`, 404);
   }
 
   // ── POST routes ───────────────────────────────────────────────────────────
@@ -347,6 +348,24 @@ Deno.serve(async (req: Request) => {
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    case "read-design-styles": {
+      // The looks that are on for a client: catalogue defaults with the client's overrides applied.
+      const { client_id } = body as { client_id?: string };
+      if (!client_id) return err("client_id is required");
+      const [{ data: catalogue, error: cErr }, { data: overrides, error: oErr }] = await Promise.all([
+        db.from("design_styles").select("key, name, tag, is_addon, credits, default_on, sort").eq("active", true).order("sort"),
+        db.from("client_design_styles").select("style_key, enabled, updated_at").eq("client_id", client_id),
+      ]);
+      if (cErr) return err(cErr.message, 500);
+      if (oErr) return err(oErr.message, 500);
+      const byKey = new Map((overrides ?? []).map((o: any) => [o.style_key, o]));
+      const styles = (catalogue ?? []).map((s: any) => {
+        const o = byKey.get(s.key);
+        return { ...s, enabled: o ? o.enabled : s.default_on, overridden: !!o, updated_at: o?.updated_at ?? null };
+      });
+      return json({ success: true, styles, enabled_keys: styles.filter((s: any) => s.enabled).map((s: any) => s.key) });
+    }
+
     case "read-posts": {
       const { client_id, status, limit } = body as {
         client_id?: string;

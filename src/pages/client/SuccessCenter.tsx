@@ -38,7 +38,7 @@ import { getWaveEmoji } from "@/lib/waveEmoji";
 import ClientResults from "@/components/ClientResults";
 import ClientOnboardingWizard from "@/components/ClientOnboardingWizard";
 
-export default function SuccessCenter() {
+export default function SuccessCenter({ embedded = false }: { embedded?: boolean } = {}) {
   const navigate = useNavigate();
   const { profile, isSSRole } = useAuth();
   const queryClient = useQueryClient();
@@ -231,9 +231,9 @@ export default function SuccessCenter() {
   );
 
   return (
-    <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
+    <div className={embedded ? "space-y-6" : "p-4 md:p-8 max-w-4xl mx-auto space-y-6"}>
       {/* Onboarding Wizard */}
-      {showWizard && !wizardDismissed && clientId && (
+      {!embedded && showWizard && !wizardDismissed && clientId && (
         <ClientOnboardingWizard
           open={true}
           onClose={() => setWizardDismissed(true)}
@@ -244,6 +244,7 @@ export default function SuccessCenter() {
       )}
 
       {/* 1. HERO — warm, borderless */}
+      {!embedded && (
       <div className="rounded-2xl bg-gradient-to-br from-primary/8 via-background to-accent/5 p-6 md:p-8">
         <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight mb-1">
           Welcome back, {clientData?.name || profile?.name || "there"} {getWaveEmoji(profile?.name)}
@@ -264,6 +265,7 @@ export default function SuccessCenter() {
           )}
         </div>
       </div>
+      )}
 
       {/* Tab navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>

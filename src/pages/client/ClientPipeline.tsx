@@ -177,7 +177,7 @@ export default function ClientPipeline() {
     <div className="flex flex-col h-full p-4 sm:p-6 gap-5">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground tracking-tight">Content Pipeline</h1>
+        <h1 className="text-2xl font-bold text-foreground tracking-tight">Approvals</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
           Your content, from brief to posted
         </p>

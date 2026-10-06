@@ -3,6 +3,7 @@ import { useState, useRef, useCallback, useMemo } from "react";
 import { SSAdminDashboard } from "@/components/dashboard/SSAdminDashboard";
 import DesignerDashboard from "@/components/dashboard/DesignerDashboard";
 import { useAuth } from "@/contexts/AuthContext";
+import SuccessCenter from "./client/SuccessCenter";
 import { useClientFilter } from "@/contexts/ClientFilterContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -795,7 +796,7 @@ function ClientDashboard() {
       {clientData && (
         <button
           className="card-elevated p-5 flex items-center justify-between w-full text-left hover:shadow-lifted transition-all"
-          onClick={() => navigate("/plan")}
+          onClick={() => navigate("/client/brand-profile?tab=plan")}
         >
           <div>
             <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Current Plan</p>
@@ -811,7 +812,7 @@ function ClientDashboard() {
           <SectionHeader title="Recommended for You" icon={<Sparkles className="h-5 w-5 text-warning" />} />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {recommendedItem && (
-              <button className="card-elevated p-5 space-y-3 text-left hover:shadow-lifted transition-all ring-1 ring-primary/10" onClick={() => navigate("/whats-new")}>
+              <button className="card-elevated p-5 space-y-3 text-left hover:shadow-lifted transition-all ring-1 ring-primary/10" onClick={() => navigate("/client/brand-profile?tab=plan")}>
                 <div className="flex items-center gap-2">
                   <span className="text-2xl">{(recommendedItem as any).icon || "⭐"}</span>
                   <Badge className="bg-primary/10 text-primary border-0 text-[10px]">Recommended</Badge>
@@ -822,7 +823,7 @@ function ClientDashboard() {
               </button>
             )}
             {newestItem && (
-              <button className="card-elevated p-5 space-y-3 text-left hover:shadow-lifted transition-all" onClick={() => navigate("/whats-new")}>
+              <button className="card-elevated p-5 space-y-3 text-left hover:shadow-lifted transition-all" onClick={() => navigate("/client/brand-profile?tab=plan")}>
                 <div className="flex items-center gap-2">
                   <span className="text-2xl">{(newestItem as any).icon || "🆕"}</span>
                   <Badge variant="outline" className="text-[10px]">New</Badge>
@@ -835,6 +836,11 @@ function ClientDashboard() {
           </div>
         </section>
       )}
+      {/* Success Center: focus, onboarding, results. Folded in from its own page (Corey, Oct 2026). */}
+      <div className="pt-2">
+        <h2 className="text-xl font-bold text-foreground tracking-tight mb-4">Your success plan</h2>
+        <SuccessCenter embedded />
+      </div>
     </div>
   );
 }
