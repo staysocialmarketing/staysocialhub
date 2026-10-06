@@ -17,6 +17,28 @@ interface Plan {
   name: string;
   includes_json: string[] | null;
   created_at: string;
+  kind?: string | null;
+  monthly_price_cents?: number | null;
+  one_time_price_cents?: number | null;
+  annual_price_cents?: number | null;
+  monthly_credits?: number | null;
+  sort?: number | null;
+}
+
+const KINDS = [
+  { value: "studio", label: "Studio" },
+  { value: "sites", label: "Sites" },
+  { value: "hub", label: "HUB" },
+  { value: "service", label: "Service" },
+  { value: "brokers", label: "Brokers" },
+];
+
+function priceLabel(p: Plan): string {
+  const parts: string[] = [];
+  if (p.one_time_price_cents) parts.push(`$${(p.one_time_price_cents / 100).toLocaleString("en-CA")} once`);
+  if (p.monthly_price_cents) parts.push(`$${(p.monthly_price_cents / 100).toLocaleString("en-CA")}/mo`);
+  if (p.annual_price_cents) parts.push(`$${(p.annual_price_cents / 100).toLocaleString("en-CA")}/yr`);
+  return parts.join(" · ") || "Quoted";
 }
 
 export default function AdminPlans() {
@@ -27,16 +49,20 @@ export default function AdminPlans() {
   const [editPlan, setEditPlan] = useState<Plan | null>(null);
   const [formName, setFormName] = useState("");
   const [formFeatures, setFormFeatures] = useState("");
+  const [formKind, setFormKind] = useState("service");
+  const [formMonthly, setFormMonthly] = useState("");
+  const [formCredits, setFormCredits] = useState("");
 
   const { data: plans = [], isLoading } = useQuery({
     queryKey: ["admin-plans"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("plans")
-        .select("id, name, includes_json, created_at")
+        .select("id, name, includes_json, created_at, kind, monthly_price_cents, one_time_price_cents, annual_price_cents, monthly_credits, sort")
+        .order("sort")
         .order("name");
       if (error) throw error;
-      return (data || []) as Plan[];
+      return (data || []) as unknown as Plan[];
     },
   });
 
@@ -44,6 +70,9 @@ export default function AdminPlans() {
     setEditPlan(null);
     setFormName("");
     setFormFeatures("");
+    setFormKind("service");
+    setFormMonthly("");
+    setFormCredits("");
     setDialogOpen(true);
   };
 
@@ -51,6 +80,9 @@ export default function AdminPlans() {
     setEditPlan(plan);
     setFormName(plan.name);
     setFormFeatures((plan.includes_json || []).join(", "));
+    setFormKind(plan.kind || "service");
+    setFormMonthly(plan.monthly_price_cents ? String(plan.monthly_price_cents / 100) : "");
+    setFormCredits(plan.monthly_credits ? String(plan.monthly_credits) : "");
     setDialogOpen(true);
   };
 
@@ -62,6 +94,9 @@ export default function AdminPlans() {
       const payload = {
         name: formName.trim(),
         includes_json: featuresToJson(formFeatures) as any,
+        kind: formKind,
+        monthly_price_cents: formMonthly ? Math.round(Number(formMonthly) * 100) : null,
+        monthly_credits: formCredits ? Math.round(Number(formCredits)) : 0,
       };
       if (editPlan) {
         const { error } = await supabase.from("plans").update(payload).eq("id", editPlan.id);
@@ -123,6 +158,9 @@ export default function AdminPlans() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
+                <TableHead className="w-24">Kind</TableHead>
+                <TableHead className="w-36">Price</TableHead>
+                <TableHead className="w-20">Credits</TableHead>
                 <TableHead>Features</TableHead>
                 {isSSAdmin && <TableHead className="w-20" />}
               </TableRow>
@@ -131,6 +169,9 @@ export default function AdminPlans() {
               {plans.map((plan) => (
                 <TableRow key={plan.id}>
                   <TableCell className="font-medium">{plan.name}</TableCell>
+                  <TableCell className="text-xs capitalize text-muted-foreground">{plan.kind || "service"}</TableCell>
+                  <TableCell className="text-sm">{priceLabel(plan)}</TableCell>
+                  <TableCell className="text-sm">{plan.monthly_credits ? `${plan.monthly_credits}/mo` : "—"}</TableCell>
                   <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
                     {(plan.includes_json || []).join(", ") || "—"}
                   </TableCell>
@@ -167,6 +208,22 @@ export default function AdminPlans() {
                 placeholder="e.g. Starter, Growth, Pro"
                 className="rounded-xl"
               />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">Kind</Label>
+                <select value={formKind} onChange={(e) => setFormKind(e.target.value)} className="mt-1 h-10 w-full rounded-xl border border-input bg-background px-3 text-sm">
+                  {KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Monthly, CAD</Label>
+                <Input inputMode="decimal" value={formMonthly} onChange={(e) => setFormMonthly(e.target.value)} placeholder="499" className="rounded-xl" />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Credits a month</Label>
+                <Input inputMode="numeric" value={formCredits} onChange={(e) => setFormCredits(e.target.value)} placeholder="0" className="rounded-xl" />
+              </div>
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">

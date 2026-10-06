@@ -63,6 +63,7 @@ export default function AdminClients() {
   const [editProvince, setEditProvince] = useState("");
   const [editRegion, setEditRegion] = useState("");
   const [editPlatforms, setEditPlatforms] = useState<string[]>([]);
+  const [editServices, setEditServices] = useState<string[]>([]);
 
   const [filterNiche, setFilterNiche] = useState("__all__");
   const [filterProvince, setFilterProvince] = useState("__all__");
@@ -93,7 +94,7 @@ export default function AdminClients() {
   const { data: plans = [] } = useQuery({
     queryKey: ["plans"],
     queryFn: async () => {
-      const { data } = await supabase.from("plans").select("id, name").order("name");
+      const { data } = await supabase.from("plans").select("id, name, kind, sort").order("sort").order("name");
       return data || [];
     },
   });
@@ -251,6 +252,16 @@ export default function AdminClients() {
         platforms: editPlatforms.length > 0 ? editPlatforms : null,
       } as any).eq("id", editClient.id);
       if (error) throw error;
+      // Services: replace the set. The primary plan is never listed as a service of itself.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const svc = supabase as any;
+      const { error: delErr } = await svc.from("client_services").delete().eq("client_id", editClient.id);
+      if (delErr) throw delErr;
+      const rows = editServices.filter((id) => id !== editPlanId).map((plan_id) => ({ client_id: editClient.id, plan_id }));
+      if (rows.length) {
+        const { error: insErr } = await svc.from("client_services").insert(rows);
+        if (insErr) throw insErr;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
@@ -313,6 +324,11 @@ export default function AdminClients() {
     setEditProvince(client.province || "");
     setEditRegion(client.region || "");
     setEditPlatforms((client.platforms as string[]) || []);
+    setEditServices([]);
+    // Other products this client has; the primary plan lives in plan_id.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).from("client_services").select("plan_id").eq("client_id", client.id)
+      .then(({ data }: { data: { plan_id: string }[] | null }) => setEditServices((data || []).map((r) => r.plan_id)));
   };
 
   const handleDownload = (url: string) => {
@@ -472,6 +488,20 @@ export default function AdminClients() {
                   {plans.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Also has</Label>
+              <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1.5">
+                {plans.filter((p: any) => p.id !== editPlanId).map((p: any) => (
+                  <label key={p.id} className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={editServices.includes(p.id)}
+                      onCheckedChange={(v) => setEditServices((prev) => (v ? [...prev, p.id] : prev.filter((id) => id !== p.id)))}
+                    />
+                    <span>{p.name}</span>
+                  </label>
+                ))}
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <Label className="text-xs text-muted-foreground">Assistants can approve</Label>
