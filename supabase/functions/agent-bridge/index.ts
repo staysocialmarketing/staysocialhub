@@ -11,6 +11,9 @@
  *   POST /tag-user                 — assign or set reviewer on a post
  *   POST /read-posts               — fetch posts for a client (with optional status filter)
  *   POST /read-design-styles       — the design styles that are on for a client (defaults + overrides)
+ *   POST /read-credits             — credit balance summary for a client
+ *   POST /spend-credits            — deduct a style's credits for a post (402 when short)
+ *   POST /grant-credits            — add purchased or adjusted credits (idempotent on stripe_session_id)
  *   GET  /list-clients             — return all clients (id, name)
  *   POST /update-doc               — upsert a doc row in agent_docs by key
  *   POST /create-task              — create a task
@@ -133,7 +136,7 @@ Deno.serve(async (req: Request) => {
 
   // Reject unknown GET routes
   if (req.method === "GET") {
-    return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /read-design-styles, POST /update-doc, POST /create-task, POST /read-tasks, POST /update-task-status, POST /create-project, POST /read-projects, POST /update-project, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item, POST /read-queue, POST /update-queue-item, POST /requeue-item, POST /read-playbook, POST /update-playbook, POST /upload-image, POST /delete-image, POST /delete-post`, 404);
+    return err(`Unknown route "/${route}". Valid routes: GET /list-clients, POST /create-post, POST /update-post-status, POST /update-post, POST /tag-user, POST /read-posts, POST /read-design-styles, POST /read-credits, POST /spend-credits, POST /grant-credits, POST /update-doc, POST /create-task, POST /read-tasks, POST /update-task-status, POST /create-project, POST /read-projects, POST /update-project, POST /create-think-tank-item, POST /read-think-tank, POST /update-think-tank-item, POST /read-queue, POST /update-queue-item, POST /requeue-item, POST /read-playbook, POST /update-playbook, POST /upload-image, POST /delete-image, POST /delete-post`, 404);
   }
 
   // ── POST routes ───────────────────────────────────────────────────────────
@@ -348,6 +351,52 @@ Deno.serve(async (req: Request) => {
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    case "read-credits": {
+      const { client_id } = body as { client_id?: string };
+      if (!client_id) return err("client_id is required");
+      const { data, error } = await db.rpc("credit_summary", { p_client: client_id });
+      if (error) return err(error.message, 500);
+      return json({ success: true, credits: data });
+    }
+
+    case "spend-credits": {
+      // Rook deducts when a credit-costed style is rendered for a post. Refused when short.
+      const { client_id, style_key, post_id, note } = body as { client_id?: string; style_key?: string; post_id?: string; note?: string };
+      if (!client_id || !style_key) return err("client_id and style_key are required");
+      const { data, error } = await db.rpc("spend_credits", {
+        p_client: client_id, p_style_key: style_key, p_post_id: post_id ?? null, p_note: note ?? null, p_actor: COREY_USER_ID,
+      });
+      if (error) {
+        if (error.message.includes("insufficient_credits")) return json({ success: false, error: "insufficient_credits", detail: error.message }, 402);
+        return err(error.message, 500);
+      }
+      return json({ success: true, credits: data });
+    }
+
+    case "grant-credits": {
+      // Purchases arrive from staysocial.ca's Stripe webhook; adjustments are the team's call.
+      const { client_id, credits, kind, note, stripe_session_id } = body as {
+        client_id?: string; credits?: number; kind?: string; note?: string; stripe_session_id?: string;
+      };
+      if (!client_id || typeof credits !== "number" || credits <= 0) return err("client_id and a positive credits number are required");
+      const k = kind === "adjustment" ? "adjustment" : "purchase";
+      const { error } = await db.from("credit_ledger").insert({
+        client_id, delta: Math.round(credits), kind: k, note: note ?? null, stripe_session_id: stripe_session_id ?? null, created_by: COREY_USER_ID,
+      });
+      if (error) {
+        if (error.code === "23505") return json({ success: true, duplicate: true });
+        return err(error.message, 500);
+      }
+      const { data: users } = await db.from("users").select("id").eq("client_id", client_id);
+      if (users?.length) {
+        await db.from("notifications").insert((users as any[]).map((u) => ({
+          user_id: u.id, title: `${Math.round(credits)} credits added`, body: note ?? "Your pack is in. Thank you.", link: "/client/credits",
+        })));
+      }
+      const { data } = await db.rpc("credit_summary", { p_client: client_id });
+      return json({ success: true, credits: data });
+    }
+
     case "read-design-styles": {
       // The looks that are on for a client: catalogue defaults with the client's overrides applied.
       const { client_id } = body as { client_id?: string };

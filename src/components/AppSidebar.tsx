@@ -36,6 +36,7 @@ import {
   Package,
   KeyRound,
   ShieldCheck,
+  Coins,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -118,6 +119,7 @@ const clientMenu = [
   { title: "Calendar", url: "/calendar", icon: CalendarDays },
   { title: "Requests", url: "/requests", icon: MessageSquarePlus },
   { title: "Design styles", url: "/client/design-styles", icon: Palette },
+  { title: "Credits", url: "/client/credits", icon: Coins },
   { title: "Brand profile", url: "/client/brand-profile", icon: UserCircle },
 ];
 

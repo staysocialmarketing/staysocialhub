@@ -169,8 +169,8 @@ export default function DesignStyles() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-foreground">{s.name}</span>
                     <Badge variant="outline" className="text-[10px] font-medium">{s.tag}</Badge>
-                    {s.is_addon && (
-                      <Badge className="text-[10px] font-semibold bg-coral/15 text-coral hover:bg-coral/15">Add-on · {s.credits} credits</Badge>
+                    {s.credits > 0 && (
+                      <Badge className="text-[10px] font-semibold bg-coral/15 text-coral hover:bg-coral/15">{s.is_addon ? "Add-on · " : ""}{s.credits} credits</Badge>
                     )}
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{s.description}</p>
@@ -188,7 +188,7 @@ export default function DesignStyles() {
             <div className="font-semibold flex items-center gap-2"><Sparkles className="h-4 w-4" /> What we get told</div>
             <ul className="mt-1 space-y-0.5 opacity-90">
               {changes.map((s) => (
-                <li key={s.key}>{draft[s.key] ? "Add" : "Remove"} <strong>{s.name}</strong> {draft[s.key] ? "to" : "from"} the rotation{s.is_addon && draft[s.key] ? ` (${s.credits} credits per use)` : ""}.</li>
+                <li key={s.key}>{draft[s.key] ? "Add" : "Remove"} <strong>{s.name}</strong> {draft[s.key] ? "to" : "from"} the rotation{s.credits > 0 && draft[s.key] ? ` (${s.credits} credits per use)` : ""}.</li>
               ))}
             </ul>
           </div>
@@ -213,7 +213,7 @@ export default function DesignStyles() {
                 <SheetDescription className="text-sm leading-relaxed">{open.long_description || open.description}</SheetDescription>
               </SheetHeader>
               <dl className="space-y-3 text-sm">
-                <div><dt className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Cost</dt><dd className="mt-0.5">{open.is_addon ? `${open.credits} credits each` : "Included in your plan"}</dd></div>
+                <div><dt className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Cost</dt><dd className="mt-0.5">{open.credits > 0 ? `${open.credits} credits each, from the credits included in your plan` : "Included, no credits"}</dd></div>
                 <div><dt className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">What it needs from you</dt><dd className="mt-0.5">{open.needs || "Nothing."}</dd></div>
               </dl>
               <div className="flex items-center justify-between rounded-xl border p-3">

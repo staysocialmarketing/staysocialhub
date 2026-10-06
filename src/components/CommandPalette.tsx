@@ -95,6 +95,7 @@ export function CommandPalette() {
     { icon: Megaphone, label: "Approvals", path: "/pipeline" },
     { icon: FileText, label: "Requests", path: "/requests" },
     { icon: Image, label: "Design styles", path: "/client/design-styles" },
+    { icon: BookOpen, label: "Credits", path: "/client/credits" },
     { icon: UserCircle, label: "Brand profile", path: "/client/brand-profile" },
     { icon: BookOpen, label: "Plan", path: "/client/brand-profile?tab=plan" },
   ];
