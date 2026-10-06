@@ -68,46 +68,42 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 
+// Internal menu (Corey, Oct 6 2026): four groups instead of seven, every item kept.
+// "Today" is the daily work and sits flat at the top like the client menu; the rest collapse.
 const menuSection = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Workflow", url: "/workflow", icon: ClipboardList },
-  { title: "Calendar", url: "/calendar", icon: CalendarDays },
   { title: "Approvals", url: "/approvals", icon: CheckSquare },
+  { title: "Calendar", url: "/calendar", icon: CalendarDays },
   { title: "Requests", url: "/requests", icon: MessageSquarePlus },
-];
-
-const teamSection = [
   { title: "Inbox", url: "/team/inbox", icon: Inbox },
-  { title: "Projects", url: "/team/projects", icon: FolderKanban },
-  { title: "Tasks", url: "/team/tasks", icon: ListTodo },
-  { title: "Think Tank", url: "/team/think-tank", icon: Lightbulb },
 ];
 
-const corporateSection = [
-  { title: "Strategy Playbook", url: "/corporate/strategy", icon: BookOpen },
-  { title: "Content Generator", url: "/client/generate", icon: Wand2 },
-];
-
-const premiereSection = [
-  { title: "Expenses", url: "/premiere/expenses", icon: BarChart3 },
-];
-
-const manageSection = [
+const clientsSection = [
   { title: "Clients", url: "/admin/clients", icon: Building2 },
   { title: "Deliverables", url: "/deliverables", icon: Package },
   { title: "Social Logins", url: "/admin/social-logins", icon: ShieldCheck },
-  { title: "Team Success", url: "/admin/team", icon: Users },
+  { title: "Content Generator", url: "/client/generate", icon: Wand2 },
   { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
+  { title: "Plans", url: "/admin/plans", icon: ClipboardList },
+];
+
+const teamSection = [
+  { title: "Projects", url: "/team/projects", icon: FolderKanban },
+  { title: "Tasks", url: "/team/tasks", icon: ListTodo },
+  { title: "Think Tank", url: "/team/think-tank", icon: Lightbulb },
+  { title: "Meeting Notes", url: "/admin/meeting-notes", icon: FileText },
+  { title: "Strategy Playbook", url: "/corporate/strategy", icon: BookOpen },
+  { title: "Team Success", url: "/admin/team", icon: Users },
+  { title: "Agent Office", url: "/agent-office-v2", icon: Monitor },
 ];
 
 const adminSection = [
-  { title: "Workspace", url: "/admin/workspace", icon: Briefcase },
-  { title: "Agent Office", url: "/agent-office-v2", icon: Monitor },
   { title: "Users", url: "/admin/users", icon: Users },
-  { title: "Plans", url: "/admin/plans", icon: ClipboardList },
-  { title: "Meeting Notes", url: "/admin/meeting-notes", icon: FileText },
+  { title: "Workspace", url: "/admin/workspace", icon: Briefcase },
   { title: "Automations", url: "/admin/automations", icon: Zap },
   { title: "Versions", url: "/admin/versions", icon: Tag },
+  { title: "Premiere Expenses", url: "/premiere/expenses", icon: BarChart3 },
 ];
 
 // Client menu (Corey, Oct 2026): seven items, no groups. Success Center lives on the Dashboard,
@@ -144,7 +140,7 @@ export function AppSidebar() {
     } catch { return {}; }
   });
 
-  const isSectionOpen = (key: string) => sectionState[key] !== false; // default open
+  const isSectionOpen = (key: string) => (key in sectionState ? sectionState[key] !== false : key !== "admin"); // default open, Admin closed
   const toggleSection = (key: string) => {
     setSectionState(prev => {
       const next = { ...prev, [key]: !isSectionOpen(key) };
@@ -271,126 +267,43 @@ export function AppSidebar() {
       <SidebarContent>
         {isInternalUser ? (
           <>
-            <Collapsible open={isSectionOpen("menu")} onOpenChange={() => toggleSection("menu")}>
-              <SidebarGroup>
-                {!collapsed && (
-                  <CollapsibleTrigger asChild>
-                    <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40 cursor-pointer flex items-center justify-between w-full">
-                      Menu
-                      <ChevronDown className={cn("h-3 w-3 transition-transform", isSectionOpen("menu") && "rotate-180")} />
-                    </SidebarGroupLabel>
-                  </CollapsibleTrigger>
-                )}
-                <CollapsibleContent>
-                  <SidebarGroupContent>{renderMenuItems(
-                    menuSection
-                  )}</SidebarGroupContent>
-                </CollapsibleContent>
-              </SidebarGroup>
-            </Collapsible>
+            <SidebarGroup>
+              <SidebarGroupContent>{renderMenuItems(menuSection)}</SidebarGroupContent>
+            </SidebarGroup>
 
-            <SidebarSeparator className="opacity-30" />
-
-            <Collapsible open={isSectionOpen("team")} onOpenChange={() => toggleSection("team")}>
-              <SidebarGroup>
-                {!collapsed && (
-                  <CollapsibleTrigger asChild>
-                    <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40 cursor-pointer flex items-center justify-between w-full">
-                      Team
-                      <ChevronDown className={cn("h-3 w-3 transition-transform", isSectionOpen("team") && "rotate-180")} />
-                    </SidebarGroupLabel>
-                  </CollapsibleTrigger>
-                )}
-                <CollapsibleContent>
-                  <SidebarGroupContent>{renderMenuItems(teamSection)}</SidebarGroupContent>
-                </CollapsibleContent>
-              </SidebarGroup>
-            </Collapsible>
-
-            <SidebarSeparator className="opacity-30" />
-
-            <Collapsible open={isSectionOpen("corporate")} onOpenChange={() => toggleSection("corporate")}>
-              <SidebarGroup>
-                {!collapsed && (
-                  <CollapsibleTrigger asChild>
-                    <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40 cursor-pointer flex items-center justify-between w-full">
-                      Corporate
-                      <ChevronDown className={cn("h-3 w-3 transition-transform", isSectionOpen("corporate") && "rotate-180")} />
-                    </SidebarGroupLabel>
-                  </CollapsibleTrigger>
-                )}
-                <CollapsibleContent>
-                  <SidebarGroupContent>{renderMenuItems(corporateSection)}</SidebarGroupContent>
-                </CollapsibleContent>
-              </SidebarGroup>
-            </Collapsible>
-
-            <SidebarSeparator className="opacity-30" />
-
-            <Collapsible open={isSectionOpen("premiere")} onOpenChange={() => toggleSection("premiere")}>
-              <SidebarGroup>
-                {!collapsed && (
-                  <CollapsibleTrigger asChild>
-                    <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40 cursor-pointer flex items-center justify-between w-full">
-                      Premiere
-                      <ChevronDown className={cn("h-3 w-3 transition-transform", isSectionOpen("premiere") && "rotate-180")} />
-                    </SidebarGroupLabel>
-                  </CollapsibleTrigger>
-                )}
-                <CollapsibleContent>
-                  <SidebarGroupContent>{renderMenuItems(premiereSection)}</SidebarGroupContent>
-                </CollapsibleContent>
-              </SidebarGroup>
-            </Collapsible>
-
-            <SidebarSeparator className="opacity-30" />
-
-            <Collapsible open={isSectionOpen("manage")} onOpenChange={() => toggleSection("manage")}>
-              <SidebarGroup>
-                {!collapsed && (
-                  <CollapsibleTrigger asChild>
-                    <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40 cursor-pointer flex items-center justify-between w-full">
-                      Manage
-                      <ChevronDown className={cn("h-3 w-3 transition-transform", isSectionOpen("manage") && "rotate-180")} />
-                    </SidebarGroupLabel>
-                  </CollapsibleTrigger>
-                )}
-                <CollapsibleContent>
-                  <SidebarGroupContent>{renderMenuItems(manageSection)}</SidebarGroupContent>
-                </CollapsibleContent>
-              </SidebarGroup>
-            </Collapsible>
-
-            {isInternalUser && (
-              <>
+            {[
+              { key: "clients", label: "Clients", items: clientsSection.filter((i) => (i.title === "Plans" ? isSSAdmin : true)) },
+              { key: "team", label: "Team", items: teamSection },
+              {
+                key: "admin",
+                label: "Admin",
+                items: adminSection.filter((i) => {
+                  if (i.title === "Workspace" || i.title === "Versions") return isSSAdmin;
+                  if (i.title === "Users") return isSSAdmin || isSSManager;
+                  return true;
+                }),
+                badges: (isSSAdmin || isSSManager) && pendingCount > 0 ? { Users: pendingCount } : undefined,
+              },
+            ].map((group) => (
+              <React.Fragment key={group.key}>
                 <SidebarSeparator className="opacity-30" />
-
-                <Collapsible open={isSectionOpen("admin")} onOpenChange={() => toggleSection("admin")}>
+                <Collapsible open={isSectionOpen(group.key)} onOpenChange={() => toggleSection(group.key)}>
                   <SidebarGroup>
                     {!collapsed && (
                       <CollapsibleTrigger asChild>
                         <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40 cursor-pointer flex items-center justify-between w-full">
-                          Admin
-                          <ChevronDown className={cn("h-3 w-3 transition-transform", isSectionOpen("admin") && "rotate-180")} />
+                          {group.label}
+                          <ChevronDown className={cn("h-3 w-3 transition-transform", isSectionOpen(group.key) && "rotate-180")} />
                         </SidebarGroupLabel>
                       </CollapsibleTrigger>
                     )}
                     <CollapsibleContent>
-                      <SidebarGroupContent>{renderMenuItems(
-                        adminSection.filter(i => {
-                          if (i.title === "Workspace") return isSSAdmin;
-                          if (i.title === "Users") return isSSAdmin || isSSManager;
-                          if (i.title === "Plans" || i.title === "Versions") return isSSAdmin;
-                          if (i.title === "Agent Office v2") return actualIsSSAdmin;
-                          return true;
-                        }),
-                        (isSSAdmin || isSSManager) && pendingCount > 0 ? { Users: pendingCount } : undefined
-                      )}</SidebarGroupContent>
+                      <SidebarGroupContent>{renderMenuItems(group.items, group.badges)}</SidebarGroupContent>
                     </CollapsibleContent>
                   </SidebarGroup>
                 </Collapsible>
-              </>
-            )}
+              </React.Fragment>
+            ))}
           </>
         ) : (
           <>
