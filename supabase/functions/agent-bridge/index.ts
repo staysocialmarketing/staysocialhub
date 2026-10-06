@@ -1001,6 +1001,7 @@ Deno.serve(async (req: Request) => {
       const contentTypeMap: Record<string, string> = {
         png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg",
         webp: "image/webp", gif: "image/gif", svg: "image/svg+xml",
+        mp4: "video/mp4", mov: "video/quicktime", webm: "video/webm",
       };
       const contentType = contentTypeMap[ext] ?? "image/png";
 
