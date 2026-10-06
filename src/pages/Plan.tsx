@@ -28,6 +28,17 @@ export default function Plan() {
   const plan = (clientData as any)?.plans;
   const includes = Array.isArray(plan?.includes_json) ? plan.includes_json : [];
 
+  type ServicePlan = { name: string; includes_json: string[] | null };
+  const { data: services = [] } = useQuery({
+    queryKey: ["plan-services", profile?.client_id],
+    queryFn: async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data } = await (supabase as any).from("client_services").select("plans(name, includes_json)").eq("client_id", profile!.client_id);
+      return ((data || []) as { plans: ServicePlan | null }[]).map((r) => r.plans).filter((x): x is ServicePlan => !!x);
+    },
+    enabled: !!profile?.client_id,
+  });
+
   if (isLoading) {
     return <div className="p-6 flex items-center justify-center"><p className="text-muted-foreground">Loading…</p></div>;
   }
@@ -61,6 +72,19 @@ export default function Plan() {
           )}
         </CardContent>
       </Card>
+
+      {services.map((s) => (
+        <Card key={s.name}>
+          <CardHeader><CardTitle className="text-lg">{s.name}</CardTitle></CardHeader>
+          <CardContent>
+            <ul className="space-y-2">
+              {(s.includes_json || []).map((item, i) => (
+                <li key={i} className="flex items-center gap-2 text-sm text-foreground"><CheckCircle2 className="h-4 w-4 text-primary shrink-0" /><span>{item}</span></li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ))}
 
       <Card className="border-dashed">
         <CardContent className="py-6 flex items-center justify-between">
