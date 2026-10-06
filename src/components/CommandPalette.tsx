@@ -92,12 +92,11 @@ export function CommandPalette() {
 
   const clientNavItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-    { icon: Trophy, label: "Success Center", path: "/client/success" },
-    { icon: Megaphone, label: "Content Pipeline", path: "/pipeline" },
+    { icon: Megaphone, label: "Approvals", path: "/pipeline" },
     { icon: FileText, label: "Requests", path: "/requests" },
-    { icon: Image, label: "My Media", path: "/content-library" },
-    { icon: UserCircle, label: "Profile", path: "/profile" },
-    { icon: BookOpen, label: "Plan", path: "/plan" },
+    { icon: Image, label: "Design styles", path: "/client/design-styles" },
+    { icon: UserCircle, label: "Brand profile", path: "/client/brand-profile" },
+    { icon: BookOpen, label: "Plan", path: "/client/brand-profile?tab=plan" },
   ];
 
   const navItems = isSSRole ? ssNavItems : clientNavItems;

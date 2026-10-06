@@ -23,6 +23,7 @@ import AIInterview from "./pages/client/AIInterview";
 import ContentGenerator from "./pages/client/ContentGenerator";
 import BrandTwinPage from "./pages/client/BrandTwin";
 import DesignStyles from "./pages/client/DesignStyles";
+import BrandProfile from "./pages/client/BrandProfile";
 import AdminClients from "./pages/admin/AdminClients";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminProfileUpdates from "./pages/admin/AdminProfileUpdates";
@@ -122,6 +123,7 @@ const App = () => (
               <Route path="/client/generate" element={<ContentGenerator />} />
               <Route path="/client/brand-twin" element={<BrandTwinPage />} />
               <Route path="/client/design-styles" element={<DesignStyles />} />
+              <Route path="/client/brand-profile" element={<BrandProfile />} />
               <Route path="/client/pipeline" element={<ClientPipeline />} />
               <Route path="/deliverables" element={<ClientDeliverables />} />
               <Route path="/profile" element={<Profile />} />

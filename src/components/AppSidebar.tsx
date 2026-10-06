@@ -109,28 +109,16 @@ const adminSection = [
   { title: "Versions", url: "/admin/versions", icon: Tag },
 ];
 
-const clientContentSection = [
+// Client menu (Corey, Oct 2026): seven items, no groups. Success Center lives on the Dashboard,
+// profile, logins, plan and deliverables are tabs under Brand profile, My Media is linked from
+// the Dashboard's quick actions, and the AI tools belong to the DIY app.
+const clientMenu = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Success Center", url: "/client/success", icon: Sparkles },
-  { title: "Content Pipeline", url: "/pipeline", icon: CheckSquare },
+  { title: "Approvals", url: "/pipeline", icon: CheckSquare },
   { title: "Calendar", url: "/calendar", icon: CalendarDays },
   { title: "Requests", url: "/requests", icon: MessageSquarePlus },
   { title: "Design styles", url: "/client/design-styles", icon: Palette },
-  { title: "My Media", url: "/content-library", icon: FolderOpen },
-  { title: "Deliverables", url: "/deliverables", icon: Package },
-];
-
-const clientAISection = [
-  { title: "AI Interview", url: "/client/ai-interview", icon: Brain },
-  { title: "Content Generator", url: "/client/generate", icon: Wand2 },
-  { title: "Brand Twin", url: "/client/brand-twin", icon: Palette },
-];
-
-const clientAccountSection = [
-  { title: "My Profile", url: "/profile", icon: UserCircle },
-  { title: "Social Logins", url: "/client/social-logins", icon: KeyRound },
-  { title: "My Plan", url: "/plan", icon: ClipboardList },
-  { title: "Marketplace", url: "/whats-new", icon: Eye },
+  { title: "Brand profile", url: "/client/brand-profile", icon: UserCircle },
 ];
 
 interface UserWithRole {
@@ -405,44 +393,8 @@ export function AppSidebar() {
         ) : (
           <>
             <SidebarGroup>
-              <SidebarGroupContent>{renderMenuItems(clientContentSection)}</SidebarGroupContent>
+              <SidebarGroupContent>{renderMenuItems(clientMenu)}</SidebarGroupContent>
             </SidebarGroup>
-
-            <SidebarSeparator className="opacity-30" />
-
-            <Collapsible open={isSectionOpen("ai-tools")} onOpenChange={() => toggleSection("ai-tools")}>
-              <SidebarGroup>
-                {!collapsed && (
-                  <CollapsibleTrigger asChild>
-                    <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40 cursor-pointer flex items-center justify-between w-full">
-                      AI Tools
-                      <ChevronDown className={cn("h-3 w-3 transition-transform", isSectionOpen("ai-tools") && "rotate-180")} />
-                    </SidebarGroupLabel>
-                  </CollapsibleTrigger>
-                )}
-                <CollapsibleContent>
-                  <SidebarGroupContent>{renderMenuItems(clientAISection)}</SidebarGroupContent>
-                </CollapsibleContent>
-              </SidebarGroup>
-            </Collapsible>
-
-            <SidebarSeparator className="opacity-30" />
-
-            <Collapsible open={isSectionOpen("my-account")} onOpenChange={() => toggleSection("my-account")}>
-              <SidebarGroup>
-                {!collapsed && (
-                  <CollapsibleTrigger asChild>
-                    <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40 cursor-pointer flex items-center justify-between w-full">
-                      My Account
-                      <ChevronDown className={cn("h-3 w-3 transition-transform", isSectionOpen("my-account") && "rotate-180")} />
-                    </SidebarGroupLabel>
-                  </CollapsibleTrigger>
-                )}
-                <CollapsibleContent>
-                  <SidebarGroupContent>{renderMenuItems(clientAccountSection)}</SidebarGroupContent>
-                </CollapsibleContent>
-              </SidebarGroup>
-            </Collapsible>
           </>
         )}
       </SidebarContent>
