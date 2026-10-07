@@ -50,7 +50,7 @@ export default function SuccessCenter({ embedded = false }: { embedded?: boolean
     queryFn: async () => {
       const { data } = await supabase
         .from("clients")
-        .select("id, name, plan_id, recommended_item_id, plans(name), marketplace_items(name, description, icon)")
+        .select("id, name, plan_id, recommended_item_id, plans!plan_id(name), marketplace_items(name, description, icon)")
         .eq("id", clientId!)
         .single();
       return data;

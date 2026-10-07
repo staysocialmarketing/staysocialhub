@@ -255,6 +255,7 @@ Deno.serve(async (req: Request) => {
       }
 
       const updates: Record<string, unknown> = { status_column: status as PostStatus };
+      if (status === "published") updates.posted_at = new Date().toISOString();
       if (notes          !== undefined) updates.notes          = notes;
       if (design_notes   !== undefined) updates.design_notes   = design_notes;
       if (design_prompts !== undefined) updates.design_prompts = design_prompts;
@@ -299,7 +300,9 @@ Deno.serve(async (req: Request) => {
       if (caption          !== undefined) updates.caption          = caption;
       if (platform         !== undefined) updates.platform         = platform;
       if (content_type     !== undefined) updates.content_type     = content_type;
-      if (scheduled_at     !== undefined) updates.scheduled_at     = scheduled_at;
+      // Corey owns scheduled_at (set in the HUB when he schedules or posts). Rook's planned
+      // date is internal and lands in due_at, so the client calendar never shows a draft date.
+      if (scheduled_at     !== undefined) updates.due_at           = scheduled_at;
       if (hashtags         !== undefined) updates.hashtags         = Array.isArray(hashtags) ? hashtags.join(" ") : hashtags;
       if (status           !== undefined) {
         if (!VALID_STATUSES.has(status)) {

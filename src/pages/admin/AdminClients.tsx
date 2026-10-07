@@ -85,7 +85,7 @@ export default function AdminClients() {
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ["admin-clients"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("clients").select("*, plans(name)").order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("clients").select("*, plans!plan_id(name)").order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
     },

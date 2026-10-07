@@ -26,6 +26,7 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
   client_approval: { label: "Awaiting Client Approval", color: "bg-blue-500/15 text-blue-700" },
   scheduled: { label: "Approved / Scheduled", color: "bg-emerald-500/15 text-emerald-700" },
   ready_to_schedule: { label: "Approved / Scheduled", color: "bg-emerald-500/15 text-emerald-700" },
+  approved: { label: "Approved / Scheduled", color: "bg-emerald-500/15 text-emerald-700" },
   published: { label: "Published", color: "bg-green-500/15 text-green-700" },
 };
 
@@ -34,9 +35,14 @@ const ALL_PIPELINE_STATUSES = [
   "client_approval", "scheduled", "ready_to_schedule", "published",
 ];
 
+// Clients see what is posted, scheduled or in the queue. Approvals live on their own page.
 const CLIENT_VISIBLE_STATUSES = [
-  "client_approval", "scheduled", "ready_to_schedule", "published",
+  "approved", "ready_to_schedule", "scheduled", "published",
 ];
+
+/** The one date a post has on the calendar: when it went out, else when it is scheduled. */
+export const postDate = (post: { posted_at?: string | null; scheduled_at?: string | null }) =>
+  post.posted_at || post.scheduled_at || null;
 
 const ALL_BOARD_COLUMNS = [
   { key: "internal_review", label: "Awaiting Internal Review" },
@@ -48,8 +54,7 @@ const ALL_BOARD_COLUMNS = [
 ];
 
 const CLIENT_BOARD_COLUMNS = [
-  { key: "client_approval", label: "Awaiting Your Approval" },
-  { key: "scheduled", label: "Approved / Scheduled" },
+  { key: "scheduled", label: "Scheduled" },
   { key: "published", label: "Published" },
 ];
 
@@ -107,8 +112,8 @@ function ContentCard({ post, onClick }: { post: any; onClick: () => void }) {
         </div>
         <div className="flex items-center justify-between">
           <StatusBadge status={post.status_column} />
-          {post.scheduled_at && (
-            <span className="text-[10px] text-muted-foreground/60">{format(new Date(post.scheduled_at), "MMM d")}</span>
+          {postDate(post) && (
+            <span className="text-[10px] text-muted-foreground/60">{format(new Date(postDate(post)!), "MMM d")}</span>
           )}
         </div>
       </div>
@@ -137,17 +142,17 @@ export default function MarketingCalendar() {
   const { data: posts = [] } = useQuery({
     queryKey: ["marketing-calendar-posts", isSSRole],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("posts")
         .select("*, clients(name), assigned_user:assigned_to_user_id(name), post_images(id, url, position)")
-        .or(`scheduled_at.not.is.null,status_column.in.(${PIPELINE_STATUSES.join(",")})`)
         .order("scheduled_at", { ascending: true, nullsFirst: false });
+      // Clients: only the statuses above, nothing in drafting even if it has a planned date.
+      // Row-level security already limits rows to the client's own account.
+      query = isSSRole
+        ? query.or(`scheduled_at.not.is.null,status_column.in.(${PIPELINE_STATUSES.join(",")})`)
+        : query.in("status_column", CLIENT_VISIBLE_STATUSES);
+      const { data, error } = await query;
       if (error) throw error;
-      if (!isSSRole) {
-        return (data || []).filter((p: any) =>
-          CLIENT_VISIBLE_STATUSES.includes(p.status_column) || p.scheduled_at
-        );
-      }
       return data || [];
     },
   });
@@ -281,8 +286,9 @@ function CalendarTab({ posts, onPostClick }: { posts: any[]; onPostClick: (id: s
   const postsByDate = useMemo(() => {
     const map: Record<string, any[]> = {};
     posts.forEach((post) => {
-      if (post.scheduled_at) {
-        const key = format(new Date(post.scheduled_at), "yyyy-MM-dd");
+      const when = postDate(post);
+      if (when) {
+        const key = format(new Date(when), "yyyy-MM-dd");
         if (!map[key]) map[key] = [];
         map[key].push(post);
       }
@@ -413,7 +419,7 @@ function ListTab({ posts, onPostClick, isSSRole }: { posts: any[]; onPostClick: 
               <TableCell className="font-medium text-foreground max-w-[200px] truncate text-sm">{post.title}</TableCell>
               <TableCell className={cn("text-muted-foreground/70 text-sm", isSSRole ? "" : "hidden")}>{post.clients?.name || "—"}</TableCell>
               <TableCell className="hidden sm:table-cell"><PlatformBadges platform={post.platform} /></TableCell>
-              <TableCell className="text-muted-foreground/70 text-sm">{post.scheduled_at ? format(new Date(post.scheduled_at), "MMM d, yyyy") : "—"}</TableCell>
+              <TableCell className="text-muted-foreground/70 text-sm">{postDate(post) ? format(new Date(postDate(post)!), "MMM d, yyyy") : "—"}</TableCell>
               <TableCell><StatusBadge status={post.status_column} /></TableCell>
               <TableCell className={cn("text-muted-foreground/70 text-sm", isSSRole ? "hidden sm:table-cell" : "hidden")}>{(post as any).assigned_user?.name || "—"}</TableCell>
             </TableRow>

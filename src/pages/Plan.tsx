@@ -17,7 +17,7 @@ export default function Plan() {
       if (!profile?.client_id) return null;
       const { data } = await supabase
         .from("clients")
-        .select("name, status, plans(name, includes_json)")
+        .select("name, status, plans!plan_id(name, includes_json)")
         .eq("id", profile.client_id)
         .single();
       return data;

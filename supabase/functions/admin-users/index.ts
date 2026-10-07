@@ -78,17 +78,42 @@ Deno.serve(async (req: Request) => {
 
   if (action === "delete") {
     if (user_id === caller.id) return err("You can't delete your own account");
+
+    // Loosen every optional reference first so a clean account can go completely.
+    await adminDb.from("user_roles").delete().eq("user_id", user_id);
+    await adminDb.from("posts").update({ assigned_to_user_id: null }).eq("assigned_to_user_id", user_id);
+    await adminDb.from("posts").update({ reviewer_user_id: null }).eq("reviewer_user_id", user_id);
+    await adminDb.from("posts").update({ created_by_user_id: null }).eq("created_by_user_id", user_id);
+    await adminDb.from("post_versions").update({ created_by_user_id: null }).eq("created_by_user_id", user_id);
+    await adminDb.from("profile_update_requests").update({ reviewed_by_user_id: null }).eq("reviewed_by_user_id", user_id);
+    await adminDb.from("platform_versions").update({ published_by_user_id: null }).eq("published_by_user_id", user_id);
+    await adminDb.from("allowed_domains").update({ added_by_user_id: null }).eq("added_by_user_id", user_id);
+    await adminDb.from("users").update({ parent_user_id: null }).eq("parent_user_id", user_id);
+
     const { error } = await adminDb.auth.admin.deleteUser(user_id);
-    if (error) {
-      // The auth row may already be gone while the profile row lingers; clean that up too.
-      if (/not found/i.test(error.message)) {
-        const { error: rowError } = await adminDb.from("users").delete().eq("id", user_id);
-        if (rowError) return err(rowError.message, 500);
-        return json({ success: true, note: "auth user was already gone; profile removed" });
-      }
-      return err(error.message, 500);
+    if (!error) return json({ success: true, note: "deleted" });
+
+    if (/not found/i.test(error.message)) {
+      const { error: rowError } = await adminDb.from("users").delete().eq("id", user_id);
+      if (rowError) return err(rowError.message, 500);
+      return json({ success: true, note: "auth user was already gone; profile removed" });
     }
-    return json({ success: true });
+
+    // History (comments, approvals, requests) keeps its author, so retire the account instead:
+    // no sign-in, no roles, no client, hidden from every list.
+    if (/foreign key|violates|constraint|referenced/i.test(error.message)) {
+      const { error: banErr } = await adminDb.auth.admin.updateUserById(user_id, { ban_duration: "876600h" });
+      if (banErr) return err(banErr.message, 500);
+      const { data: u } = await adminDb.from("users").select("name, email").eq("id", user_id).maybeSingle();
+      const { error: rowErr } = await adminDb.from("users").update({
+        client_id: null,
+        retired_at: new Date().toISOString(),
+        name: u?.name && !/\(removed\)$/.test(u.name) ? `${u.name} (removed)` : u?.name ?? null,
+      }).eq("id", user_id);
+      if (rowErr) return err(rowErr.message, 500);
+      return json({ success: true, note: "retired: this person had comments or approvals on file, so the account is locked and hidden rather than erased" });
+    }
+    return err(error.message, 500);
   }
 
   if (action === "update") {

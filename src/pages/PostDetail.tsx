@@ -1331,12 +1331,31 @@ export default function PostDetail() {
             <CardContent className="space-y-3 text-sm">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span>
-                  {post.scheduled_at
-                    ? new Date(post.scheduled_at).toLocaleDateString()
-                    : "Not scheduled"}
-                </span>
+                {isSSRole ? (
+                  <label className="flex items-center gap-2 flex-1">
+                    <span className="text-muted-foreground text-xs">Scheduled</span>
+                    <input
+                      type="datetime-local"
+                      className="flex-1 rounded-md border border-input bg-background px-2 py-1 text-xs"
+                      value={post.scheduled_at ? new Date(new Date(post.scheduled_at).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ""}
+                      onChange={async (e) => {
+                        const v = e.target.value ? new Date(e.target.value).toISOString() : null;
+                        const { error } = await supabase.from("posts").update({ scheduled_at: v } as any).eq("id", postId!);
+                        if (error) toast.error("Could not save the date");
+                        else { queryClient.invalidateQueries({ queryKey: ["post-detail", postId] }); toast.success(v ? "Scheduled date saved" : "Date cleared"); }
+                      }}
+                    />
+                  </label>
+                ) : (
+                  <span>{post.scheduled_at ? new Date(post.scheduled_at).toLocaleDateString() : "Not scheduled"}</span>
+                )}
               </div>
+              {(post as any).posted_at && (
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-primary" />
+                  <span>Posted {new Date((post as any).posted_at).toLocaleDateString()}</span>
+                </div>
+              )}
               {(post as any).due_at && (
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
