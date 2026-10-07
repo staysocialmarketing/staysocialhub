@@ -68,8 +68,8 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 
-// Internal menu (Corey, Oct 6 2026): four groups instead of seven, every item kept.
-// "Today" is the daily work and sits flat at the top like the client menu; the rest collapse.
+// Internal menu (Corey, Oct 7 2026): nine flat items, as short as the client menu. Clients,
+// Team and Admin are single pages with tabs (src/pages/hubs); every old route still works.
 const menuSection = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Workflow", url: "/workflow", icon: ClipboardList },
@@ -77,33 +77,9 @@ const menuSection = [
   { title: "Calendar", url: "/calendar", icon: CalendarDays },
   { title: "Requests", url: "/requests", icon: MessageSquarePlus },
   { title: "Inbox", url: "/team/inbox", icon: Inbox },
-];
-
-const clientsSection = [
-  { title: "Clients", url: "/admin/clients", icon: Building2 },
-  { title: "Deliverables", url: "/deliverables", icon: Package },
-  { title: "Social Logins", url: "/admin/social-logins", icon: ShieldCheck },
-  { title: "Content Generator", url: "/client/generate", icon: Wand2 },
-  { title: "Marketplace", url: "/admin/marketplace", icon: ShoppingCart },
-  { title: "Plans", url: "/admin/plans", icon: ClipboardList },
-];
-
-const teamSection = [
-  { title: "Projects", url: "/team/projects", icon: FolderKanban },
-  { title: "Tasks", url: "/team/tasks", icon: ListTodo },
-  { title: "Think Tank", url: "/team/think-tank", icon: Lightbulb },
-  { title: "Meeting Notes", url: "/admin/meeting-notes", icon: FileText },
-  { title: "Strategy Playbook", url: "/corporate/strategy", icon: BookOpen },
-  { title: "Team Success", url: "/admin/team", icon: Users },
-  { title: "Agent Office", url: "/agent-office-v2", icon: Monitor },
-];
-
-const adminSection = [
-  { title: "Users", url: "/admin/users", icon: Users },
-  { title: "Workspace", url: "/admin/workspace", icon: Briefcase },
-  { title: "Automations", url: "/admin/automations", icon: Zap },
-  { title: "Versions", url: "/admin/versions", icon: Tag },
-  { title: "Premiere Expenses", url: "/premiere/expenses", icon: BarChart3 },
+  { title: "Clients", url: "/clients", icon: Building2 },
+  { title: "Team", url: "/team", icon: Users },
+  { title: "Admin", url: "/admin", icon: Briefcase },
 ];
 
 // Client menu (Corey, Oct 2026): seven items, no groups. Success Center lives on the Dashboard,
@@ -266,45 +242,12 @@ export function AppSidebar() {
 
       <SidebarContent>
         {isInternalUser ? (
-          <>
-            <SidebarGroup>
-              <SidebarGroupContent>{renderMenuItems(menuSection)}</SidebarGroupContent>
-            </SidebarGroup>
-
-            {[
-              { key: "clients", label: "Clients", items: clientsSection.filter((i) => (i.title === "Plans" ? isSSAdmin : true)) },
-              { key: "team", label: "Team", items: teamSection },
-              {
-                key: "admin",
-                label: "Admin",
-                items: adminSection.filter((i) => {
-                  if (i.title === "Workspace" || i.title === "Versions") return isSSAdmin;
-                  if (i.title === "Users") return isSSAdmin || isSSManager;
-                  return true;
-                }),
-                badges: (isSSAdmin || isSSManager) && pendingCount > 0 ? { Users: pendingCount } : undefined,
-              },
-            ].map((group) => (
-              <React.Fragment key={group.key}>
-                <SidebarSeparator className="opacity-30" />
-                <Collapsible open={isSectionOpen(group.key)} onOpenChange={() => toggleSection(group.key)}>
-                  <SidebarGroup>
-                    {!collapsed && (
-                      <CollapsibleTrigger asChild>
-                        <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/40 cursor-pointer flex items-center justify-between w-full">
-                          {group.label}
-                          <ChevronDown className={cn("h-3 w-3 transition-transform", isSectionOpen(group.key) && "rotate-180")} />
-                        </SidebarGroupLabel>
-                      </CollapsibleTrigger>
-                    )}
-                    <CollapsibleContent>
-                      <SidebarGroupContent>{renderMenuItems(group.items, group.badges)}</SidebarGroupContent>
-                    </CollapsibleContent>
-                  </SidebarGroup>
-                </Collapsible>
-              </React.Fragment>
-            ))}
-          </>
+          <SidebarGroup>
+            <SidebarGroupContent>{renderMenuItems(
+              menuSection,
+              (isSSAdmin || isSSManager) && pendingCount > 0 ? { Admin: pendingCount } : undefined
+            )}</SidebarGroupContent>
+          </SidebarGroup>
         ) : (
           <>
             <SidebarGroup>
