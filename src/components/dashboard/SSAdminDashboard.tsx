@@ -3,39 +3,26 @@ import { useNavigate } from "react-router-dom";
 import { format, startOfWeek, startOfMonth, subWeeks } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { StatCard } from "@/components/ui/stat-card";
 import { SectionHeader } from "@/components/ui/section-header";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Badge } from "@/components/ui/badge";
 import { getWaveEmoji } from "@/lib/waveEmoji";
-import {
-  Activity,
-  AlertTriangle,
-  BarChart3,
-  CheckSquare,
-  ClipboardList,
-  ExternalLink,
-  Eye,
-  FileEdit,
-  Globe,
-  Inbox,
-  MessageSquarePlus,
-  Sparkles,
-  Users,
-  Workflow,
-  Zap,
-} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Activity, AlertTriangle, Eye, MessageSquarePlus, Workflow } from "lucide-react";
 
-// ─── Status pipeline config ───────────────────────────────────────────────────
+/**
+ * Admin dashboard (Corey, Oct 7 2026): the same calm shape as the client dashboard.
+ * What needs you today, with the items themselves. One pipeline strip. A quiet numbers line.
+ * Then client activity. No quick links: the menu already is one.
+ */
 
 const PIPELINE_GROUPS = [
-  { label: "New",               statuses: ["idea"],                             color: "bg-slate-500/10 text-slate-600" },
-  { label: "AI Draft",          statuses: ["ai_draft"],                         color: "bg-violet-500/10 text-violet-600" },
-  { label: "Design",            statuses: ["design"],                           color: "bg-fuchsia-500/10 text-fuchsia-600" },
-  { label: "In Process",        statuses: ["in_progress"],                      color: "bg-blue-500/10 text-blue-600" },
-  { label: "Corey Review",      statuses: ["corey_review"],                     color: "bg-amber-500/10 text-amber-600" },
-  { label: "Client Approval",   statuses: ["client_approval"],                  color: "bg-orange-500/10 text-orange-600" },
-  { label: "Ready to Schedule", statuses: ["ready_to_schedule","ready_to_send"], color: "bg-emerald-500/10 text-emerald-600" },
+  { label: "New",      statuses: ["idea"],                              tone: "text-slate-600" },
+  { label: "AI draft", statuses: ["ai_draft"],                          tone: "text-violet-600" },
+  { label: "Design",   statuses: ["design"],                            tone: "text-fuchsia-600" },
+  { label: "In process", statuses: ["in_progress"],                     tone: "text-blue-600" },
+  { label: "Your review", statuses: ["corey_review"],                   tone: "text-amber-600" },
+  { label: "With client", statuses: ["client_approval", "ready_for_client_batch"], tone: "text-orange-600" },
+  { label: "Ready",    statuses: ["ready_to_schedule", "ready_to_send"], tone: "text-emerald-600" },
 ] as const;
 
 function useGreeting(userId?: string): string {
@@ -47,428 +34,188 @@ function useGreeting(userId?: string): string {
   return isReturn ? "Welcome back" : "Hey";
 }
 
-// ─── Pipeline widget ──────────────────────────────────────────────────────────
+type Row = { id: string; title: string; sub?: string | null; when?: string | null };
 
-function PostPipeline() {
+/** One "needs you" card: a count, the first few items, and where to go. */
+function NeedsCard({ title, icon, count, items, emptyText, to, tone = "default" }: {
+  title: string; icon: React.ReactNode; count: number; items: Row[]; emptyText: string; to: string; tone?: "default" | "warn";
+}) {
   const navigate = useNavigate();
-
-  const { data: statusCounts = {} } = useQuery({
-    queryKey: ["admin-post-pipeline"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("posts")
-        .select("status_column")
-        .not("status_column", "in", '("published","sent","complete")');
-
-      const counts: Record<string, number> = {};
-      (data || []).forEach((p: any) => {
-        counts[p.status_column] = (counts[p.status_column] || 0) + 1;
-      });
-      return counts;
-    },
-    refetchInterval: 60_000,
-  });
-
-  const total = Object.values(statusCounts).reduce((s, n) => s + n, 0);
-
   return (
-    <section>
-      <SectionHeader
-        title="Posts in Workflow"
-        icon={<Workflow className="h-5 w-5" />}
-        action="Open Workflow"
-        onAction={() => navigate("/workflow")}
-      />
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-        {PIPELINE_GROUPS.map((group) => {
-          const count = group.statuses.reduce((s, st) => s + (statusCounts[st] || 0), 0);
-          return (
-            <button
-              key={group.label}
-              onClick={() => navigate("/workflow")}
-              className="card-elevated p-4 text-center hover:shadow-lifted transition-all group"
-            >
-              <div className={`text-2xl font-bold ${count > 0 ? group.color.split(" ")[1] : "text-muted-foreground/40"}`}>
-                {count}
-              </div>
-              <div className="text-[11px] text-muted-foreground font-medium mt-1 leading-tight">
-                {group.label}
-              </div>
-            </button>
-          );
-        })}
+    <button
+      type="button"
+      onClick={() => navigate(to)}
+      className={cn("card-elevated p-5 text-left flex flex-col gap-3 hover:shadow-lifted transition-all min-h-[11rem]", tone === "warn" && count > 0 && "ring-1 ring-destructive/30")}
+    >
+      <div className="flex items-center justify-between">
+        <span className="flex items-center gap-2 text-sm font-semibold text-foreground">{icon}{title}</span>
+        <span className={cn("text-2xl font-bold tabular-nums", count === 0 ? "text-muted-foreground/40" : tone === "warn" ? "text-destructive" : "text-primary")}>{count}</span>
       </div>
-      {total > 0 && (
-        <p className="text-xs text-muted-foreground mt-2 text-right">
-          {total} active post{total !== 1 ? "s" : ""} in progress
-        </p>
-      )}
-    </section>
-  );
-}
-
-// ─── Corey Review queue ───────────────────────────────────────────────────────
-
-function CoreyReviewQueue() {
-  const navigate = useNavigate();
-
-  const { data: posts = [] } = useQuery({
-    queryKey: ["admin-corey-review"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("posts")
-        .select("id, title, platform, content_type, created_at, client_id, clients(name)")
-        .eq("status_column", "corey_review")
-        .order("created_at", { ascending: true })
-        .limit(10);
-      return data || [];
-    },
-    refetchInterval: 30_000,
-  });
-
-  return (
-    <section>
-      <SectionHeader
-        title="Pending Your Review"
-        icon={<Eye className="h-5 w-5" />}
-        action={posts.length > 0 ? "View all" : undefined}
-        onAction={() => navigate("/approvals")}
-      />
-      {posts.length === 0 ? (
-        <EmptyState title="Nothing waiting for your review" compact />
+      {items.length === 0 ? (
+        <p className="text-xs text-muted-foreground">{emptyText}</p>
       ) : (
-        <div className="card-elevated divide-y divide-border/40">
-          {posts.map((post: any) => (
-            <div
-              key={post.id}
-              className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer"
-              onClick={() => navigate("/approvals")}
-            >
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
-                <span className="text-sm font-medium text-foreground truncate">{post.title}</span>
-                {post.clients?.name && (
-                  <Badge variant="outline" className="text-[10px] shrink-0 hidden sm:inline-flex">
-                    {post.clients.name}
-                  </Badge>
-                )}
-              </div>
-              <span className="text-[11px] text-muted-foreground shrink-0 ml-3">
-                {format(new Date(post.created_at), "MMM d")}
-              </span>
-            </div>
+        <ul className="space-y-1.5">
+          {items.slice(0, 3).map((r) => (
+            <li key={r.id} className="flex items-baseline gap-2 text-sm min-w-0">
+              <span className="truncate text-foreground">{r.title}</span>
+              {r.sub && <span className="text-[11px] text-muted-foreground shrink-0">{r.sub}</span>}
+            </li>
           ))}
-        </div>
+          {count > 3 && <li className="text-[11px] text-muted-foreground">and {count - 3} more</li>}
+        </ul>
       )}
-    </section>
+    </button>
   );
 }
-
-// ─── Cross-client activity ────────────────────────────────────────────────────
-
-function AllClientActivity() {
-  const navigate = useNavigate();
-
-  const { data: activities = [] } = useQuery({
-    queryKey: ["admin-all-client-activity"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("client_activity")
-        .select("id, title, activity_type, created_at, client_id, clients(name)")
-        .order("created_at", { ascending: false })
-        .limit(12);
-      return (data || []) as Array<{
-        id: string;
-        title: string;
-        activity_type: string;
-        created_at: string;
-        client_id: string;
-        clients: { name: string } | null;
-      }>;
-    },
-    refetchInterval: 60_000,
-  });
-
-  const TYPE_ICON: Record<string, string> = {
-    ai_draft_generated: "✨",
-    internal_review_completed: "👀",
-    corey_review: "🔍",
-    approval_completed: "✅",
-    batch_ready: "📦",
-    content_scheduled: "📅",
-    content_published: "🚀",
-    email_sent: "📬",
-    request_status_changed: "↪️",
-  };
-
-  return (
-    <section>
-      <SectionHeader
-        title="Client Activity"
-        icon={<Activity className="h-5 w-5" />}
-        action="All clients"
-        onAction={() => navigate("/admin/clients")}
-      />
-      {activities.length === 0 ? (
-        <EmptyState title="No recent activity" compact />
-      ) : (
-        <div className="card-elevated divide-y divide-border/40">
-          {activities.map((a) => (
-            <div key={a.id} className="flex items-center gap-3 px-4 py-3">
-              <span className="text-base shrink-0">{TYPE_ICON[a.activity_type] || "•"}</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-foreground truncate">{a.title}</p>
-                {a.clients?.name && (
-                  <p className="text-[11px] text-muted-foreground">{a.clients.name}</p>
-                )}
-              </div>
-              <span className="text-[11px] text-muted-foreground shrink-0">
-                {format(new Date(a.created_at), "MMM d")}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
-// ─── Analytics widget ─────────────────────────────────────────────────────────
-
-function PublishingAnalytics() {
-  const navigate = useNavigate();
-  const now = new Date();
-  const weekStart = startOfWeek(now, { weekStartsOn: 1 }).toISOString();
-  const monthStart = startOfMonth(now).toISOString();
-  const lastWeekStart = startOfWeek(subWeeks(now, 1), { weekStartsOn: 1 }).toISOString();
-
-  const { data: thisWeek = 0 } = useQuery({
-    queryKey: ["admin-analytics-week"],
-    queryFn: async () => {
-      const { count } = await supabase
-        .from("posts")
-        .select("id", { count: "exact", head: true })
-        .in("status_column", ["published", "sent"])
-        .gte("updated_at", weekStart);
-      return count || 0;
-    },
-  });
-
-  const { data: lastWeek = 0 } = useQuery({
-    queryKey: ["admin-analytics-lastweek"],
-    queryFn: async () => {
-      const { count } = await supabase
-        .from("posts")
-        .select("id", { count: "exact", head: true })
-        .in("status_column", ["published", "sent"])
-        .gte("updated_at", lastWeekStart)
-        .lt("updated_at", weekStart);
-      return count || 0;
-    },
-  });
-
-  const { data: thisMonth = 0 } = useQuery({
-    queryKey: ["admin-analytics-month"],
-    queryFn: async () => {
-      const { count } = await supabase
-        .from("posts")
-        .select("id", { count: "exact", head: true })
-        .in("status_column", ["published", "sent"])
-        .gte("updated_at", monthStart);
-      return count || 0;
-    },
-  });
-
-  const { data: activeClients = 0 } = useQuery({
-    queryKey: ["admin-active-clients"],
-    queryFn: async () => {
-      const { count } = await supabase
-        .from("clients")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "active");
-      return count || 0;
-    },
-  });
-
-  const weekDelta = thisWeek - lastWeek;
-
-  return (
-    <section>
-      <SectionHeader title="Analytics" icon={<BarChart3 className="h-5 w-5" />} />
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard
-          label="Published This Week"
-          value={thisWeek}
-          subtitle={weekDelta === 0 ? "Same as last week" : weekDelta > 0 ? `+${weekDelta} vs last week` : `${weekDelta} vs last week`}
-          icon={<Zap className="h-4 w-4" />}
-          onClick={() => navigate("/workflow")}
-        />
-        <StatCard
-          label="Published This Month"
-          value={thisMonth}
-          icon={<BarChart3 className="h-4 w-4" />}
-          onClick={() => navigate("/workflow")}
-        />
-        <StatCard
-          label="Active Clients"
-          value={activeClients}
-          icon={<Users className="h-4 w-4" />}
-          onClick={() => navigate("/admin/clients")}
-        />
-        <StatCard
-          label="Last Week"
-          value={lastWeek}
-          icon={<FileEdit className="h-4 w-4" />}
-          onClick={() => navigate("/workflow")}
-        />
-      </div>
-    </section>
-  );
-}
-
-// ─── Quick Links ──────────────────────────────────────────────────────────────
-
-function QuickLinks() {
-  const navigate = useNavigate();
-
-  const links = [
-    { label: "Workflow",      icon: <Workflow className="h-5 w-5 text-primary" />,          path: "/workflow" },
-    { label: "Approvals",     icon: <CheckSquare className="h-5 w-5 text-primary" />,       path: "/approvals" },
-    { label: "Requests",      icon: <MessageSquarePlus className="h-5 w-5 text-primary" />, path: "/requests" },
-    { label: "Team Tasks",    icon: <ClipboardList className="h-5 w-5 text-primary" />,     path: "/team/tasks" },
-    { label: "Clients",       icon: <Users className="h-5 w-5 text-primary" />,             path: "/admin/clients" },
-    { label: "Inbox",         icon: <Inbox className="h-5 w-5 text-primary" />,             path: "/team/inbox" },
-    { label: "Calendar",      icon: <Globe className="h-5 w-5 text-primary" />,             path: "/calendar" },
-    { label: "Think Tank",    icon: <Sparkles className="h-5 w-5 text-primary" />,          path: "/team/think-tank" },
-  ];
-
-  return (
-    <section>
-      <SectionHeader title="Quick Links" icon={<ExternalLink className="h-5 w-5" />} />
-      <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
-        {links.map((link) => (
-          <button
-            key={link.label}
-            onClick={() => navigate(link.path)}
-            className="card-elevated p-3 flex flex-col items-center gap-1.5 hover:shadow-lifted transition-all group"
-          >
-            <span className="group-hover:scale-110 transition-transform">{link.icon}</span>
-            <span className="text-[10px] font-medium text-muted-foreground leading-tight text-center">
-              {link.label}
-            </span>
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-// ─── SS Admin Dashboard ───────────────────────────────────────────────────────
 
 export function SSAdminDashboard() {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const greeting = useGreeting(profile?.id);
+  const now = new Date();
 
-  // Summary stats
-  const { data: coreyReviewCount = 0 } = useQuery({
-    queryKey: ["admin-stat-corey-review"],
+  // ── What needs you ──
+  const { data: review = [] } = useQuery({
+    queryKey: ["admin-corey-review"],
     queryFn: async () => {
-      const { count } = await supabase
-        .from("posts")
-        .select("id", { count: "exact", head: true })
-        .eq("status_column", "corey_review");
-      return count || 0;
+      const { data } = await supabase
+        .from("posts").select("id, title, created_at, clients(name)")
+        .eq("status_column", "corey_review").order("created_at", { ascending: true }).limit(50);
+      return (data || []).map((p: any) => ({ id: p.id, title: p.title, sub: p.clients?.name ?? null })) as Row[];
     },
     refetchInterval: 30_000,
   });
-
-  const { data: clientApprovalCount = 0 } = useQuery({
-    queryKey: ["admin-stat-client-approval"],
+  const { data: overdue = [] } = useQuery({
+    queryKey: ["admin-overdue-tasks"],
     queryFn: async () => {
-      const { count } = await supabase
-        .from("posts")
-        .select("id", { count: "exact", head: true })
-        .in("status_column", ["client_approval", "ready_for_client_batch"]);
-      return count || 0;
+      const { data } = await supabase
+        .from("tasks").select("id, title, due_at, clients(name)")
+        .lt("due_at", now.toISOString()).not("status", "eq", "complete").order("due_at", { ascending: true }).limit(50);
+      return (data || []).map((t: any) => ({ id: t.id, title: t.title, sub: t.clients?.name ?? (t.due_at ? format(new Date(t.due_at), "MMM d") : null) })) as Row[];
     },
-    refetchInterval: 30_000,
+    refetchInterval: 60_000,
   });
-
-  const { data: openRequestsCount = 0 } = useQuery({
-    queryKey: ["admin-stat-requests"],
+  const { data: requests = [] } = useQuery({
+    queryKey: ["admin-open-requests"],
     queryFn: async () => {
-      const { count } = await supabase
-        .from("posts")
-        .select("id", { count: "exact", head: true })
-        .eq("source", "client_request")
-        .eq("status_column", "idea");
-      return count || 0;
+      const { data } = await supabase
+        .from("posts").select("id, title, created_at, clients(name)")
+        .eq("source", "client_request").eq("status_column", "idea").order("created_at", { ascending: true }).limit(50);
+      return (data || []).map((p: any) => ({ id: p.id, title: p.title, sub: p.clients?.name ?? null })) as Row[];
     },
     refetchInterval: 60_000,
   });
 
-  const { data: overdueCount = 0 } = useQuery({
-    queryKey: ["admin-stat-overdue"],
+  // ── Pipeline ──
+  const { data: statusCounts = {} } = useQuery({
+    queryKey: ["admin-post-pipeline"],
     queryFn: async () => {
-      const now = new Date().toISOString();
-      const { count } = await supabase
-        .from("tasks")
-        .select("id", { count: "exact", head: true })
-        .lt("due_at", now)
-        .not("status", "eq", "complete");
-      return count || 0;
+      const { data } = await supabase.from("posts").select("status_column").not("status_column", "in", '("published","sent","complete")');
+      const counts: Record<string, number> = {};
+      (data || []).forEach((p: any) => { counts[p.status_column] = (counts[p.status_column] || 0) + 1; });
+      return counts;
     },
     refetchInterval: 60_000,
   });
+  const pipeline = PIPELINE_GROUPS.map((g) => ({ ...g, count: g.statuses.reduce((s, st) => s + (statusCounts[st] || 0), 0) }));
+  const active = pipeline.reduce((s, g) => s + g.count, 0);
+  const withClient = pipeline.find((g) => g.label === "With client")?.count ?? 0;
+
+  // ── Numbers ──
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 }).toISOString();
+  const lastWeekStart = startOfWeek(subWeeks(now, 1), { weekStartsOn: 1 }).toISOString();
+  const monthStart = startOfMonth(now).toISOString();
+  const countPublished = async (from: string, to?: string) => {
+    let q = supabase.from("posts").select("id", { count: "exact", head: true }).in("status_column", ["published", "sent"]).gte("updated_at", from);
+    if (to) q = q.lt("updated_at", to);
+    const { count } = await q;
+    return count || 0;
+  };
+  const { data: thisWeek = 0 } = useQuery({ queryKey: ["admin-analytics-week"], queryFn: () => countPublished(weekStart) });
+  const { data: lastWeek = 0 } = useQuery({ queryKey: ["admin-analytics-lastweek"], queryFn: () => countPublished(lastWeekStart, weekStart) });
+  const { data: thisMonth = 0 } = useQuery({ queryKey: ["admin-analytics-month"], queryFn: () => countPublished(monthStart) });
+  const { data: activeClients = 0 } = useQuery({
+    queryKey: ["admin-active-clients"],
+    queryFn: async () => { const { count } = await supabase.from("clients").select("id", { count: "exact", head: true }).eq("status", "active"); return count || 0; },
+  });
+
+  // ── Activity ──
+  const { data: activities = [] } = useQuery({
+    queryKey: ["admin-all-client-activity"],
+    queryFn: async () => {
+      const { data } = await supabase.from("client_activity").select("id, title, activity_type, created_at, clients(name)").order("created_at", { ascending: false }).limit(8);
+      return (data || []) as Array<{ id: string; title: string; activity_type: string; created_at: string; clients: { name: string } | null }>;
+    },
+    refetchInterval: 60_000,
+  });
+  const TYPE_ICON: Record<string, string> = {
+    ai_draft_generated: "✨", internal_review_completed: "👀", corey_review: "🔍", approval_completed: "✅",
+    batch_ready: "📦", content_scheduled: "📅", content_published: "🚀", email_sent: "📬", request_status_changed: "↪️",
+  };
+
+  const needsCount = review.length + overdue.length + requests.length;
+  const weekDelta = thisWeek - lastWeek;
 
   return (
-    <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-8">
-      {/* Header */}
+    <div className="p-4 sm:p-8 max-w-5xl mx-auto space-y-8">
       <div>
         <h1 className="text-3xl font-bold text-foreground tracking-tight">
-          {profile?.name
-            ? `${greeting}, ${profile.name.split(" ")[0]} ${getWaveEmoji(profile.name)}`
-            : "Admin Dashboard"}
+          {profile?.name ? `${greeting}, ${profile.name.split(" ")[0]} ${getWaveEmoji(profile.name)}` : "Dashboard"}
         </h1>
-        <p className="text-muted-foreground mt-1">Your full platform overview.</p>
+        <p className="text-muted-foreground mt-1">
+          {format(now, "EEEE, MMMM d")}.{" "}
+          {needsCount === 0 ? "Nothing is waiting on you." : `${needsCount} thing${needsCount === 1 ? "" : "s"} need${needsCount === 1 ? "s" : ""} you today.`}
+        </p>
       </div>
 
-      {/* Top stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard
-          label="Needs Your Review"
-          value={coreyReviewCount}
-          icon={<Eye className="h-4 w-4" />}
-          accent={coreyReviewCount > 0 ? "default" : "default"}
-          onClick={() => navigate("/approvals")}
-        />
-        <StatCard
-          label="With Client"
-          value={clientApprovalCount}
-          icon={<CheckSquare className="h-4 w-4" />}
-          onClick={() => navigate("/approvals")}
-        />
-        <StatCard
-          label="Open Requests"
-          value={openRequestsCount}
-          icon={<MessageSquarePlus className="h-4 w-4" />}
-          onClick={() => navigate("/requests")}
-        />
-        <StatCard
-          label="Overdue Tasks"
-          value={overdueCount}
-          icon={<AlertTriangle className="h-4 w-4" />}
-          accent={overdueCount > 0 ? "destructive" : "default"}
-          onClick={() => navigate("/team/tasks?filter=overdue")}
-        />
-      </div>
+      {/* What needs you */}
+      <section className="grid gap-3 md:grid-cols-3">
+        <NeedsCard title="Your review" icon={<Eye className="h-4 w-4 text-primary" />} count={review.length} items={review} emptyText="Nothing waiting for your review." to="/approvals" />
+        <NeedsCard title="Overdue tasks" icon={<AlertTriangle className="h-4 w-4 text-destructive" />} count={overdue.length} items={overdue} emptyText="No task is overdue." to="/team/tasks?filter=overdue" tone="warn" />
+        <NeedsCard title="Open requests" icon={<MessageSquarePlus className="h-4 w-4 text-primary" />} count={requests.length} items={requests} emptyText="No client requests waiting." to="/requests" />
+      </section>
 
-      <QuickLinks />
-      <PostPipeline />
-      <CoreyReviewQueue />
-      <PublishingAnalytics />
-      <AllClientActivity />
+      {/* Pipeline strip */}
+      <section>
+        <SectionHeader title="Posts in workflow" icon={<Workflow className="h-5 w-5" />} action="Open Workflow" onAction={() => navigate("/workflow")} />
+        <button type="button" onClick={() => navigate("/workflow")} className="card-elevated w-full px-4 py-3 flex flex-wrap items-center gap-x-5 gap-y-2 hover:shadow-lifted transition-all text-left">
+          {pipeline.map((g) => (
+            <span key={g.label} className="flex items-baseline gap-1.5 text-sm">
+              <span className={cn("font-bold tabular-nums", g.count > 0 ? g.tone : "text-muted-foreground/40")}>{g.count}</span>
+              <span className="text-muted-foreground text-xs">{g.label}</span>
+            </span>
+          ))}
+          <span className="ml-auto text-xs text-muted-foreground">{active} active · {withClient} with clients</span>
+        </button>
+      </section>
+
+      {/* Numbers */}
+      <section className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
+        <span><strong className="text-foreground tabular-nums">{thisWeek}</strong> published this week{weekDelta !== 0 && <span className={weekDelta > 0 ? " text-primary" : " text-destructive"}> ({weekDelta > 0 ? "+" : ""}{weekDelta} vs last week)</span>}</span>
+        <span><strong className="text-foreground tabular-nums">{thisMonth}</strong> this month</span>
+        <button type="button" onClick={() => navigate("/admin/clients")} className="hover:text-foreground"><strong className="text-foreground tabular-nums">{activeClients}</strong> active clients</button>
+      </section>
+
+      {/* Activity */}
+      <section>
+        <SectionHeader title="Client activity" icon={<Activity className="h-5 w-5" />} action="All clients" onAction={() => navigate("/admin/clients")} />
+        {activities.length === 0 ? (
+          <EmptyState title="No recent activity" compact />
+        ) : (
+          <div className="card-elevated divide-y divide-border/40">
+            {activities.map((a) => (
+              <div key={a.id} className="flex items-center gap-3 px-4 py-3">
+                <span className="text-base shrink-0">{TYPE_ICON[a.activity_type] || "•"}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-foreground truncate">{a.title}</p>
+                  {a.clients?.name && <p className="text-[11px] text-muted-foreground">{a.clients.name}</p>}
+                </div>
+                <span className="text-[11px] text-muted-foreground shrink-0">{format(new Date(a.created_at), "MMM d")}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
