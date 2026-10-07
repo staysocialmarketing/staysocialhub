@@ -21,7 +21,7 @@ const db = supabase as any;
  */
 
 type Preview = {
-  bg?: string; wash?: string; ink?: string; font?: "serif" | "sans"; sample?: string; sub?: string;
+  image?: string; bg?: string; wash?: string; ink?: string; font?: "serif" | "sans"; sample?: string; sub?: string;
   caps?: boolean; figure?: boolean; play?: boolean;
 };
 type Style = {
@@ -31,6 +31,18 @@ type Style = {
 type Override = { style_key: string; enabled: boolean };
 
 function Tile({ p, className }: { p: Preview; className?: string }) {
+  if (p.image) {
+    return (
+      <div className={cn("relative overflow-hidden rounded-xl bg-muted", className)} aria-hidden>
+        <img src={p.image} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
+        {p.play && (
+          <div className="absolute left-3 top-3 h-8 w-8 rounded-full bg-white/90 flex items-center justify-center shadow-sm">
+            <Play className="h-3.5 w-3.5 fill-current" style={{ color: "#1a2733" }} />
+          </div>
+        )}
+      </div>
+    );
+  }
   return (
     <div
       className={cn("relative overflow-hidden rounded-xl", className)}
@@ -93,6 +105,9 @@ export default function DesignStyles() {
 
   const [draft, setDraft] = useState<Record<string, boolean>>({});
   const [open, setOpen] = useState<Style | null>(null);
+  const [kind, setKind] = useState<string>("all");
+  const kinds = Array.from(new Set(styles.map((s) => s.tag)));
+  const shown = kind === "all" ? styles : styles.filter((s) => s.tag === kind);
   const effective = (key: string) => (key in draft ? draft[key] : saved[key]);
   const changes = styles.filter((s) => s.key in draft && draft[s.key] !== saved[s.key]);
   const toggle = (key: string) => {
@@ -141,28 +156,38 @@ export default function DesignStyles() {
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 text-sm">
-        <Badge variant="secondary">{onCount} of {styles.length} on</Badge>
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <Badge variant="secondary" className="mr-1">{onCount} of {styles.length} on</Badge>
+        {["all", ...kinds].map((k) => (
+          <button
+            key={k}
+            type="button"
+            onClick={() => setKind(k)}
+            className={cn("rounded-full px-3 py-1 text-xs font-medium border transition-colors", kind === k ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border hover:text-foreground")}
+          >
+            {k === "all" ? "All styles" : k}
+          </button>
+        ))}
         {!canEdit && (
           <span className="inline-flex items-center gap-1 text-muted-foreground"><Lock className="h-3.5 w-3.5" /> View only. Ask your account owner to change styles.</span>
         )}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {styles.map((s) => {
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {shown.map((s) => {
           const on = effective(s.key);
           const changed = s.key in draft && draft[s.key] !== saved[s.key];
           return (
             <div
               key={s.key}
               className={cn(
-                "rounded-2xl border bg-card p-3 flex flex-col gap-3 transition-colors",
-                on ? "border-border" : "border-border/60 opacity-75",
+                "group rounded-2xl border bg-card p-3 flex flex-col gap-3 transition-all hover:shadow-lg hover:-translate-y-0.5",
+                on ? "border-border" : "border-border/60 opacity-70 grayscale-[0.4]",
                 changed && "ring-2 ring-primary/40"
               )}
             >
               <button type="button" onClick={() => setOpen(s)} className="text-left rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-                <Tile p={s.preview || {}} className="aspect-[4/3] w-full" />
+                <Tile p={s.preview || {}} className="aspect-[3/4] w-full" />
               </button>
               <div className="flex items-start gap-3 px-1">
                 <div className="flex-1 min-w-0">
@@ -203,7 +228,7 @@ export default function DesignStyles() {
         <SheetContent className="w-full sm:max-w-md overflow-y-auto">
           {open && (
             <div className="space-y-5">
-              <Tile p={open.preview || {}} className="aspect-[4/3] w-full" />
+              <Tile p={open.preview || {}} className="aspect-[3/4] w-full" />
               <SheetHeader className="text-left">
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant="outline" className="text-[10px]">{open.tag}</Badge>
