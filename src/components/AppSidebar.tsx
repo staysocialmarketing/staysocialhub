@@ -158,6 +158,7 @@ export function AppSidebar() {
             <SidebarMenuButton asChild>
               <NavLink
                 to={item.url}
+                end={item.url === "/team" || item.url === "/admin" || item.url === "/clients"}
                 className="hover:bg-sidebar-accent/50 rounded-xl transition-colors"
                 activeClassName="bg-primary/10 text-primary font-medium"
               >
