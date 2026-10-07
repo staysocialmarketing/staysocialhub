@@ -150,7 +150,8 @@ export default function MarketingCalendar() {
       // Row-level security already limits rows to the client's own account.
       query = isSSRole
         ? query.or(`scheduled_at.not.is.null,status_column.in.(${PIPELINE_STATUSES.join(",")})`)
-        : query.in("status_column", CLIENT_VISIBLE_STATUSES);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        : (query as any).in("status_column", CLIENT_VISIBLE_STATUSES);
       const { data, error } = await query;
       if (error) throw error;
       return data || [];
