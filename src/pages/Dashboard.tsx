@@ -433,7 +433,7 @@ function ClientDashboard() {
     queryKey: ["client-plan-and-addons", profile?.client_id],
     queryFn: async () => {
       if (!profile?.client_id) return null;
-      const { data } = await supabase.from("clients").select("name, plans(name, includes_json), whats_new_visible_addons, recommended_item_id").eq("id", profile.client_id).single();
+      const { data } = await supabase.from("clients").select("name, plans!plan_id(name, includes_json), whats_new_visible_addons, recommended_item_id").eq("id", profile.client_id).single();
       return data;
     },
     enabled: !!profile?.client_id,

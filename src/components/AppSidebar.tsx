@@ -131,7 +131,7 @@ export function AppSidebar() {
     queryKey: ["sidebar-users"],
     enabled: canViewAs,
     queryFn: async () => {
-      const { data: users } = await supabase.from("users").select("id, name, email");
+      const { data: users } = await supabase.from("users").select("id, name, email").is("retired_at", null);
       const { data: roles } = await supabase.from("user_roles").select("user_id, role");
       if (!users || !roles) return [];
       const roleMap: Record<string, string[]> = {};

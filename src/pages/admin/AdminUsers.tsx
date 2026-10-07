@@ -140,6 +140,7 @@ export default function AdminUsers() {
       const { data, error } = await supabase
         .from("users")
         .select("*, user_roles(id, role), clients(name)")
+        .is("retired_at", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
