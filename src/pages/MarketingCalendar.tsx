@@ -133,14 +133,17 @@ const viewOptions = [
 
 export default function MarketingCalendar() {
   const navigate = useNavigate();
-  const { isSSRole } = useAuth();
+  const { isSSRole, profile } = useAuth();
   const [tab, setTab] = useState("calendar");
+  // A client view is always pinned to that client's id, on top of row-level security.
+  // Under View As the database sees the admin, so the query must carry the fence itself.
+  const viewedClientId = isSSRole ? null : profile?.client_id ?? null;
 
   const PIPELINE_STATUSES = isSSRole ? ALL_PIPELINE_STATUSES : CLIENT_VISIBLE_STATUSES;
   const BOARD_COLUMNS = isSSRole ? ALL_BOARD_COLUMNS : CLIENT_BOARD_COLUMNS;
 
   const { data: posts = [] } = useQuery({
-    queryKey: ["marketing-calendar-posts", isSSRole],
+    queryKey: ["marketing-calendar-posts", isSSRole, viewedClientId],
     queryFn: async () => {
       let query = supabase
         .from("posts")
@@ -148,13 +151,17 @@ export default function MarketingCalendar() {
         .order("scheduled_at", { ascending: true, nullsFirst: false });
       // Clients: only the statuses above, nothing in drafting even if it has a planned date.
       // Row-level security already limits rows to the client's own account.
-      query = isSSRole
-        ? query.or(`scheduled_at.not.is.null,status_column.in.(${PIPELINE_STATUSES.join(",")})`)
+      if (isSSRole) {
+        query = query.or(`scheduled_at.not.is.null,status_column.in.(${PIPELINE_STATUSES.join(",")})`);
+      } else {
+        if (!viewedClientId) return [];
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        : (query as any).in("status_column", CLIENT_VISIBLE_STATUSES);
+        query = (query as any).in("status_column", CLIENT_VISIBLE_STATUSES).eq("client_id", viewedClientId);
+      }
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+      // Belt and braces: never hand a client view another client's row, whatever the server returned.
+      return viewedClientId ? (data || []).filter((p: any) => p.client_id === viewedClientId) : data || [];
     },
   });
 
