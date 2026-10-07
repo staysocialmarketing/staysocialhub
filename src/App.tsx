@@ -55,6 +55,9 @@ import EmailPreview from "./pages/EmailPreview";
 import PremiereExpenses from "./pages/premiere/PremiereExpenses";
 import SocialLogins from "./pages/client/SocialLogins";
 import AdminSocialLogins from "./pages/admin/AdminSocialLogins";
+import ClientsHub from "./pages/hubs/ClientsHub";
+import TeamHub from "./pages/hubs/TeamHub";
+import AdminHub from "./pages/hubs/AdminHub";
 
 const queryClient = new QueryClient();
 
@@ -131,6 +134,9 @@ const App = () => (
               <Route path="/profile" element={<Profile />} />
               <Route path="/plan" element={<Plan />} />
               <Route path="/whats-new" element={<WhatsNew />} />
+              <Route path="/clients" element={<AdminRoute><ClientsHub /></AdminRoute>} />
+              <Route path="/team" element={<AdminRoute><TeamHub /></AdminRoute>} />
+              <Route path="/admin" element={<AdminRoute><AdminHub /></AdminRoute>} />
               <Route path="/admin/clients" element={<AdminRoute><AdminClients /></AdminRoute>} />
               <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
               <Route path="/admin/profile-updates" element={<AdminRoute><AdminProfileUpdates /></AdminRoute>} />

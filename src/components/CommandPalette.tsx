@@ -85,7 +85,9 @@ export function CommandPalette() {
     { icon: CheckSquare, label: "Tasks", path: "/team/tasks" },
     { icon: FolderKanban, label: "Projects", path: "/team/projects" },
     { icon: Lightbulb, label: "Think Tank", path: "/team/think-tank" },
-    { icon: Users, label: "Clients", path: "/admin/clients" },
+    { icon: Users, label: "Clients", path: "/clients" },
+    { icon: Trophy, label: "Team", path: "/team" },
+    { icon: Users, label: "Admin", path: "/admin" },
     { icon: Image, label: "Media", path: "/admin/media" },
     { icon: Trophy, label: "Team", path: "/admin/team" },
   ];
