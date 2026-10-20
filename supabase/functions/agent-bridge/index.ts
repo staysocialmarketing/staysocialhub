@@ -432,8 +432,10 @@ Deno.serve(async (req: Request) => {
         .select(`
           id, title, platform, caption, content_type, platform_content,
           status_column, assigned_to_user_id, reviewer_user_id, scheduled_at, created_at,
-          notes, design_notes, design_prompts,
-          post_images(id, url, storage_path, platform, position, alt_text)
+          notes, design_notes, design_prompts, internal_notes,
+          post_images(id, url, storage_path, platform, position, alt_text),
+          approvals(id, type, note, created_at, user:users!approvals_user_id_fkey(name, client_id)),
+          comments(id, body, is_internal, source, created_at, user:users!comments_user_id_fkey(name, client_id))
         `)
         .eq("client_id", client_id)
         .order("created_at", { ascending: false });
@@ -450,11 +452,20 @@ Deno.serve(async (req: Request) => {
       if (error) return err(error.message, 500);
 
       // Sort post_images by position ascending for each post
+      // Every agent read carries the client's own words: approvals with notes and
+      // comments, oldest first. Agents must honour these before changing content.
       const posts = (data ?? []).map((p: any) => ({
         ...p,
         post_images: Array.isArray(p.post_images)
           ? p.post_images.sort((a: any, b: any) => a.position - b.position)
           : [],
+        approvals: (Array.isArray(p.approvals) ? p.approvals : [])
+          .filter((a: any) => a.note && String(a.note).trim())
+          .sort((a: any, b: any) => String(a.created_at).localeCompare(String(b.created_at)))
+          .map((a: any) => ({ id: a.id, type: a.type, note: a.note, created_at: a.created_at, by: a.user?.name ?? null, from_client: !!a.user?.client_id })),
+        comments: (Array.isArray(p.comments) ? p.comments : [])
+          .sort((a: any, b: any) => String(a.created_at).localeCompare(String(b.created_at)))
+          .map((c: any) => ({ id: c.id, body: c.body, is_internal: c.is_internal, source: c.source, created_at: c.created_at, by: c.user?.name ?? null, from_client: !!c.user?.client_id })),
       }));
 
       return json({ success: true, posts, count: posts.length });
