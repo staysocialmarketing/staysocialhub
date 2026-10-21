@@ -262,7 +262,11 @@ export default function AdminClients() {
       // A status change also opens or closes the client's sign-in (archived = locked out).
       if (editStatus !== editClient.status) {
         const { data: res, error: fnErr } = await supabase.functions.invoke("admin-users", { body: { action: "set-client-status", client_id: editClient.id, status: editStatus } });
-        if (fnErr || res?.success === false) throw new Error(res?.error || fnErr?.message || "Status change failed");
+        if (fnErr || res?.success === false) {
+          let msg = res?.error || fnErr?.message || "Status change failed";
+          try { const ctx = (fnErr as any)?.context; if (ctx?.json) { const j = await ctx.json(); if (j?.error) msg = j.error; } } catch { /* keep msg */ }
+          throw new Error(msg);
+        }
       }
       // Services: replace the set. The primary plan is never listed as a service of itself.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -280,7 +284,7 @@ export default function AdminClients() {
       toast.success("Client updated");
       setEditClient(null);
     },
-    onError: () => toast.error("Failed to update client"),
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Failed to update client"),
   });
 
   const toggleAssistants = useMutation({
@@ -368,7 +372,11 @@ export default function AdminClients() {
     setDeleting(true);
     const { data: res, error } = await supabase.functions.invoke("admin-users", { body: { action: "delete-client", client_id: editClient.id, confirm_name: deleteName } });
     setDeleting(false);
-    if (error || res?.success === false) { toast.error(res?.error || error?.message || "Delete failed"); return; }
+    if (error || res?.success === false) {
+      let msg = res?.error || error?.message || "Delete failed";
+      try { const ctx = (error as any)?.context; if (ctx?.json) { const j = await ctx.json(); if (j?.error) msg = j.error; } } catch { /* keep msg */ }
+      toast.error(msg); return;
+    }
     const c = res?.counts || {};
     toast.success(`${res?.deleted} deleted: ${c.posts ?? 0} posts, ${c.tasks ?? 0} tasks, ${c.requests_archive ?? 0} requests`);
     setDeleteOpen(false); setDeleteName(""); setEditClient(null);

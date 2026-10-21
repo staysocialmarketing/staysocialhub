@@ -78,7 +78,8 @@ Deno.serve(async (req: Request) => {
   const retireClientUsers = async (clientId: string, archive: boolean) => {
     const { data: members } = await adminDb.from("users").select("id").eq("client_id", clientId);
     for (const m of members ?? []) {
-      await adminDb.auth.admin.updateUserById(m.id, { ban_duration: archive ? "876600h" : "none" });
+      const { error: banErr } = await adminDb.auth.admin.updateUserById(m.id, { ban_duration: archive ? "876600h" : "none" });
+      if (banErr && !/not found/i.test(banErr.message)) throw new Error(`Could not ${archive ? "lock" : "unlock"} ${m.id}: ${banErr.message}`);
       await adminDb.from("users").update({ retired_at: archive ? new Date().toISOString() : null }).eq("id", m.id);
     }
     return (members ?? []).length;
@@ -92,8 +93,12 @@ Deno.serve(async (req: Request) => {
     const { error } = await adminDb.from("clients").update({ status }).eq("id", client_id);
     if (error) return err(error.message, 500);
     // Archived clients lose sign-in; back to active or on hold restores it.
-    const people = await retireClientUsers(client_id, status === "archived");
-    return json({ success: true, status, people });
+    try {
+      const people = await retireClientUsers(client_id, status === "archived");
+      return json({ success: true, status, people });
+    } catch (e) {
+      return err(e instanceof Error ? e.message : String(e), 500);
+    }
   }
 
   if (action === "delete-client") {
@@ -105,7 +110,12 @@ Deno.serve(async (req: Request) => {
     if ((confirm_name ?? "").trim() !== client.name.trim()) return err("Type the client's name exactly to confirm");
 
     // People keep their accounts but lose the client and their sign-in; content goes with the client.
-    const people = await retireClientUsers(client_id, true);
+    let people = 0;
+    try {
+      people = await retireClientUsers(client_id, true);
+    } catch (e) {
+      return err(e instanceof Error ? e.message : String(e), 500);
+    }
     await adminDb.from("users").update({ client_id: null }).eq("client_id", client_id);
     const counts: Record<string, number> = {};
     for (const table of ["posts", "tasks", "requests_archive", "nanoclaw_queue", "profile_update_requests"]) {
@@ -148,8 +158,9 @@ Deno.serve(async (req: Request) => {
     }
 
     // History (comments, approvals, requests) keeps its author, so retire the account instead:
-    // no sign-in, no roles, no client, hidden from every list.
-    if (/foreign key|violates|constraint|referenced/i.test(error.message)) {
+    // no sign-in, no roles, no client, hidden from every list. GoTrue hides the FK detail behind
+    // a generic "Database error deleting user", so anything that is not "not found" takes this path.
+    if (/foreign key|violates|constraint|referenced|database error/i.test(error.message)) {
       const { error: banErr } = await adminDb.auth.admin.updateUserById(user_id, { ban_duration: "876600h" });
       if (banErr) return err(banErr.message, 500);
       const { data: u } = await adminDb.from("users").select("name, email").eq("id", user_id).maybeSingle();
