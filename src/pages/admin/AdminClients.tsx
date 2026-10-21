@@ -12,8 +12,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+
+const CLIENT_STATUS_LABEL: Record<string, string> = { active: "Active", on_hold: "On hold", archived: "Archived" };
 import { toast } from "sonner";
-import { Plus, Building2, Sparkles, FolderOpen, ListTodo, Lightbulb, MessageSquarePlus, Target, Image, Activity, ImageIcon, Film, Mic, Download, Link2, ExternalLink, User, ClipboardList, Brain, ChevronDown, ChevronRight, MapPin } from "lucide-react";
+import { Plus, Building2, Sparkles, FolderOpen, ListTodo, Lightbulb, MessageSquarePlus, Target, Image, Activity, ImageIcon, Film, Mic, Download, Link2, ExternalLink, User, ClipboardList, Brain, ChevronDown, ChevronRight, MapPin, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
@@ -66,6 +69,10 @@ export default function AdminClients() {
   const [editServices, setEditServices] = useState<string[]>([]);
 
   const [filterNiche, setFilterNiche] = useState("__all__");
+  const [showArchived, setShowArchived] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteName, setDeleteName] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const [filterProvince, setFilterProvince] = useState("__all__");
   const [filterCompany, setFilterCompany] = useState("__all__");
   const [collapsedProvinces, setCollapsedProvinces] = useState<Set<string>>(new Set());
@@ -252,6 +259,11 @@ export default function AdminClients() {
         platforms: editPlatforms.length > 0 ? editPlatforms : null,
       } as any).eq("id", editClient.id);
       if (error) throw error;
+      // A status change also opens or closes the client's sign-in (archived = locked out).
+      if (editStatus !== editClient.status) {
+        const { data: res, error: fnErr } = await supabase.functions.invoke("admin-users", { body: { action: "set-client-status", client_id: editClient.id, status: editStatus } });
+        if (fnErr || res?.success === false) throw new Error(res?.error || fnErr?.message || "Status change failed");
+      }
       // Services: replace the set. The primary plan is never listed as a service of itself.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const svc = supabase as any;
@@ -351,7 +363,20 @@ export default function AdminClients() {
   const uniqueProvinces = [...new Set(clients.map((c: any) => c.province).filter(Boolean))].sort() as string[];
   const uniqueCompanies = [...new Set(clients.map((c: any) => c.company).filter(Boolean))].sort() as string[];
 
+  const deleteClient = async () => {
+    if (!editClient) return;
+    setDeleting(true);
+    const { data: res, error } = await supabase.functions.invoke("admin-users", { body: { action: "delete-client", client_id: editClient.id, confirm_name: deleteName } });
+    setDeleting(false);
+    if (error || res?.success === false) { toast.error(res?.error || error?.message || "Delete failed"); return; }
+    const c = res?.counts || {};
+    toast.success(`${res?.deleted} deleted: ${c.posts ?? 0} posts, ${c.tasks ?? 0} tasks, ${c.requests_archive ?? 0} requests`);
+    setDeleteOpen(false); setDeleteName(""); setEditClient(null);
+    queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
+  };
+
   const filteredClients = clients.filter((c: any) => {
+    if (!showArchived && c.status === "archived") return false;
     if (filterNiche !== "__all__" && c.niche !== filterNiche) return false;
     if (filterProvince !== "__all__" && c.province !== filterProvince) return false;
     if (filterCompany !== "__all__" && c.company !== filterCompany) return false;
@@ -392,6 +417,11 @@ export default function AdminClients() {
         <div>
           <h1 className="text-xl font-bold tracking-tight text-foreground">Clients</h1>
           <p className="text-sm text-muted-foreground mt-1">Manage client accounts and settings.</p>
+          {isSSAdmin && (
+            <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+              <Switch checked={showArchived} onCheckedChange={setShowArchived} />Show archived
+            </label>
+          )}
         </div>
         {isSSAdmin && (
           <Dialog open={open} onOpenChange={setOpen}>
@@ -474,8 +504,8 @@ export default function AdminClients() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="paused">Paused</SelectItem>
+                  <SelectItem value="on_hold">On hold</SelectItem>
+                  <SelectItem value="archived">Archived (hidden, sign-in locked)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -565,12 +595,42 @@ export default function AdminClients() {
               </div>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="sm:justify-between">
+            {isSSAdmin && editClient && (
+              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive gap-1 mr-auto" onClick={() => { setDeleteName(""); setDeleteOpen(true); }}>
+                <Trash2 className="h-4 w-4" />Delete client
+              </Button>
+            )}
             <Button variant="ghost" onClick={() => setEditClient(null)}>Cancel</Button>
             <Button onClick={() => updateClient.mutate()} disabled={!editName.trim()}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {editClient?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the client and everything filed under it: posts, images, approvals, comments, tasks and requests. People on the account keep their login history but lose access. There is no undo. If you only want them out of the way, choose Archived instead.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">Type the client name to confirm</Label>
+            <Input value={deleteName} onChange={(e) => setDeleteName(e.target.value)} placeholder={editClient?.name} />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleting || deleteName.trim() !== (editClient?.name ?? "").trim()}
+              onClick={(e) => { e.preventDefault(); deleteClient(); }}
+            >
+              {deleting ? "Deleting" : "Delete permanently"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Client Media Dialog */}
       <Dialog open={!!mediaClientId} onOpenChange={(o) => { if (!o) setMediaClientId(null); }}>
@@ -888,7 +948,7 @@ export default function AdminClients() {
                             )}
                           </div>
                         </div>
-                        <Badge variant={c.status === "active" ? "default" : "secondary"} className="rounded-full">{c.status}</Badge>
+                        <Badge variant={c.status === "active" ? "default" : c.status === "archived" ? "outline" : "secondary"} className="rounded-full">{CLIENT_STATUS_LABEL[c.status] ?? c.status}</Badge>
                       </div>
                       <div className="flex items-center gap-1.5 mt-3 flex-wrap" onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="sm" className="text-xs gap-1 h-7 rounded-lg" onClick={() => navigate(`/admin/client-strategy/${c.id}`)}>

@@ -168,7 +168,7 @@ export default function MarketingCalendar() {
   const { data: clients = [] } = useQuery({
     queryKey: ["calendar-clients"],
     queryFn: async () => {
-      const { data } = await supabase.from("clients").select("id, name").order("name");
+      const { data } = await supabase.from("clients").select("id, name").neq("status", "archived").order("name");
       return data || [];
     },
     enabled: isSSRole,

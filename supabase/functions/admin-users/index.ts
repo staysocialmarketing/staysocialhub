@@ -9,6 +9,8 @@
  * POST body:
  *   { action: "delete", user_id }
  *   { action: "update", user_id, name?, email? }
+ *   { action: "set-client-status", client_id, status }   active | on_hold | archived (ss_admin)
+ *   { action: "delete-client", client_id, confirm_name }  permanent, cascades (ss_admin)
  *
  * Caller must be signed in (Authorization: Bearer <jwt>) and hold
  * ss_admin or ss_manager. Only an ss_admin may delete another ss_admin.
@@ -63,13 +65,59 @@ Deno.serve(async (req: Request) => {
   if (!callerRoles || callerRoles.length === 0) return err("Forbidden", 403);
   const callerIsAdmin = callerRoles.some((r: { role: string }) => r.role === "ss_admin");
 
-  let body: { action?: string; user_id?: string; name?: string; email?: string };
+  let body: { action?: string; user_id?: string; name?: string; email?: string; client_id?: string; status?: string; confirm_name?: string };
   try {
     body = await req.json();
   } catch {
     return err("Invalid JSON body");
   }
   const { action, user_id } = body;
+
+  // ── Client lifecycle (ss_admin only) ─────────────────────────────────────
+  const CLIENT_STATUSES = ["active", "on_hold", "archived"];
+  const retireClientUsers = async (clientId: string, archive: boolean) => {
+    const { data: members } = await adminDb.from("users").select("id").eq("client_id", clientId);
+    for (const m of members ?? []) {
+      await adminDb.auth.admin.updateUserById(m.id, { ban_duration: archive ? "876600h" : "none" });
+      await adminDb.from("users").update({ retired_at: archive ? new Date().toISOString() : null }).eq("id", m.id);
+    }
+    return (members ?? []).length;
+  };
+
+  if (action === "set-client-status") {
+    if (!callerIsAdmin) return err("Only an admin can change a client's status", 403);
+    const { client_id, status } = body;
+    if (!client_id || !UUID.test(client_id)) return err("client_id is required");
+    if (!status || !CLIENT_STATUSES.includes(status)) return err(`status must be one of ${CLIENT_STATUSES.join(", ")}`);
+    const { error } = await adminDb.from("clients").update({ status }).eq("id", client_id);
+    if (error) return err(error.message, 500);
+    // Archived clients lose sign-in; back to active or on hold restores it.
+    const people = await retireClientUsers(client_id, status === "archived");
+    return json({ success: true, status, people });
+  }
+
+  if (action === "delete-client") {
+    if (!callerIsAdmin) return err("Only an admin can delete a client", 403);
+    const { client_id, confirm_name } = body;
+    if (!client_id || !UUID.test(client_id)) return err("client_id is required");
+    const { data: client } = await adminDb.from("clients").select("id, name").eq("id", client_id).maybeSingle();
+    if (!client) return err("Client not found", 404);
+    if ((confirm_name ?? "").trim() !== client.name.trim()) return err("Type the client's name exactly to confirm");
+
+    // People keep their accounts but lose the client and their sign-in; content goes with the client.
+    const people = await retireClientUsers(client_id, true);
+    await adminDb.from("users").update({ client_id: null }).eq("client_id", client_id);
+    const counts: Record<string, number> = {};
+    for (const table of ["posts", "tasks", "requests_archive", "nanoclaw_queue", "profile_update_requests"]) {
+      const { count } = await adminDb.from(table).select("id", { count: "exact", head: true }).eq("client_id", client_id);
+      counts[table] = count ?? 0;
+      const { error: delErr } = await adminDb.from(table).delete().eq("client_id", client_id);
+      if (delErr) return err(`${table}: ${delErr.message}`, 500);
+    }
+    const { error } = await adminDb.from("clients").delete().eq("id", client_id);
+    if (error) return err(error.message, 500);
+    return json({ success: true, deleted: client.name, people, counts });
+  }
   if (!user_id || !UUID.test(user_id)) return err("user_id must be a UUID");
 
   const { data: targetRoles } = await adminDb.from("user_roles").select("role").eq("user_id", user_id);

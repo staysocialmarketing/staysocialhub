@@ -75,7 +75,7 @@ export default function AdminAutomations() {
   const { data: clients = [] } = useQuery({
     queryKey: ["clients-list"],
     queryFn: async () => {
-      const { data } = await supabase.from("clients").select("id, name").order("name");
+      const { data } = await supabase.from("clients").select("id, name").neq("status", "archived").order("name");
       return data || [];
     },
   });
