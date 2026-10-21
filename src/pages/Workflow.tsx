@@ -84,7 +84,7 @@ export default function Workflow() {
   const { data: allClients = [] } = useQuery({
     queryKey: ["all-clients"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("clients").select("id, name").order("name");
+      const { data, error } = await supabase.from("clients").select("id, name").neq("status", "archived").order("name");
       if (error) throw error;
       return data || [];
     },

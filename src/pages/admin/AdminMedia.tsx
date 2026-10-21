@@ -81,7 +81,7 @@ export default function AdminMedia() {
   const { data: clients = [] } = useQuery({
     queryKey: ["media-clients"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("clients").select("id, name").order("name");
+      const { data, error } = await supabase.from("clients").select("id, name").neq("status", "archived").order("name");
       if (error) throw error;
       return data || [];
     },
