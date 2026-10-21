@@ -1356,12 +1356,16 @@ export default function PostDetail() {
                   <span>Posted {new Date((post as any).posted_at).toLocaleDateString()}</span>
                 </div>
               )}
-              {(post as any).due_at && (
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span>Due: {new Date((post as any).due_at).toLocaleDateString()}</span>
-                </div>
-              )}
+              {post.created_at && (() => {
+                const days = Math.max(0, Math.floor((Date.now() - new Date(post.created_at).getTime()) / 86400000));
+                return (
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <span>Created {new Date(post.created_at).toLocaleDateString()}</span>
+                    <span className="text-xs text-muted-foreground">{days === 0 ? "today" : days === 1 ? "1 day ago" : `${days} days ago`}</span>
+                  </div>
+                );
+              })()}
               <div>
                 <Label className="text-muted-foreground text-xs">Status</Label>
                 <Badge variant="secondary" className="mt-1">{post.status_column.replace(/_/g, " ")}</Badge>
