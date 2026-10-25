@@ -30,6 +30,7 @@
  *   POST /read-playbook            — fetch all brand_twin data for a client
  *   POST /update-playbook          — upsert brand_twin JSON fields for a client (partial update)
  *   POST /upload-image             — upload a base64-encoded image to a post (stores in creative-assets, creates post_images record)
+ *   POST /delete-image             — delete ONE image from a post by image_id (or post_id + storage_path/filename); removes the storage object and the post_images row
  *   POST /delete-post              — delete a post (with optional status guard)
  */
 
@@ -1056,6 +1057,48 @@ Deno.serve(async (req: Request) => {
       if (insertError) return err(`post_images insert failed: ${insertError.message}`, 500);
 
       return json({ success: true, image: imgRecord, url: publicUrl });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    case "delete-image": {
+      // Remove ONE image from a post: the post_images row and its storage object.
+      // Identify it by image_id (preferred) or by post_id + storage_path / filename.
+      const { image_id, post_id, storage_path, filename } = body as {
+        image_id?: string;
+        post_id?: string;
+        storage_path?: string;
+        filename?: string;
+      };
+
+      if (!image_id && !(post_id && (storage_path || filename))) {
+        return err("image_id is required (or post_id plus storage_path or filename)");
+      }
+
+      let query = db.from("post_images").select("id, post_id, storage_path, position");
+      if (image_id) {
+        query = query.eq("id", image_id);
+      } else {
+        query = query.eq("post_id", post_id!);
+        if (storage_path) query = query.eq("storage_path", storage_path);
+        else query = query.like("storage_path", `%/${filename}`);
+      }
+      const { data: rows, error: findErr } = await query;
+      if (findErr) return err(findErr.message, 500);
+      if (!rows || rows.length === 0) return err("Image not found", 404);
+      if (rows.length > 1) return err(`Ambiguous: ${rows.length} images match; pass image_id`, 400);
+
+      const img = rows[0];
+      if (post_id && img.post_id !== post_id) return err("image_id does not belong to post_id", 400);
+
+      // Storage object first (ignore a missing object), then the row.
+      if (img.storage_path) {
+        const { error: rmErr } = await db.storage.from("creative-assets").remove([img.storage_path]);
+        if (rmErr && !/not found/i.test(rmErr.message)) return err(`Storage remove failed: ${rmErr.message}`, 500);
+      }
+      const { error: delErr } = await db.from("post_images").delete().eq("id", img.id);
+      if (delErr) return err(`post_images delete failed: ${delErr.message}`, 500);
+
+      return json({ success: true, deleted: img });
     }
 
     // ────────────────────────────────────────────────────────────────────────
