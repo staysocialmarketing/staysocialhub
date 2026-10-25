@@ -1090,6 +1090,11 @@ Deno.serve(async (req: Request) => {
       const img = rows[0];
       if (post_id && img.post_id !== post_id) return err("image_id does not belong to post_id", 400);
 
+      // Guard: never strip a post bare by accident. Deleting the last image needs allow_last: true.
+      const { count } = await db.from("post_images").select("id", { count: "exact", head: true }).eq("post_id", img.post_id);
+      const allowLast = (body as { allow_last?: boolean }).allow_last === true;
+      if ((count ?? 0) <= 1 && !allowLast) return err("This is the only image on the post; pass allow_last: true to remove it", 400);
+
       // Storage object first (ignore a missing object), then the row.
       if (img.storage_path) {
         const { error: rmErr } = await db.storage.from("creative-assets").remove([img.storage_path]);
