@@ -719,6 +719,115 @@ export type Database = {
           },
         ]
       }
+      client_sheet_log: {
+        Row: {
+          at: string
+          created_at: string
+          created_by: string | null
+          id: string
+          sheet_id: string
+          text: string
+        }
+        Insert: {
+          at?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          sheet_id: string
+          text: string
+        }
+        Update: {
+          at?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          sheet_id?: string
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_sheet_log_sheet_id_fkey"
+            columns: ["sheet_id"]
+            isOneToOne: false
+            referencedRelation: "client_sheets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_sheets: {
+        Row: {
+          client_id: string | null
+          confirmed: boolean
+          ghl_url: string | null
+          has: Json
+          id: string
+          kind: string | null
+          know: Json
+          loops: Json
+          name: string
+          next_due: string | null
+          next_move: string | null
+          next_offer: string | null
+          next_owner: string | null
+          offer_open: string | null
+          offer_what: string | null
+          offer_why: string | null
+          stage: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          confirmed?: boolean
+          ghl_url?: string | null
+          has?: Json
+          id?: string
+          kind?: string | null
+          know?: Json
+          loops?: Json
+          name: string
+          next_due?: string | null
+          next_move?: string | null
+          next_offer?: string | null
+          next_owner?: string | null
+          offer_open?: string | null
+          offer_what?: string | null
+          offer_why?: string | null
+          stage?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          confirmed?: boolean
+          ghl_url?: string | null
+          has?: Json
+          id?: string
+          kind?: string | null
+          know?: Json
+          loops?: Json
+          name?: string
+          next_due?: string | null
+          next_move?: string | null
+          next_offer?: string | null
+          next_owner?: string | null
+          offer_open?: string | null
+          offer_what?: string | null
+          offer_why?: string | null
+          stage?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_sheets_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_strategy: {
         Row: {
           campaigns_json: Json
