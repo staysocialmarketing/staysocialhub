@@ -19,11 +19,14 @@ async function load() {
   const [sheets, logs, clients, posts, people] = await Promise.all([
     supabase.from("client_sheets").select("*"),
     supabase.from("client_sheet_log").select("id, sheet_id, at, text").order("at", { ascending: false }).order("created_at", { ascending: false }).limit(1500),
-    supabase.from("clients").select("id, name, status, niche, plan_id").neq("status", "archived"),
+    supabase.from("clients").select("id, name, status, niche, plan_id"),
     supabase.from("posts").select("client_id, status_column, scheduled_at").in("status_column", ["scheduled", "client_approval"]),
     supabase.from("users").select("id, client_id").not("client_id", "is", null),
   ]);
   for (const r of [sheets, logs, clients, posts, people]) if (r.error) throw r.error;
+  // Archived clients drop off the page; their sheet is kept and comes back if they do.
+  const active = (clients.data ?? []).filter((c) => c.status !== "archived");
+  const archived = new Set((clients.data ?? []).filter((c) => c.status === "archived").map((c) => c.id));
 
   // The last time each client wrote a comment or answered an approval in the HUB.
   const clientOf = new Map((people.data ?? []).map((u) => [u.id, u.client_id as string]));
@@ -47,7 +50,7 @@ async function load() {
     const c = row.user_id ? clientOf.get(row.user_id) : undefined;
     if (c && (!at(c).lastHeard || row.created_at > (at(c).lastHeard as string))) at(c).lastHeard = row.created_at;
   }
-  for (const c of clients.data ?? []) at(c.id);
+  for (const c of active) at(c.id);
 
   // What Admin > Clients already records as each client's plan: the primary plan and any other services.
   // client_services is newer than the generated types, hence the cast (same as Plan.tsx and AdminClients.tsx).
@@ -62,16 +65,16 @@ async function load() {
     const rung = planId ? rungOf(planName.get(planId) ?? "") : null;
     if (rung) (planned[clientId] ??= {})[rung[0]] = rung[1];
   };
-  for (const c of clients.data ?? []) record(c.id, c.plan_id);
+  for (const c of active) record(c.id, c.plan_id);
   for (const r of services.data ?? []) record(r.client_id, r.plan_id);
 
-  const saved = (sheets.data ?? []).map((r) => toSheet(r as Record<string, unknown>));
+  const saved = (sheets.data ?? []).map((r) => toSheet(r as Record<string, unknown>)).filter((s) => !s.client_id || !archived.has(s.client_id));
   const have = new Set(saved.map((s) => s.client_id).filter(Boolean));
-  const live = new Map((clients.data ?? []).map((c) => [c.id, c.name]));
+  const live = new Map(active.map((c) => [c.id, c.name]));
   const all = [
     // A saved sheet follows the client's current name in the HUB.
     ...saved.map((s) => (s.client_id && live.has(s.client_id) ? { ...s, name: live.get(s.client_id) as string } : s)),
-    ...(clients.data ?? []).filter((c) => !have.has(c.id)).map(blankSheet),
+    ...active.filter((c) => !have.has(c.id)).map(blankSheet),
   ].map((s) => (s.client_id && planned[s.client_id] ? withPlan(s, planned[s.client_id]) : s));
   const byId: Record<string, LogLine[]> = {};
   for (const l of (logs.data ?? []) as LogLine[]) (byId[l.sheet_id] ??= []).push(l);
